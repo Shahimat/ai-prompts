@@ -1,4 +1,6 @@
 ---
+key: external-project-context
+kind: prompt
 title: Конфигурационная задача внешнего проектного контекста
 tags: [external-context, configuration-task, yaml, project-memory, workflow, tracker, repositories, agent-config]
 use_case: Первичная настройка и дальнейшее поддержание отдельного репозитория внешнего проектного контекста для существующего проекта со своими репозиториями, треккером, досками, документацией, формами, средами и организационными договорённостями.

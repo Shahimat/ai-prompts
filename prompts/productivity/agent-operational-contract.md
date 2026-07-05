@@ -1,4 +1,6 @@
 ---
+key: agent-operational-contract
+kind: contract
 title: Операционный контракт агента
 tags: [docs-as-code, tickets, rfc, project-management, workflow, agent-contract]
 use_case: Внедрение структурированной docs-as-code системы трекинга проекта (tickets, RFC, views, todo) с явными правилами для AI-агента. Скармливается агенту перед началом работы в проекте, где нужно вести машиночитаемую документацию, согласованную с git-историей.

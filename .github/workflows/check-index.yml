@@ -1,0 +1,16 @@
+name: check-index
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check-index:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify prompts/index.yml is up to date
+        run: ./scripts/check-index.sh
