@@ -136,3 +136,6 @@ tags: [<теги>]
 
 - [`knowledge-external-gui`](knowledge-external-gui.md) — работа с GUI
   внешних систем без API. Применим к `agent-operational-contract-v2`.
+- [`code-rules-fullstack-js-ts`](code-rules-fullstack-js-ts.md) —
+  правила стиля кода на fullstack js/ts, пакетом в подпапке
+  `context/conventions/code/`. Применим к `agent-operational-contract-v2`.
