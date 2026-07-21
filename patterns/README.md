@@ -92,3 +92,8 @@ frontmatter `patterns:`) или в рамках синхронизации то�
 - [`source-sync`](source-sync.md) — механизм синхронизации промпта с его
   источником через индекс `prompts/index.yml` + SHA-256 checkpoint,
   единый fetch-канал `curl`.
+- [`goals`](goals.md) — система целей и программ как internal-очередь
+  работы проекта (`context/views/goals.yaml` + `goal--<key>.yaml` +
+  `program--<key>.yaml`): приоритет = порядок, статусы без `done`,
+  жизненный цикл через `CHANGELOG.md` + удаление, кросс-целевая проверка
+  `goal-consistency`.
