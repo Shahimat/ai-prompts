@@ -1,0 +1,3 @@
+# LF везде: SHA-256 в prompts/index.yml считается от байтов файла,
+# CRLF на Windows (core.autocrlf) дал бы другой хэш.
+* text=auto eol=lf

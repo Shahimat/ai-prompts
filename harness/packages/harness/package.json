@@ -1,0 +1,35 @@
+{
+  "name": "@shahimat/harness",
+  "version": "0.1.0",
+  "description": "Harness для проектов на контрактах ai-prompts: генераторы и проверки",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "bin": {
+    "harness": "dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json && node -e \"require('node:fs').chmodSync('dist/cli.js', 0o755)\"",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "yaml": "^2.9.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.4"
+  }
+}
