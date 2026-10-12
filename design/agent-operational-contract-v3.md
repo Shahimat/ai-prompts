@@ -72,8 +72,15 @@ context/
 .agents/skills/
   contract-setup/SKILL.md         ← чеклист возможностей, add/remove
   source-sync/SKILL.md            ← «сверь всё»
+  workflow/SKILL.md               ← протоколы plan/execute/audit/challenge/report
 .gitattributes                    ← eol=lf, CHANGELOG.md merge=union
 ```
+
+Плюс запрет memory в настройках каждого инструмента из `adapters`
+(раздел 5).
+
+`source-sync` остаётся skill'ом и работает без harness; при подключённом
+harness skill вызывает `harness sync` как ускоритель.
 
 Правила самого контракта в `context/conventions/` не копируются (в v2
 `verification.yml` был полной копией раздела контракта). В
@@ -91,7 +98,8 @@ context/
 2. **Маршрутизация по типу вопроса** — кратчайший путь (см. 3.3).
 3. **Жёсткие правила** — не больше 7 пунктов (см. 3.4).
 4. Сценарии `plan` / `execute` / `audit` / `challenge` / `report` — по
-   одной строке с ключевыми словами; протоколы — в skills.
+   одной строке с ключевыми словами; протоколы — в одном skill
+   `workflow`.
 5. Список доступных skills с одностроковым «когда звать».
 6. Блоки модулей между маркерами:
    `<!-- module:<key> -->` … `<!-- /module:<key> -->`. Модуль пишет
@@ -118,8 +126,10 @@ context/
 ### 3.4. Жёсткие правила ядра
 
 1. Перед правкой — прочитать документы по маршруту задачи (3.3).
-2. Устойчивые факты — в репозиторий, не в memory / скрытое состояние
-   инструмента. «Запомни» = запись в проектную документацию.
+2. Memory агента запрещена полностью — документация открытого типа,
+   никаких скрытых знаний. Устойчивые факты — только в репозиторий;
+   «запомни» = запись в проектную документацию. Запрет обеспечивается
+   и правилом, и настройками инструментов (раздел 5).
 3. Одна фаза — один тип изменений (karma commit-msg); точка
    согласования в конце фазы.
 4. Блокирующий вопрос — по формату (нумерованные варианты, дефолт с
@@ -200,7 +210,7 @@ feature:
     - key: <kebab-case>
       question: <текст>
       multi: true
-      options: [...]       # или options_from (см. открытые вопросы)
+      options: [...]       # всегда перечисляются в самом модуле
 ```
 
 Всё, что модуль кладёт в проект, перечислено в `provides` (как в v2),
@@ -238,8 +248,6 @@ provides:
   какие проверки включить (см. 4.3).
 - **worktrees** (нет) — правила параллельной работы, `.worktreeinclude`,
   `harness wt new`. Требует harness.
-- **memory-guard** (нет) — hook, блокирующий запись в memory агента.
-  Требует harness.
 - **code-rules-fullstack-js-ts** (нет) — существующий модуль; расширить
   `applicable_to` и добавить `feature`.
 - **knowledge-external-gui** (нет) — то же.
@@ -288,11 +296,20 @@ provides:
   - `CLAUDE.md` — `@AGENTS.md`;
   - `.claude/skills/<name>/` — копии `.agents/skills/<name>/`;
   - `.claude/agents/docs-keeper.md` — субагент с `skills: [docs-keeper]`;
-  - `.claude/settings.json` — hook memory-guard (если подключён).
+  - `.claude/settings.json` — memory выключена (см. ниже).
 - **Codex:**
   - `AGENTS.md` и `.agents/skills/` читаются напрямую;
   - `.codex/agents/docs-keeper.toml` — субагент;
-  - `.codex/hooks.json` — hook memory-guard (если подключён).
+  - `.codex/config.toml` / `.codex/hooks.json` — memory выключена.
+
+Запрет memory — часть ядра, не возможность. Порядок средств:
+
+1. Выключить memory настройкой инструмента в проектном конфиге, если
+   инструмент это позволяет (имя настройки у каждого инструмента —
+   проверить при реализации адаптера).
+2. Если выключить нельзя — hook `PreToolUse`, блокирующий запись
+   (`harness hook memory-guard`, при harness).
+3. Без harness и без настройки — остаётся правило 3.4.2.
 
 Без harness адаптеры создаёт агент при настройке, по тем же правилам, и
 отвечает за их актуальность сам.
@@ -362,14 +379,16 @@ rules: tools/harness/rules       # дополнения проекта (7.3)
   (по `paths` в entity и namespace);
 - `harness goals check`;
 - `harness verify [<behavior-id>...]`;
-- `harness hook memory-guard` — единый обработчик для Claude Code и
+- `harness hook memory-guard` — страховка запрета memory там, где её
+  нельзя выключить настройкой; единый обработчик для Claude Code и
   Codex;
 - `harness wt new <name>`.
 
 Третья очередь:
 
 - лаунчер с выбором версии;
-- `defineCheck` и загрузка `tools/harness/rules`.
+- `defineCheck` и загрузка `tools/harness/rules`;
+- `harness sync` — ускоритель skill `source-sync`.
 
 ### 7.5. Изменения в индексе ai-prompts
 
@@ -391,22 +410,24 @@ rules: tools/harness/rules       # дополнения проекта (7.3)
 4. `CHANGELOG.md`: строки > 120 символов и без тега — пересобрать или
    удалить (кандидаты показать списком до правки).
 5. Ручной `context/index.yml` → генерируемый.
-6. Bash-hook `block-memory-write-for-*.sh` → memory-guard.
+6. Bash-hook `block-memory-write-for-*.sh` → запрет memory по разделу 5;
+   существующие записи memory по проекту — перенести в слои и удалить.
 7. `sync.contract.key` → `agent-operational-contract-v3`.
 
-## 9. Открытые вопросы
+## 9. Принятые решения по открытым вопросам
 
-- `options_from` в `asks`: вопрос, варианты которого берутся из
-  индекса (например, список проверок harness). Нужен ли, или варианты
-  всегда перечисляются в модуле.
-- Каким инструментом агент пишет в memory (предположение — Write/Edit
-  по пути `~/.claude/projects/*/memory/`). Проверить до реализации
-  memory-guard.
-- Поддержка multi-select в `request_user_input` у Codex.
-- Связанные контракты (`personal-project`, `analytical-project`,
-  `external-project-context-v2`) — свести к пресетам возможностей
-  поверх ядра v3 или оставить отдельными.
-- Сценарии `plan` / `execute` / `audit` / `challenge` / `report`: один
-  skill `workflow` или по skill на сценарий.
-- Где жить `contract-setup` и `source-sync` в проекте после настройки:
-  нужен ли `source-sync` как skill, если harness умеет `harness sync`.
+- `asks`: варианты всегда перечисляются в самом модуле, `options_from`
+  не вводим.
+- Memory агента запрещена полностью (3.4.2, раздел 5); отдельной
+  возможности memory-guard нет.
+- Codex без multi-select: закрыто запасным вариантом в 4.4 (нумерованный
+  список).
+- Сценарии — один skill `workflow`.
+- `source-sync` — skill, работает без harness; `harness sync` —
+  ускоритель.
+
+## 10. Отложенные задачи
+
+- Свести `personal-project`, `analytical-project`,
+  `external-project-context-v2` к пресетам возможностей поверх ядра v3 —
+  вернуться после выхода v3; до этого контракты остаются отдельными.
