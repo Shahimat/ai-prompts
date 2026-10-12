@@ -12,7 +12,7 @@
     "build": "npm run build --workspaces",
     "typecheck": "npm run typecheck --workspaces",
     "test": "npm test --workspaces",
-    "index:build": "node harness/packages/harness/dist/cli.js index build --root . --raw-base https://raw.githubusercontent.com/Shahimat/ai-prompts/main",
-    "index:check": "node harness/packages/harness/dist/cli.js index check --root . --raw-base https://raw.githubusercontent.com/Shahimat/ai-prompts/main"
+    "index:build": "node harness/packages/harness/dist/bin.js index build --root . --raw-base https://raw.githubusercontent.com/Shahimat/ai-prompts/main",
+    "index:check": "node harness/packages/harness/dist/bin.js index check --root . --raw-base https://raw.githubusercontent.com/Shahimat/ai-prompts/main"
   }
 }
