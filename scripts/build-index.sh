@@ -53,7 +53,9 @@ collect() {
             continue
         fi
 
-        printf '%s\t%s\t%s\t%s\t%s\t%s\n' \
+        # Разделитель \037 (unit separator), а не таб: таб — IFS-whitespace,
+        # подряд идущие табы схлопываются и пустые поля съезжают.
+        printf '%s\037%s\037%s\037%s\037%s\037%s\n' \
             "$kind" "$key" "$rel_path" "$sha256" "$applicable_to" "$patterns"
     done
 }
@@ -67,7 +69,7 @@ emit_group() {
     local group_kind="$1"
     local group_label="$2"
     local any=0
-    while IFS=$'\t' read -r kind key path sha256 applicable_to patterns; do
+    while IFS=$'\037' read -r kind key path sha256 applicable_to patterns; do
         if [[ "$kind" != "$group_kind" ]]; then continue; fi
         if [[ $any -eq 0 ]]; then
             echo ""
