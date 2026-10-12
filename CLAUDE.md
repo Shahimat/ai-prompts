@@ -72,6 +72,21 @@ patterns: [source-sync, ...]
 `patterns/<key>.md`. Если паттерн обновился, а inline-копия отстала —
 подними это в отчёте и предложи план миграции.
 
+## Worktrees
+
+Параллельная работа над разными промптами ведётся в отдельных git
+worktree — одна задача, одна ветка, один worktree.
+
+- Worktrees живут в `.claude/worktrees/<name>` (создаются через
+  `claude --worktree <name>` или `EnterWorktree`). Каталог уже
+  игнорируется через `.claude/` в `.gitignore`.
+- `.worktreeinclude` в корне перечисляет игнорируемые файлы, которые
+  копируются в каждый новый worktree (локальные настройки агента).
+- `scripts/build-index.sh` запускай внутри своего worktree: у каждой
+  ветки свой `prompts/index.yml`. При конфликте в `index.yml` после
+  merge — не правь руками, а пересобери скриптом.
+- После merge ветки worktree удаляется (`git worktree remove`).
+
 ## Язык
 
 Вся содержательная часть — на русском. Английский допустим в
