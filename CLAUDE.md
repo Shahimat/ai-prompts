@@ -53,9 +53,12 @@ patterns: [source-sync, ...]
 только разошедшиеся.
 
 **После правки любого промпта, паттерна или модуля — обязательно
-запусти `scripts/build-index.sh`** и включи обновлённый `index.yml` в
-тот же коммит. CI проверяет консистентность через `scripts/check-index.sh`
+запусти `npm run index:build`** и включи обновлённый `index.yml` в
+тот же коммит. CI проверяет консистентность через `npm run index:check`
 и валит билд при рассинхроне.
+
+Индекс собирает harness (`harness/packages/harness`, TS). Нужен
+Node ≥ 24; перед первым запуском — `npm ci && npm run build`.
 
 ## При добавлении или правке промпта
 
@@ -82,9 +85,12 @@ worktree — одна задача, одна ветка, один worktree.
   игнорируется через `.claude/` в `.gitignore`.
 - `.worktreeinclude` в корне перечисляет игнорируемые файлы, которые
   копируются в каждый новый worktree (локальные настройки агента).
-- `scripts/build-index.sh` запускай внутри своего worktree: у каждой
+- В новом worktree сначала `npm ci && npm run build`: `node_modules/`
+  и `dist/` у каждого worktree свои, через `.worktreeinclude` их не
+  копируем.
+- `npm run index:build` запускай внутри своего worktree: у каждой
   ветки свой `prompts/index.yml`. При конфликте в `index.yml` после
-  merge — не правь руками, а пересобери скриптом.
+  merge — не правь руками, а пересобери той же командой.
 - После merge ветки worktree удаляется (`git worktree remove`).
 
 ## Фазы и коммиты

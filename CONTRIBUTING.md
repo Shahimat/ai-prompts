@@ -108,18 +108,21 @@ tags: [...]
 **После правки любого промпта, паттерна или модуля обязательно запусти:**
 
 ```bash
-./scripts/build-index.sh
+npm run index:build
 ```
 
-Скрипт пересобирает `prompts/index.yml`. Обновлённый индекс включай в
-тот же коммит, что и правку. CI (`scripts/check-index.sh`) сверяет
+Команда пересобирает `prompts/index.yml`. Обновлённый индекс включай в
+тот же коммит, что и правку. CI (`npm run index:check`) сверяет
 консистентность и валит билд при рассинхроне.
+
+Индекс собирает harness (`harness/packages/harness`, TS). Нужен
+Node ≥ 24; перед первым запуском — `npm ci && npm run build`.
 
 ## Pull request
 
 1. Форкни репо.
 2. Добавь файл в нужную категорию (`prompts/<category>/` для обычных
    промптов, `prompts/modules/` для модулей).
-3. Запусти `./scripts/build-index.sh`, добавь `prompts/index.yml` в
+3. Запусти `npm run index:build`, добавь `prompts/index.yml` в
    коммит.
 4. Открой PR с коротким описанием: что за промпт/модуль и зачем.

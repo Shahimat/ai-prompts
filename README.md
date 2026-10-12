@@ -31,9 +31,13 @@ prompts/
 └── index.yml       — сгенерированный индекс всех промптов (key, path,
                      raw, SHA-256). Используется проектами-потребителями
                      для быстрой синхронизации через паттерн source-sync.
+                     Собирается командой `npm run index:build`.
 
 patterns/           — переиспользуемые блоки правил, инлайнящиеся в тело
                      промптов (source-sync и т.п.).
+
+harness/            — TS-скрипты репозитория (npm workspaces, Node ≥ 24);
+                     сейчас — сборка и проверка index.yml.
 ```
 
 Подробнее — `patterns/README.md`, `prompts/modules/README.md`,
