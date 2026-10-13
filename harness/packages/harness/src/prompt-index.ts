@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
+import { stringify } from 'yaml';
 import { normalizeEol, parseFrontmatter } from './frontmatter.ts';
 
 export const INDEX_PATH = 'prompts/index.yml';
@@ -22,7 +23,20 @@ export interface IndexEntry {
   sha256: string;
   applicableTo: string[];
   patterns: string[];
+  title?: string;
+  /** Блок `feature` модуля-возможности — то, что нужно для чеклиста. */
+  feature?: FeatureInfo;
 }
+
+export interface FeatureInfo {
+  summary: string;
+  default: boolean;
+  requires: string[];
+  conflicts: string[];
+}
+
+/** Поля `feature` во frontmatter; `asks` читается из самого модуля, в индекс не идёт. */
+const FEATURE_KEYS = ['summary', 'default', 'requires', 'conflicts', 'asks'];
 
 export interface CollectResult {
   entries: IndexEntry[];
@@ -41,6 +55,46 @@ function stringList(value: unknown, field: string, file: string): string[] {
     throw new Error(`${file}: поле ${field} должно быть списком строк`);
   }
   return value;
+}
+
+function oneLine(value: unknown, field: string, file: string): string | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value !== 'string' || value.trim() === '' || value.trim().includes('\n')) {
+    throw new Error(`${file}: поле ${field} должно быть непустой строкой в одну строку`);
+  }
+  return value.trim();
+}
+
+function parseFeature(value: unknown, kind: string, file: string): FeatureInfo | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (kind !== 'module') throw new Error(`${file}: feature допустим только у kind: module`);
+  if (typeof value !== 'object' || Array.isArray(value)) throw new Error(`${file}: feature должно быть объектом`);
+  const feature = value as Record<string, unknown>;
+  const extra = Object.keys(feature).filter((k) => !FEATURE_KEYS.includes(k));
+  if (extra.length > 0) throw new Error(`${file}: неизвестные поля feature: ${extra.join(', ')}`);
+  const summary = oneLine(feature['summary'], 'feature.summary', file);
+  if (summary === undefined) throw new Error(`${file}: нет feature.summary`);
+  if (typeof feature['default'] !== 'boolean') throw new Error(`${file}: feature.default должно быть true или false`);
+  return {
+    summary,
+    default: feature['default'],
+    requires: stringList(feature['requires'], 'feature.requires', file),
+    conflicts: stringList(feature['conflicts'], 'feature.conflicts', file),
+  };
+}
+
+/** requires / conflicts ссылаются только на модули из индекса и не на себя. */
+function checkFeatureRefs(entries: IndexEntry[]): void {
+  const modules = new Set(entries.filter((e) => e.kind === 'module').map((e) => e.key));
+  for (const e of entries) {
+    if (e.feature === undefined) continue;
+    for (const field of ['requires', 'conflicts'] as const) {
+      for (const ref of e.feature[field]) {
+        if (ref === e.key) throw new Error(`${e.path}: feature.${field} ссылается на сам модуль`);
+        if (!modules.has(ref)) throw new Error(`${e.path}: feature.${field}: модуля «${ref}» нет в индексе`);
+      }
+    }
+  }
 }
 
 function compareBytes(a: string, b: string): number {
@@ -81,15 +135,21 @@ export async function collectEntries(root: string): Promise<CollectResult> {
       skipped.push(file);
       continue;
     }
-    entries.push({
+    const entry: IndexEntry = {
       kind,
       key,
       path: file,
       sha256: sha256(content),
       applicableTo: stringList(fm?.['applicable_to'], 'applicable_to', file),
       patterns: stringList(fm?.['patterns'], 'patterns', file),
-    });
+    };
+    const title = oneLine(fm?.['title'], 'title', file);
+    if (title !== undefined) entry.title = title;
+    const feature = parseFeature(fm?.['feature'], kind, file);
+    if (feature !== undefined) entry.feature = feature;
+    entries.push(entry);
   }
+  checkFeatureRefs(entries);
   return { entries, skipped };
 }
 
@@ -100,6 +160,8 @@ export interface RenderOptions {
 }
 
 const flowList = (items: string[]): string => `[${items.join(', ')}]`;
+/** Скаляр через YAML-сериализатор: кавычки появятся, только если без них YAML сломается. */
+const scalar = (value: string | boolean): string => stringify(value, { lineWidth: 0 }).trimEnd();
 
 export function renderIndex(entries: IndexEntry[], options: RenderOptions): string {
   const timestamp = options.generatedAt.toISOString().replace(/\.\d{3}Z$/, 'Z');
@@ -115,6 +177,7 @@ export function renderIndex(entries: IndexEntry[], options: RenderOptions): stri
     for (const e of items) {
       lines.push(
         `  - key: ${e.key}`,
+        ...(e.title === undefined ? [] : [`    title: ${scalar(e.title)}`]),
         `    path: ${e.path}`,
         `    raw: ${options.rawBase}/${e.path}`,
         `    sha256: ${e.sha256}`,
@@ -122,6 +185,15 @@ export function renderIndex(entries: IndexEntry[], options: RenderOptions): stri
       if (e.patterns.length > 0) lines.push(`    patterns: ${flowList(e.patterns)}`);
       if (e.kind === 'module' && e.applicableTo.length > 0) {
         lines.push(`    applicable_to: ${flowList(e.applicableTo)}`);
+      }
+      if (e.feature !== undefined) {
+        lines.push(
+          '    feature:',
+          `      summary: ${scalar(e.feature.summary)}`,
+          `      default: ${scalar(e.feature.default)}`,
+          `      requires: ${flowList(e.feature.requires)}`,
+          `      conflicts: ${flowList(e.feature.conflicts)}`,
+        );
       }
     }
   }

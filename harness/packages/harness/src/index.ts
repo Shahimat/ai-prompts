@@ -7,6 +7,7 @@ export {
   sha256,
   stripTimestamp,
   type CollectResult,
+  type FeatureInfo,
   type IndexDiff,
   type IndexEntry,
   type RenderOptions,
