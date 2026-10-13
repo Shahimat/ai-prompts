@@ -28,7 +28,7 @@ export interface HarnessConfig {
 }
 
 const TOP_LEVEL_KEYS = ['version', 'adapters', 'checks', 'worktrees', 'rules'];
-const KNOWN_CHECKS = ['changelog', 'context-index', 'adapters'];
+export const KNOWN_CHECKS = ['changelog', 'context-index', 'adapters'] as const;
 
 function fail(message: string): never {
   throw new UsageError(`${CONFIG_PATH}: ${message}`);
@@ -38,7 +38,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function unknownKeys(obj: Record<string, unknown>, known: string[], where: string): void {
+function unknownKeys(obj: Record<string, unknown>, known: readonly string[], where: string): void {
   const extra = Object.keys(obj).filter((k) => !known.includes(k));
   if (extra.length > 0) fail(`неизвестные ключи в ${where}: ${extra.join(', ')}`);
 }

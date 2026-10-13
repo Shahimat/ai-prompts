@@ -16,12 +16,21 @@ import {
 
 budget({ crit: 0, warn: 0 });
 
+describe('состав skills', () => {
+  crit('skills ядра: contract-setup, workflow, docs-keeper, source-sync', () => Check.coreSkills());
+  crit('skills модулей, по имени модуля: domain, manuals, goals, harness, worktrees, ticket-commits, app-loop, data-access', () =>
+    Check.moduleSkills(['domain', 'manuals', 'goals', 'harness', 'worktrees', 'ticket-commits', 'app-loop', 'data-access']));
+  crit('skills модулей, по имени модуля: privacy, life, safety-boundaries, analysis, book-corpus, external-context, knowledge-external-gui', () =>
+    Check.moduleSkills(['privacy', 'life', 'safety-boundaries', 'analysis', 'book-corpus', 'external-context', 'knowledge-external-gui']));
+  crit('других skills нет — всего 19', () => Check.skillCount());
+  crit('субагенты: только docs-keeper', () => Check.onlyDocsKeeper());
+});
+
 describe('skills — общее', () => {
   crit('frontmatter каждого SKILL.md соответствует схеме skill-frontmatter: только name и description', () => Check.skillSchema());
   crit('name skill совпадает с именем его каталога', () => Check.nameMatchesDir());
   crit('description каждого skill говорит, когда его загружать', () => Check.whenToLoad());
   crit('SKILL.md — не больше 300 строк', () => Check.skillLength());
-  crit('skills ядра — contract-setup, workflow, docs-keeper, source-sync — есть в индексе', () => Check.coreSkills());
   crit('каждый skill из provides.skills модулей есть в skills/', () => Check.providedSkillsExist());
   crit('нет skills, которые не ставит ни ядро, ни один модуль', () => Check.noOrphanSkills());
 });
@@ -80,6 +89,24 @@ class Check {
   static async coreSkills(): Promise<void> {
     const names = (await skills()).map((s) => s.name);
     expect(CORE_SKILLS.filter((n) => !names.includes(n))).toEqual([]);
+  }
+
+  static async moduleSkills(names: string[]): Promise<void> {
+    const skillNames = (await skills()).map((s) => s.name);
+    const mods = await modules();
+    for (const name of names) {
+      const owner = mods.find((m) => m.key === name);
+      const provides = owner?.providesAll.some((p) => ((p['skills'] ?? []) as string[]).includes(name)) ?? false;
+      expect({ name, skill: skillNames.includes(name), provides }).toEqual({ name, skill: true, provides: true });
+    }
+  }
+
+  static async skillCount(): Promise<void> {
+    expect((await skills()).length).toBe(19);
+  }
+
+  static async onlyDocsKeeper(): Promise<void> {
+    expect((await indexEntries()).filter((e) => e.kind === 'agent').map((e) => e.key)).toEqual(['docs-keeper']);
   }
 
   static async providedSkillsExist(): Promise<void> {

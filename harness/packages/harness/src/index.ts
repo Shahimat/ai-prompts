@@ -16,6 +16,7 @@ export { checkChangelog, lintChangelog, CHANGELOG_PATH } from './checks/changelo
 export {
   CONFIG_PATH,
   DEFAULT_CHANGELOG,
+  KNOWN_CHECKS,
   loadConfig,
   parseConfig,
   type ChangelogOptions,

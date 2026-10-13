@@ -3,7 +3,7 @@ import { mkdtemp, readdir, rm, writeFile, mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect } from 'vitest';
-import { computeSync, DEFAULT_CHANGELOG, parseConfig, runOutdated, UsageError } from '@shahimat/harness';
+import { computeSync, DEFAULT_CHANGELOG, KNOWN_ADAPTERS, KNOWN_CHECKS, parseConfig, runOutdated, UsageError } from '@shahimat/harness';
 import {
   applyAnswers,
   budget,
@@ -18,6 +18,22 @@ import {
 } from '@shahimat/harness/expect';
 
 budget({ crit: 0, warn: 0 });
+
+describe('состав harness', () => {
+  crit('пакеты: @shahimat/harness — CLI и механизм ожиданий, @shahimat/expectations — наборы ожиданий; других нет', () => Check.packages());
+  crit('команда harness check — все проверки из context/harness.yml разом', () => Check.commands(['check']));
+  crit('команда harness changelog lint — формат CHANGELOG.md', () => Check.commands(['changelog lint']));
+  crit('команда harness context index — генерация context/index.yml из слоёв документации', () => Check.commands(['context index']));
+  crit('команда harness adapters sync — файлы под Claude Code и Codex из AGENTS.md и .agents/', () => Check.commands(['adapters sync']));
+  crit('команды harness expect init | report | lint | judge — ожидания проекта', () =>
+    Check.commands(['expect init', 'expect report', 'expect lint', 'expect judge']));
+  crit('команда harness outdated — версия проекта против npm и журнал изменений между ними', () => Check.commands(['outdated']));
+  crit('команды harness index build | check — индекс prompts/index.yml источника промптов', () =>
+    Check.commands(['index build', 'index check']));
+  crit('других команд у harness нет', () => Check.noOtherCommands());
+  crit('проверки harness check: changelog, context-index, adapters — других нет', () => Check.checks());
+  crit('адаптеры под инструменты: claude-code и codex — других нет', () => Check.adapters());
+});
 
 describe('harness — основа', () => {
   crit('в репозитории нет bash-скриптов: вся автоматизация на TS и Node ≥ 24', () => Check.noBash());
@@ -63,7 +79,53 @@ async function tempDir(): Promise<string> {
   return mkdtemp(path.join(tmpdir(), 'harness-expect-'));
 }
 
+/** Команды из справки CLI: `check`, `adapters sync`, `expect init`, … */
+async function usageCommands(): Promise<string[]> {
+  const usage = (await readRepo(`${PKG}/src/cli.ts`)).split('`')[1] ?? '';
+  return [...usage.matchAll(/^\s+harness ([a-z]+)(?: ([a-z|]+(?: \| [a-z]+)*))?/gm)].flatMap((m) =>
+    m[2] ? (m[2] ?? '').split(/\s*\|\s*/).filter(Boolean).map((c) => `${m[1]} ${c}`) : [m[1] ?? ''],
+  );
+}
+
+const DECLARED_COMMANDS = [
+  'check',
+  'changelog lint',
+  'context index',
+  'adapters sync',
+  'expect init',
+  'expect report',
+  'expect lint',
+  'expect judge',
+  'outdated',
+  'index build',
+  'index check',
+];
+
 class Check {
+  // состав
+  static async packages(): Promise<void> {
+    const dirs = (await readdir(path.join(repoRoot(), 'harness/packages'))).sort();
+    const names = await Promise.all(dirs.map(async (d) => (JSON.parse(await readRepo(`harness/packages/${d}/package.json`)) as { name: string }).name));
+    expect(names.sort()).toEqual(['@shahimat/expectations', '@shahimat/harness']);
+  }
+
+  static async commands(list: string[]): Promise<void> {
+    const usage = await usageCommands();
+    expect(list.filter((c) => !usage.includes(c))).toEqual([]);
+  }
+
+  static async noOtherCommands(): Promise<void> {
+    expect((await usageCommands()).filter((c) => !DECLARED_COMMANDS.includes(c))).toEqual([]);
+  }
+
+  static checks(): void {
+    expect([...KNOWN_CHECKS].sort()).toEqual(['adapters', 'changelog', 'context-index']);
+  }
+
+  static adapters(): void {
+    expect([...KNOWN_ADAPTERS].sort()).toEqual(['claude-code', 'codex']);
+  }
+
   // основа
   static async noBash(): Promise<void> {
     const pkg = JSON.parse(await readRepo(`${PKG}/package.json`)) as { engines: { node: string } };
@@ -91,10 +153,7 @@ class Check {
   }
 
   static async commandsTested(): Promise<void> {
-    const usage = (await readRepo(`${PKG}/src/cli.ts`)).split('`')[1] ?? '';
-    const commands = [...usage.matchAll(/^\s+harness ([a-z]+)(?: ([a-z|]+(?: \| [a-z]+)*))?/gm)].flatMap((m) =>
-      (m[2] ?? '').split(/\s*\|\s*/).filter(Boolean).map((c) => `${m[1]} ${c}`).concat(m[2] ? [] : [m[1] ?? '']),
-    );
+    const commands = await usageCommands();
     const tests = (
       await Promise.all(
         (await readdir(path.join(repoRoot(), PKG, 'test'))).filter((f) => f.endsWith('.test.ts')).map((f) => readRepo(`${PKG}/test/${f}`)),
