@@ -41,6 +41,27 @@ export async function loadVerdicts(): Promise<VerdictStore> {
   }
 }
 
+/**
+ * Убирает вердикты, которые не нужны ни одному текущему ожиданию, и
+ * проверки заголовков удалённых файлов: кэш не растёт с историей правок.
+ */
+export function pruneStore(store: VerdictStore, liveIds: Set<string>, liveFiles: Set<string>): number {
+  let removed = 0;
+  for (const id of Object.keys(store.verdicts)) {
+    if (!liveIds.has(id)) {
+      delete store.verdicts[id];
+      removed++;
+    }
+  }
+  for (const file of Object.keys(store.lint)) {
+    if (!liveFiles.has(file)) {
+      delete store.lint[file];
+      removed++;
+    }
+  }
+  return removed;
+}
+
 const sortKeys = <T>(obj: Record<string, T>): Record<string, T> =>
   Object.fromEntries(Object.entries(obj).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)));
 

@@ -134,6 +134,7 @@ automated_by: [entity:<id>, behavior:<id>]  # только при app-loop
 
 ## Журнал: тег `[life]`
 
+<!-- expect:life-journal -->
 Решения о жизни — в общий `CHANGELOG.md` с тегом `[life]`; второго
 журнала нет. Запись — через docs-keeper по общим правилам журнала.
 
@@ -149,6 +150,7 @@ automated_by: [entity:<id>, behavior:<id>]  # только при app-loop
 ```
 - 2026-06-01 · [life] начал отслеживать глубокий сон · усталость не объяснялась временем в кровати
 ```
+<!-- /expect:life-journal -->
 
 ## Проверки
 

@@ -39,9 +39,11 @@ feature:
 процессы. Живая система — canonical; запись здесь — summary, ссылка и
 `verified_at`, не копия.
 
+<!-- expect:external-reality -->
 - Источник реальности ядра (`reality` в `context/project.yml`) — ключи
   `external` целевых систем, не `this-repo`. Маршрут «как сейчас» ядра
   уже ведёт туда; модуль ядро не меняет.
+<!-- /expect:external-reality -->
 - Слои — `docs/entities/` и `docs/behavior/` модуля `domain`,
   `docs/manuals/` модуля `manuals` (если подключён). Модуль добавляет
   поля entity через `extends`, словарь, тег журнала и skill.

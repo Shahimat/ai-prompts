@@ -5,9 +5,15 @@ title: Операционный контракт агента v2 — manual, д�
 patterns: [source-sync, goals]
 tags: [docs-as-code, workflow, agent-contract, bdd-verification, three-layer-docs, migration-plan, goals-programs]
 use_case: Скармливается новому AI-агенту как предложение развернуть проектную документацию из трёх слоёв (manual — для человека, entity+behavior — общая правда с BDD-верификацией, context+conventions — для агента). Если документации ещё нет — собрать с нуля. Если есть — выдать план миграции. Минимизирует присутствие человека, агент сам держит consistency, ставит и снимает verified, обновляет entities и conventions, ищет противоречия. Человек нужен для ручных шагов из manuals и для явного согласования изменений.
+deprecated: presets/operational.yml
 ---
 
 # Операционный контракт агента v2 — manual, домен, контекст
+
+> **Устарел.** Заменён ядром `agent-operational-contract-v3` с пресетом
+> `presets/operational.yml`. Новые проекты — через v3; существующим —
+> миграция по запросу (обновление из источника предупредит).
+
 
 ## TL;DR
 

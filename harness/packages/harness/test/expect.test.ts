@@ -185,3 +185,16 @@ describe('якоря expect:KEY', async () => {
     expect(fileAnchorKeys('// expect:memory-off\nexport const a = 1;\n', '//')).toEqual(['memory-off']);
   });
 });
+
+describe('pruneStore', async () => {
+  const { pruneStore } = await import('../src/expect/verdicts.ts');
+  const v = { question: 'q', evidence: {}, verdict: true, quote: 'x', ref: 'r', reason: '', at: '2026-10-13' };
+  const l = { titles: 'sha', contradictions: [], unmeasurable: [], at: '2026-10-13' };
+
+  it('удаляет вердикты без живого ожидания и проверки удалённых файлов', () => {
+    const store = { verdicts: { a: v, old: v }, lint: { 'x.expect.ts': l, 'gone.expect.ts': l } };
+    expect(pruneStore(store, new Set(['a']), new Set(['x.expect.ts']))).toBe(2);
+    expect(Object.keys(store.verdicts)).toEqual(['a']);
+    expect(Object.keys(store.lint)).toEqual(['x.expect.ts']);
+  });
+});

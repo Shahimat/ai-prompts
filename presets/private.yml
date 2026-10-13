@@ -1,7 +1,7 @@
 # Личный проект: домен жизни + своё приложение в одной петле.
 # Заменяет контракт personal-project. Ответы — дефолты, правятся в чеклисте.
-key: personal
-title: Личный проект — жизнь и приложение в одной петле
+key: private
+title: Личный проект (private) — жизнь и приложение в одной петле
 contract: agent-operational-contract-v3
 modules:
   - key: domain

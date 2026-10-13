@@ -7,6 +7,9 @@ import { loadVerdicts, type VerdictStore } from './verdicts.ts';
 /** Каталог, куда в режиме сбора пишутся ожидания без свежего вердикта. */
 export const COLLECT_ENV = 'HARNESS_EXPECT_COLLECT';
 
+/** Каталог, куда в режиме сбора пишутся id всех смысловых ожиданий — для очистки кэша. */
+export const SEEN_ENV = 'HARNESS_EXPECT_SEEN';
+
 /** Ожидание, которому нужен вердикт судьи. */
 export interface PendingItem {
   id: string;
@@ -40,6 +43,12 @@ export async function judged(evidence: string[]): Promise<void> {
       return { ref, sha: shaOf(text), bytes: Buffer.byteLength(text, 'utf8') };
     }),
   );
+
+  const seen = process.env[SEEN_ENV];
+  if (seen !== undefined) {
+    await mkdir(seen, { recursive: true });
+    await writeFile(path.join(seen, id), '', 'utf8');
+  }
 
   store ??= loadVerdicts();
   const cached = (await store).verdicts[id];

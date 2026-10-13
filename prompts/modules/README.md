@@ -216,5 +216,5 @@ feature:
   проекта: системы, оргправила, процессы, аудит ссылок. v3, требует
   `domain`.
 
-Пресеты из этих модулей — `presets/` в корне репозитория:
-`personal`, `analytical`, `external`.
+Пресеты из этих модулей — `presets/` в корне репозитория, по виду
+проекта: `operational`, `external`, `private`, `analytical`.

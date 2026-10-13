@@ -42,7 +42,7 @@ describe('возможности и пресеты', () => {
   crit('у каждого модуля v3 есть блок AGENTS.md между маркерами module:<key>', () => Check.moduleBlocks());
   crit('блок модуля — не больше 5 строк, у модулей с guardrail-dual-level — до 8', () => Check.moduleBlockSize());
   crit('каждый skill из provides.skills модулей есть в skills/', () => Check.providedSkillsExist());
-  crit('есть пресеты personal, analytical и external', () => Check.presetKeys());
+
   crit('каждый ответ пресета — существующий вариант вопроса модуля', () => Check.presetAnswers());
   crit('пресет включает все модули, которые требуют его модули', () => Check.presetRequires());
   warn('contract-setup первым вопросом предлагает пресет или ручной выбор', () => Check.presetFirst());
@@ -66,7 +66,8 @@ describe('skills и субагенты', () => {
 });
 
 describe('документация проекта', () => {
-  crit('в основной сессии файлы проектной документации только читаются; правки — только через docs-keeper', () => Check.docsReadonly());
+  crit('в основной сессии файлы проектной документации только читаются; правки — только через docs-keeper, генерируемые файлы — через harness', () =>
+    Check.docsReadonly());
   crit('при подключённом harness генерируемые файлы (context/index.yml, адаптеры под инструменты) меняет только harness, не агент и не docs-keeper', () =>
     Check.generatedByHarness());
   warn('docs-keeper меняет только слои документации проекта и не трогает код', () => Check.docsKeeperScope());
@@ -197,10 +198,6 @@ class Check {
     const known = (await skills()).map((s) => s.name);
     const provided = (await v3Modules()).flatMap((m) => (m.provides?.['skills'] ?? []) as string[]);
     expectAll(provided, (s) => s, (s) => known.includes(s));
-  }
-
-  static async presetKeys(): Promise<void> {
-    expect((await presets()).map((p) => p.key).sort()).toEqual(['analytical', 'external', 'personal']);
   }
 
   static async presetAnswers(): Promise<void> {

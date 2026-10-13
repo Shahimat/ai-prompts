@@ -7,10 +7,10 @@ import path from 'node:path';
 import { UsageError } from '../diagnostics.ts';
 import { applyAnswers, applyLintAnswer, planBatches, renderBatch, renderLintBatch } from '../expect/batch.ts';
 import { readEvidence, shaOf } from '../expect/evidence.ts';
-import { COLLECT_ENV, idOf, type PendingItem } from '../expect/judge.ts';
+import { COLLECT_ENV, idOf, SEEN_ENV, type PendingItem } from '../expect/judge.ts';
 import { BUDGET_TITLE, type Budget, type Level } from '../expect/levels.ts';
 import { lintTitles, type Title } from '../expect/lint.ts';
-import { loadVerdicts, saveVerdicts, VERDICTS_PATH } from '../expect/verdicts.ts';
+import { loadVerdicts, pruneStore, saveVerdicts, VERDICTS_PATH } from '../expect/verdicts.ts';
 import type { CommandArgs } from './types.ts';
 
 export const EXPECT_CONFIG = 'expectations/vitest.config.ts';
@@ -176,7 +176,10 @@ async function judgePrepare(args: CommandArgs): Promise<number> {
   const dir = path.join(args.root, JUDGE_DIR);
   await rm(dir, { recursive: true, force: true });
   const pendingDir = path.join(dir, 'pending');
-  const results = runVitest(args.root, { [COLLECT_ENV]: pendingDir });
+  const seenDir = path.join(dir, 'seen');
+  const results = runVitest(args.root, { [COLLECT_ENV]: pendingDir, [SEEN_ENV]: seenDir });
+  const seen = new Set(existsSync(seenDir) ? await readdir(seenDir) : []);
+  await rm(seenDir, { recursive: true, force: true });
   const items: PendingItem[] = [];
   if (existsSync(pendingDir)) {
     for (const f of (await readdir(pendingDir)).sort()) items.push(JSON.parse(await readFile(path.join(pendingDir, f), 'utf8')) as PendingItem);
@@ -193,6 +196,11 @@ async function judgePrepare(args: CommandArgs): Promise<number> {
     plan.batches.push({ task, answer, items: batch.items });
   }
   const store = await loadVerdicts();
+  const removed = pruneStore(store, seen, new Set(byFile(results).keys()));
+  if (removed > 0) {
+    await saveVerdicts(store);
+    console.log(`expect judge: удалено устаревших вердиктов ${removed}`);
+  }
   for (const [file, all] of byFile(results)) {
     const tests = all.filter((t) => t.title !== BUDGET_TITLE);
     const sha = titlesSha(tests);

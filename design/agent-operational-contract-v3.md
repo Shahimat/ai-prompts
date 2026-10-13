@@ -484,8 +484,11 @@ rules: tools/harness/rules       # дополнения проекта (7.3)
 
 Модули: общие `app-loop`, `data-access`, `privacy`; `life`,
 `safety-boundaries` (personal); `analysis`, `book-corpus` (analytical);
-`external-context` (external). Пресеты — `presets/personal.yml`,
-`analytical.yml`, `external.yml`. Старые контракты (`personal-project`,
+`external-context` (external). Пресеты по виду проекта —
+`presets/operational.yml` (свой код: domain, manuals, goals,
+ticket-commits, harness), `external.yml`, `private.yml`,
+`analytical.yml`; виды перечислены в ядре (раздел «Возможности»), у
+каждого — свои ожидания в `expectations/presets.expect.ts`. Старые контракты (`personal-project`,
 `analytical-project`, `external-project-context-v2`, v1
 `external-project-context`) помечены `deprecated` со ссылкой на пресет
 и не удаляются: их ключи используются в проектах; обновление из источника
