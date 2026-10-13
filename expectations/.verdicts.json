@@ -45,6 +45,18 @@
       "reason": "Claude: autoMemoryEnabled false в .claude/settings.json; Codex: [features] memories = false (плюс use/generate_memories = false)",
       "at": "2026-10-13"
     },
+    "067b5f1341aa": {
+      "question": "обновление > есть skill обновления: сверяет источник, показывает новые и устаревшие модули, пресеты, версию harness и предлагает включить или отключить возможности",
+      "evidence": {
+        "@update-report": "607c934a33f7431f6869e79562665f36464156720c0b9101de1da3b02ab33661",
+        "@sync-warns-deprecated": "50aa92a6dab83e5d408d0f1c3e14cdc5daeb6f63ef57172aefdd196479e22578"
+      },
+      "verdict": true,
+      "quote": "открыть чеклист `contract-setup` — включить новые или отключить",
+      "ref": "@update-report",
+      "reason": "Отчёт skill source-sync содержит разделы новых модулей, устаревших (deprecated), новых пресетов и версии harness, а вопрос в конце предлагает чеклист для включения или отключения возможностей.",
+      "at": "2026-10-13"
+    },
     "07714bb221ec": {
       "question": "документация и memory > запись в документацию — только через docs-keeper",
       "evidence": {
@@ -485,6 +497,17 @@
       "quote": "теги из `provides.changelog_tags` подключённых модулей, со смыслом",
       "ref": "@module-tags",
       "reason": "Допустимые теги — теги ядра плюс provides.changelog_tags модулей; иной тег не подбирается",
+      "at": "2026-10-13"
+    },
+    "5a6d3b06361a": {
+      "question": "harness и источник > обновление из источника предупреждает о deprecated-контракте и называет замену",
+      "evidence": {
+        "@sync-warns-deprecated": "50aa92a6dab83e5d408d0f1c3e14cdc5daeb6f63ef57172aefdd196479e22578"
+      },
+      "verdict": true,
+      "quote": "контракт или модуль помечен в индексе `deprecated` — предупреди и",
+      "ref": "@sync-warns-deprecated",
+      "reason": "Если контракт помечен deprecated, нужно предупредить и назвать замену (ключ или путь из поля).",
       "at": "2026-10-13"
     },
     "60ac67edb2f5": {
@@ -1149,13 +1172,13 @@
   },
   "lint": {
     "expectations/agent-operational-contract-v3.expect.ts": {
-      "titles": "b68f27757bfdf746db6de421d6506512e312ecc96c9159be04b87f59fd3106c4",
+      "titles": "e037488514eceef9f16d401674721bedaa18fffbdb20bd64653430a3b434549a",
       "contradictions": [],
       "unmeasurable": [],
       "at": "2026-10-13"
     },
     "expectations/ai-prompts.expect.ts": {
-      "titles": "026b43f1e21233ba3bd6abafd1ac24844179589d280074a3ee9474f78e6eb296",
+      "titles": "77164e3df53a52f21375bb7b2999472c6718515b87f0b530f31069c162d7bb02",
       "contradictions": [],
       "unmeasurable": [],
       "at": "2026-10-13"

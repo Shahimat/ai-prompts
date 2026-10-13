@@ -126,6 +126,6 @@ provides:
 
 ## Синхронизация
 
-Через «сверь всё» проекта (skill `source-sync`): модуль и skill
+Через обновление из источника (skill `source-sync`): модуль и skill
 `privacy` — по своим SHA. Inline-блок `guardrail-dual-level` в skill
 обновляется вместе с паттерном.

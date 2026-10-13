@@ -137,5 +137,5 @@ skill.
 
 ## Синхронизация
 
-Через «сверь всё» проекта (skill `source-sync`): модуль и skill
+Через обновление из источника (skill `source-sync`): модуль и skill
 `data-access` — по своим SHA.

@@ -121,6 +121,6 @@ provides:
 
 ## Синхронизация
 
-Через «сверь всё» проекта (skill `source-sync`). Блок `AGENTS.md`
+Через обновление из источника (skill `source-sync`). Блок `AGENTS.md`
 обновляется из модуля; skill — вместе с паттерном
 `guardrail-dual-level` в источнике.

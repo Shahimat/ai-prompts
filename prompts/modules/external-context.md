@@ -190,5 +190,5 @@ convention). `reality` возвращать в `this-repo` — только ес
 
 ## Синхронизация
 
-Через «сверь всё» проекта (skill `source-sync`): модуль и skill
+Через обновление из источника (skill `source-sync`): модуль и skill
 `external-context` — по своим SHA.

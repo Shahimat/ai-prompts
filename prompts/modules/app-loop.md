@@ -134,5 +134,5 @@ skill `app-loop`.
 
 ## Синхронизация
 
-Через «сверь всё» проекта (skill `source-sync`): модуль и skill
+Через обновление из источника (skill `source-sync`): модуль и skill
 `app-loop` — по своим SHA.

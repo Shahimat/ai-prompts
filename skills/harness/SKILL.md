@@ -31,6 +31,9 @@ npx -y @shahimat/harness@<version> <команда> --root .
   включая слои модулей из `provides.index_layers` их manifest'ов.
   Запускай после создания, удаления или переименования entity,
   behavior, manual, convention и после правки `summary` / `title`.
+- `harness outdated` — версия из `context/harness.yml` против последней
+  в npm и записи журнала пакета между ними (код 1 — есть новее). Её
+  вызывает обновление из источника (skill `source-sync`).
 - `harness adapters sync` — пересобрать файлы под инструменты
   (`CLAUDE.md`, `.claude/`, `.codex/`) из `AGENTS.md` и `.agents/` и
   выключить memory агента: `autoMemoryEnabled: false` в

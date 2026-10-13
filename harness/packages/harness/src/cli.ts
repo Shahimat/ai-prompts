@@ -5,6 +5,7 @@ import { runChangelog } from './commands/changelog.ts';
 import { runCheck } from './commands/check.ts';
 import { runContext } from './commands/context.ts';
 import { runExpect } from './commands/expect.ts';
+import { runOutdated } from './commands/outdated.ts';
 import { runIndex } from './commands/prompt-index.ts';
 import type { CommandArgs } from './commands/types.ts';
 import { UsageError } from './diagnostics.ts';
@@ -14,6 +15,7 @@ const USAGE = `Использование:
   harness adapters sync [--root <dir>]
   harness changelog lint [--root <dir>]
   harness context index [--root <dir>]
+  harness outdated [--root <dir>]
   harness expect init | report | lint | judge [--apply] [--root <dir>]
   harness index build --raw-base <url> [--root <dir>] [--out <file>]
   harness index check --raw-base <url> [--root <dir>]
@@ -55,6 +57,8 @@ export async function main(argv: string[], now: Date = new Date()): Promise<numb
       return runExpect(command, args);
     case 'index':
       return runIndex(command, args);
+    case 'outdated':
+      return runOutdated(args);
     default:
       throw new UsageError(`неизвестная команда: ${positionals.join(' ') || '<пусто>'}`);
   }

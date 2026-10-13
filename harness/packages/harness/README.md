@@ -35,6 +35,8 @@ npx -y @shahimat/harness@<version> <команда> --root .
   `expectAtMost` (info при > 90% порога), зонды по репозиторию,
   `judged`, проверка JSON Schema (`expectSchema`, `dataFiles`,
   `frontmatters`).
+- `harness outdated` — версия из `context/harness.yml` против последней
+  в npm и записи `CHANGELOG.md` пакета между ними (код 1 — есть новее).
 - `harness index build | check --raw-base <url>` — индекс
   `prompts/index.yml` репозитория промптов.
 

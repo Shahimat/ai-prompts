@@ -94,7 +94,7 @@ describe('harness и источник', () => {
   crit('у skill в индексе sha256 каждого файла', () => Check.skillFileShas());
   warn('context/index.yml генерируется harness context index и не содержит даты генерации', () => Check.contextIndexNoDate());
   warn('источники скачиваются только curl, WebFetch запрещён', () => Check.curlOnly());
-  warn('«сверь всё» предупреждает о deprecated-контракте и называет замену', () => Check.syncWarnsDeprecated());
+  warn('обновление из источника предупреждает о deprecated-контракте и называет замену', () => Check.syncWarnsDeprecated());
 });
 
 describe('приоритетные правила модулей', () => {
@@ -102,6 +102,12 @@ describe('приоритетные правила модулей', () => {
   crit('в skill safety-boundaries список red-flag категорий непустой', () => Check.redFlagsListed());
   warn('правило целостности атрибуции записано в блоке analysis для AGENTS.md', () => Check.attributionRule());
   crit('privacy: в документации, коммитах и журнале нет реальных персональных данных', () => Check.privacyRule());
+});
+
+describe('обновление', () => {
+  crit('есть skill обновления: сверяет источник, показывает новые и устаревшие модули, пресеты, версию harness и предлагает включить или отключить возможности', () =>
+    Check.updateSkill());
+  crit('в ядре контракта нет протокола обновления — он только в skill source-sync', () => Check.noUpdateProtocolInCore());
 });
 
 describe('ядро', () => {
@@ -339,6 +345,14 @@ class Check {
 
   // ядро
   static singleLink = (): Promise<void> => judged(['@single-link']);
+
+  // обновление
+  static updateSkill = (): Promise<void> => judged(['@update-report', '@sync-warns-deprecated']);
+
+  static async noUpdateProtocolInCore(): Promise<void> {
+    const core = await contract(KEY);
+    expect(core.headings.filter((h) => /обновлени|сверь/i.test(h))).toEqual([]);
+  }
 
   static async verifiedRule(): Promise<void> {
     const section = (await skill('domain')).section('Верификация') ?? '';

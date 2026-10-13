@@ -159,7 +159,7 @@ skill `analysis`.
 
 ## Синхронизация
 
-Через «сверь всё» проекта (skill `source-sync`): модуль и skill
+Через обновление из источника (skill `source-sync`): модуль и skill
 `analysis` — по своим SHA. Inline-раздел «Правило в двух уровнях» в
 skill обновляется вместе с паттерном `guardrail-dual-level`; отстал —
 план миграции.

@@ -73,7 +73,7 @@ context/
   modules/<key>.yml               ← манифесты подключённых возможностей
 .agents/skills/
   contract-setup/SKILL.md         ← чеклист возможностей, add/remove
-  source-sync/SKILL.md            ← «сверь всё»
+  source-sync/SKILL.md            ← обновление из источника
   workflow/SKILL.md               ← протоколы plan/execute/audit/challenge/report
   docs-keeper/SKILL.md            ← правила записи в документацию
 .agents/agents/
@@ -488,7 +488,7 @@ rules: tools/harness/rules       # дополнения проекта (7.3)
 `analytical.yml`, `external.yml`. Старые контракты (`personal-project`,
 `analytical-project`, `external-project-context-v2`, v1
 `external-project-context`) помечены `deprecated` со ссылкой на пресет
-и не удаляются: их ключи используются в проектах; «сверь всё»
+и не удаляются: их ключи используются в проектах; обновление из источника
 предупреждает о замене.
 
 Дополнительно по итогам реализации:
@@ -505,7 +505,8 @@ rules: tools/harness/rules       # дополнения проекта (7.3)
   с любым агентом, без Node.
 - Агент ставит ядро по индексу, затем `contract-setup`: пресет или
   чеклист, модули по одному, manifest'ы, адаптеры, `harness check`.
-- Дальше: «сверь всё» — обновления; «что добавить / убрать» — чеклист.
+- Дальше: «проверь обновления» — skill `source-sync` (отчёт «Что нового»,
+  `harness outdated`); «что добавить / убрать» — чеклист.
 - Механические шаги (скачать по индексу, сверить SHA, разложить,
   записать manifest) может делать CLI — см. раздел 10.
 
@@ -553,6 +554,21 @@ rules: tools/harness/rules       # дополнения проекта (7.3)
 - Форматы данных — JSON Schema (`expectations/schemas/`, ajv 2020-12):
   пресет, frontmatter модуля и skill, `provides`, manifest,
   `context/harness.yml`.
+
+## 9.4. Обновление из источника
+
+- Протокол обновления живёт только в skill `source-sync`; в ядре — лишь
+  то, что нужно при установке (контракт для сессии read-only, протоколы
+  записи — в skills).
+- Ключи: «проверь обновления», «что нового в источнике», «обнови
+  контракт»; фраза «сверь всё» осталась только у v2.
+- Отчёт «Что нового»: изменения контракта и модулей, новые модули с
+  `feature.summary`, устаревшие и пропавшие, новые пресеты, harness;
+  в конце — вопрос: применить план / открыть чеклист `contract-setup` /
+  только отчёт.
+- `harness outdated` — версия проекта против npm и записи
+  `CHANGELOG.md` пакета между ними; у пакетов harness и expectations
+  свой журнал, публикуется вместе с пакетом.
 
 ## 10. Отложенные задачи
 

@@ -137,3 +137,36 @@ describe('harness expect init', () => {
     expect(await readFile(path.join(root, '.gitignore'), 'utf8')).toBe('node_modules/\nexpectations/.judge/\n');
   });
 });
+
+describe('harness outdated', async () => {
+  const { changelogBetween, compareVersions, runOutdated } = await import('../src/commands/outdated.ts');
+  const LOG = '# Журнал\n\n## 0.5.0\n\n- outdated\n\n## 0.4.0\n\n- якоря\n\n## 0.3.0\n\n- expect\n';
+  const fetcher = (latest: string) => async (url: string) => ({
+    ok: true,
+    status: 200,
+    text: async () => (url.includes('registry') ? JSON.stringify({ 'dist-tags': { latest } }) : LOG),
+  });
+  const logs: string[] = [];
+
+  it('сравнение версий и записи журнала между ними', () => {
+    expect(compareVersions('0.10.0', '0.9.1')).toBe(1);
+    expect(compareVersions('1.0.0', '1.0.0')).toBe(0);
+    expect(changelogBetween(LOG, '0.3.0', '0.5.0').map((e) => e.split('\n')[0])).toEqual(['0.5.0', '0.4.0']);
+  });
+
+  it('0 — актуально, 1 — есть новее с журналом', async () => {
+    vi.spyOn(console, 'log').mockImplementation((...a: unknown[]) => {
+      logs.push(a.join(' '));
+    });
+    await put('context/harness.yml', 'version: 0.3.0\n');
+    expect(await runOutdated({ root, now: NOW }, fetcher('0.3.0'))).toBe(0);
+    expect(await runOutdated({ root, now: NOW }, fetcher('0.5.0'))).toBe(1);
+    expect(logs.join('\n')).toContain('harness: 0.3.0 → 0.5.0');
+    expect(logs.join('\n')).toContain('- якоря');
+  });
+
+  it('2 — нет version в harness.yml', async () => {
+    await put('context/harness.yml', 'checks: {}\n');
+    await expect(runOutdated({ root, now: NOW }, fetcher('0.5.0'))).rejects.toThrow(/нет version/);
+  });
+});
