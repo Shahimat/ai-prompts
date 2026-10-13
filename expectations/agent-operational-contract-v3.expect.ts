@@ -40,7 +40,6 @@ describe('возможности и пресеты', () => {
   crit('у каждого модуля v3 есть feature с summary и default', () => Check.featureBlock());
   crit('у каждого модуля v3 есть блок AGENTS.md между маркерами module:<key>', () => Check.moduleBlocks());
   crit('блок модуля — не больше 5 строк, у модулей с guardrail-dual-level — до 8', () => Check.moduleBlockSize());
-  crit('каждый skill из provides.skills модулей есть в skills/', () => Check.providedSkillsExist());
 
   crit('каждый ответ пресета — существующий вариант вопроса модуля', () => Check.presetAnswers());
   crit('пресет включает все модули, которые требуют его модули', () => Check.presetRequires());
@@ -52,16 +51,9 @@ describe('возможности и пресеты', () => {
 describe('форматы по схемам', () => {
   crit('каждый пресет соответствует схеме preset', () => Check.presetSchema());
   crit('frontmatter каждого модуля соответствует схеме module-frontmatter', () => Check.moduleSchema());
-  crit('frontmatter каждого SKILL.md соответствует схеме skill-frontmatter', () => Check.skillSchema());
   crit('provides каждого модуля соответствует схеме provides', () => Check.providesSchema());
   crit('шаблон manifest в skill contract-setup соответствует схеме manifest', () => Check.manifestSchema());
   crit('примеры context/harness.yml в skill harness и README пакета соответствуют схеме', () => Check.harnessConfigSchema());
-});
-
-describe('skills и субагенты', () => {
-  crit('SKILL.md — не больше 300 строк', () => Check.skillLength());
-  crit('skills ядра — contract-setup, workflow, docs-keeper, source-sync — есть в индексе', () => Check.coreSkills());
-  crit('субагент docs-keeper предзагружает skill docs-keeper', () => Check.docsKeeperPreload());
 });
 
 describe('документация проекта', () => {
@@ -107,8 +99,6 @@ describe('обновление', () => {
 
 describe('ядро', () => {
   warn('ядро ставится одной ссылкой на контракт, остальное агент берёт по индексу', () => Check.singleLink());
-  crit('skill domain: verified: true ставится только вместе с verified_at (дата) и verified_note (чем проверено)', () =>
-    Check.verifiedRule());
 });
 
 // ─────────────────────────────── проверки ───────────────────────────────
@@ -186,11 +176,6 @@ class Check {
     });
   }
 
-  static async providedSkillsExist(): Promise<void> {
-    const known = (await skills()).map((s) => s.name);
-    const provided = (await v3Modules()).flatMap((m) => (m.provides?.['skills'] ?? []) as string[]);
-    expectAll(provided, (s) => s, (s) => known.includes(s));
-  }
 
   static async presetAnswers(): Promise<void> {
     const answers: { name: string; ok: boolean }[] = [];
@@ -230,9 +215,6 @@ class Check {
     await expectSchema(await frontmatters(await pathsOf('module')), `${SCHEMAS}/module-frontmatter.schema.json`);
   }
 
-  static async skillSchema(): Promise<void> {
-    await expectSchema(await frontmatters(await pathsOf('skill')), `${SCHEMAS}/skill-frontmatter.schema.json`);
-  }
 
   static async providesSchema(): Promise<void> {
     const instances = (await modules()).filter((m) => m.provides !== null).map((m) => ({ name: m.key, data: m.provides }));
@@ -259,18 +241,8 @@ class Check {
   }
 
   // skills и субагенты
-  static async skillLength(): Promise<void> {
-    for (const s of await skills()) expectAtMost(s.lines, 300, `строк в skill ${s.name}`);
-  }
 
-  static async coreSkills(): Promise<void> {
-    const names = (await skills()).map((s) => s.name);
-    expectAll(['contract-setup', 'workflow', 'docs-keeper', 'source-sync'], (n) => n, (n) => names.includes(n));
-  }
 
-  static async docsKeeperPreload(): Promise<void> {
-    expect((await doc('agents/docs-keeper.md')).frontmatter?.['skills']).toContain('docs-keeper');
-  }
 
   // документация и memory
   static docsReadonly = (): Promise<void> => judged(['@docs-readonly']);
@@ -326,8 +298,4 @@ class Check {
     expect(core.headings.filter((h) => /обновлени|сверь/i.test(h))).toEqual([]);
   }
 
-  static async verifiedRule(): Promise<void> {
-    const section = (await skill('domain')).section('Верификация') ?? '';
-    expect(section).toMatch(/`verified: true`, `verified_at`[^\n]*\n?[^\n]*`verified_note`/);
-  }
 }

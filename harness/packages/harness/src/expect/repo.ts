@@ -90,6 +90,21 @@ async function entry(kind: string, key: string): Promise<IndexEntry> {
   return found;
 }
 
+/** Все ```-блоки языка `lang` (в том числе с отступом — в списке), текст которых начинается с `prefix`; отступ снимается. */
+export function codeBlocks(text: string, lang: string, prefix = ''): string[] {
+  const re = new RegExp('^([ \\t]*)(`{3,4})' + lang + '\\n([\\s\\S]*?)\\n\\1\\2$', 'gm');
+  const out: string[] = [];
+  for (const m of text.matchAll(re)) {
+    const indent = (m[1] ?? '').length;
+    const body = (m[3] ?? '')
+      .split('\n')
+      .map((l) => l.slice(Math.min(indent, l.length - l.trimStart().length)))
+      .join('\n');
+    if (body.startsWith(prefix)) out.push(body);
+  }
+  return out;
+}
+
 /** Первый ```-блок языка `lang` (в том числе с отступом — в списке), текст которого начинается с `prefix`; отступ снимается. */
 export function codeBlock(text: string, lang: string, prefix = ''): string | null {
   const re = new RegExp('^([ \\t]*)(`{3,4})' + lang + '\\n([\\s\\S]*?)\\n\\1\\2$', 'gm');
@@ -122,18 +137,23 @@ export interface ModuleDoc extends Doc {
   agentsMdBlock: string | null;
   /** Первый yaml-блок `provides:` модуля. */
   provides: Record<string, unknown> | null;
+  /** Все блоки `provides:` модуля — у модулей для v2 и v3 их несколько. */
+  providesAll: Record<string, unknown>[];
 }
 
 export async function module(key: string): Promise<ModuleDoc> {
   const e = await entry('module', key);
   const d = await doc(e.path);
   const block = new RegExp(`<!-- module:${key} -->[\\s\\S]*?<!-- /module:${key} -->`).exec(d.text);
-  const provides = codeBlock(d.text, 'yaml', 'provides:');
+  const all = codeBlocks(d.text, 'yaml', 'provides:').map(
+    (b) => (parse(b) as { provides?: Record<string, unknown> } | null)?.provides ?? {},
+  );
   return {
     ...d,
     key,
     agentsMdBlock: block === null ? null : block[0],
-    provides: provides === null ? null : ((parse(provides) as { provides?: Record<string, unknown> }).provides ?? null),
+    provides: all[0] ?? null,
+    providesAll: all,
   };
 }
 

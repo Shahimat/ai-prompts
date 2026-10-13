@@ -1,6 +1,7 @@
 export { judged } from './judge.ts';
 export {
   codeBlock,
+  codeBlocks,
   contract,
   doc,
   extractSection,

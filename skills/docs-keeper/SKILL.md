@@ -11,6 +11,7 @@ description: Правила записи в проектную документ�
 
 ## Вход: намерения
 
+<!-- expect:docs-keeper-intents -->
 ```yaml
 - kind: decision | fact | rule | behavior-change | task | manual
   summary: <одна строка>
@@ -30,6 +31,7 @@ description: Правила записи в проектную документ�
 
 Без `evidence` факт не записывается как проверенный: пометь `unknown`
 или спроси.
+<!-- /expect:docs-keeper-intents -->
 
 ## Правила слоёв
 
