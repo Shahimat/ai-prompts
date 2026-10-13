@@ -269,6 +269,7 @@ provides:
 
 - блок `AGENTS.md`:
 
+  <!-- expect:agents-md-readonly -->
   ```markdown
   <!-- module:knowledge-external-gui -->
   ## knowledge
@@ -277,6 +278,7 @@ provides:
   - правила слоя, скриншоты, свежесть → skill `knowledge-external-gui`.
   <!-- /module:knowledge-external-gui -->
   ```
+  <!-- /expect:agents-md-readonly -->
 
 ## Обфусцированный пример
 

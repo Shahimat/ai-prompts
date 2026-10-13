@@ -60,6 +60,7 @@ provides:
 
 Блок `AGENTS.md`:
 
+<!-- expect:agents-md-readonly -->
 ```markdown
 <!-- module:ticket-commits -->
 ## ticket-commits
@@ -68,9 +69,11 @@ provides:
   в конце шага — отчёт и сообщение коммита → skill `ticket-commits`.
 <!-- /module:ticket-commits -->
 ```
+<!-- /expect:agents-md-readonly -->
 
 `mode: off` — skill не ставится (`skills: []`), блок `AGENTS.md`:
 
+<!-- expect:agents-md-readonly -->
 ```markdown
 <!-- module:ticket-commits -->
 ## ticket-commits
@@ -80,6 +83,7 @@ provides:
   пользователь.
 <!-- /module:ticket-commits -->
 ```
+<!-- /expect:agents-md-readonly -->
 
 Запрет — строкой блока, а не skill: блок `AGENTS.md` агент читает всегда,
 skill — по требованию, и незагруженный skill не перебьёт глобальное

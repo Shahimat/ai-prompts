@@ -64,6 +64,7 @@ provides:
 
 Блок `AGENTS.md`:
 
+<!-- expect:agents-md-readonly -->
 ```markdown
 <!-- module:book-corpus -->
 ## book-corpus
@@ -73,6 +74,7 @@ provides:
 - канал недоступен → цитата остаётся `verified: false`, не по памяти.
 <!-- /module:book-corpus -->
 ```
+<!-- /expect:agents-md-readonly -->
 
 ## Установка
 

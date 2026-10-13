@@ -146,6 +146,7 @@ rule: |
   правил пересобери индекс, без harness индекса нет;
 - блок `AGENTS.md`:
 
+  <!-- expect:agents-md-readonly -->
   ```markdown
   <!-- module:code-rules-fullstack-js-ts -->
   ## code-rules
@@ -153,6 +154,7 @@ rule: |
   - стиль кода на js/ts → `context/conventions/code/<key>.yml`.
   <!-- /module:code-rules-fullstack-js-ts -->
   ```
+  <!-- /expect:agents-md-readonly -->
 
   В `provides` для v3: `agents_md_block: true`, `skills: []`.
 

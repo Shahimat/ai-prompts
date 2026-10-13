@@ -76,6 +76,7 @@ skill `app-loop`.
 
 Блок `AGENTS.md` (`<counterpart>` — из ответа):
 
+<!-- expect:agents-md-readonly -->
 ```markdown
 <!-- module:app-loop -->
 ## app-loop
@@ -85,6 +86,7 @@ skill `app-loop`.
 - serves, automated_by, поле domain у целей, выравнивание петли → skill `app-loop`.
 <!-- /module:app-loop -->
 ```
+<!-- /expect:agents-md-readonly -->
 
 ## Установка
 

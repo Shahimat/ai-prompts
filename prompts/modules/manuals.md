@@ -37,6 +37,7 @@ provides:
 
 Блок `AGENTS.md`:
 
+<!-- expect:agents-md-readonly -->
 ```markdown
 <!-- module:manuals -->
 ## manuals
@@ -45,6 +46,7 @@ provides:
 - формат и связи → skill `manuals`.
 <!-- /module:manuals -->
 ```
+<!-- /expect:agents-md-readonly -->
 
 ## Установка
 

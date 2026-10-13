@@ -66,6 +66,7 @@ provides:
 
 Блок `AGENTS.md` — правило целиком, без сокращений:
 
+<!-- expect:agents-md-readonly -->
 ```markdown
 <!-- module:safety-boundaries -->
 ## safety-boundaries
@@ -79,6 +80,7 @@ provides:
   сценария; дополняет жёсткие правила ядра, не отменяет их.
 <!-- /module:safety-boundaries -->
 ```
+<!-- /expect:agents-md-readonly -->
 
 Категории, формулировки ответов и behavior — skill `safety-boundaries`.
 <!-- /expect:safety-rule -->

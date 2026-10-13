@@ -68,6 +68,7 @@ checks:
 
 Блок `AGENTS.md`:
 
+<!-- expect:agents-md-readonly -->
 ```markdown
 <!-- module:harness -->
 ## harness
@@ -77,6 +78,7 @@ checks:
 - сгенерированные файлы руками не правятся.
 <!-- /module:harness -->
 ```
+<!-- /expect:agents-md-readonly -->
 
 ## Установка
 

@@ -42,6 +42,7 @@ namespace, проверки. Берётся из индекса источник
 
 Блок `AGENTS.md`:
 
+<!-- expect:agents-md-readonly -->
 ```markdown
 <!-- module:domain -->
 ## domain
@@ -51,6 +52,7 @@ namespace, проверки. Берётся из индекса источник
 - правила слоя и `verified` → skill `domain`.
 <!-- /module:domain -->
 ```
+<!-- /expect:agents-md-readonly -->
 
 ## Установка
 

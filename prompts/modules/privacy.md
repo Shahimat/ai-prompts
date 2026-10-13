@@ -64,6 +64,7 @@ provides:
 
 Блок `AGENTS.md` — правило целиком (`<outbound-строка>` по ответу):
 
+<!-- expect:agents-md-readonly -->
 ```markdown
 <!-- module:privacy -->
 ## privacy
@@ -75,6 +76,7 @@ provides:
 - приоритетнее удобства и сценария; конфликт — стоп и вопрос; детали → skill `privacy`.
 <!-- /module:privacy -->
 ```
+<!-- /expect:agents-md-readonly -->
 
 `<outbound-строка>`:
 

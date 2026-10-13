@@ -116,6 +116,7 @@ external:
 
 Блок `AGENTS.md`:
 
+<!-- expect:agents-md-readonly -->
 ```markdown
 <!-- module:external-context -->
 ## external-context
@@ -123,9 +124,10 @@ external:
 - своего кода нет: «как сейчас» → системы из `reality`, код цели → `context/local.yml`, иначе URL из `external`;
 - система, оргправило, процесс X → `docs/entities/<id>.yml` (`type`, `canonical_source`, `target`);
 - термин → `context/glossary.yml`;
-- запись — summary + ссылка на canonical, не копия; verified вне кода, audit ссылок → skill `external-context`.
+- формат записей, verified вне кода, audit ссылок → skill `external-context`.
 <!-- /module:external-context -->
 ```
+<!-- /expect:agents-md-readonly -->
 
 ## Установка
 

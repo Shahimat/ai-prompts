@@ -81,6 +81,7 @@ skill `analysis`.
 
 Блок `AGENTS.md`:
 
+<!-- expect:agents-md-readonly -->
 ```markdown
 <!-- module:analysis -->
 ## analysis
@@ -95,6 +96,7 @@ skill `analysis`.
 - противоречие не стирать: `tension` + синтез; форматы, провенанс, `reconciled` → skill `analysis`.
 <!-- /module:analysis -->
 ```
+<!-- /expect:agents-md-readonly -->
 <!-- /expect:attribution-rule -->
 
 ## Установка

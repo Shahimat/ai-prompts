@@ -71,6 +71,8 @@ describe('документация проекта', () => {
     Check.generatedByHarness());
   warn('docs-keeper меняет только слои документации проекта и не трогает код', () => Check.docsKeeperScope());
   warn('правила контракта не копируются в context/conventions', () => Check.noRuleCopies());
+  crit('шаблон AGENTS.md и блоки модулей не содержат словесных указаний изменить проектную документацию — только ссылки на skills и команды harness', () =>
+    Check.noWriteCommands());
 });
 
 describe('memory', () => {
@@ -285,6 +287,7 @@ class Check {
   static docsReadonly = (): Promise<void> => judged(['@docs-readonly']);
   static generatedByHarness = (): Promise<void> => judged(['@docs-readonly']);
   static docsKeeperScope = (): Promise<void> => judged(['@docs-readonly']);
+  static noWriteCommands = (): Promise<void> => judged(['@agents-md-readonly']);
   static noRuleCopies = (): Promise<void> => judged(['@no-rule-copies']);
 
   static async memoryRule(): Promise<void> {

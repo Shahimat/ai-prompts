@@ -87,6 +87,7 @@ channels:
 
 Блок `AGENTS.md`:
 
+<!-- expect:agents-md-readonly -->
 ```markdown
 <!-- module:data-access -->
 ## data-access
@@ -96,6 +97,7 @@ channels:
 - секреты — только вне репозитория; свежесть, минимальный срез → skill `data-access`.
 <!-- /module:data-access -->
 ```
+<!-- /expect:agents-md-readonly -->
 
 ## Установка
 

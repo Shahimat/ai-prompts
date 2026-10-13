@@ -46,6 +46,7 @@ provides:
 
 Блок `AGENTS.md`:
 
+<!-- expect:agents-md-readonly -->
 ```markdown
 <!-- module:worktrees -->
 ## worktrees
@@ -54,6 +55,7 @@ provides:
   skill `worktrees`.
 <!-- /module:worktrees -->
 ```
+<!-- /expect:agents-md-readonly -->
 
 ## Установка
 

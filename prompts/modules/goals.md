@@ -46,6 +46,7 @@ goals: []
 
 Блок `AGENTS.md`:
 
+<!-- expect:agents-md-readonly -->
 ```markdown
 <!-- module:goals -->
 ## goals
@@ -54,6 +55,7 @@ goals: []
 - правила очереди, `goal-consistency`, отчёт о статусе → skill `goals`.
 <!-- /module:goals -->
 ```
+<!-- /expect:agents-md-readonly -->
 
 ## Установка
 

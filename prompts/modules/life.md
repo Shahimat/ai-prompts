@@ -67,6 +67,7 @@ provides:
 
 Блок `AGENTS.md`:
 
+<!-- expect:agents-md-readonly -->
 ```markdown
 <!-- module:life -->
 ## life
@@ -77,6 +78,7 @@ provides:
 - тон о жизни человека — поддерживающий, без осуждения и морали.
 <!-- /module:life -->
 ```
+<!-- /expect:agents-md-readonly -->
 
 ## Установка
 
