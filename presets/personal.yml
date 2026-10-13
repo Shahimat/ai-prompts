@@ -1,0 +1,31 @@
+# Личный проект: домен жизни + своё приложение в одной петле.
+# Заменяет контракт personal-project. Ответы — дефолты, правятся в чеклисте.
+key: personal
+title: Личный проект — жизнь и приложение в одной петле
+contract: agent-operational-contract-v3
+modules:
+  - key: domain
+  - key: manuals
+  - key: goals
+  - key: harness
+    answers:
+      checks: [changelog, context-index, adapters]
+      adapters: [claude-code]
+  - key: privacy
+    answers:
+      outbound: none
+      repo-visibility: private
+  - key: safety-boundaries
+    answers:
+      scope: [physical, psyche]
+      app-behaviors: now
+  - key: life
+    answers:
+      areas: [health, sport, psyche, routine]
+  - key: app-loop
+    answers:
+      counterpart: life
+      goal-domain-field: "yes"
+  - key: data-access
+    answers:
+      kinds: [local-export]

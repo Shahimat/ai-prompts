@@ -97,7 +97,10 @@ feature:
   `{domain: [serves], goals: [domain]}`; два модуля с одним полем —
   конфликт;
 - `changelog_tags` — теги журнала решений модуля в дополнение к тегам
-  ядра.
+  ядра;
+- `gitignore` — строки, которые модуль добавляет в `.gitignore`
+  (локальные, машинно-зависимые файлы); при отключении убираются, если
+  их не объявляет другой подключённый модуль.
 
 Правила модуля с приоритетом (безопасность, атрибуция, приватность)
 пишутся целиком в его блок `AGENTS.md`: строки блока обязательны
@@ -191,3 +194,24 @@ feature:
 - [`harness`](harness.md) — проверки и генерация через
   `@shahimat/harness`. v3.
 - [`worktrees`](worktrees.md) — параллельные сессии в git worktree. v3.
+- [`app-loop`](app-loop.md) — петля «домен ↔ приложение»: `serves` /
+  `automated_by`, `app-telemetry`, выравнивание целей. v3, требует
+  `domain`.
+- [`data-access`](data-access.md) — каналы к внешним данным в
+  `context/data-access.yml`. v3.
+- [`privacy`](privacy.md) — приватность как правило агента и
+  приложения. v3.
+- [`life`](life.md) — домен жизни: факты, сигналы, протоколы. v3,
+  требует `privacy`.
+- [`safety-boundaries`](safety-boundaries.md) — агент не врач;
+  тревожный признак — стоп и помощь. v3.
+- [`analysis`](analysis.md) — источники, тезисы, позиции, разборы,
+  противоречия; целостность атрибуции. v3.
+- [`book-corpus`](book-corpus.md) — загрузка книг в анализ. v3, требует
+  `analysis`, `data-access`.
+- [`external-context`](external-context.md) — оверлей поверх живого
+  проекта: системы, оргправила, процессы, аудит ссылок. v3, требует
+  `domain`.
+
+Пресеты из этих модулей — `presets/` в корне репозитория:
+`personal`, `analytical`, `external`.

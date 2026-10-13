@@ -479,11 +479,22 @@ rules: tools/harness/rules       # дополнения проекта (7.3)
 - **harness:** `index_layers` с `format: yml`; группа `presets` в
   индексе с проверкой модулей и контракта.
 
-Планируемые модули: общие `app-loop`, `data-access`, `privacy`;
-`life`, `safety-boundaries` (personal); `analysis`, `book-corpus`
-(analytical); `external-context` (external). Старые контракты после
-выхода пресетов помечаются `deprecated` со ссылкой на пресет и не
-удаляются: их ключи используются в проектах.
+Модули: общие `app-loop`, `data-access`, `privacy`; `life`,
+`safety-boundaries` (personal); `analysis`, `book-corpus` (analytical);
+`external-context` (external). Пресеты — `presets/personal.yml`,
+`analytical.yml`, `external.yml`. Старые контракты (`personal-project`,
+`analytical-project`, `external-project-context-v2`, v1
+`external-project-context`) помечены `deprecated` со ссылкой на пресет
+и не удаляются: их ключи используются в проектах; «сверь всё»
+предупреждает о замене.
+
+Дополнительно по итогам реализации:
+
+- `provides.gitignore` — строки `.gitignore`, которые ставит модуль;
+- поле `deprecated` во frontmatter попадает в индекс;
+- ссылки петли — `<kind>:<id>` (skill `app-loop`);
+- копии паттернов в skills (`goals`, `guardrail-dual-level`) и skill
+  `knowledge-external-gui` сверяются с источником тестом репозитория.
 
 ## 9.2. Как контракт попадает в проект
 
@@ -502,9 +513,8 @@ rules: tools/harness/rules       # дополнения проекта (7.3)
   вернуться после выхода v3; до этого контракты остаются отдельными.
 - Опубликовать `@shahimat/harness` в npm: модуль harness ставит его
   через `npx`.
-- Свести контракты v2-семейства к пресетам — заодно снимет отставание
-  их inline-копий `source-sync` и `goals` (механизмы готовы — 9.1;
-  осталось: модули и пресеты).
+- Пробная установка пресетов на реальных проектах и миграция
+  существующих (infragurator — с v2) — по решению пользователя.
 - `harness init [--preset <key>]` / `harness add <module>` —
   детерминированная часть установки CLI вместо агента; смысловая часть
   (вопросы, перенос документации, `summary`) остаётся агенту.

@@ -67,7 +67,8 @@ skill — протокол их выбора, подключения и откл
    - skills модуля из индекса — в `.agents/skills/<name>/`, байт в
      байт, SHA каждого файла сверен;
    - блок в конец `AGENTS.md` между `<!-- module:<key> -->` и
-     `<!-- /module:<key> -->` — текст из модуля.
+     `<!-- /module:<key> -->` — текст из модуля;
+   - строки `gitignore` модуля — в `.gitignore`, если их там нет.
 4. Manifest `context/modules/<key>.yml`:
 
    ```yaml
@@ -84,6 +85,7 @@ skill — протокол их выбора, подключения и откл
      agents_md_block: true
      harness_checks: [<ключи проверок в context/harness.yml>]
      changelog_tags: [<теги журнала решений модуля>]
+     gitignore: [<строки, добавленные в .gitignore>]
      extends:                       # поля в слоях других модулей
        <модуль>: [<поля>]
      index_layers:                  # слои для context/index.yml, если есть
@@ -105,7 +107,8 @@ skill — протокол их выбора, подключения и откл
 
 1. Прочитай manifest, покажи всё из `provides`, что будет удалено:
    слои, файлы, skills, блок `AGENTS.md`, проверки и теги в
-   `context/harness.yml`, поля `extends` в чужих слоях (записи в
+   `context/harness.yml`, строки `gitignore` (если их не объявляет
+   другой модуль), поля `extends` в чужих слоях (записи в
    CHANGELOG с тегами модуля остаются — журнал не переписывается).
 2. Слой с содержимым проекта (entities, manuals, цели) — отдельный
    вопрос: удалить или оставить как обычные файлы проекта.

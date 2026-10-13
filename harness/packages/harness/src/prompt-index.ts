@@ -31,6 +31,8 @@ export interface IndexEntry {
   applicableTo: string[];
   patterns: string[];
   title?: string;
+  /** Чем заменён устаревший промпт: ключ или путь замены. */
+  deprecated?: string;
   /** Блок `feature` модуля-возможности — то, что нужно для чеклиста. */
   feature?: FeatureInfo;
   /** Файлы skill: `path` от корня репозитория и SHA-256 каждого. */
@@ -154,6 +156,8 @@ export async function collectEntries(root: string): Promise<CollectResult> {
     };
     const title = oneLine(fm?.['title'], 'title', file);
     if (title !== undefined) entry.title = title;
+    const deprecated = oneLine(fm?.['deprecated'], 'deprecated', file);
+    if (deprecated !== undefined) entry.deprecated = deprecated;
     const feature = parseFeature(fm?.['feature'], kind, file);
     if (feature !== undefined) entry.feature = feature;
     entries.push(entry);
@@ -298,6 +302,7 @@ export function renderIndex(entries: IndexEntry[], options: RenderOptions): stri
         ...(e.files === undefined ? [`    raw: ${options.rawBase}/${e.path}`] : []),
         `    sha256: ${e.sha256}`,
       );
+      if (e.deprecated !== undefined) lines.push(`    deprecated: ${scalar(e.deprecated)}`);
       if (e.files !== undefined) {
         lines.push('    files:');
         for (const f of e.files) {

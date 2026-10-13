@@ -48,3 +48,13 @@ describe('skills — копии источников совпадают', () => 
     expect(skillBody(await readRepo('skills/knowledge-external-gui/SKILL.md'))).toBe(`${expected.trimEnd()}\n`);
   });
 });
+
+describe('skills — копии паттерна guardrail-dual-level', () => {
+  it.each(['privacy', 'safety-boundaries', 'analysis'])('skill %s содержит inline-блок паттерна', async (name) => {
+    const pattern = await readRepo('patterns/guardrail-dual-level.md');
+    const block = pattern.slice(pattern.indexOf('## Inline-блок для целевого промпта'));
+    // Заголовок блока в skill на уровень выше: ### → ##.
+    const expected = (block.split('\n---\n')[1] ?? '').trim().replace(/^### /m, '## ');
+    expect(await readRepo(`skills/${name}/SKILL.md`)).toContain(expected);
+  });
+});

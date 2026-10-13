@@ -1,0 +1,30 @@
+# Аналитический проект: анализ (источники, тезисы, позиции) + приложение
+# для сбора данных. Заменяет контракт analytical-project.
+key: analytical
+title: Аналитический проект — анализ и приложение в одной петле
+contract: agent-operational-contract-v3
+modules:
+  - key: domain
+  - key: manuals
+  - key: goals
+  - key: harness
+    answers:
+      checks: [changelog, context-index, adapters]
+      adapters: [claude-code]
+  - key: privacy
+    answers:
+      outbound: none
+      repo-visibility: private
+  - key: analysis
+    answers:
+      namespaces: [ideology, philosophy]
+  - key: app-loop
+    answers:
+      counterpart: analysis
+      goal-domain-field: "yes"
+  - key: data-access
+    answers:
+      kinds: [mcp]
+  - key: book-corpus
+    answers:
+      corpus-kind: mcp

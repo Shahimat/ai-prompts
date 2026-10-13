@@ -172,6 +172,21 @@ describe('collectEntries: skills и agents', () => {
   });
 });
 
+describe('deprecated', () => {
+  it('попадает в индекс строкой после sha256', async () => {
+    await put('prompts/old.md', '---\nkey: old\nkind: contract\ndeprecated: presets/personal.yml\n---\n');
+    const { entries } = await collectEntries(root);
+    expect(entries[0]?.deprecated).toBe('presets/personal.yml');
+    const out = renderIndex(entries, { rawBase: RAW, generatedAt: AT });
+    expect(out).toMatch(/    sha256: [0-9a-f]{64}\n    deprecated: presets\/personal\.yml\n/);
+  });
+
+  it('многострочный deprecated — ошибка', async () => {
+    await put('prompts/old.md', '---\nkey: old\nkind: contract\ndeprecated: |\n  a\n  b\n---\n');
+    await expect(collectEntries(root)).rejects.toThrow(/deprecated должно быть непустой строкой/);
+  });
+});
+
 describe('collectEntries: presets', () => {
   async function base(): Promise<void> {
     await put('prompts/c.md', '---\nkey: core\nkind: contract\n---\n');

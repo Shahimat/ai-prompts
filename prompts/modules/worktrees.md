@@ -30,10 +30,11 @@ provides:
   skills: [worktrees]
   agents_md_block: true
   harness_checks: []
+  gitignore: [.claude/worktrees/]     # или каталог из ответа
 ```
 
-Плюс строка в `.gitignore` (каталог worktrees) — добавляется, если её
-нет; при отключении не удаляется.
+Строка `.gitignore` — каталог worktrees; при отключении убирается, если
+её не объявляет другой модуль.
 
 `.worktreeinclude` — по ответу пользователя, какие локальные файлы
 нужны в каждом worktree:

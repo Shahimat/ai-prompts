@@ -5,9 +5,15 @@ patterns: [source-sync, goals]
 title: Внешний проектный контекст v2 — отдельный репозиторий-справочник поверх живого проекта
 tags: [external-context, configuration-task, yaml, project-memory, workflow, tracker, repositories, agent-contract, migration-plan, docs-as-code, goals-programs]
 use_case: Скармливается новому AI-агенту как предложение развернуть или мигрировать отдельный репозиторий внешнего проектного контекста (справочники систем, оргправила, процессы, устойчивые знания, playbooks) поверх уже существующего живого проекта. Собирает с нуля (greenfield) или выдаёт план миграции (brownfield). Модель слоёв v2 (docs/entities + docs/behavior + docs/manuals + context/), verified/verified_at с расширенным определением «свежей проверки» (сверка с owner-ом, попытка отправить форму, чтение живой wiki), синхронизация через source-sync, открытость знаний, минимальное присутствие человека.
+deprecated: presets/external.yml
 ---
 
 # Внешний проектный контекст v2 — отдельный репозиторий-справочник поверх живого проекта
+
+> **Устарел.** Заменён ядром `agent-operational-contract-v3` с пресетом
+> `presets/external.yml`. Новые проекты — через v3; существующим — миграция по
+> запросу (команда «сверь всё» предупредит).
+
 
 ## TL;DR
 
