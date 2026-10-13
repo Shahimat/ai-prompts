@@ -1,3 +1,5 @@
+// expect:expect-cycles
+// expect:verdict-prune
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, rmSync } from 'node:fs';
 import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
@@ -333,6 +335,8 @@ async function init(args: CommandArgs): Promise<number> {
 }
 
 export async function runExpect(command: string | undefined, args: CommandArgs): Promise<number> {
+  // Кэш вердиктов и доказательства читаются от --root, а не от текущей папки.
+  process.env['HARNESS_EXPECT_ROOT'] = args.root;
   switch (command) {
     case 'init':
       return init(args);

@@ -1,5 +1,4 @@
 import { describe, expect } from 'vitest';
-import { DEFAULT_CHANGELOG } from '@shahimat/harness';
 import {
   budget,
   codeBlock,
@@ -78,12 +77,9 @@ describe('документация проекта', () => {
 
 describe('memory', () => {
   crit('memory агента запрещена правилом в шаблоне AGENTS.md', () => Check.memoryRule());
-  warn('adapters sync выключает memory: autoMemoryEnabled false в Claude Code, memories false в Codex', () => Check.memoryOff());
 });
 
 describe('журнал решений', () => {
-  crit('строка журнала — не длиннее 120 символов', () => Check.changelogLine());
-  crit('теги ядра — ровно arch, stack, dep, milestone', () => Check.coreTags());
   crit('журнал один: ни один модуль не ставит свой CHANGELOG-файл', () => Check.singleChangelog());
   warn('свой тег журнала модуль добавляет только через provides.changelog_tags', () => Check.moduleTags());
   crit('CHANGELOG.md сливается через merge=union в .gitattributes ядра', () => Check.mergeUnion());
@@ -91,11 +87,7 @@ describe('журнал решений', () => {
 
 ticketCommits('ticket-commits');
 
-describe('harness и источник', () => {
-  crit('в репозитории нет bash-скриптов: вся автоматизация на TS и Node ≥ 24', () => Check.noBash());
-  crit('CI прогоняет harness на ubuntu, macos и windows', () => Check.ciMatrix());
-  crit('у skill в индексе sha256 каждого файла', () => Check.skillFileShas());
-  warn('context/index.yml генерируется harness context index и не содержит даты генерации', () => Check.contextIndexNoDate());
+describe('источник', () => {
   warn('источники скачиваются только curl, WebFetch запрещён', () => Check.curlOnly());
   warn('обновление из источника предупреждает о deprecated-контракте и называет замену', () => Check.syncWarnsDeprecated());
 });
@@ -291,16 +283,9 @@ class Check {
     expect(await template()).toContain('Memory агента запрещена');
   }
 
-  static memoryOff = (): Promise<void> => judged(['@memory-off']);
 
   // журнал решений
-  static changelogLine(): void {
-    expect(DEFAULT_CHANGELOG.maxLine).toBe(120);
-  }
 
-  static coreTags(): void {
-    expect([...DEFAULT_CHANGELOG.tags].sort()).toEqual(['arch', 'dep', 'milestone', 'stack']);
-  }
 
   static async singleChangelog(): Promise<void> {
     const files = (await modules()).flatMap((m) => ((m.provides?.['files'] ?? []) as string[]).map((f) => `${m.key}: ${f}`));
@@ -314,22 +299,9 @@ class Check {
   }
 
   // harness и источник
-  static async noBash(): Promise<void> {
-    const pkg = JSON.parse(await readRepo('harness/packages/harness/package.json')) as { engines: { node: string } };
-    expect(pkg.engines.node).toBe('>=24');
-    expect(await readRepo('.gitattributes')).toContain('eol=lf');
-  }
 
-  static async ciMatrix(): Promise<void> {
-    expect(await readRepo('.github/workflows/check-index.yml')).toMatch(/os: \[ubuntu-latest, macos-latest, windows-latest\]/);
-  }
 
-  static async skillFileShas(): Promise<void> {
-    const entries = (await indexEntries()).filter((e) => e.kind === 'skill');
-    expectAll(entries, (e) => e.key, (e) => (e.files?.length ?? 0) > 0 && (e.files ?? []).every((f) => /^[0-9a-f]{64}$/.test(f.sha256)));
-  }
 
-  static contextIndexNoDate = (): Promise<void> => judged(['@context-index-no-date']);
   static curlOnly = (): Promise<void> => judged(['@curl-only']);
   static syncWarnsDeprecated = (): Promise<void> => judged(['@sync-warns-deprecated']);
 

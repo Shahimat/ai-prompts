@@ -32,3 +32,4 @@ export {
   type AdapterName,
   type SyncResult,
 } from './adapters/sync.ts';
+export { changelogBetween, compareVersions, runOutdated, type Fetcher } from './commands/outdated.ts';

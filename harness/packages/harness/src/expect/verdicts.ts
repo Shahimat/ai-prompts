@@ -1,3 +1,4 @@
+// expect:verdict-prune
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { repoRoot } from './repo.ts';

@@ -170,3 +170,14 @@ describe('harness outdated', async () => {
     await expect(runOutdated({ root, now: NOW }, fetcher('0.5.0'))).rejects.toThrow(/нет version/);
   });
 });
+
+describe('harness index build | check', () => {
+  const RAW = 'https://raw.example/repo/main';
+  it('build пишет индекс, check: 0 — актуален, 1 — устарел', async () => {
+    await put('prompts/a.md', '---\nkey: a\nkind: prompt\n---\n');
+    expect(await main(['index', 'build', '--root', root, '--raw-base', RAW], NOW)).toBe(0);
+    expect(await main(['index', 'check', '--root', root, '--raw-base', RAW], NOW)).toBe(0);
+    await put('prompts/b.md', '---\nkey: b\nkind: prompt\n---\n');
+    expect(await main(['index', 'check', '--root', root, '--raw-base', RAW], NOW)).toBe(1);
+  });
+});
