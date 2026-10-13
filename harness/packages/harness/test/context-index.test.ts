@@ -138,3 +138,54 @@ describe('checkContextIndex', () => {
     expect((await checkContextIndex(root)).map((d) => d.message)).toEqual(['устарел: запусти harness context index']);
   });
 });
+
+describe('слои модулей (provides.index_layers)', () => {
+  const MANIFEST = 'key: knowledge-external-gui\nprovides:\n  index_layers:\n    - section: knowledge\n      dir: docs/knowledge/\n';
+  const card = (id: string, ns = 'vpn', title = '# Provider: вебхуки'): string =>
+    `---\n# комментарий YAML не заголовок\nid: ${id}\nkind: knowledge\nnamespace: ${ns}\n---\n\n${title}\n\n## Карта\n`;
+
+  it('индексирует слой модуля по namespace', async () => {
+    await seed();
+    await put('context/modules/knowledge-external-gui.yml', MANIFEST);
+    await put('docs/knowledge/provider/webhooks.md', card('provider-webhooks'));
+    await put('docs/knowledge/other/login.md', card('other-login', 'infra', '# Other: вход'));
+    const { text, diagnostics } = await buildContextIndex(root);
+    expect(diagnostics).toEqual([]);
+    const index = parse(text) as { namespaces: Record<string, Record<string, unknown>> };
+    expect(index.namespaces['vpn']?.['knowledge']).toEqual({ 'provider-webhooks': 'Provider: вебхуки' });
+    expect(index.namespaces['infra']?.['knowledge']).toEqual({ 'other-login': 'Other: вход' });
+    expect(Object.keys(index.namespaces['vpn'] ?? {})).toEqual(['description', 'entities', 'behaviors', 'manuals', 'knowledge']);
+  });
+
+  it('модуль без index_layers и слой без файлов — ничего не добавляют', async () => {
+    await seed();
+    await put('context/modules/code-rules.yml', 'key: code-rules\nprovides:\n  layers: [context/conventions/code/]\n');
+    await put('context/modules/knowledge-external-gui.yml', MANIFEST);
+    const before = await buildContextIndex(root);
+    expect(before.diagnostics).toEqual([]);
+    expect(before.text).not.toMatch(/knowledge/);
+  });
+
+  it('нарушения в манифесте и файлах слоя', async () => {
+    await seed();
+    await put('context/modules/a.yml', MANIFEST);
+    await put('context/modules/b.yml', 'provides:\n  index_layers:\n    - section: knowledge\n      dir: docs/k2\n    - section: entities\n      dir: x\n    - section: ok\n      dir: ../outside\n');
+    await put('context/modules/c.yml', 'provides:\n  index_layers: knowledge\n');
+    await put('docs/knowledge/p/wrong.md', card('other-id'));
+    await put('docs/knowledge/p/no-fm.md', '# Без frontmatter\n');
+    await put('docs/knowledge/p/no-h1.md', '---\nid: p-no-h1\nnamespace: vpn\n---\nтекст\n');
+    await put('docs/knowledge/p/alien.md', card('p-alien', 'misc'));
+    await put('docs/knowledge/p/no-id.md', '---\nnamespace: vpn\n---\n# x\n');
+    expect(await messages()).toEqual([
+      'context/modules/b.yml: index_layers: section «knowledge» уже объявлена в context/modules/a.yml',
+      'context/modules/b.yml: index_layers: section «entities» — нужен kebab-case, не description/entities/behaviors/manuals',
+      'context/modules/b.yml: index_layers: dir «../outside» — нужен путь внутри проекта',
+      'context/modules/c.yml: provides.index_layers должно быть списком',
+      'docs/knowledge/p/alien.md: namespace «misc» не объявлен в context/project.yml → namespaces',
+      'docs/knowledge/p/no-fm.md: нет frontmatter (id, namespace)',
+      'docs/knowledge/p/no-h1.md: нет заголовка «# …» (одна строка для индекса)',
+      'docs/knowledge/p/no-id.md: нет поля id',
+      'docs/knowledge/p/wrong.md: id «other-id» не совпадает с путём «p-wrong»',
+    ]);
+  });
+});

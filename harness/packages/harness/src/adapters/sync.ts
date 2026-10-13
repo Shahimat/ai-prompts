@@ -1,6 +1,7 @@
 import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { Diagnostic } from '../diagnostics.ts';
+import { claudeMemory, CODEX_CONFIG, codexMemory } from './memory.ts';
 import { claudeAgent, claudeMd, codexAgent, GENERATED_MARK, SKILL_MARKER_FILE, skillMarker } from './render.ts';
 import { AGENTS_MD, readSources } from './source.ts';
 
@@ -117,6 +118,7 @@ async function staleActions(root: string, planned: Set<string>): Promise<Action[
     if (content !== null && isOurs(content)) actions.push({ op: 'delete', path: rel });
   };
   await consider(CLAUDE_MD);
+  await consider(CODEX_CONFIG);
   for (const name of await listNames(path.join(root, CLAUDE_AGENTS))) {
     if (name.endsWith('.md')) await consider(`${CLAUDE_AGENTS}/${name}`);
   }
@@ -167,7 +169,20 @@ export async function computeSync(root: string, adapters: readonly AdapterName[]
     }
   }
 
-  actions.push(...(await staleActions(root, new Set(units.map((u) => u.path)))));
+  // Memory агента запрещена контрактом — выключаем её настройкой инструмента.
+  const planned = new Set(units.map((u) => u.path));
+  for (const [adapter, apply] of [
+    ['claude-code', claudeMemory],
+    ['codex', codexMemory],
+  ] as const) {
+    if (!adapters.includes(adapter)) continue;
+    const memory = await apply(root);
+    actions.push(...memory.actions);
+    diagnostics.push(...memory.diagnostics);
+    if (adapter === 'codex') planned.add(CODEX_CONFIG);
+  }
+
+  actions.push(...(await staleActions(root, planned)));
   return { actions, diagnostics };
 }
 

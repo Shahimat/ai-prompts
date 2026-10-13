@@ -257,9 +257,10 @@ feature:
 Канон — `AGENTS.md` и `.agents/`. Производные файлы:
 
 - **Claude Code** — `CLAUDE.md` (`@AGENTS.md`), копии skills в
-  `.claude/skills/<name>/`, субагенты в `.claude/agents/<name>.md`;
+  `.claude/skills/<name>/`, субагенты в `.claude/agents/<name>.md`,
+  `autoMemoryEnabled: false` в `.claude/settings.json`;
 - **Codex** — читает `AGENTS.md` и `.agents/skills/` сам; субагенты в
-  `.codex/agents/<name>.toml`.
+  `.codex/agents/<name>.toml`, memory выключена в `.codex/config.toml`.
 
 Какие инструменты используются — спроси при установке. При подключённом
 harness производные генерирует `harness adapters sync` и проверяет
@@ -278,9 +279,19 @@ harness производные генерирует `harness adapters sync` и �
 
 - «Запомни», «зафиксируй», «сохрани» — запись в документацию через
   docs-keeper.
-- Memory выключается настройкой инструмента в проекте, где это
-  возможно; где нет — страхует hook (`harness hook memory-guard`, когда
-  появится); без того и другого действует правило.
+- Memory выключается настройкой инструмента в проекте:
+  - Claude Code — `.claude/settings.json` → `"autoMemoryEnabled": false`
+    (выключает и запись, и чтение memory);
+  - Codex — `.codex/config.toml`: `[features] memories = false`,
+    `[memories] use_memories = false`, `generate_memories = false`.
+    Проектный конфиг Codex действует только в доверенном (trusted)
+    проекте, и на 2026-10 есть открытый баг openai/codex#47812 —
+    надёжнее дополнительно выключить глобально: `codex features disable
+    memories`. Это решение пользователя, предложи его.
+- При подключённом harness настройки ставит и проверяет
+  `harness adapters sync`; без него — ты, по тем же правилам: в
+  `.claude/settings.json` правится только ключ, остальное содержимое
+  сохраняется.
 - При установке найди memory по этому проекту в своём инструменте:
   факты — перенести в документацию (план — пользователю), memory —
   очистить.

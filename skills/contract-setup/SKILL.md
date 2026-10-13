@@ -70,6 +70,9 @@ skill — протокол их выбора, подключения и откл
      skills: [<имена skills>]
      agents_md_block: true
      harness_checks: [<ключи проверок в context/harness.yml>]
+     index_layers:                  # слои для context/index.yml, если есть
+       - section: <имя секции>
+         dir: <каталог слоя>
    parts:
      skills:
        <name>: <sha256 записи skill из индекса>

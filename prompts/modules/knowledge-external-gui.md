@@ -1,11 +1,16 @@
 ---
 key: knowledge-external-gui
 kind: module
-applicable_to: [agent-operational-contract-v2]
+applicable_to: [agent-operational-contract-v2, agent-operational-contract-v3]
 patterns: [source-sync]
 title: Модуль knowledge — карта GUI внешних систем без API
 use_case: Подключается к проекту, где часть работы проходит через web-GUI провайдеров без API/CLI. Заводит слой docs/knowledge/ с картами интерфейсов, чтобы агент не просил повторный скриншот каждой новой сессии. Синтезированные из скринов текстовые карты + last_seen_at + reactive-протокол уточнений при расхождении.
 tags: [docs-as-code, workflow, external-gui, agent-contract, module]
+feature:
+  summary: docs/knowledge — карты GUI внешних систем без API, чтобы не просить скриншоты заново
+  default: false
+  requires: []
+  conflicts: []
 ---
 
 # Модуль knowledge — карта GUI внешних систем без API
@@ -101,8 +106,8 @@ entities: [<id>]
 
 Поля frontmatter:
 
-- `id` — стабильный kebab-case, обычно `<system>-<flow>`. Совпадает с
-  именем файла без расширения.
+- `id` — стабильный kebab-case `<system>-<flow>`: путь файла внутри
+  `docs/knowledge/` без `.md`, где `/` заменён на `-`.
 - `kind: knowledge` — обязательно.
 - `namespace` — как у связанной entity (`infra`, `payments`, ...).
   Отдельного namespace для knowledge не заводим.
@@ -202,7 +207,8 @@ knowledge и в текущем скрине.
 3. По итогам работы: если задача попала под триггер заведения knowledge
    — спрашиваешь одной строкой «сохранить как knowledge? да/нет».
 4. При «да» — заводишь файл, обновляешь manifest модуля, обновляешь
-   `context/index.yml`.
+   `context/index.yml` (в v3 — пересборкой `harness context index`,
+   если подключён harness).
 
 ## Проверки внутренней непротиворечивости
 
@@ -234,6 +240,43 @@ provides:
   добавляются по мере работы.
 - `fields_in_index: [knowledge]` — в `context/index.yml` появляется
   секция `knowledge` со списком заведённых файлов по namespace.
+
+## Совместимость с v3
+
+С ядром `agent-operational-contract-v3` модуль работает так же, с
+отличиями:
+
+- правила работы со слоем — разделы «Назначение и границы» … «Проверки
+  внутренней непротиворечивости», «Обфусцированный пример» и «Поведение
+  по умолчанию» — ставятся в проект skill'ом `knowledge-external-gui`
+  (копия этих разделов; правятся вместе);
+- `context/index.yml` в v3 генерируется: вместо `fields_in_index`
+  manifest объявляет слой для индекса, и записи knowledge попадают в
+  namespace своих файлов секцией `knowledge`;
+- `provides` в v3:
+
+  ```yaml
+  provides:
+    layers: [docs/knowledge/]
+    files: []
+    skills: [knowledge-external-gui]
+    agents_md_block: true
+    harness_checks: []
+    index_layers:
+      - section: knowledge
+        dir: docs/knowledge
+  ```
+
+- блок `AGENTS.md`:
+
+  ```markdown
+  <!-- module:knowledge-external-gui -->
+  ## knowledge
+
+  - где что в GUI внешней системы X → `docs/knowledge/<system>/`;
+  - правила слоя, скриншоты, свежесть → skill `knowledge-external-gui`.
+  <!-- /module:knowledge-external-gui -->
+  ```
 
 ## Обфусцированный пример
 

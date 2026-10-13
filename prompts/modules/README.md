@@ -86,7 +86,10 @@ feature:
 Модуль v3 делится на две части: сам модуль — что и как ставить; skill
 модуля (`skills/<name>/`) — правила работы со слоем во время работы.
 В `provides` модуля v3 добавляются `skills`, `agents_md_block`,
-`harness_checks`.
+`harness_checks` и `index_layers` — слои, которые `harness context
+index` включает в `context/index.yml`: файлы `*.md` с frontmatter `id`
+(путь внутри слоя без `.md`, `/` → `-`) и `namespace`, строка индекса —
+первый заголовок `# …`.
 
 ## Структура тела модуля
 
@@ -164,7 +167,7 @@ feature:
 ## Список текущих модулей
 
 - [`knowledge-external-gui`](knowledge-external-gui.md) — работа с GUI
-  внешних систем без API. Применим к `agent-operational-contract-v2`.
+  внешних систем без API. Применим к v2 и v3.
 - [`code-rules-fullstack-js-ts`](code-rules-fullstack-js-ts.md) —
   правила стиля кода на fullstack js/ts, пакетом в подпапке
   `context/conventions/code/`. Применим к v2 и v3.

@@ -277,8 +277,10 @@ provides:
   горячие файлы; `harness wt new` — когда появится. harness не требует.
 - **code-rules-fullstack-js-ts** (нет) — существующий модуль; `applicable_to`
   расширен на v3, добавлены `feature` и `summary` у правил.
-- **knowledge-external-gui** — пока только v2: его слой `docs/knowledge/`
-  не попадает в генерируемый `context/index.yml` (см. раздел 10).
+- **knowledge-external-gui** (нет) — v2 и v3; слой `docs/knowledge/`
+  попадает в `context/index.yml` через `provides.index_layers`; правила
+  слоя — skill, копия разделов модуля (совпадение проверяет тест
+  репозитория).
 
 ### 4.3. Вложенный чеклист harness
 
@@ -329,20 +331,20 @@ provides:
   - `.codex/agents/docs-keeper.toml` — субагент;
   - `.codex/config.toml` / `.codex/hooks.json` — memory выключена.
 
-Запрет memory — часть ядра, не возможность. Порядок средств:
+Запрет memory — часть ядра, не возможность. Средства:
 
-1. Выключить memory настройкой инструмента в проектном конфиге, если
-   инструмент это позволяет (имя настройки у каждого инструмента —
-   проверить при реализации адаптера).
-2. Если выключить нельзя — hook `PreToolUse`, блокирующий запись
-   (`harness hook memory-guard`, при harness).
-3. Без harness и без настройки — остаётся правило 3.4.2.
-
-Без harness адаптеры создаёт агент при настройке, по тем же правилам, и
-отвечает за их актуальность сам.
-
-Набор инструментов задаётся в `context/harness.yml` (`adapters:
-[claude-code, codex]`) или, без harness, в `context/project.yml`.
+1. Настройка инструмента в проекте, её ставит `harness adapters sync`:
+   - Claude Code — `"autoMemoryEnabled": false` в `.claude/settings.json`
+     (выключает запись и чтение); в файле правится только этот ключ;
+   - Codex — `.codex/config.toml`: `features.memories`,
+     `memories.use_memories`, `memories.generate_memories` = `false`.
+     Действует только в trusted-проекте; открытый баг
+     openai/codex#47812 — дополнительно предлагаем пользователю
+     глобальное `codex features disable memories`. Ручной
+     `.codex/config.toml` sync не трогает, только проверяет ключи.
+2. Hook не используется: Claude Code выключается настройкой, а Codex
+   пишет memories фоновым процессом, который PreToolUse не видит.
+3. Правило 3.4.2 действует всегда.
 
 ## 6. Worktrees
 
@@ -406,9 +408,6 @@ rules: tools/harness/rules       # дополнения проекта (7.3)
   (по `paths` в entity и namespace);
 - `harness goals check`;
 - `harness verify [<behavior-id>...]`;
-- `harness hook memory-guard` — страховка запрета memory там, где её
-  нельзя выключить настройкой; единый обработчик для Claude Code и
-  Codex;
 - `harness wt new <name>`.
 
 Третья очередь:
@@ -463,12 +462,7 @@ rules: tools/harness/rules       # дополнения проекта (7.3)
 - Свести `personal-project`, `analytical-project`,
   `external-project-context-v2` к пресетам возможностей поверх ядра v3 —
   вернуться после выхода v3; до этого контракты остаются отдельными.
-- Индексировать слои модулей в `harness context index` (например,
-  `docs/knowledge/`) и перевести на v3 `knowledge-external-gui`.
-- Синхронизировать inline-копии паттернов `source-sync` и `goals` в
-  v2-семействе (`agent-operational-contract-v2`, `personal-project`,
-  `analytical-project`, `external-project-context-v2`) после их правки
-  под v3.
 - Опубликовать `@shahimat/harness` в npm: модуль harness ставит его
   через `npx`.
-- Отключение memory настройками инструментов в адаптерах.
+- Свести контракты v2-семейства к пресетам — заодно снимет отставание
+  их inline-копий `source-sync` и `goals`.

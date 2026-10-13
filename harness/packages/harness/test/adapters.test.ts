@@ -188,3 +188,51 @@ describe('codexAgent', () => {
     expect(parseYaml(fm)).toMatchObject({ name: 'docs-keeper' });
   });
 });
+
+describe('adapters sync: memory выключена', () => {
+  it('claude-code: создаёт .claude/settings.json с autoMemoryEnabled: false', async () => {
+    await put('AGENTS.md', '# x\n');
+    expect(await sync(['claude-code'])).toEqual([]);
+    expect(JSON.parse(await read('.claude/settings.json'))).toEqual({ autoMemoryEnabled: false });
+    expect((await computeSync(root, ['claude-code'])).actions).toEqual([]);
+  });
+
+  it('claude-code: дописывает ключ, сохраняя permissions и прочее', async () => {
+    await put('AGENTS.md', '# x\n');
+    await put('.claude/settings.json', '{"permissions":{"allow":["Bash(git status)"]},"autoMemoryEnabled":true}');
+    await sync(['claude-code']);
+    expect(JSON.parse(await read('.claude/settings.json'))).toEqual({
+      permissions: { allow: ['Bash(git status)'] },
+      autoMemoryEnabled: false,
+    });
+  });
+
+  it('claude-code: невалидный JSON не трогает', async () => {
+    await put('AGENTS.md', '# x\n');
+    await put('.claude/settings.json', '{ сломано');
+    expect(await sync(['claude-code'])).toEqual([expect.stringMatching(/^\.claude\/settings\.json: невалидный JSON/)]);
+    expect(await read('.claude/settings.json')).toBe('{ сломано');
+  });
+
+  it('codex: создаёт .codex/config.toml, при выключении адаптера удаляет', async () => {
+    expect(await sync(['codex'])).toEqual([]);
+    const toml = await read('.codex/config.toml');
+    expect(toml).toContain('[features]\nmemories = false');
+    expect(toml).toContain('[memories]\nuse_memories = false\ngenerate_memories = false');
+    expect(await checkAdapters(root, ['codex'])).toEqual([]);
+    await sync(['claude-code']);
+    expect(await exists('.codex/config.toml')).toBe(false);
+  });
+
+  it('codex: ручной config.toml не трогает, проверяет ключи', async () => {
+    const manual = 'model = "x"\n\n[features]\nmemories = false # выкл\n\n[memories]\nuse_memories = false\n';
+    await put('.codex/config.toml', manual);
+    expect(await sync(['codex'])).toEqual([
+      '.codex/config.toml: написан вручную, memory не выключена: добавь memories.generate_memories = false',
+    ]);
+    expect(await read('.codex/config.toml')).toBe(manual);
+
+    await put('.codex/config.toml', 'features.memories = false\nmemories.use_memories = false\nmemories.generate_memories = false\n');
+    expect(await sync(['codex'])).toEqual([]);
+  });
+});

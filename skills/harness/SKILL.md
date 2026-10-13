@@ -27,19 +27,24 @@ npx -y @shahimat/harness@<version> <команда> --root .
   Запускай в конце каждой задачи и после записи docs-keeper.
 - `harness changelog lint` — формат `CHANGELOG.md`: строка до
   `max_line`, три части через ` · `, тег из списка, дата, порядок.
-- `harness context index` — пересобрать `context/index.yml` из слоёв.
+- `harness context index` — пересобрать `context/index.yml` из слоёв,
+  включая слои модулей из `provides.index_layers` их manifest'ов.
   Запускай после создания, удаления или переименования entity,
   behavior, manual, convention и после правки `summary` / `title`.
 - `harness adapters sync` — пересобрать файлы под инструменты
-  (`CLAUDE.md`, `.claude/`, `.codex/`) из `AGENTS.md` и `.agents/`.
-  Запускай после правки `AGENTS.md`, skills или субагентов.
+  (`CLAUDE.md`, `.claude/`, `.codex/`) из `AGENTS.md` и `.agents/` и
+  выключить memory агента: `autoMemoryEnabled: false` в
+  `.claude/settings.json` (остальные ключи файла сохраняются),
+  `.codex/config.toml` с выключенными memories. Ручной
+  `.codex/config.toml` не трогает — только сообщает, каких ключей не
+  хватает. Запускай после правки `AGENTS.md`, skills или субагентов.
 
 ## Сгенерированное не правится руками
 
 `context/index.yml`, `CLAUDE.md`, `.claude/skills/*` с файлом
-`.harness-generated`, `.claude/agents/*`, `.codex/agents/*` —
-производные. Правишь источник, затем генерация. `harness check`
-ловит ручную правку копии.
+`.harness-generated`, `.claude/agents/*`, `.codex/agents/*`,
+сгенерированный `.codex/config.toml` — производные. Правишь источник,
+затем генерация. `harness check` ловит ручную правку копии.
 
 Файл без метки harness на месте генерируемого (например, свой
 `CLAUDE.md`) — sync его не трогает и сообщает: содержимое перенести в

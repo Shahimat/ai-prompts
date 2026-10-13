@@ -2,7 +2,7 @@ import { access, readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { parse, stringify } from 'yaml';
 import type { Diagnostic } from '../diagnostics.ts';
-import { normalizeEol } from '../frontmatter.ts';
+import { normalizeEol, parseFrontmatter } from '../frontmatter.ts';
 
 export const CONTEXT_INDEX_PATH = 'context/index.yml';
 const PROJECT_PATH = 'context/project.yml';
@@ -20,6 +20,30 @@ interface NamespaceIndex {
   entities: Map<string, string | null>;
   behaviors: Map<string, string | null>;
   manuals: Map<string, string | null>;
+  /** Слои модулей: секция → id → заголовок. */
+  layers: Map<string, Map<string, string | null>>;
+}
+
+/** Слой модуля из `provides.index_layers` его manifest'а. */
+interface ModuleLayer {
+  section: string;
+  dir: string;
+  manifest: string;
+}
+
+const MODULES_DIR = 'context/modules';
+const RESERVED_SECTIONS = new Set(['description', 'entities', 'behaviors', 'manuals']);
+
+/** Первый заголовок `# …` после frontmatter (комментарии YAML не считаются). */
+function firstHeading(text: string): string | null {
+  const lines = normalizeEol(text).split('\n');
+  let start = 0;
+  if (lines[0] === '---') {
+    const end = lines.indexOf('---', 1);
+    if (end !== -1) start = end + 1;
+  }
+  const h1 = lines.slice(start).find((line) => line.startsWith('# '));
+  return h1 === undefined ? null : h1.slice(2).trim();
 }
 
 export interface ContextIndexResult {
@@ -87,7 +111,7 @@ class Collector {
   namespace(name: string): NamespaceIndex {
     let ns = this.namespaces.get(name);
     if (ns === undefined) {
-      ns = { entities: new Map(), behaviors: new Map(), manuals: new Map() };
+      ns = { entities: new Map(), behaviors: new Map(), manuals: new Map(), layers: new Map() };
       this.namespaces.set(name, ns);
     }
     return ns;
@@ -195,9 +219,7 @@ class Collector {
 
     for (const file of await listFiles(this.root, LAYERS.manuals, '.md')) {
       const name = baseName(file, '.md');
-      const text = normalizeEol(await readFile(path.join(this.root, file), 'utf8'));
-      const h1 = text.split('\n').find((line) => line.startsWith('# '));
-      const title = h1 === undefined ? null : h1.slice(2).trim();
+      const title = firstHeading(await readFile(path.join(this.root, file), 'utf8'));
       if (title === null) this.report(file, 'нет заголовка «# …» (одна строка для индекса)');
       const owners = manualRefs.get(name);
       if (owners === undefined) {
@@ -205,6 +227,80 @@ class Collector {
         continue;
       }
       for (const ns of owners) this.namespace(ns).manuals.set(name, title);
+    }
+
+    for (const layer of await this.loadModuleLayers()) await this.collectLayer(layer);
+  }
+
+  /** Слои, которые модули объявили в `provides.index_layers`. */
+  async loadModuleLayers(): Promise<ModuleLayer[]> {
+    const layers: ModuleLayer[] = [];
+    for (const manifest of await listFiles(this.root, MODULES_DIR, '.yml')) {
+      const data = await this.readYaml(manifest);
+      if (data === null) continue;
+      const provides = data['provides'];
+      const declared = isRecord(provides) ? provides['index_layers'] : undefined;
+      if (declared === undefined || declared === null) continue;
+      if (!Array.isArray(declared)) {
+        this.report(manifest, 'provides.index_layers должно быть списком');
+        continue;
+      }
+      for (const item of declared) {
+        const section = isRecord(item) ? item['section'] : undefined;
+        const dir = isRecord(item) ? item['dir'] : undefined;
+        if (typeof section !== 'string' || !/^[a-z][a-z0-9-]*$/.test(section) || RESERVED_SECTIONS.has(section)) {
+          this.report(manifest, `index_layers: section «${String(section)}» — нужен kebab-case, не ${[...RESERVED_SECTIONS].join('/')}`);
+          continue;
+        }
+        if (typeof dir !== 'string' || dir === '' || path.isAbsolute(dir) || dir.split('/').includes('..')) {
+          this.report(manifest, `index_layers: dir «${String(dir)}» — нужен путь внутри проекта`);
+          continue;
+        }
+        const taken = layers.find((l) => l.section === section);
+        if (taken !== undefined) {
+          this.report(manifest, `index_layers: section «${section}» уже объявлена в ${taken.manifest}`);
+          continue;
+        }
+        layers.push({ section, dir: dir.replace(/\/+$/, ''), manifest });
+      }
+    }
+    return layers;
+  }
+
+  /**
+   * Файл слоя модуля — markdown с frontmatter `id`, `namespace`; строка
+   * индекса — первый `# …`. `id` = путь внутри слоя без `.md`, `/` → `-`.
+   */
+  async collectLayer(layer: ModuleLayer): Promise<void> {
+    for (const file of await listFiles(this.root, layer.dir, '.md')) {
+      let data;
+      const text = await readFile(path.join(this.root, file), 'utf8');
+      try {
+        data = parseFrontmatter(text);
+      } catch (error) {
+        this.report(file, `невалидный frontmatter: ${(error as Error).message.split('\n')[0]}`);
+        continue;
+      }
+      if (data === null) {
+        this.report(file, 'нет frontmatter (id, namespace)');
+        continue;
+      }
+      const expected = file.slice(layer.dir.length + 1, -'.md'.length).split('/').join('-');
+      const id = data['id'];
+      if (typeof id !== 'string' || id === '') {
+        this.report(file, 'нет поля id');
+        continue;
+      }
+      if (id !== expected) this.report(file, `id «${id}» не совпадает с путём «${expected}»`);
+      const ns = this.checkNamespace(file, data);
+      const title = firstHeading(text);
+      if (title === null) this.report(file, 'нет заголовка «# …» (одна строка для индекса)');
+      if (ns === null) continue;
+      const sections = this.namespace(ns).layers;
+      const entries = sections.get(layer.section) ?? new Map<string, string | null>();
+      if (entries.has(id)) this.report(file, `id «${id}» уже занят в слое ${layer.section}`);
+      entries.set(id, title);
+      sections.set(layer.section, entries);
     }
   }
 }
@@ -224,6 +320,10 @@ function render(collector: Collector): string {
     if (ns.description !== undefined) out['description'] = ns.description;
     for (const section of ['entities', 'behaviors', 'manuals'] as const) {
       if (ns[section].size > 0) out[section] = sorted(ns[section]);
+    }
+    for (const section of [...ns.layers.keys()].sort()) {
+      const entries = ns.layers.get(section);
+      if (entries !== undefined && entries.size > 0) out[section] = sorted(entries);
     }
     namespaces[name] = out;
   }
