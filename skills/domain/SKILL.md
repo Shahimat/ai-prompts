@@ -39,6 +39,9 @@ behaviors: [<id behaviors>]
 
 - `paths` — связь кода с документацией: по ним находится entity для
   изменённого файла;
+- другие модули могут добавлять поля в entity и behavior
+  (`provides.extends.domain` в их manifest'ах) — правила этих полей в
+  skills тех модулей;
 - `manuals` и `behaviors` — ссылки в обе стороны: entity ссылается на
   behavior ⇔ behavior перечисляет entity в `entities`.
 

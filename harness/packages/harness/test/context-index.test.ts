@@ -189,3 +189,29 @@ describe('слои модулей (provides.index_layers)', () => {
     ]);
   });
 });
+
+describe('слои модулей в формате yml', () => {
+  const MANIFEST = 'provides:\n  index_layers:\n    - section: facts\n      dir: life/facts\n      format: yml\n';
+
+  it('индексирует yml по summary', async () => {
+    await seed();
+    await put('context/modules/life.yml', MANIFEST);
+    await put('life/facts/sleep/baseline.yml', 'id: sleep-baseline\nnamespace: vpn\nsummary: сон — базовая линия\n');
+    const { text, diagnostics } = await buildContextIndex(root);
+    expect(diagnostics).toEqual([]);
+    const index = parse(text) as { namespaces: Record<string, Record<string, unknown>> };
+    expect(index.namespaces['vpn']?.['facts']).toEqual({ 'sleep-baseline': 'сон — базовая линия' });
+  });
+
+  it('нарушения: нет summary, id не по пути, неизвестный format', async () => {
+    await seed();
+    await put('context/modules/life.yml', MANIFEST);
+    await put('context/modules/bad.yml', 'provides:\n  index_layers:\n    - section: x\n      dir: x\n      format: json\n');
+    await put('life/facts/a.yml', 'id: b\nnamespace: vpn\n');
+    expect(await messages()).toEqual([
+      'context/modules/bad.yml: index_layers: format «json» — md или yml',
+      'life/facts/a.yml: нет поля summary (одна строка для индекса)',
+      'life/facts/a.yml: id «b» не совпадает с путём «a»',
+    ]);
+  });
+});

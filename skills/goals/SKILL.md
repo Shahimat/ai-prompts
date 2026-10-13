@@ -151,3 +151,9 @@ human-friendly формат (3–5 задач с явными ссылками �
   `goal--<key>.yaml`;
 - запись задачи или новой цели — через docs-keeper, с прогоном
   `goal-consistency`.
+
+## Поля от других модулей
+
+Модули могут добавлять поля целям и программам
+(`provides.extends.goals` в их manifest'ах) и свои проверки поверх
+`goal-consistency` — правила в skills этих модулей.

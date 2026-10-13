@@ -28,6 +28,8 @@ interface NamespaceIndex {
 interface ModuleLayer {
   section: string;
   dir: string;
+  /** `md` — frontmatter + `# …`; `yml` — YAML с `id`, `namespace`, `summary`. */
+  format: 'md' | 'yml';
   manifest: string;
 }
 
@@ -256,36 +258,52 @@ class Collector {
           this.report(manifest, `index_layers: dir «${String(dir)}» — нужен путь внутри проекта`);
           continue;
         }
+        const format = (isRecord(item) ? item['format'] : undefined) ?? 'md';
+        if (format !== 'md' && format !== 'yml') {
+          this.report(manifest, `index_layers: format «${String(format)}» — md или yml`);
+          continue;
+        }
         const taken = layers.find((l) => l.section === section);
         if (taken !== undefined) {
           this.report(manifest, `index_layers: section «${section}» уже объявлена в ${taken.manifest}`);
           continue;
         }
-        layers.push({ section, dir: dir.replace(/\/+$/, ''), manifest });
+        layers.push({ section, dir: dir.replace(/\/+$/, ''), format, manifest });
       }
     }
     return layers;
   }
 
   /**
-   * Файл слоя модуля — markdown с frontmatter `id`, `namespace`; строка
-   * индекса — первый `# …`. `id` = путь внутри слоя без `.md`, `/` → `-`.
+   * Файл слоя модуля: `md` — frontmatter `id`, `namespace`, строка индекса —
+   * первый `# …`; `yml` — поля `id`, `namespace`, `summary`. `id` = путь
+   * внутри слоя без расширения, `/` → `-`.
    */
   async collectLayer(layer: ModuleLayer): Promise<void> {
-    for (const file of await listFiles(this.root, layer.dir, '.md')) {
-      let data;
-      const text = await readFile(path.join(this.root, file), 'utf8');
-      try {
-        data = parseFrontmatter(text);
-      } catch (error) {
-        this.report(file, `невалидный frontmatter: ${(error as Error).message.split('\n')[0]}`);
-        continue;
+    const ext = layer.format === 'md' ? '.md' : '.yml';
+    for (const file of await listFiles(this.root, layer.dir, ext)) {
+      let data: Record<string, unknown> | null;
+      let title: string | null;
+      if (layer.format === 'yml') {
+        data = await this.readYaml(file);
+        if (data === null) continue;
+        title = this.oneLine(file, data, 'summary');
+      } else {
+        const text = await readFile(path.join(this.root, file), 'utf8');
+        try {
+          data = parseFrontmatter(text);
+        } catch (error) {
+          this.report(file, `невалидный frontmatter: ${(error as Error).message.split('\n')[0]}`);
+          continue;
+        }
+        if (data === null) {
+          this.report(file, 'нет frontmatter (id, namespace)');
+          continue;
+        }
+        title = firstHeading(text);
+        if (title === null) this.report(file, 'нет заголовка «# …» (одна строка для индекса)');
       }
-      if (data === null) {
-        this.report(file, 'нет frontmatter (id, namespace)');
-        continue;
-      }
-      const expected = file.slice(layer.dir.length + 1, -'.md'.length).split('/').join('-');
+      const expected = file.slice(layer.dir.length + 1, -ext.length).split('/').join('-');
       const id = data['id'];
       if (typeof id !== 'string' || id === '') {
         this.report(file, 'нет поля id');
@@ -293,8 +311,6 @@ class Collector {
       }
       if (id !== expected) this.report(file, `id «${id}» не совпадает с путём «${expected}»`);
       const ns = this.checkNamespace(file, data);
-      const title = firstHeading(text);
-      if (title === null) this.report(file, 'нет заголовка «# …» (одна строка для индекса)');
       if (ns === null) continue;
       const sections = this.namespace(ns).layers;
       const entries = sections.get(layer.section) ?? new Map<string, string | null>();

@@ -172,6 +172,44 @@ describe('collectEntries: skills и agents', () => {
   });
 });
 
+describe('collectEntries: presets', () => {
+  async function base(): Promise<void> {
+    await put('prompts/c.md', '---\nkey: core\nkind: contract\n---\n');
+    await put('prompts/modules/m.md', '---\nkey: m\nkind: module\napplicable_to: [core]\n---\n');
+    await put('prompts/modules/old.md', '---\nkey: old\nkind: module\napplicable_to: [other]\n---\n');
+  }
+  const preset = (body: string): string => `key: p\ntitle: Пресет\ncontract: core\n${body}`;
+
+  it('пресет — запись с контрактом в applicable_to', async () => {
+    await base();
+    const content = preset('modules:\n  - key: m\n    answers: {x: 1}\n');
+    await put('presets/p.yml', content);
+    const entry = (await collectEntries(root)).entries.find((e) => e.kind === 'preset');
+    expect(entry).toEqual({
+      kind: 'preset',
+      key: 'p',
+      path: 'presets/p.yml',
+      sha256: sha256(content),
+      applicableTo: ['core'],
+      patterns: [],
+      title: 'Пресет',
+    });
+  });
+
+  it.each([
+    ['key не по имени файла', 'key: q\ntitle: t\ncontract: core\nmodules: [{key: m}]\n', /key должно совпадать/],
+    ['нет title', 'key: p\ncontract: core\nmodules: [{key: m}]\n', /нет title/],
+    ['нет контракта', 'key: p\ntitle: t\ncontract: nope\nmodules: [{key: m}]\n', /контракта «nope» нет/],
+    ['пустые modules', 'key: p\ntitle: t\ncontract: core\nmodules: []\n', /непустой список/],
+    ['нет модуля', 'key: p\ntitle: t\ncontract: core\nmodules: [{key: x}]\n', /модуля «x» нет/],
+    ['неприменимый модуль', 'key: p\ntitle: t\ncontract: core\nmodules: [{key: old}]\n', /не применим к «core»/],
+  ])('ошибка: %s', async (_name, content, message) => {
+    await base();
+    await put('presets/p.yml', content);
+    await expect(collectEntries(root)).rejects.toThrow(message);
+  });
+});
+
 describe('renderIndex', () => {
   const entry = (over: Partial<IndexEntry>): IndexEntry => ({
     kind: 'prompt',
@@ -207,6 +245,8 @@ describe('renderIndex', () => {
         'skills: []',
         '',
         'agents: []',
+        '',
+        'presets: []',
         '',
         'prompts: []',
         '',
