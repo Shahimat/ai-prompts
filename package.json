@@ -10,7 +10,7 @@
   ],
   "scripts": {
     "build": "npm run build -w @shahimat/harness && npm run build -w @shahimat/expectations",
-    "typecheck": "npm run typecheck -w @shahimat/harness && npm run typecheck -w @shahimat/expectations",
+    "typecheck": "npm run build -w @shahimat/harness && npm run typecheck -w @shahimat/harness && npm run typecheck -w @shahimat/expectations",
     "test": "npm test -w @shahimat/harness",
     "index:build": "node harness/packages/harness/dist/bin.js index build --root . --raw-base https://raw.githubusercontent.com/Shahimat/ai-prompts/main",
     "index:check": "node harness/packages/harness/dist/bin.js index check --root . --raw-base https://raw.githubusercontent.com/Shahimat/ai-prompts/main",
