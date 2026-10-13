@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { parseArgs } from 'node:util';
+import { runAdapters } from './commands/adapters.ts';
 import { runChangelog } from './commands/changelog.ts';
 import { runCheck } from './commands/check.ts';
 import { runContext } from './commands/context.ts';
@@ -9,6 +10,7 @@ import { UsageError } from './diagnostics.ts';
 
 const USAGE = `Использование:
   harness check [--root <dir>]
+  harness adapters sync [--root <dir>]
   harness changelog lint [--root <dir>]
   harness context index [--root <dir>]
   harness index build --raw-base <url> [--root <dir>] [--out <file>]
@@ -37,6 +39,8 @@ export async function main(argv: string[], now: Date = new Date()): Promise<numb
 
   const [group, command] = positionals;
   switch (group) {
+    case 'adapters':
+      return runAdapters(command, args);
     case 'check':
       return runCheck(args);
     case 'changelog':

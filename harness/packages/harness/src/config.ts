@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { parse } from 'yaml';
+import { KNOWN_ADAPTERS, type AdapterName } from './adapters/sync.ts';
 import { UsageError } from './diagnostics.ts';
 
 export const CONFIG_PATH = 'context/harness.yml';
@@ -17,16 +18,17 @@ export const DEFAULT_CHANGELOG: ChangelogOptions = {
 
 export interface HarnessConfig {
   version?: string;
-  adapters: string[];
+  adapters: AdapterName[];
   /** Включённые проверки; ключ отсутствует — проверка выключена. */
   checks: {
     changelog?: ChangelogOptions;
     'context-index'?: Record<string, never>;
+    adapters?: Record<string, never>;
   };
 }
 
 const TOP_LEVEL_KEYS = ['version', 'adapters', 'checks', 'worktrees', 'rules'];
-const KNOWN_CHECKS = ['changelog', 'context-index'];
+const KNOWN_CHECKS = ['changelog', 'context-index', 'adapters'];
 
 function fail(message: string): never {
   throw new UsageError(`${CONFIG_PATH}: ${message}`);
@@ -78,17 +80,23 @@ export function parseConfig(text: string): HarnessConfig {
     if (typeof version !== 'string' || version === '') fail('version должно быть строкой');
     config.version = version;
   }
-  if (data['adapters'] !== undefined) config.adapters = stringList(data['adapters'], 'adapters');
+  if (data['adapters'] !== undefined) {
+    const adapters = stringList(data['adapters'], 'adapters');
+    const unknown = adapters.filter((a) => !(KNOWN_ADAPTERS as readonly string[]).includes(a));
+    if (unknown.length > 0) fail(`неизвестные adapters: ${unknown.join(', ')} (есть: ${KNOWN_ADAPTERS.join(', ')})`);
+    config.adapters = adapters as AdapterName[];
+  }
 
   const checks = data['checks'] ?? {};
   if (!isRecord(checks)) fail('checks должно быть объектом');
   unknownKeys(checks, KNOWN_CHECKS, 'checks');
   if ('changelog' in checks) config.checks.changelog = parseChangelog(checks['changelog']);
-  if ('context-index' in checks) {
-    const options = checks['context-index'] ?? {};
-    if (!isRecord(options)) fail('checks.context-index должно быть объектом');
-    unknownKeys(options, [], 'checks.context-index');
-    config.checks['context-index'] = {};
+  for (const name of ['context-index', 'adapters'] as const) {
+    if (!(name in checks)) continue;
+    const options = checks[name] ?? {};
+    if (!isRecord(options)) fail(`checks.${name} должно быть объектом`);
+    unknownKeys(options, [], `checks.${name}`);
+    config.checks[name] = {};
   }
   return config;
 }

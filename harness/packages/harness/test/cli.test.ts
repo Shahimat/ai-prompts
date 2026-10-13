@@ -102,3 +102,20 @@ describe('harness context index', () => {
     expect(stderr.join('\n')).toMatch(/нет поля summary/);
   });
 });
+
+describe('harness adapters sync', () => {
+  it('2 — нет harness.yml', async () => {
+    expect(await run(['adapters', 'sync', '--root', root])).toBe(2);
+  });
+
+  it('генерирует, check с adapters проходит; ручной CLAUDE.md — 1', async () => {
+    await put('AGENTS.md', '# x\n');
+    await put('context/harness.yml', 'adapters: [claude-code]\nchecks:\n  adapters: {}\n');
+    expect(await main(['adapters', 'sync', '--root', root], NOW)).toBe(0);
+    expect(await main(['check', '--root', root], NOW)).toBe(0);
+
+    await put('CLAUDE.md', 'ручной\n');
+    expect(await main(['adapters', 'sync', '--root', root], NOW)).toBe(1);
+    expect(await main(['check', '--root', root], NOW)).toBe(1);
+  });
+});

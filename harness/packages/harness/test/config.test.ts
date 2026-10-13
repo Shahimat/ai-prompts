@@ -44,6 +44,8 @@ describe('parseConfig', () => {
     ['max_line ноль', 'checks:\n  changelog:\n    max_line: 0\n', /max_line/],
     ['пустые tags', 'checks:\n  changelog:\n    tags: []\n', /tags не может быть пустым/],
     ['adapters не список', 'adapters: codex\n', /adapters должно быть списком/],
+    ['неизвестный adapter', 'adapters: [cursor]\n', /неизвестные adapters: cursor/],
+    ['параметры у adapters', 'checks:\n  adapters:\n    x: 1\n', /checks\.adapters: x/],
     ['корень — список', '- a\n', /корень должен быть объектом/],
     ['невалидный YAML', 'a: b: c\n', /невалидный YAML/],
   ])('ошибка: %s', (_name, text, message) => {

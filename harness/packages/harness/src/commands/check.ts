@@ -1,3 +1,4 @@
+import { checkAdapters } from '../adapters/sync.ts';
 import { checkChangelog } from '../checks/changelog.ts';
 import { checkContextIndex } from '../checks/context-index.ts';
 import { CONFIG_PATH, loadConfig } from '../config.ts';
@@ -19,6 +20,10 @@ export async function runCheck(args: CommandArgs): Promise<number> {
   if (config.checks['context-index'] !== undefined) {
     ran.push('context-index');
     diags.push(...(await checkContextIndex(args.root)));
+  }
+  if (config.checks.adapters !== undefined) {
+    ran.push('adapters');
+    diags.push(...(await checkAdapters(args.root, config.adapters)));
   }
   if (ran.length === 0) {
     console.log(`check: в ${CONFIG_PATH} не включено ни одной проверки`);

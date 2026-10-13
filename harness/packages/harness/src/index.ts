@@ -22,3 +22,12 @@ export {
 } from './config.ts';
 export { formatDiagnostic, UsageError, type Diagnostic } from './diagnostics.ts';
 export { buildContextIndex, checkContextIndex, CONTEXT_INDEX_PATH, type ContextIndexResult } from './checks/context-index.ts';
+export {
+  applyActions,
+  checkAdapters,
+  computeSync,
+  KNOWN_ADAPTERS,
+  type Action,
+  type AdapterName,
+  type SyncResult,
+} from './adapters/sync.ts';
