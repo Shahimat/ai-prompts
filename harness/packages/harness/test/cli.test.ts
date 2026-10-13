@@ -86,3 +86,19 @@ describe('ошибки вызова', () => {
     },
   );
 });
+
+describe('harness context index', () => {
+  it('пишет индекс; check с context-index проходит', async () => {
+    await put('context/project.yml', 'namespaces:\n  vpn: доступ\n');
+    await put('docs/entities/srv.yml', 'id: srv\nnamespace: vpn\nsummary: сервер\n');
+    await put('context/harness.yml', 'checks:\n  context-index: {}\n');
+    expect(await main(['context', 'index', '--root', root], NOW)).toBe(0);
+    expect(await main(['check', '--root', root], NOW)).toBe(0);
+  });
+
+  it('1 — при нарушениях, но индекс записан', async () => {
+    await put('docs/entities/srv.yml', 'id: srv\nnamespace: vpn\n');
+    expect(await main(['context', 'index', '--root', root], NOW)).toBe(1);
+    expect(stderr.join('\n')).toMatch(/нет поля summary/);
+  });
+});

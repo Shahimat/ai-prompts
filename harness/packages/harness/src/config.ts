@@ -21,11 +21,12 @@ export interface HarnessConfig {
   /** Включённые проверки; ключ отсутствует — проверка выключена. */
   checks: {
     changelog?: ChangelogOptions;
+    'context-index'?: Record<string, never>;
   };
 }
 
 const TOP_LEVEL_KEYS = ['version', 'adapters', 'checks', 'worktrees', 'rules'];
-const KNOWN_CHECKS = ['changelog'];
+const KNOWN_CHECKS = ['changelog', 'context-index'];
 
 function fail(message: string): never {
   throw new UsageError(`${CONFIG_PATH}: ${message}`);
@@ -83,6 +84,12 @@ export function parseConfig(text: string): HarnessConfig {
   if (!isRecord(checks)) fail('checks должно быть объектом');
   unknownKeys(checks, KNOWN_CHECKS, 'checks');
   if ('changelog' in checks) config.checks.changelog = parseChangelog(checks['changelog']);
+  if ('context-index' in checks) {
+    const options = checks['context-index'] ?? {};
+    if (!isRecord(options)) fail('checks.context-index должно быть объектом');
+    unknownKeys(options, [], 'checks.context-index');
+    config.checks['context-index'] = {};
+  }
   return config;
 }
 

@@ -2,6 +2,7 @@ import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { runChangelog } from './commands/changelog.ts';
 import { runCheck } from './commands/check.ts';
+import { runContext } from './commands/context.ts';
 import { runIndex } from './commands/prompt-index.ts';
 import type { CommandArgs } from './commands/types.ts';
 import { UsageError } from './diagnostics.ts';
@@ -9,6 +10,7 @@ import { UsageError } from './diagnostics.ts';
 const USAGE = `Использование:
   harness check [--root <dir>]
   harness changelog lint [--root <dir>]
+  harness context index [--root <dir>]
   harness index build --raw-base <url> [--root <dir>] [--out <file>]
   harness index check --raw-base <url> [--root <dir>]
 
@@ -39,6 +41,8 @@ export async function main(argv: string[], now: Date = new Date()): Promise<numb
       return runCheck(args);
     case 'changelog':
       return runChangelog(command, args);
+    case 'context':
+      return runContext(command, args);
     case 'index':
       return runIndex(command, args);
     default:

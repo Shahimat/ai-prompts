@@ -1,4 +1,5 @@
 import { checkChangelog } from '../checks/changelog.ts';
+import { checkContextIndex } from '../checks/context-index.ts';
 import { CONFIG_PATH, loadConfig } from '../config.ts';
 import { UsageError, type Diagnostic } from '../diagnostics.ts';
 import { report } from './report.ts';
@@ -14,6 +15,10 @@ export async function runCheck(args: CommandArgs): Promise<number> {
   if (config.checks.changelog !== undefined) {
     ran.push('changelog');
     diags.push(...(await checkChangelog(args.root, config.checks.changelog, args.now)));
+  }
+  if (config.checks['context-index'] !== undefined) {
+    ran.push('context-index');
+    diags.push(...(await checkContextIndex(args.root)));
   }
   if (ran.length === 0) {
     console.log(`check: в ${CONFIG_PATH} не включено ни одной проверки`);

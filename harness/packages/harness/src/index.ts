@@ -21,3 +21,4 @@ export {
   type HarnessConfig,
 } from './config.ts';
 export { formatDiagnostic, UsageError, type Diagnostic } from './diagnostics.ts';
+export { buildContextIndex, checkContextIndex, CONTEXT_INDEX_PATH, type ContextIndexResult } from './checks/context-index.ts';

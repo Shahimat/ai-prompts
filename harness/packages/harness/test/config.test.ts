@@ -26,6 +26,12 @@ describe('parseConfig', () => {
     });
   });
 
+  it('включает context-index', () => {
+    expect(parseConfig('checks:\n  context-index: {}\n').checks['context-index']).toEqual({});
+    expect(parseConfig('checks:\n  context-index:\n').checks['context-index']).toEqual({});
+    expect(() => parseConfig('checks:\n  context-index:\n    x: 1\n')).toThrow(/context-index: x/);
+  });
+
   it('пропускает ключи из спецификации, которые ещё не реализованы', () => {
     expect(() => parseConfig('worktrees:\n  dir: x\nrules: tools/harness/rules\n')).not.toThrow();
   });
