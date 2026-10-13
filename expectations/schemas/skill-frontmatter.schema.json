@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Frontmatter SKILL.md — стандарт Agent Skills",
+  "type": "object",
+  "required": ["name", "description"],
+  "additionalProperties": false,
+  "properties": {
+    "name": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+    "description": { "type": "string", "minLength": 20, "maxLength": 300, "pattern": "^[^\\n]+$" }
+  }
+}

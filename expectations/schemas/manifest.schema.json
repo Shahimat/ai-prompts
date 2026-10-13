@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Manifest подключённого модуля — context/modules/<key>.yml",
+  "type": "object",
+  "required": ["key", "source", "synced_sha", "synced_at", "provides"],
+  "additionalProperties": false,
+  "properties": {
+    "key": { "type": "string" },
+    "source": { "type": "string" },
+    "synced_sha": { "type": "string" },
+    "synced_at": { "type": "string" },
+    "answers": { "type": "object" },
+    "provides": { "$ref": "provides.schema.json" },
+    "parts": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "skills": { "type": "object", "additionalProperties": { "type": "string" } },
+        "agents": { "type": "object", "additionalProperties": { "type": "string" } }
+      }
+    }
+  }
+}

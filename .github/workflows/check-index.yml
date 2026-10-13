@@ -36,3 +36,6 @@ jobs:
 
       - name: Verify prompts/index.yml is up to date
         run: npm run index:check
+
+      - name: Expectations
+        run: npm run expect

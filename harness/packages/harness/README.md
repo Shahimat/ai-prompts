@@ -25,6 +25,16 @@ npx -y @shahimat/harness@<version> <команда> --root .
 - `harness adapters sync` — файлы под Claude Code и Codex из
   `AGENTS.md` и `.agents/`: `CLAUDE.md`, копии skills, субагенты,
   выключенная memory агента.
+- `harness expect init` — каркас ожиданий в проекте: конфиг vitest,
+  пример файла с бюджетом, npm-скрипты, `.gitignore`.
+- `harness expect report | lint | judge [--apply]` — ожидания в форме
+  vitest (`expectations/*.expect.ts`): дерево со статусами, проверка
+  заголовков, пакетная смысловая проверка судьёй-агентом с кэшем
+  вердиктов. Помощники для проверок — `@shahimat/harness/expect`
+  (нужен vitest в проекте): `crit` / `warn` / `note` / `budget`,
+  `expectAtMost` (info при > 90% порога), зонды по репозиторию,
+  `judged`, проверка JSON Schema (`expectSchema`, `dataFiles`,
+  `frontmatters`).
 - `harness index build | check --raw-base <url>` — индекс
   `prompts/index.yml` репозитория промптов.
 
@@ -34,7 +44,7 @@ npx -y @shahimat/harness@<version> <команда> --root .
 ## `context/harness.yml`
 
 ```yaml
-version: 0.2.0
+version: 0.3.0
 adapters: [claude-code, codex]
 checks:
   changelog:

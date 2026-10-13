@@ -119,3 +119,21 @@ describe('harness adapters sync', () => {
     expect(await main(['check', '--root', root], NOW)).toBe(1);
   });
 });
+
+describe('harness expect init', () => {
+  it('создаёт каркас, дописывает скрипты и .gitignore, повтор ничего не меняет', async () => {
+    await put('package.json', '{"name":"demo","scripts":{"test":"x"}}');
+    await put('.gitignore', 'node_modules/');
+    expect(await main(['expect', 'init', '--root', root], NOW)).toBe(0);
+    const { readFile } = await import('node:fs/promises');
+    const pkg = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8')) as { scripts: Record<string, string> };
+    expect(pkg.scripts).toMatchObject({ test: 'x', expect: 'harness expect report --root .' });
+    expect(await readFile(path.join(root, '.gitignore'), 'utf8')).toBe('node_modules/\nexpectations/.judge/\n');
+    const example = await readFile(path.join(root, `expectations/${path.basename(root)}.expect.ts`), 'utf8');
+    expect(example).toContain('budget({ crit: 0, warn: 0 });');
+    const before = await readFile(path.join(root, 'package.json'), 'utf8');
+    expect(await main(['expect', 'init', '--root', root], NOW)).toBe(0);
+    expect(await readFile(path.join(root, 'package.json'), 'utf8')).toBe(before);
+    expect(await readFile(path.join(root, '.gitignore'), 'utf8')).toBe('node_modules/\nexpectations/.judge/\n');
+  });
+});

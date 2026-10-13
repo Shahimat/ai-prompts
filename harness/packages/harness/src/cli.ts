@@ -4,6 +4,7 @@ import { runAdapters } from './commands/adapters.ts';
 import { runChangelog } from './commands/changelog.ts';
 import { runCheck } from './commands/check.ts';
 import { runContext } from './commands/context.ts';
+import { runExpect } from './commands/expect.ts';
 import { runIndex } from './commands/prompt-index.ts';
 import type { CommandArgs } from './commands/types.ts';
 import { UsageError } from './diagnostics.ts';
@@ -13,6 +14,7 @@ const USAGE = `Использование:
   harness adapters sync [--root <dir>]
   harness changelog lint [--root <dir>]
   harness context index [--root <dir>]
+  harness expect init | report | lint | judge [--apply] [--root <dir>]
   harness index build --raw-base <url> [--root <dir>] [--out <file>]
   harness index check --raw-base <url> [--root <dir>]
 
@@ -26,6 +28,7 @@ export async function main(argv: string[], now: Date = new Date()): Promise<numb
       root: { type: 'string', default: '.' },
       out: { type: 'string' },
       'raw-base': { type: 'string' },
+      apply: { type: 'boolean' },
       help: { type: 'boolean', short: 'h' },
     },
   });
@@ -36,6 +39,7 @@ export async function main(argv: string[], now: Date = new Date()): Promise<numb
   const args: CommandArgs = { root: path.resolve(values.root), now };
   if (values.out !== undefined) args.out = values.out;
   if (values['raw-base'] !== undefined) args.rawBase = values['raw-base'];
+  if (values.apply === true) args.apply = true;
 
   const [group, command] = positionals;
   switch (group) {
@@ -47,6 +51,8 @@ export async function main(argv: string[], now: Date = new Date()): Promise<numb
       return runChangelog(command, args);
     case 'context':
       return runContext(command, args);
+    case 'expect':
+      return runExpect(command, args);
     case 'index':
       return runIndex(command, args);
     default:

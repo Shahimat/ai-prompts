@@ -62,7 +62,7 @@ Behavior-источник — behavior из `automated_by` записи, кот�
   true`; иначе `verified: false`, `verified_note: "источник не
   проверен: <behavior>"`;
 - behavior-источник сброшен в `verified: false` (skill `domain`) →
-  зависящие записи домена теряют доверие: в той же фазе `verified:
+  зависящие записи домена теряют доверие: в том же шаге `verified:
   false` с той же пометкой;
 - behavior-источник снова `verified: true` → доверие к записям
   восстанавливается проверкой самих записей, не автоматически.

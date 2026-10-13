@@ -169,15 +169,15 @@ external:
   теперь skills `domain`, `external-context`, `manuals`, `goals`;
 - `context/workflow.md` (skill `workflow`), содержимое `CLAUDE.md` →
   `AGENTS.md` по шаблону ядра;
-- фазы «один тип», дефолтный порядок `docs → fix → refactor`, инъекция
-  подфазы `docs` — в v3 фазы по связности;
+- фазы с обязательным порядком `docs → fix → refactor` и инъекция
+  подфазы `docs` — в v3 тикет из шагов-коммитов (skill `workflow`);
 - ручной `context/index.yml` — генерируется harness или удаляется;
 - hook `block-memory-write-for-*.sh` и `docs/manuals/setup-safety-hooks.md`
   — memory выключается настройкой (раздел ядра «Memory агента»);
 - `sync.contract.key: external-project-context-v2` → ядро v3 и manifest
   этого модуля.
 
-Фазы — по связности, каждая с точкой согласования.
+Миграция — тикет из шагов-коммитов, после каждого шага — отчёт.
 
 ## Отключение
 

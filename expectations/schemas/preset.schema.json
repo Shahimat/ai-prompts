@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Пресет — presets/<key>.yml",
+  "type": "object",
+  "required": ["key", "title", "contract", "modules"],
+  "additionalProperties": false,
+  "properties": {
+    "key": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+    "title": { "type": "string", "minLength": 1, "maxLength": 120 },
+    "contract": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+    "modules": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["key"],
+        "additionalProperties": false,
+        "properties": {
+          "key": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+          "answers": {
+            "type": "object",
+            "additionalProperties": {
+              "oneOf": [{ "type": "string" }, { "type": "array", "items": { "type": "string" }, "minItems": 1 }]
+            }
+          }
+        }
+      }
+    }
+  }
+}

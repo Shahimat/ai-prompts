@@ -54,7 +54,7 @@ feature:
 ```yaml
 provides:
   layers: []
-  files: [<docs/behavior/safety-*.yml — при app-behaviors: now>]
+  files: [docs/behavior/safety-*.yml]   # только при app-behaviors: now
   skills: [safety-boundaries]
   agents_md_block: true
   harness_checks: []
