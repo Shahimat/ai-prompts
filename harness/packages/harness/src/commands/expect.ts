@@ -187,7 +187,9 @@ async function judgePrepare(args: CommandArgs): Promise<number> {
     const task = `${JUDGE_DIR}/batch-${i + 1}.md`;
     const answer = `${JUDGE_DIR}/batch-${i + 1}.answer.json`;
     await mkdir(dir, { recursive: true });
-    await writeFile(path.join(args.root, task), renderBatch(batch, answer), 'utf8');
+    const texts = new Map<string, string>();
+    for (const ref of batch.refs.filter((r) => r.startsWith('@'))) texts.set(ref, await readEvidence(ref));
+    await writeFile(path.join(args.root, task), renderBatch(batch, answer, texts), 'utf8');
     plan.batches.push({ task, answer, items: batch.items });
   }
   const store = await loadVerdicts();

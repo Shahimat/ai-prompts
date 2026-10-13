@@ -51,6 +51,7 @@ behavior приложения, если оно есть.
 
 ## Что ставит
 
+<!-- expect:attribution-rule -->
 ```yaml
 provides:
   layers: [analysis/sources/, analysis/claims/, analysis/positions/,
@@ -94,6 +95,7 @@ skill `analysis`.
 - противоречие не стирать: `tension` + синтез; форматы, провенанс, `reconciled` → skill `analysis`.
 <!-- /module:analysis -->
 ```
+<!-- /expect:attribution-rule -->
 
 ## Установка
 

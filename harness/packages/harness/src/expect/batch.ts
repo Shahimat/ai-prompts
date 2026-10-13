@@ -48,7 +48,8 @@ export function planBatches(items: PendingItem[], limits: BatchLimits = DEFAULT_
   return batches;
 }
 
-export function renderBatch(batch: Batch, answerFile: string): string {
+/** `texts` — текст якорных доказательств `@KEY`: они вставляются в задание целиком. */
+export function renderBatch(batch: Batch, answerFile: string, texts: Map<string, string> = new Map()): string {
   const lines = [
     '# Пакет для судьи ожиданий',
     '',
@@ -69,10 +70,14 @@ export function renderBatch(batch: Batch, answerFile: string): string {
     '',
     '## Доказательства',
     '',
-    'Ссылка `path#Заголовок` — раздел markdown с этим заголовком.',
+    'Ссылка `path#Заголовок` — раздел markdown с этим заголовком;',
+    '`@KEY` — размеченные области реализации, их текст приведён ниже.',
     '',
     ...batch.refs.map((r) => `- \`${r}\``),
     '',
+    ...batch.refs
+      .filter((r) => r.startsWith('@'))
+      .flatMap((r) => [`### \`${r}\``, '', '````text', texts.get(r) ?? '', '````', '']),
     '## Вопросы',
     '',
   ];

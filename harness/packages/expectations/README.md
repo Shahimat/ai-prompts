@@ -10,12 +10,21 @@ import { budget } from '@shahimat/harness/expect';
 import { ticketCommits } from '@shahimat/expectations';
 
 budget({ crit: 0, warn: 0 });
-ticketCommits(['CLAUDE.md#Тикеты и коммиты']);
+ticketCommits('ticket-commits');
+```
+
+В реализации правила размечаются якорем — привязку держит реализация, а
+не ожидания:
+
+```markdown
+<!-- expect:ticket-commits -->
+…текст правила…
+<!-- /expect:ticket-commits -->
 ```
 
 ## Наборы
 
-- `ticketCommits(evidence)` — тикет из шагов-коммитов по типам karma,
+- `ticketCommits(...keys)` — тикет из шагов-коммитов по типам karma,
   `--amend` для подряд идущей работы одного типа, режим «пройти
   целиком», git-запись только по просьбе пользователя.
 

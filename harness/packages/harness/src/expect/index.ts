@@ -20,3 +20,4 @@ export {
 } from './repo.ts';
 export { dataFiles, expectSchema, frontmatters, schemaErrors, type Instance } from './schema.ts';
 export { budget, crit, expectAtMost, note, warn, type Budget, type Level } from './levels.ts';
+export { allAnchors, anchorEvidence, fileAnchorKeys, markdownRegions, type AnchorRegion } from './anchors.ts';

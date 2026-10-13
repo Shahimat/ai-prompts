@@ -194,6 +194,9 @@ feature:
 - [`harness`](harness.md) — проверки и генерация через
   `@shahimat/harness`. v3.
 - [`worktrees`](worktrees.md) — параллельные сессии в git worktree. v3.
+- [`ticket-commits`](ticket-commits.md) — тикеты из шагов-коммитов по
+  типам karma, `--amend`, режим «пройти целиком»; `mode: off` отключает
+  правило в проекте. v3, по умолчанию включён.
 - [`app-loop`](app-loop.md) — петля «домен ↔ приложение»: `serves` /
   `automated_by`, `app-telemetry`, выравнивание целей. v3, требует
   `domain`.

@@ -1,6 +1,6 @@
 {
   "name": "@shahimat/harness",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Harness для проектов на контрактах ai-prompts: генераторы и проверки",
   "license": "MIT",
   "author": "Gevorg Nakhapetyan",

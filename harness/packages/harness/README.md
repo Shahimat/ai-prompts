@@ -44,7 +44,7 @@ npx -y @shahimat/harness@<version> <команда> --root .
 ## `context/harness.yml`
 
 ```yaml
-version: 0.3.0
+version: 0.4.0
 adapters: [claude-code, codex]
 checks:
   changelog:

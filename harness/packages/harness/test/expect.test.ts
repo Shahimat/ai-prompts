@@ -145,3 +145,43 @@ describe('extractSection / codeBlock', () => {
     expect(codeBlock(listed, 'yaml', 'key:')).toBe('key: x\nlist:\n  - a');
   });
 });
+
+describe('якоря expect:KEY', async () => {
+  const { markdownRegions, fileAnchorKeys } = await import('../src/expect/anchors.ts');
+
+  it('области в markdown, несколько ключей и повтор ключа', () => {
+    const md = [
+      '# Правила',
+      '<!-- expect:ticket-commits -->',
+      'шаг — один коммит',
+      '<!-- /expect:ticket-commits -->',
+      'вне якоря',
+      '<!-- expect:docs-readonly -->',
+      'документация только читается',
+      '<!-- /expect:docs-readonly -->',
+      '<!-- expect:ticket-commits -->',
+      'amend для подряд одного типа',
+      '<!-- /expect:ticket-commits -->',
+    ].join('\n');
+    expect(markdownRegions(md, 'a.md')).toEqual([
+      { key: 'ticket-commits', path: 'a.md', text: 'шаг — один коммит' },
+      { key: 'docs-readonly', path: 'a.md', text: 'документация только читается' },
+      { key: 'ticket-commits', path: 'a.md', text: 'amend для подряд одного типа' },
+    ]);
+  });
+
+  it('разметка внутри блоков кода — пример, не якорь', () => {
+    const md = ['```markdown', '<!-- expect:x -->', 'пример', '<!-- /expect:x -->', '```'].join('\n');
+    expect(markdownRegions(md, 'a.md')).toEqual([]);
+  });
+
+  it('незакрытый якорь — ошибка', () => {
+    expect(() => markdownRegions('<!-- expect:x -->\nтекст', 'a.md')).toThrow(/expect:x не закрыт/);
+  });
+
+  it('файловый якорь в YAML — строка-комментарий', () => {
+    expect(fileAnchorKeys('key: a\n# expect:ticket-commits:project\nrule: |\n  x\n')).toEqual(['ticket-commits:project']);
+    expect(fileAnchorKeys('note: "# expect:x" в строке\n')).toEqual([]);
+    expect(fileAnchorKeys('// expect:memory-off\nexport const a = 1;\n', '//')).toEqual(['memory-off']);
+  });
+});

@@ -1,3 +1,4 @@
+// expect:context-index-no-date
 import { access, readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { parse, stringify } from 'yaml';

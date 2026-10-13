@@ -51,6 +51,7 @@ feature:
 
 ## Что ставит
 
+<!-- expect:safety-rule -->
 ```yaml
 provides:
   layers: []
@@ -80,6 +81,7 @@ provides:
 ```
 
 Категории, формулировки ответов и behavior — skill `safety-boundaries`.
+<!-- /expect:safety-rule -->
 
 ## Установка
 

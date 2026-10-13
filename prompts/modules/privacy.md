@@ -48,6 +48,7 @@ feature:
 
 ## Что ставит
 
+<!-- expect:privacy-rule -->
 ```yaml
 provides:
   layers: []
@@ -81,6 +82,7 @@ provides:
   аналитика — запрещены»;
 - `by-approval` — «внешний поток данных — только по явному «да» на
   конкретный поток: что, куда, зачем».
+<!-- /expect:privacy-rule -->
 
 ## Установка
 

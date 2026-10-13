@@ -1,8 +1,13 @@
 import { createHash } from 'node:crypto';
+import { anchorEvidence } from './anchors.ts';
 import { readRepo, extractSection } from './repo.ts';
 
-/** Ссылка на доказательство: `path` или `path#Заголовок` (раздел markdown). */
+/**
+ * Ссылка на доказательство: `@KEY` — якоря в реализации (предпочтительно),
+ * `path` или `path#Заголовок` (раздел markdown).
+ */
 export async function readEvidence(ref: string): Promise<string> {
+  if (ref.startsWith('@')) return anchorEvidence(ref.slice(1));
   const hash = ref.indexOf('#');
   const file = hash === -1 ? ref : ref.slice(0, hash);
   const text = await readRepo(file);

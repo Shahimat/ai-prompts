@@ -1,3 +1,4 @@
+// expect:claude-md-import
 import { stringify } from 'yaml';
 import type { AgentDef } from './source.ts';
 

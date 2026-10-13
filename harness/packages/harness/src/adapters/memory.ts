@@ -1,3 +1,4 @@
+// expect:memory-off
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { Diagnostic } from '../diagnostics.ts';

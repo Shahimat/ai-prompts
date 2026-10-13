@@ -41,6 +41,7 @@ npx -y @shahimat/harness@<version> <команда> --root .
 
 ## Сгенерированное не правится руками
 
+<!-- expect:docs-readonly -->
 `context/index.yml`, `CLAUDE.md`, `.claude/skills/*` с файлом
 `.harness-generated`, `.claude/agents/*`, `.codex/agents/*`,
 сгенерированный `.codex/config.toml` — производные. Правишь источник,
@@ -49,6 +50,7 @@ npx -y @shahimat/harness@<version> <команда> --root .
 Файл без метки harness на месте генерируемого (например, свой
 `CLAUDE.md`) — sync его не трогает и сообщает: содержимое перенести в
 `AGENTS.md` или `.agents/`, файл удалить.
+<!-- /expect:docs-readonly -->
 
 ## `context/harness.yml`
 

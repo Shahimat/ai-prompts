@@ -10,6 +10,7 @@ description: Синхронизация контракта, модулей, skil
 
 ## Единый fetch-канал: только `curl`
 
+<!-- expect:curl-only -->
 ```bash
 curl -fsSL -H "Cache-Control: no-cache" -H "Pragma: no-cache" "<url>" -o "$tmp"
 shasum -a 256 "$tmp" | awk '{print $1}'
@@ -19,6 +20,7 @@ WebFetch и аналоги запрещены: кэш инструмента п�
 pre-processing (HTML → markdown, обрезка) искажает контент, и SHA не
 сойдётся с raw-контентом источника. Скачанный файл сохраняй и работай
 с ним, без повторного fetch.
+<!-- /expect:curl-only -->
 
 ## Конфигурация проекта
 
@@ -48,6 +50,7 @@ Manifest каждого модуля — `context/modules/<key>.yml` со сво
 
 ## Команда «сверь всё»
 
+<!-- expect:sync-warns-deprecated -->
 Ключи: «сверь всё», «сверь спецификацию с источниками»,
 «синхронизируй», «обнови из источника», «проверь источник».
 
@@ -87,6 +90,7 @@ Manifest каждого модуля — `context/modules/<key>.yml` со сво
 9. После применения: обнови `sync.index_sha`, `synced_sha` контракта и
    модулей, SHA в `parts`, `synced_at`; адаптеры — `harness adapters
    sync` или вручную; `harness check`, если подключён harness.
+<!-- /expect:sync-warns-deprecated -->
 
 ## Проверка `key`
 

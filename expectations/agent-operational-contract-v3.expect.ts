@@ -65,9 +65,15 @@ describe('skills и субагенты', () => {
   crit('субагент docs-keeper предзагружает skill docs-keeper', () => Check.docsKeeperPreload());
 });
 
-describe('документация и memory', () => {
-  warn('запись в документацию — только через docs-keeper', () => Check.writeViaDocsKeeper());
+describe('документация проекта', () => {
+  crit('в основной сессии файлы проектной документации только читаются; правки — только через docs-keeper', () => Check.docsReadonly());
+  crit('при подключённом harness генерируемые файлы (context/index.yml, адаптеры под инструменты) меняет только harness, не агент и не docs-keeper', () =>
+    Check.generatedByHarness());
+  warn('docs-keeper меняет только слои документации проекта и не трогает код', () => Check.docsKeeperScope());
   warn('правила контракта не копируются в context/conventions', () => Check.noRuleCopies());
+});
+
+describe('memory', () => {
   crit('memory агента запрещена правилом в шаблоне AGENTS.md', () => Check.memoryRule());
   warn('adapters sync выключает memory: autoMemoryEnabled false в Claude Code, memories false в Codex', () => Check.memoryOff());
 });
@@ -80,7 +86,7 @@ describe('журнал решений', () => {
   crit('CHANGELOG.md сливается через merge=union в .gitattributes ядра', () => Check.mergeUnion());
 });
 
-ticketCommits(['skills/workflow/SKILL.md#Тикеты и коммиты']);
+ticketCommits('ticket-commits');
 
 describe('harness и источник', () => {
   crit('в репозитории нет bash-скриптов: вся автоматизация на TS и Node ≥ 24', () => Check.noBash());
@@ -108,7 +114,6 @@ describe('ядро', () => {
 // Ниже — как проверяется каждое ожидание. Для чтения ожиданий не нужно.
 
 const KEY = 'agent-operational-contract-v3';
-const CORE = 'prompts/productivity/agent-operational-contract-v3.md';
 const SCHEMAS = 'expectations/schemas';
 
 const template = async (): Promise<string> => (await contract(KEY)).agentsMdTemplate ?? '';
@@ -157,7 +162,7 @@ class Check {
     expect(await template()).toContain('обязательны наравне');
   }
 
-  static claudeMd = (): Promise<void> => judged(['harness/packages/harness/src/adapters/render.ts', `${CORE}#Адаптеры под инструменты`]);
+  static claudeMd = (): Promise<void> => judged(['@claude-md-import']);
 
   // возможности и пресеты
   static async featureBlock(): Promise<void> {
@@ -215,9 +220,9 @@ class Check {
     expectAll(pairs, (x) => x.name, (x) => x.ok);
   }
 
-  static presetFirst = (): Promise<void> => judged(['skills/contract-setup/SKILL.md#Шаг 2. Пресет']);
-  static checklistFallback = (): Promise<void> => judged(['skills/contract-setup/SKILL.md#Шаг 3. Чеклист']);
-  static extendsOnly = (): Promise<void> => judged([`${CORE}#Возможности`, 'skills/contract-setup/SKILL.md#Шаг 4. Зависимости']);
+  static presetFirst = (): Promise<void> => judged(['@preset-first']);
+  static checklistFallback = (): Promise<void> => judged(['@checklist-fallback']);
+  static extendsOnly = (): Promise<void> => judged(['@extends-only']);
 
   // форматы по схемам
   static async presetSchema(): Promise<void> {
@@ -271,14 +276,16 @@ class Check {
   }
 
   // документация и memory
-  static writeViaDocsKeeper = (): Promise<void> => judged([`${CORE}#Шаблон \`AGENTS.md\``, 'skills/docs-keeper/SKILL.md']);
-  static noRuleCopies = (): Promise<void> => judged([`${CORE}#Что ставит ядро`]);
+  static docsReadonly = (): Promise<void> => judged(['@docs-readonly']);
+  static generatedByHarness = (): Promise<void> => judged(['@docs-readonly']);
+  static docsKeeperScope = (): Promise<void> => judged(['@docs-readonly']);
+  static noRuleCopies = (): Promise<void> => judged(['@no-rule-copies']);
 
   static async memoryRule(): Promise<void> {
     expect(await template()).toContain('Memory агента запрещена');
   }
 
-  static memoryOff = (): Promise<void> => judged(['harness/packages/harness/src/adapters/memory.ts']);
+  static memoryOff = (): Promise<void> => judged(['@memory-off']);
 
   // журнал решений
   static changelogLine(): void {
@@ -294,8 +301,7 @@ class Check {
     expectAll(files, (f) => f, (f) => !/changelog/i.test(f));
   }
 
-  static moduleTags = (): Promise<void> =>
-    judged(['skills/docs-keeper/SKILL.md#`CHANGELOG.md`', 'skills/contract-setup/SKILL.md#Шаг 6. Подключение']);
+  static moduleTags = (): Promise<void> => judged(['@module-tags']);
 
   static async mergeUnion(): Promise<void> {
     expect((await contract(KEY)).text).toContain('CHANGELOG.md merge=union');
@@ -317,23 +323,22 @@ class Check {
     expectAll(entries, (e) => e.key, (e) => (e.files?.length ?? 0) > 0 && (e.files ?? []).every((f) => /^[0-9a-f]{64}$/.test(f.sha256)));
   }
 
-  static contextIndexNoDate = (): Promise<void> => judged(['harness/packages/harness/src/checks/context-index.ts']);
-  static curlOnly = (): Promise<void> => judged(['skills/source-sync/SKILL.md#Единый fetch-канал: только `curl`']);
-  static syncWarnsDeprecated = (): Promise<void> => judged(['skills/source-sync/SKILL.md#Команда «сверь всё»']);
+  static contextIndexNoDate = (): Promise<void> => judged(['@context-index-no-date']);
+  static curlOnly = (): Promise<void> => judged(['@curl-only']);
+  static syncWarnsDeprecated = (): Promise<void> => judged(['@sync-warns-deprecated']);
 
   // приоритетные правила модулей
-  static safetyRule = (): Promise<void> =>
-    judged(['prompts/modules/safety-boundaries.md#Что ставит', 'skills/safety-boundaries/SKILL.md#Как отвечать при red-flag']);
+  static safetyRule = (): Promise<void> => judged(['@safety-rule']);
 
   static async redFlagsListed(): Promise<void> {
     const section = (await skill('safety-boundaries')).section('Red-flag категории') ?? '';
     expect(section.split('\n').filter((l) => /^- /.test(l)).length).toBeGreaterThan(0);
   }
-  static attributionRule = (): Promise<void> => judged(['prompts/modules/analysis.md#Что ставит']);
-  static privacyRule = (): Promise<void> => judged(['prompts/modules/privacy.md#Что ставит']);
+  static attributionRule = (): Promise<void> => judged(['@attribution-rule']);
+  static privacyRule = (): Promise<void> => judged(['@privacy-rule']);
 
   // ядро
-  static singleLink = (): Promise<void> => judged([`${CORE}#Источник`]);
+  static singleLink = (): Promise<void> => judged(['@single-link']);
 
   static async verifiedRule(): Promise<void> {
     const section = (await skill('domain')).section('Верификация') ?? '';
