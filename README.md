@@ -36,11 +36,18 @@ prompts/
 patterns/           — переиспользуемые блоки правил, инлайнящиеся в тело
                      промптов (source-sync и т.п.).
 
+skills/             — skills (SKILL.md по стандарту Agent Skills), которые
+                     контракты и модули ставят в проекты; в индексе.
+
+agents/             — субагенты (канон), которые ставятся в проекты;
+                     в индексе.
+
 design/             — спецификации будущих версий промптов (не промпты,
                      в индекс не попадают).
 
-harness/            — TS-скрипты репозитория (npm workspaces, Node ≥ 24);
-                     сейчас — сборка и проверка index.yml.
+harness/            — пакет @shahimat/harness (TS, npm workspaces, Node ≥ 24):
+                     сборка index.yml этого репо; проверки и генерация
+                     для проектов на контракте v3.
 ```
 
 Подробнее — `patterns/README.md`, `prompts/modules/README.md`,

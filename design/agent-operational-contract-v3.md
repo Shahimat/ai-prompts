@@ -1,6 +1,8 @@
 # Спецификация: agent-operational-contract-v3
 
-Статус: черновик. Документ проектирования, не промпт: в `prompts/index.yml`
+Статус: реализовано в `prompts/productivity/agent-operational-contract-v3.md`,
+`skills/`, `agents/` и модулях v3; документ остаётся записью решений.
+Документ проектирования, не промпт: в `prompts/index.yml`
 не попадает, проектам-потребителям не отдаётся. По нему пишутся ядро v3,
 модули-возможности и команды harness.
 
@@ -73,8 +75,30 @@ context/
   contract-setup/SKILL.md         ← чеклист возможностей, add/remove
   source-sync/SKILL.md            ← «сверь всё»
   workflow/SKILL.md               ← протоколы plan/execute/audit/challenge/report
+  docs-keeper/SKILL.md            ← правила записи в документацию
+.agents/agents/
+  docs-keeper.md                  ← субагент записи (канон)
 .gitattributes                    ← eol=lf, CHANGELOG.md merge=union
 ```
+
+docs-keeper — часть ядра, не возможность: правило 3.4.5 требует писать
+документацию только через него.
+
+### 3.1.1. Доставка skills и субагентов
+
+Skills и субагенты живут в источнике отдельными файлами —
+`skills/<name>/` и `agents/<name>.md` — и попадают в индекс группами
+`skills` и `agents`. У skill в индексе — список `files` с `raw` и
+`sha256` каждого файла; `sha256` записи — от строк
+`<sha256 файла>  <путь внутри skill>` и меняется при правке любого
+файла. Проект кладёт их в `.agents/` байт в байт и хранит SHA в
+`parts` своего источника (контракта или модуля). Frontmatter
+`SKILL.md` — только `name` и `description` по стандарту Agent Skills;
+`key` — имя каталога.
+
+Модуль делится на две части: сам модуль (`prompts/modules/<key>.md`) —
+что и как ставить; skill модуля — правила работы со слоем. docs-keeper
+загружает skills подключённых модулей из их manifest'ов.
 
 Плюс запрет memory в настройках каждого инструмента из `adapters`
 (раздел 5).
@@ -240,34 +264,33 @@ provides:
   - в behavior поле `check: <команда>` — `harness verify` сам выполняет
     проверку и ставит `verified_at`; ручной `verified` — только где
     команды нет, с объяснением в `verified_note`.
-- **manuals** (да) — `docs/manuals/*.md`, ручные процедуры.
+- **manuals** (да) — `docs/manuals/*.md`, ручные процедуры. Требует
+  domain: namespace manual определяется по ссылке из entity.
 - **goals** (да) — `context/views/`, цели и программы; инлайнит
   паттерн `goals`. Механическая часть `goal-consistency` (циклы,
   ссылки на удалённые цели, порядок против зависимостей) — в harness,
   смысловая (конфликт интентов, дубли) — в docs-keeper.
-- **docs-keeper** (да) — skill `docs-keeper` + генерируемые субагенты.
-  Без него запись идёт по skill вручную (3.6).
 - **harness** (да) — `context/harness.yml`, подключение
   `@shahimat/harness`. Требует Node ≥ 24. Задаёт вложенный вопрос:
   какие проверки включить (см. 4.3).
 - **worktrees** (нет) — правила параллельной работы, `.worktreeinclude`,
-  `harness wt new`. Требует harness.
-- **code-rules-fullstack-js-ts** (нет) — существующий модуль; расширить
-  `applicable_to` и добавить `feature`.
-- **knowledge-external-gui** (нет) — то же.
+  горячие файлы; `harness wt new` — когда появится. harness не требует.
+- **code-rules-fullstack-js-ts** (нет) — существующий модуль; `applicable_to`
+  расширен на v3, добавлены `feature` и `summary` у правил.
+- **knowledge-external-gui** — пока только v2: его слой `docs/knowledge/`
+  не попадает в генерируемый `context/index.yml` (см. раздел 10).
 
 ### 4.3. Вложенный чеклист harness
 
-После выбора harness — второй вопрос с несколькими вариантами:
+После выбора harness — второй вопрос с несколькими вариантами. В
+чеклисте только реализованные проверки:
 
 - `changelog` — lint CHANGELOG (да);
-- `context-index` — генерация `context/index.yml` (да);
-- `links` — двусторонние ссылки entity ↔ behavior ↔ manual (да при
-  domain);
-- `goals` — механическая проверка целей (да при goals);
-- `verify` — выполнение `check:` у behavior (нет);
-- `adapters` — генерация файлов под инструменты (да);
-- `hooks` — pre-commit с `harness check` (нет).
+- `context-index` — генерация и сверка `context/index.yml` (да);
+- `adapters` — генерация файлов под инструменты (да).
+
+Появятся в чеклисте вместе с реализацией: `links`, `goals`, `verify`,
+`hooks`.
 
 Выбор записывается в `context/harness.yml`.
 
@@ -429,9 +452,23 @@ rules: tools/harness/rules       # дополнения проекта (7.3)
 - Сценарии — один skill `workflow`.
 - `source-sync` — skill, работает без harness; `harness sync` —
   ускоритель.
+- Skills и субагенты — отдельные файлы источника в индексе (3.1.1), а
+  не текст внутри контракта.
+- docs-keeper — часть ядра (3.1).
+- Правила модулей во время работы — в skills модулей; модуль описывает
+  установку.
 
 ## 10. Отложенные задачи
 
 - Свести `personal-project`, `analytical-project`,
   `external-project-context-v2` к пресетам возможностей поверх ядра v3 —
   вернуться после выхода v3; до этого контракты остаются отдельными.
+- Индексировать слои модулей в `harness context index` (например,
+  `docs/knowledge/`) и перевести на v3 `knowledge-external-gui`.
+- Синхронизировать inline-копии паттернов `source-sync` и `goals` в
+  v2-семействе (`agent-operational-contract-v2`, `personal-project`,
+  `analytical-project`, `external-project-context-v2`) после их правки
+  под v3.
+- Опубликовать `@shahimat/harness` в npm: модуль harness ставит его
+  через `npx`.
+- Отключение memory настройками инструментов в адаптерах.

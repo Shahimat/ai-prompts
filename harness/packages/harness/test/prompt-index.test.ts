@@ -128,6 +128,50 @@ describe('collectEntries: title и feature', () => {
   });
 });
 
+describe('collectEntries: skills и agents', () => {
+  it('skill — каталог с файлами, SHA меняется при правке любого файла', async () => {
+    await put('skills/keeper/SKILL.md', '---\nname: keeper\ndescription: ведёт доку\n---\nтело\n');
+    await put('skills/keeper/ref/a.md', 'a\n');
+    const first = (await collectEntries(root)).entries;
+    expect(first).toEqual([
+      {
+        kind: 'skill',
+        key: 'keeper',
+        path: 'skills/keeper',
+        sha256: sha256(`${sha256('---\nname: keeper\ndescription: ведёт доку\n---\nтело\n')}  SKILL.md\n${sha256('a\n')}  ref/a.md\n`),
+        applicableTo: [],
+        patterns: [],
+        title: 'ведёт доку',
+        files: [
+          { path: 'skills/keeper/SKILL.md', sha256: sha256('---\nname: keeper\ndescription: ведёт доку\n---\nтело\n') },
+          { path: 'skills/keeper/ref/a.md', sha256: sha256('a\n') },
+        ],
+      },
+    ]);
+    await put('skills/keeper/ref/a.md', 'b\n');
+    expect((await collectEntries(root)).entries[0]?.sha256).not.toBe(first[0]?.sha256);
+  });
+
+  it('agent — файл agents/<name>.md', async () => {
+    const content = '---\nname: keeper\ndescription: субагент\nskills: [keeper]\n---\nинструкция\n';
+    await put('agents/keeper.md', content);
+    await put('agents/notes.txt', 'не агент');
+    expect((await collectEntries(root)).entries).toEqual([
+      { kind: 'agent', key: 'keeper', path: 'agents/keeper.md', sha256: sha256(content), applicableTo: [], patterns: [], title: 'субагент' },
+    ]);
+  });
+
+  it.each([
+    ['нет SKILL.md', 'skills/x/README.md', 'x\n', /skills\/x: нет SKILL\.md/],
+    ['name skill не совпадает', 'skills/x/SKILL.md', '---\nname: y\ndescription: d\n---\n', /name должно совпадать с именем «x»/],
+    ['нет description', 'skills/x/SKILL.md', '---\nname: x\n---\n', /нет description/],
+    ['name агента не совпадает', 'agents/x.md', '---\nname: y\ndescription: d\n---\n', /agents\/x\.md: name/],
+  ])('ошибка: %s', async (_name, file, content, message) => {
+    await put(file, content);
+    await expect(collectEntries(root)).rejects.toThrow(message);
+  });
+});
+
 describe('renderIndex', () => {
   const entry = (over: Partial<IndexEntry>): IndexEntry => ({
     kind: 'prompt',
@@ -159,6 +203,10 @@ describe('renderIndex', () => {
         'patterns: []',
         '',
         'modules: []',
+        '',
+        'skills: []',
+        '',
+        'agents: []',
         '',
         'prompts: []',
         '',
@@ -207,6 +255,26 @@ describe('renderIndex', () => {
       ].join('\n'),
     );
     expect(out).toContain('  - key: p\n    title: Обычный заголовок — без кавычек\n');
+  });
+
+  it('у skill нет raw, у каждого файла — свой raw и sha256', () => {
+    const out = renderIndex(
+      [entry({ kind: 'skill', key: 's', path: 'skills/s', title: 't', files: [{ path: 'skills/s/SKILL.md', sha256: 'f1' }] })],
+      { rawBase: RAW, generatedAt: AT },
+    );
+    expect(out).toContain(
+      [
+        'skills:',
+        '  - key: s',
+        '    title: t',
+        '    path: skills/s',
+        '    sha256: abc',
+        '    files:',
+        '      - path: skills/s/SKILL.md',
+        `        raw: ${RAW}/skills/s/SKILL.md`,
+        '        sha256: f1',
+      ].join('\n'),
+    );
   });
 
   it('пропускает записи неизвестного kind', () => {

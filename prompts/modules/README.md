@@ -59,6 +59,35 @@ tags: [<теги>]
   с базой через общий индекс.
 - `title`, `use_case`, `tags` — как у обычного промпта.
 
+### Блок `feature` (модули ядра v3)
+
+Модуль, который предлагается в чеклисте контракта
+`agent-operational-contract-v3`, объявляет:
+
+```yaml
+feature:
+  summary: <одна строка для чеклиста>
+  default: true | false          # отмечен ли по умолчанию
+  requires: [<ключи модулей>]
+  conflicts: [<ключи модулей>]
+  asks:                          # уточняющие вопросы после выбора
+    - key: <kebab-case>
+      question: <текст>
+      multi: true | false
+      options: [...]
+```
+
+`summary`, `default`, `requires`, `conflicts` попадают в
+`prompts/index.yml`: чеклист строится по индексу без скачивания модулей.
+`asks` агент читает из самого модуля. `index build` падает, если
+`requires` / `conflicts` указывают на несуществующий модуль или на сам
+модуль.
+
+Модуль v3 делится на две части: сам модуль — что и как ставить; skill
+модуля (`skills/<name>/`) — правила работы со слоем во время работы.
+В `provides` модуля v3 добавляются `skills`, `agents_md_block`,
+`harness_checks`.
+
 ## Структура тела модуля
 
 Модуль пишется как самостоятельный документ: скармливается агенту как
@@ -138,4 +167,11 @@ tags: [<теги>]
   внешних систем без API. Применим к `agent-operational-contract-v2`.
 - [`code-rules-fullstack-js-ts`](code-rules-fullstack-js-ts.md) —
   правила стиля кода на fullstack js/ts, пакетом в подпапке
-  `context/conventions/code/`. Применим к `agent-operational-contract-v2`.
+  `context/conventions/code/`. Применим к v2 и v3.
+- [`domain`](domain.md) — entities и behavior с `verified`. v3.
+- [`manuals`](manuals.md) — ручные процедуры для человека. v3, требует
+  `domain`.
+- [`goals`](goals.md) — цели и программы как очередь работы. v3.
+- [`harness`](harness.md) — проверки и генерация через
+  `@shahimat/harness`. v3.
+- [`worktrees`](worktrees.md) — параллельные сессии в git worktree. v3.

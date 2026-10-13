@@ -1,11 +1,16 @@
 ---
 key: code-rules-fullstack-js-ts
 kind: module
-applicable_to: [agent-operational-contract-v2]
+applicable_to: [agent-operational-contract-v2, agent-operational-contract-v3]
 patterns: [source-sync]
 title: Модуль code-rules — правила стиля кода на fullstack js/ts
 use_case: Подключается к проекту на js/ts (frontend / backend / full). Приносит пакет атомарных правил стиля кода в подпапку context/conventions/code/. Стартовый набор — правило про комментарии; модуль расширяемый — новые правила js/ts добавляются как отдельные YAML в той же подпапке. Живёт как обычные проектные conventions, но группируется физически, чтобы пакет было видно и в дереве, и в diff.
 tags: [docs-as-code, code-style, javascript, typescript, agent-contract, module]
+feature:
+  summary: правила стиля кода на js/ts — пакет conventions в context/conventions/code/
+  default: false
+  requires: []
+  conflicts: []
 ---
 
 # Модуль code-rules — правила стиля кода на fullstack js/ts
@@ -98,6 +103,7 @@ rule: |
 
 ```yaml
 key: comments
+summary: комментарии только для неочевидного «почему»; по умолчанию их нет
 rule: |
   По умолчанию комментариев в коде нет. Хорошо названные функции,
   переменные и типы — это и есть документация. Если строка непонятна
@@ -126,6 +132,29 @@ rule: |
   правила: они часть контракта модуля. Пишем их, когда язык или
   фреймворк этого ожидает, но не превращаем в пересказ реализации.
 ```
+
+## Совместимость с v3
+
+С ядром `agent-operational-contract-v3` модуль работает так же, с тремя
+отличиями:
+
+- у каждого правила обязательно поле `summary` — одна строка для
+  индекса и маршрутизации;
+- `context/index.yml` в v3 генерируется (`harness context index`,
+  подпапка `context/conventions/code/` читается рекурсивно): записи в
+  индекс руками не вносятся — при подключённом harness после изменения
+  правил пересобери индекс, без harness индекса нет;
+- блок `AGENTS.md`:
+
+  ```markdown
+  <!-- module:code-rules-fullstack-js-ts -->
+  ## code-rules
+
+  - стиль кода на js/ts → `context/conventions/code/<key>.yml`.
+  <!-- /module:code-rules-fullstack-js-ts -->
+  ```
+
+  В `provides` для v3: `agents_md_block: true`, `skills: []`.
 
 ## Как расширять модуль (в источнике)
 
