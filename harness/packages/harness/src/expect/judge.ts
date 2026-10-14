@@ -2,6 +2,7 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { expect } from 'vitest';
+import { isRecord } from '../guards.ts';
 import { readEvidence, shaOf } from './evidence.ts';
 import { loadVerdicts, type VerdictStore } from './verdicts.ts';
 
@@ -16,6 +17,22 @@ export interface PendingItem {
   id: string;
   question: string;
   evidence: { ref: string; sha: string; bytes: number }[];
+}
+
+export function isPendingItem(v: unknown): v is PendingItem {
+  return (
+    isRecord(v) &&
+    typeof v['id'] === 'string' &&
+    typeof v['question'] === 'string' &&
+    Array.isArray(v['evidence']) &&
+    v['evidence'].every(
+      (e) =>
+        isRecord(e) &&
+        typeof e['ref'] === 'string' &&
+        typeof e['sha'] === 'string' &&
+        typeof e['bytes'] === 'number',
+    )
+  );
 }
 
 /**

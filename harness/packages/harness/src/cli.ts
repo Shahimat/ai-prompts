@@ -3,6 +3,7 @@ import { parseArgs } from 'node:util';
 import { findCommand, renderUsage } from './commands/tree.ts';
 import type { CommandArgs } from './commands/types.ts';
 import { UsageError } from './diagnostics.ts';
+import { errorCode, errorMessage } from './guards.ts';
 
 export async function main(argv: string[], now: Date = new Date()): Promise<number> {
   const { values, positionals } = parseArgs({
@@ -16,7 +17,7 @@ export async function main(argv: string[], now: Date = new Date()): Promise<numb
       help: { type: 'boolean', short: 'h' },
     },
   });
-  if (values.help) {
+  if (values.help === true) {
     console.log(renderUsage());
     return 0;
   }
@@ -35,12 +36,12 @@ export async function run(argv: string[]): Promise<number> {
   try {
     return await main(argv);
   } catch (error) {
-    console.error(`ERROR: ${error instanceof Error ? error.message : String(error)}`);
+    console.error(`ERROR: ${errorMessage(error)}`);
     if (error instanceof UsageError) {
       console.error(renderUsage());
       return 2;
     }
     // parseArgs бросает TypeError с code ERR_PARSE_ARGS_* на неизвестных опциях.
-    return String((error as NodeJS.ErrnoException).code).startsWith('ERR_PARSE_ARGS') ? 2 : 1;
+    return (errorCode(error) ?? '').startsWith('ERR_PARSE_ARGS') ? 2 : 1;
   }
 }

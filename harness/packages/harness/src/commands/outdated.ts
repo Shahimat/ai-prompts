@@ -1,5 +1,6 @@
 import { loadConfig, CONFIG_PATH } from '../config.ts';
 import { UsageError } from '../diagnostics.ts';
+import { isRecord } from '../guards.ts';
 import type { CommandArgs } from './types.ts';
 
 const PACKAGE = '@shahimat/harness';
@@ -40,10 +41,10 @@ export async function runOutdated(args: CommandArgs, fetcher: Fetcher = fetch): 
   if (config?.version === undefined) throw new UsageError(`нет version в ${CONFIG_PATH}`);
   const meta = await fetcher(REGISTRY);
   if (!meta.ok) throw new Error(`npm: ${PACKAGE} — HTTP ${meta.status}`);
-  const latest = (JSON.parse(await meta.text()) as { 'dist-tags'?: { latest?: string } })[
-    'dist-tags'
-  ]?.latest;
-  if (latest === undefined) throw new Error(`npm: у ${PACKAGE} нет dist-tag latest`);
+  const data: unknown = JSON.parse(await meta.text());
+  const tags = isRecord(data) ? data['dist-tags'] : undefined;
+  const latest = isRecord(tags) ? tags['latest'] : undefined;
+  if (typeof latest !== 'string') throw new Error(`npm: у ${PACKAGE} нет dist-tag latest`);
 
   if (compareVersions(config.version, latest) >= 0) {
     console.log(`harness: ${config.version} — актуальная версия`);

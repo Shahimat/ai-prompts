@@ -3,6 +3,7 @@ import { readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { parse } from 'yaml';
 import { parseFrontmatter } from '../frontmatter.ts';
+import { isRecord } from '../guards.ts';
 import { readRepo, repoRoot } from './repo.ts';
 
 /** Экземпляр для проверки: имя (для сообщения) и данные. */
@@ -24,7 +25,9 @@ async function validator(schemaPath: string): Promise<ReturnType<Ajv2020['compil
     for (const name of (await readdir(path.join(repoRoot(), dir)))
       .filter((n) => n.endsWith('.schema.json'))
       .sort()) {
-      instance.addSchema(JSON.parse(await readRepo(`${dir}/${name}`)) as object, name);
+      const schema: unknown = JSON.parse(await readRepo(`${dir}/${name}`));
+      if (!isRecord(schema)) throw new Error(`${dir}/${name}: схема должна быть объектом`);
+      instance.addSchema(schema, name);
     }
     return instance;
   })();
@@ -33,18 +36,20 @@ async function validator(schemaPath: string): Promise<ReturnType<Ajv2020['compil
   return v;
 }
 
-const describeError = (e: ErrorObject): string =>
-  `${e.instancePath === '' ? '(корень)' : e.instancePath} ${e.message ?? ''}${
-    e.keyword === 'additionalProperties'
-      ? `: ${String((e.params as { additionalProperty?: string }).additionalProperty)}`
-      : ''
+function describeError(e: ErrorObject): string {
+  const extra: unknown = e.params['additionalProperty'];
+  return `${e.instancePath === '' ? '(корень)' : e.instancePath} ${e.message ?? ''}${
+    e.keyword === 'additionalProperties' ? `: ${String(extra)}` : ''
   }`.trim();
+}
 
 /** Ошибки валидации по JSON Schema; пустой массив — всё соответствует. */
 export async function schemaErrors(instances: Instance[], schemaPath: string): Promise<string[]> {
   const validate = await validator(schemaPath);
   return instances.flatMap((i) =>
-    validate(i.data) ? [] : (validate.errors ?? []).map((e) => `${i.name}: ${describeError(e)}`),
+    validate(i.data) === true
+      ? []
+      : (validate.errors ?? []).map((e) => `${i.name}: ${describeError(e)}`),
   );
 }
 
@@ -58,7 +63,10 @@ export async function expectSchema(instances: Instance[], schemaPath: string): P
 /** YAML- или JSON-файлы репозитория как экземпляры. */
 export async function dataFiles(paths: string[]): Promise<Instance[]> {
   return Promise.all(
-    paths.map(async (p) => ({ name: p, data: parse(await readRepo(p)) as unknown })),
+    paths.map(async (p): Promise<Instance> => {
+      const data: unknown = parse(await readRepo(p));
+      return { name: p, data };
+    }),
   );
 }
 

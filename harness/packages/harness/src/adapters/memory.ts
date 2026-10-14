@@ -2,6 +2,7 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { Diagnostic } from '../diagnostics.ts';
+import { errorCode, errorMessage, isRecord } from '../guards.ts';
 import { GENERATED_MARK } from './render.ts';
 import type { Action } from './sync.ts';
 
@@ -36,7 +37,7 @@ async function readOrNull(abs: string): Promise<string | null> {
   try {
     return await readFile(abs, 'utf8');
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null;
+    if (errorCode(error) === 'ENOENT') return null;
     throw error;
   }
 }
@@ -62,20 +63,17 @@ export async function claudeMemory(
   } catch (error) {
     return {
       actions: [],
-      diagnostics: [
-        { file: CLAUDE_SETTINGS, message: `невалидный JSON: ${(error as Error).message}` },
-      ],
+      diagnostics: [{ file: CLAUDE_SETTINGS, message: `невалидный JSON: ${errorMessage(error)}` }],
     };
   }
-  if (typeof data !== 'object' || data === null || Array.isArray(data)) {
+  if (!isRecord(data)) {
     return {
       actions: [],
       diagnostics: [{ file: CLAUDE_SETTINGS, message: 'корень должен быть объектом' }],
     };
   }
-  const settings = data as Record<string, unknown>;
-  if (settings['autoMemoryEnabled'] === false) return { actions: [], diagnostics: [] };
-  return { actions: [write({ ...settings, autoMemoryEnabled: false })], diagnostics: [] };
+  if (data['autoMemoryEnabled'] === false) return { actions: [], diagnostics: [] };
+  return { actions: [write({ ...data, autoMemoryEnabled: false })], diagnostics: [] };
 }
 
 /** Значения `таблица.ключ` из простого TOML: таблицы, пары, dotted-ключи. */

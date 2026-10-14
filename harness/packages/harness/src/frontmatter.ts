@@ -1,4 +1,5 @@
 import { parse } from 'yaml';
+import { isRecord } from './guards.ts';
 
 export type Frontmatter = Record<string, unknown>;
 
@@ -18,8 +19,6 @@ export function parseFrontmatter(text: string): Frontmatter | null {
   if (end === -1) return null;
   const data: unknown = parse(lines.slice(1, end).join('\n'));
   if (data === null || data === undefined) return {};
-  if (typeof data !== 'object' || Array.isArray(data)) {
-    throw new Error('frontmatter должен быть YAML-объектом');
-  }
-  return data as Frontmatter;
+  if (!isRecord(data)) throw new Error('frontmatter должен быть YAML-объектом');
+  return data;
 }

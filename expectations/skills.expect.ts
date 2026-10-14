@@ -13,6 +13,7 @@ import {
   skills,
   warn,
 } from '@shahimat/harness/expect';
+import { stringList } from './shared/guards.ts';
 
 budget({ crit: 0, warn: 0 });
 
@@ -145,7 +146,9 @@ class Check {
     for (const name of names) {
       const owner = mods.find((m) => m.key === name);
       const provides =
-        owner?.providesAll.some((p) => ((p['skills'] ?? []) as string[]).includes(name)) ?? false;
+        owner?.providesAll.some((p) =>
+          stringList(p['skills'], `${name}: provides.skills`).includes(name),
+        ) ?? false;
       expect({ name, skill: skillNames.includes(name), provides }).toEqual({
         name,
         skill: true,
@@ -167,7 +170,7 @@ class Check {
   static async providedSkillsExist(): Promise<void> {
     const names = (await skills()).map((s) => s.name);
     const provided = (await modules()).flatMap((m) =>
-      m.providesAll.flatMap((p) => (p['skills'] ?? []) as string[]),
+      m.providesAll.flatMap((p) => stringList(p['skills'], `${m.key}: provides.skills`)),
     );
     expect(provided.filter((s) => !names.includes(s))).toEqual([]);
   }
@@ -176,7 +179,7 @@ class Check {
     const provided = new Set([
       ...CORE_SKILLS,
       ...(await modules()).flatMap((m) =>
-        m.providesAll.flatMap((p) => (p['skills'] ?? []) as string[]),
+        m.providesAll.flatMap((p) => stringList(p['skills'], `${m.key}: provides.skills`)),
       ),
     ]);
     expect((await skills()).map((s) => s.name).filter((n) => !provided.has(n))).toEqual([]);
@@ -224,7 +227,9 @@ class Check {
     const names = (await skills()).map((s) => s.name);
     for (const a of (await indexEntries()).filter((e) => e.kind === 'agent')) {
       const fm = (await doc(a.path)).frontmatter ?? {};
-      const missing = ((fm['skills'] ?? []) as string[]).filter((s) => !names.includes(s));
+      const missing = stringList(fm['skills'], `${a.path}: skills`).filter(
+        (s) => !names.includes(s),
+      );
       expect({ agent: a.key, name: fm['name'], missing }).toEqual({
         agent: a.key,
         name: a.key,

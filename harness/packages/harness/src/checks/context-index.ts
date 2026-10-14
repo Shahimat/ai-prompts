@@ -5,6 +5,7 @@ import { parse, stringify } from 'yaml';
 import type { Diagnostic } from '../diagnostics.ts';
 import { DELTA_DIR } from './delta.ts';
 import { normalizeEol, parseFrontmatter } from '../frontmatter.ts';
+import { errorCode, errorMessage, isRecord } from '../guards.ts';
 
 export const CONTEXT_INDEX_PATH = 'context/index.yml';
 const PROJECT_PATH = 'context/project.yml';
@@ -56,17 +57,13 @@ export interface ContextIndexResult {
   diagnostics: Diagnostic[];
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
 /** Файлы с расширением `ext` под `dir`, рекурсивно; пути от корня через `/`. */
 async function listFiles(root: string, dir: string, ext: string): Promise<string[]> {
   let names: string[];
   try {
     names = await readdir(path.join(root, dir), { recursive: true });
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
+    if (errorCode(error) === 'ENOENT') return [];
     throw error;
   }
   return names
@@ -103,7 +100,7 @@ class Collector {
     try {
       data = parse(await readFile(path.join(this.root, file), 'utf8'));
     } catch (error) {
-      this.report(file, `невалидный YAML: ${(error as Error).message.split('\n')[0]}`);
+      this.report(file, `невалидный YAML: ${errorMessage(error).split('\n')[0]}`);
       return null;
     }
     if (!isRecord(data)) {
@@ -324,7 +321,7 @@ class Collector {
         try {
           data = parseFrontmatter(text);
         } catch (error) {
-          this.report(file, `невалидный frontmatter: ${(error as Error).message.split('\n')[0]}`);
+          this.report(file, `невалидный frontmatter: ${errorMessage(error).split('\n')[0]}`);
           continue;
         }
         if (data === null) {
@@ -361,8 +358,9 @@ const sorted = (map: Map<string, string | null>): Record<string, string | null> 
 function render(collector: Collector): string {
   const namespaces: Record<string, Record<string, unknown>> = {};
   // Порядок namespace — как в project.yml; необъявленные — следом по алфавиту.
-  const declared = [...collector.namespaces.keys()].filter((n) => collector.declared?.has(n));
-  const extra = [...collector.namespaces.keys()].filter((n) => !collector.declared?.has(n)).sort();
+  const isDeclared = (n: string): boolean => collector.declared?.has(n) === true;
+  const declared = [...collector.namespaces.keys()].filter(isDeclared);
+  const extra = [...collector.namespaces.keys()].filter((n) => !isDeclared(n)).sort();
   for (const name of [...declared, ...extra]) {
     const ns = collector.namespaces.get(name);
     if (ns === undefined) continue;
@@ -397,7 +395,7 @@ export async function checkContextIndex(root: string): Promise<Diagnostic[]> {
   try {
     actual = await readFile(path.join(root, CONTEXT_INDEX_PATH), 'utf8');
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+    if (errorCode(error) !== 'ENOENT') throw error;
   }
   if (actual === null) {
     diagnostics.push({

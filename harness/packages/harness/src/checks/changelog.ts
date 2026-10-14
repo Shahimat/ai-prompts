@@ -3,6 +3,7 @@ import path from 'node:path';
 import type { ChangelogOptions } from '../config.ts';
 import type { Diagnostic } from '../diagnostics.ts';
 import { normalizeEol } from '../frontmatter.ts';
+import { errorCode } from '../guards.ts';
 
 export const CHANGELOG_PATH = 'CHANGELOG.md';
 const SEPARATOR = ' · ';
@@ -54,13 +55,13 @@ export function lintChangelog(
       if (length > options.maxLine) report(`длина ${length} символов > ${options.maxLine}`);
 
       const parts = line.slice(2).split(SEPARATOR);
-      if (parts.length !== 3) {
+      const [date, what, why] = parts;
+      if (parts.length !== 3 || date === undefined || what === undefined || why === undefined) {
         report(
           `ожидается «- YYYY-MM-DD · ${tagHint} суть · почему»: частей через « · » ${parts.length}, нужно 3`,
         );
         return;
       }
-      const [date, what, why] = parts as [string, string, string];
 
       const time = parseIsoDate(date);
       if (time === null) {
@@ -92,7 +93,7 @@ export async function checkChangelog(
   try {
     text = await readFile(path.join(root, CHANGELOG_PATH), 'utf8');
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+    if (errorCode(error) === 'ENOENT') {
       return [{ file: CHANGELOG_PATH, message: 'файл не найден' }];
     }
     throw error;

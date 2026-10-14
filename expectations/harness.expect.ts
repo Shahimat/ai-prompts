@@ -29,6 +29,7 @@ import {
   repoRoot,
   warn,
 } from '@shahimat/harness/expect';
+import { at, parseJson, recordOrEmpty, stringAt } from './shared/guards.ts';
 
 budget({ crit: 0, warn: 0 });
 
@@ -265,10 +266,8 @@ class Check {
   static async packages(): Promise<void> {
     const dirs = (await readdir(path.join(repoRoot(), 'harness/packages'))).sort();
     const names = await Promise.all(
-      dirs.map(
-        async (d) =>
-          (JSON.parse(await readRepo(`harness/packages/${d}/package.json`)) as { name: string })
-            .name,
+      dirs.map(async (d) =>
+        stringAt(parseJson(await readRepo(`harness/packages/${d}/package.json`)), 'name'),
       ),
     );
     expect(names.sort()).toEqual(['@shahimat/expectations', '@shahimat/harness']);
@@ -309,8 +308,8 @@ class Check {
 
   // основа
   static async noBash(): Promise<void> {
-    const pkg = JSON.parse(await readRepo(`${PKG}/package.json`)) as { engines: { node: string } };
-    expect(pkg.engines.node).toBe('>=24');
+    const pkg = parseJson(await readRepo(`${PKG}/package.json`));
+    expect(at(pkg, 'engines', 'node')).toBe('>=24');
     expect(await readRepo('.gitattributes')).toContain('eol=lf');
     const out = spawnSync('git', ['ls-files', '*.sh'], {
       cwd: repoRoot(),
@@ -328,15 +327,13 @@ class Check {
   static async tsStrict(): Promise<void> {
     // Флаги с учётом цепочки extends: пакеты наследуют tsconfig.base.json.
     const compilerOptions = async (file: string): Promise<Record<string, unknown>> => {
-      const cfg = JSON.parse(await readRepo(file)) as {
-        extends?: string;
-        compilerOptions?: Record<string, unknown>;
-      };
+      const cfg = parseJson(await readRepo(file));
+      const parent = at(cfg, 'extends');
       const base =
-        cfg.extends === undefined
-          ? {}
-          : await compilerOptions(path.posix.join(path.posix.dirname(file), cfg.extends));
-      return { ...base, ...cfg.compilerOptions };
+        typeof parent === 'string'
+          ? await compilerOptions(path.posix.join(path.posix.dirname(file), parent))
+          : {};
+      return { ...base, ...recordOrEmpty(at(cfg, 'compilerOptions'), `${file}: compilerOptions`) };
     };
     for (const pkg of ['harness', 'expectations']) {
       const opts = await compilerOptions(`harness/packages/${pkg}/tsconfig.json`);
@@ -465,10 +462,8 @@ class Check {
   static cleanContext = (): Promise<void> => judged(['@judge-clean-context']);
 
   static async sharedLevels(): Promise<void> {
-    const schema = JSON.parse(await readRepo(`${SCHEMAS}/plan-criteria.schema.json`)) as {
-      properties: { criteria: { items: { properties: { level: { enum: string[] } } } } };
-    };
-    expect(schema.properties.criteria.items.properties.level.enum).toEqual([
+    const schema = parseJson(await readRepo(`${SCHEMAS}/plan-criteria.schema.json`));
+    expect(at(schema, 'properties', 'criteria', 'items', 'properties', 'level', 'enum')).toEqual([
       'crit',
       'warn',
       'info',

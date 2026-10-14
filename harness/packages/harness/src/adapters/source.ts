@@ -1,6 +1,7 @@
 import { access, readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { Diagnostic } from '../diagnostics.ts';
+import { errorCode, errorMessage } from '../guards.ts';
 import { normalizeEol, parseFrontmatter } from '../frontmatter.ts';
 
 export const AGENTS_MD = 'AGENTS.md';
@@ -41,7 +42,7 @@ async function listDir(dir: string): Promise<string[]> {
   try {
     return (await readdir(dir)).sort();
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
+    if (errorCode(error) === 'ENOENT') return [];
     throw error;
   }
 }
@@ -78,7 +79,7 @@ function parseAgent(
   try {
     fm = parseFrontmatter(text);
   } catch (error) {
-    report(`невалидный frontmatter: ${(error as Error).message.split('\n')[0]}`);
+    report(`невалидный frontmatter: ${errorMessage(error).split('\n')[0]}`);
     return null;
   }
   if (fm === null) {
@@ -129,7 +130,7 @@ export async function readSources(root: string): Promise<Sources> {
   const skills: Skill[] = [];
   for (const name of await listDir(path.join(root, SKILLS_DIR))) {
     const skill = await readSkill(root, name).catch((error: unknown) => {
-      if ((error as NodeJS.ErrnoException).code === 'ENOTDIR') return null;
+      if (errorCode(error) === 'ENOTDIR') return null;
       throw error;
     });
     if (skill === null) continue;

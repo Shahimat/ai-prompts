@@ -8,6 +8,7 @@ import {
   warn,
   type PresetDoc,
 } from '@shahimat/harness/expect';
+import { stringList } from './shared/guards.ts';
 
 // Виды контракта v3: operational, external, private, analytical.
 // Каждый вид — пресет; ниже — что обязано быть у каждого.
@@ -158,9 +159,10 @@ class Check {
 
   static async safetyScope(): Promise<void> {
     expect(
-      [
-        ...((answer(await preset('private'), 'safety-boundaries', 'scope') as string[]) ?? []),
-      ].sort(),
+      stringList(
+        answer(await preset('private'), 'safety-boundaries', 'scope'),
+        'private: safety-boundaries.scope',
+      ).sort(),
     ).toEqual(['physical', 'psyche']);
   }
 

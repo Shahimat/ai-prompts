@@ -3,6 +3,7 @@ import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { parse, stringify } from 'yaml';
 import { normalizeEol, parseFrontmatter } from './frontmatter.ts';
+import { errorCode, errorMessage, isRecord } from './guards.ts';
 
 export const INDEX_PATH = 'prompts/index.yml';
 const SOURCE_DIRS = ['prompts', 'patterns'] as const;
@@ -79,9 +80,8 @@ function oneLine(value: unknown, field: string, file: string): string | undefine
 function parseFeature(value: unknown, kind: string, file: string): FeatureInfo | undefined {
   if (value === undefined || value === null) return undefined;
   if (kind !== 'module') throw new Error(`${file}: feature допустим только у kind: module`);
-  if (typeof value !== 'object' || Array.isArray(value))
-    throw new Error(`${file}: feature должно быть объектом`);
-  const feature = value as Record<string, unknown>;
+  if (!isRecord(value)) throw new Error(`${file}: feature должно быть объектом`);
+  const feature = value;
   const extra = Object.keys(feature).filter((k) => !FEATURE_KEYS.includes(k));
   if (extra.length > 0) throw new Error(`${file}: неизвестные поля feature: ${extra.join(', ')}`);
   const summary = oneLine(feature['summary'], 'feature.summary', file);
@@ -122,7 +122,7 @@ async function listMarkdown(root: string): Promise<string[]> {
     try {
       names = await readdir(path.join(root, dir), { recursive: true });
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue;
+      if (errorCode(error) === 'ENOENT') continue;
       throw error;
     }
     for (const name of names) {
@@ -141,7 +141,7 @@ export async function collectEntries(root: string): Promise<CollectResult> {
     try {
       fm = parseFrontmatter(content);
     } catch (error) {
-      throw new Error(`${file}: ${(error as Error).message}`, { cause: error });
+      throw new Error(`${file}: ${errorMessage(error)}`, { cause: error });
     }
     const key = fm?.['key'];
     const kind = fm?.['kind'];
@@ -175,7 +175,7 @@ async function listNames(abs: string): Promise<string[]> {
   try {
     return (await readdir(abs)).sort(compareBytes);
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
+    if (errorCode(error) === 'ENOENT') return [];
     throw error;
   }
 }
@@ -186,7 +186,7 @@ function nameAndTitle(content: string, expected: string, file: string): string {
   try {
     fm = parseFrontmatter(content);
   } catch (error) {
-    throw new Error(`${file}: ${(error as Error).message}`, { cause: error });
+    throw new Error(`${file}: ${errorMessage(error)}`, { cause: error });
   }
   if (fm?.['name'] !== expected)
     throw new Error(`${file}: name должно совпадать с именем «${expected}»`);
@@ -251,13 +251,12 @@ async function collectPresets(root: string, known: IndexEntry[]): Promise<IndexE
     try {
       data = parse(content);
     } catch (error) {
-      throw new Error(`${file}: невалидный YAML: ${(error as Error).message.split('\n')[0]}`, {
+      throw new Error(`${file}: невалидный YAML: ${errorMessage(error).split('\n')[0]}`, {
         cause: error,
       });
     }
-    if (typeof data !== 'object' || data === null || Array.isArray(data))
-      throw new Error(`${file}: корень должен быть объектом`);
-    const preset = data as Record<string, unknown>;
+    if (!isRecord(data)) throw new Error(`${file}: корень должен быть объектом`);
+    const preset = data;
     if (preset['key'] !== key)
       throw new Error(`${file}: key должно совпадать с именем файла «${key}»`);
     const title = oneLine(preset['title'], 'title', file);
@@ -270,10 +269,7 @@ async function collectPresets(root: string, known: IndexEntry[]): Promise<IndexE
     if (!Array.isArray(modules) || modules.length === 0)
       throw new Error(`${file}: modules — непустой список`);
     for (const item of modules) {
-      const moduleKey =
-        typeof item === 'object' && item !== null
-          ? (item as Record<string, unknown>)['key']
-          : undefined;
+      const moduleKey = isRecord(item) ? item['key'] : undefined;
       const module = known.find((e) => e.kind === 'module' && e.key === moduleKey);
       if (module === undefined)
         throw new Error(`${file}: модуля «${String(moduleKey)}» нет в индексе`);

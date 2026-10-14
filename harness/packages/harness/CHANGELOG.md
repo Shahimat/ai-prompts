@@ -20,6 +20,9 @@
 - `skill(name).description` — пустая строка, если `description` во
   frontmatter не строка (раньше `[object Object]`); `index_layers` с
   нестроковым `format` — значение в диагностике как JSON.
+- Данные извне (`.verdicts.json`, `plan.json`, ответы судьи, отчёт vitest,
+  npm registry, `answers` модулей и поля пресетов) проверяются по форме:
+  неверная форма — ошибка с путём к полю, а не молча принятое значение.
 
 ## 0.3.0
 

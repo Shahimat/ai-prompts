@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { parse } from 'yaml';
 import { normalizeEol, parseFrontmatter, type Frontmatter } from '../frontmatter.ts';
+import { isRecord } from '../guards.ts';
 import { collectEntries, type IndexEntry } from '../prompt-index.ts';
 
 /** Корень репозитория для зондов: HARNESS_EXPECT_ROOT или cwd. */
@@ -145,9 +146,11 @@ export async function module(key: string): Promise<ModuleDoc> {
   const e = await entry('module', key);
   const d = await doc(e.path);
   const block = new RegExp(`<!-- module:${key} -->[\\s\\S]*?<!-- /module:${key} -->`).exec(d.text);
-  const all = codeBlocks(d.text, 'yaml', 'provides:').map(
-    (b) => (parse(b) as { provides?: Record<string, unknown> } | null)?.provides ?? {},
-  );
+  const all = codeBlocks(d.text, 'yaml', 'provides:').map((b): Record<string, unknown> => {
+    const data: unknown = parse(b);
+    const provides = isRecord(data) ? data['provides'] : undefined;
+    return isRecord(provides) ? provides : {};
+  });
   return {
     ...d,
     key,
@@ -188,16 +191,38 @@ export interface PresetDoc {
   agentsMd(): Promise<{ text: string; lines: number; bytes: number }>;
 }
 
+interface PresetData {
+  key: string;
+  title: string;
+  contract: string;
+  modules: { key: string; answers?: Record<string, unknown> }[];
+}
+
+/** Форма пресета; индекс уже проверил key, title, contract и ключи модулей. */
+function presetData(data: unknown, file: string): PresetData {
+  const fail = (message: string): never => {
+    throw new Error(`${file}: ${message}`);
+  };
+  if (!isRecord(data)) return fail('корень должен быть объектом');
+  const { key, title, contract } = data;
+  if (typeof key !== 'string' || typeof title !== 'string' || typeof contract !== 'string')
+    return fail('key, title и contract должны быть строками');
+  if (!Array.isArray(data['modules'])) return fail('modules должно быть списком');
+  const modules = data['modules'].map((m: unknown) => {
+    if (!isRecord(m) || typeof m['key'] !== 'string') return fail('у модуля нет key');
+    const answers = m['answers'];
+    if (answers === undefined) return { key: m['key'] };
+    if (!isRecord(answers)) return fail(`answers модуля «${m['key']}» должно быть объектом`);
+    return { key: m['key'], answers };
+  });
+  return { key, title, contract, modules };
+}
+
 export async function presets(): Promise<PresetDoc[]> {
   const list = (await indexEntries()).filter((e) => e.kind === 'preset');
   return Promise.all(
     list.map(async (e) => {
-      const data = parse(await readRepo(e.path)) as {
-        key: string;
-        title: string;
-        contract: string;
-        modules: { key: string; answers?: Record<string, unknown> }[];
-      };
+      const data = presetData(parse(await readRepo(e.path)), e.path);
       return {
         key: data.key,
         title: data.title,

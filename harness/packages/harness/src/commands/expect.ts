@@ -16,8 +16,9 @@ import {
   renderLintBatch,
 } from '../expect/batch.ts';
 import { readEvidence, shaOf } from '../expect/evidence.ts';
-import { COLLECT_ENV, idOf, SEEN_ENV, type PendingItem } from '../expect/judge.ts';
-import { BUDGET_TITLE, type Budget, type Level } from '../expect/levels.ts';
+import { COLLECT_ENV, idOf, isPendingItem, SEEN_ENV, type PendingItem } from '../expect/judge.ts';
+import { BUDGET_TITLE, LEVELS, type Budget, type Level } from '../expect/levels.ts';
+import { isOneOf, isRecord, isStringArray } from '../guards.ts';
 import { lintTitles, type Title } from '../expect/lint.ts';
 import { loadVerdicts, pruneStore, saveVerdicts, VERDICTS_PATH } from '../expect/verdicts.ts';
 import type { CommandArgs } from './types.ts';
@@ -25,28 +26,54 @@ import type { CommandArgs } from './types.ts';
 export const EXPECT_CONFIG = 'expectations/vitest.config.ts';
 const JUDGE_DIR = 'expectations/.judge';
 
+const STATUSES = ['passed', 'failed', 'todo', 'skipped', 'pending', 'disabled'] as const;
+
 interface TestResult {
   file: string;
   path: string[];
   title: string;
-  status: 'passed' | 'failed' | 'todo' | 'skipped' | 'pending';
+  status: (typeof STATUSES)[number];
   message: string;
   level: Level;
   notes: string[];
   budget?: Budget;
 }
 
-interface VitestJson {
-  testResults: {
-    name: string;
-    assertionResults: {
-      ancestorTitles: string[];
-      title: string;
-      status: string;
-      failureMessages: string[];
-      meta?: { level?: Level; notes?: string[]; budget?: Budget };
-    }[];
-  }[];
+const isBudget = (v: unknown): v is Budget =>
+  isRecord(v) && typeof v['crit'] === 'number' && typeof v['warn'] === 'number';
+
+/** Результаты из JSON-отчёта vitest; неожиданная форма — ошибка, а не пустой отчёт. */
+function parseVitestReport(data: unknown, root: string): TestResult[] {
+  const fail = (what: string): never => {
+    throw new Error(`отчёт vitest: ${what}`);
+  };
+  if (!isRecord(data) || !Array.isArray(data['testResults'])) return fail('нет testResults');
+  return data['testResults'].flatMap((file: unknown) => {
+    if (!isRecord(file) || typeof file['name'] !== 'string') return fail('файл без name');
+    const name = file['name'];
+    if (!Array.isArray(file['assertionResults'])) return fail(`${name}: нет assertionResults`);
+    return file['assertionResults'].map((a: unknown) => {
+      if (!isRecord(a) || typeof a['title'] !== 'string') return fail(`${name}: тест без title`);
+      const { ancestorTitles, status, failureMessages } = a;
+      if (!isStringArray(ancestorTitles)) return fail(`${name}: ancestorTitles — не строки`);
+      if (!isOneOf(STATUSES, status)) return fail(`${name}: неизвестный статус ${String(status)}`);
+      if (!isStringArray(failureMessages)) return fail(`${name}: failureMessages — не строки`);
+      const meta = isRecord(a['meta']) ? a['meta'] : {};
+      const { level, notes, budget } = meta;
+      const result: TestResult = {
+        file: path.relative(root, name).split(path.sep).join('/'),
+        path: ancestorTitles,
+        title: a['title'],
+        status,
+        message: (failureMessages[0] ?? '').split('\n')[0] ?? '',
+        // Обычный it() без обёртки — crit: формальная проверка по умолчанию.
+        level: isOneOf(LEVELS, level) ? level : 'crit',
+        notes: isStringArray(notes) ? notes : [],
+      };
+      if (isBudget(budget)) result.budget = budget;
+      return result;
+    });
+  });
 }
 
 /** Запускает vitest проекта на файлах ожиданий и возвращает результаты. */
@@ -59,10 +86,10 @@ function runVitest(root: string, env: Record<string, string> = {}): TestResult[]
   } catch {
     throw new UsageError('vitest не установлен в проекте: npm i -D vitest');
   }
-  const bin =
-    (JSON.parse(readFileSync(vitestPkg, 'utf8')) as { bin: Record<string, string> }).bin[
-      'vitest'
-    ] ?? '';
+  const pkg: unknown = JSON.parse(readFileSync(vitestPkg, 'utf8'));
+  const bins = isRecord(pkg) ? pkg['bin'] : undefined;
+  const bin = isRecord(bins) ? bins['vitest'] : undefined;
+  if (typeof bin !== 'string') throw new Error(`${vitestPkg}: нет bin.vitest`);
   const out = path.join(tmpdir(), `harness-expect-${process.pid}-${Date.now()}.json`);
   spawnSync(
     process.execPath,
@@ -83,24 +110,9 @@ function runVitest(root: string, env: Record<string, string> = {}): TestResult[]
     },
   );
   if (!existsSync(out)) throw new Error('vitest не записал отчёт');
-  const data = JSON.parse(readFileSync(out, 'utf8')) as VitestJson;
+  const data: unknown = JSON.parse(readFileSync(out, 'utf8'));
   rmSync(out, { force: true });
-  return data.testResults.flatMap((file) =>
-    file.assertionResults.map((a) => {
-      const result: TestResult = {
-        file: path.relative(root, file.name).split(path.sep).join('/'),
-        path: a.ancestorTitles,
-        title: a.title,
-        status: a.status as TestResult['status'],
-        message: (a.failureMessages[0] ?? '').split('\n')[0] ?? '',
-        // Обычный it() без обёртки — crit: формальная проверка по умолчанию.
-        level: a.meta?.level ?? 'crit',
-        notes: a.meta?.notes ?? [],
-      };
-      if (a.meta?.budget !== undefined) result.budget = a.meta.budget;
-      return result;
-    }),
-  );
+  return parseVitestReport(data, root);
 }
 
 const fullName = (t: { path: string[]; title: string }): string => [...t.path, t.title].join(' > ');
@@ -216,6 +228,26 @@ interface Plan {
   lint: { task: string; answer: string; file: string; titles: string; ids: string[] }[];
 }
 
+function isPlan(v: unknown): v is Plan {
+  const task = (t: unknown): t is Record<string, unknown> =>
+    isRecord(t) && typeof t['task'] === 'string' && typeof t['answer'] === 'string';
+  return (
+    isRecord(v) &&
+    Array.isArray(v['batches']) &&
+    v['batches'].every(
+      (b) => task(b) && Array.isArray(b['items']) && b['items'].every(isPendingItem),
+    ) &&
+    Array.isArray(v['lint']) &&
+    v['lint'].every(
+      (l) =>
+        task(l) &&
+        typeof l['file'] === 'string' &&
+        typeof l['titles'] === 'string' &&
+        isStringArray(l['ids']),
+    )
+  );
+}
+
 async function judgePrepare(args: CommandArgs): Promise<number> {
   const dir = path.join(args.root, JUDGE_DIR);
   await rm(dir, { recursive: true, force: true });
@@ -226,8 +258,12 @@ async function judgePrepare(args: CommandArgs): Promise<number> {
   await rm(seenDir, { recursive: true, force: true });
   const items: PendingItem[] = [];
   if (existsSync(pendingDir)) {
-    for (const f of (await readdir(pendingDir)).sort())
-      items.push(JSON.parse(await readFile(path.join(pendingDir, f), 'utf8')) as PendingItem);
+    for (const f of (await readdir(pendingDir)).sort()) {
+      const item: unknown = JSON.parse(await readFile(path.join(pendingDir, f), 'utf8'));
+      if (!isPendingItem(item))
+        throw new Error(`${JUDGE_DIR}/pending/${f}: неверная форма вопроса`);
+      items.push(item);
+    }
     await rm(pendingDir, { recursive: true, force: true });
   }
   const plan: Plan = { batches: [], lint: [] };
@@ -277,7 +313,9 @@ async function judgePrepare(args: CommandArgs): Promise<number> {
 async function judgeApply(args: CommandArgs): Promise<number> {
   const planFile = path.join(args.root, JUDGE_DIR, 'plan.json');
   if (!existsSync(planFile)) throw new UsageError('нет плана: сначала harness expect judge');
-  const plan = JSON.parse(await readFile(planFile, 'utf8')) as Plan;
+  const plan: unknown = JSON.parse(await readFile(planFile, 'utf8'));
+  if (!isPlan(plan))
+    throw new UsageError(`${JUDGE_DIR}/plan.json: неверная форма — заново harness expect judge`);
   const store = await loadVerdicts();
   const rejected: string[] = [];
   const readJson = async (rel: string): Promise<unknown> => {
@@ -373,15 +411,18 @@ async function init(args: CommandArgs): Promise<number> {
 
   const pkgFile = path.join(args.root, 'package.json');
   if (existsSync(pkgFile)) {
-    const pkg = JSON.parse(await readFile(pkgFile, 'utf8')) as { scripts?: Record<string, string> };
+    const pkg: unknown = JSON.parse(await readFile(pkgFile, 'utf8'));
+    if (!isRecord(pkg)) throw new UsageError('package.json: корень должен быть объектом');
+    const current = pkg['scripts'] ?? {};
+    if (!isRecord(current)) throw new UsageError('package.json: scripts должно быть объектом');
     const scripts = {
       expect: 'harness expect report --root .',
       'expect:judge': 'harness expect judge --root .',
       'expect:apply': 'harness expect judge --apply --root .',
     };
-    const added = Object.entries(scripts).filter(([k]) => pkg.scripts?.[k] === undefined);
+    const added = Object.entries(scripts).filter(([k]) => current[k] === undefined);
     if (added.length > 0) {
-      pkg.scripts = { ...pkg.scripts, ...Object.fromEntries(added) };
+      pkg['scripts'] = { ...current, ...Object.fromEntries(added) };
       await writeFile(pkgFile, `${JSON.stringify(pkg, null, 2)}\n`, 'utf8');
       done.push(`package.json: скрипты ${added.map(([k]) => k).join(', ')}`);
     }

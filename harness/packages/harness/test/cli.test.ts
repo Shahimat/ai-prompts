@@ -140,10 +140,10 @@ describe('harness expect init', () => {
     await put('.gitignore', 'node_modules/');
     expect(await main(['expect', 'init', '--root', root], NOW)).toBe(0);
     const { readFile } = await import('node:fs/promises');
-    const pkg = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8')) as {
-      scripts: Record<string, string>;
-    };
-    expect(pkg.scripts).toMatchObject({ test: 'x', expect: 'harness expect report --root .' });
+    const pkg: unknown = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'));
+    expect(pkg).toMatchObject({
+      scripts: { test: 'x', expect: 'harness expect report --root .' },
+    });
     expect(await readFile(path.join(root, '.gitignore'), 'utf8')).toBe(
       'node_modules/\nexpectations/.judge/\n',
     );

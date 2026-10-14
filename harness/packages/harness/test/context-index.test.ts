@@ -8,8 +8,16 @@ import {
   checkContextIndex,
   CONTEXT_INDEX_PATH,
 } from '../src/checks/context-index.ts';
+import { isRecord } from '../src/guards.ts';
 
 let root: string;
+
+/** Раздел namespaces собранного индекса. */
+function namespacesOf(text: string): Record<string, unknown> {
+  const index: unknown = parse(text);
+  if (!isRecord(index) || !isRecord(index['namespaces'])) throw new Error('нет namespaces');
+  return index['namespaces'];
+}
 
 async function put(rel: string, content: string): Promise<void> {
   await mkdir(path.dirname(path.join(root, rel)), { recursive: true });
@@ -136,10 +144,8 @@ describe('buildContextIndex', () => {
   it('необъявленный namespace всё равно попадает в индекс, после объявленных', async () => {
     await seed();
     await put('docs/entities/alien.yml', 'id: alien\nnamespace: misc\nsummary: x\n');
-    const index = parse((await buildContextIndex(root)).text) as {
-      namespaces: Record<string, unknown>;
-    };
-    expect(Object.keys(index.namespaces)).toEqual(['vpn', 'infra', 'misc']);
+    const namespaces = namespacesOf((await buildContextIndex(root)).text);
+    expect(Object.keys(namespaces)).toEqual(['vpn', 'infra', 'misc']);
   });
 });
 
@@ -181,12 +187,13 @@ describe('слои модулей (provides.index_layers)', () => {
     await put('docs/knowledge/other/login.md', card('other-login', 'infra', '# Other: вход'));
     const { text, diagnostics } = await buildContextIndex(root);
     expect(diagnostics).toEqual([]);
-    const index = parse(text) as { namespaces: Record<string, Record<string, unknown>> };
-    expect(index.namespaces['vpn']?.['knowledge']).toEqual({
+    const namespaces = namespacesOf(text);
+    expect(namespaces).toHaveProperty(['vpn', 'knowledge'], {
       'provider-webhooks': 'Provider: вебхуки',
     });
-    expect(index.namespaces['infra']?.['knowledge']).toEqual({ 'other-login': 'Other: вход' });
-    expect(Object.keys(index.namespaces['vpn'] ?? {})).toEqual([
+    expect(namespaces).toHaveProperty(['infra', 'knowledge'], { 'other-login': 'Other: вход' });
+    const vpn = namespaces['vpn'];
+    expect(Object.keys(isRecord(vpn) ? vpn : {})).toEqual([
       'description',
       'entities',
       'behaviors',
@@ -247,8 +254,9 @@ describe('слои модулей в формате yml', () => {
     );
     const { text, diagnostics } = await buildContextIndex(root);
     expect(diagnostics).toEqual([]);
-    const index = parse(text) as { namespaces: Record<string, Record<string, unknown>> };
-    expect(index.namespaces['vpn']?.['facts']).toEqual({ 'sleep-baseline': 'сон — базовая линия' });
+    expect(namespacesOf(text)).toHaveProperty(['vpn', 'facts'], {
+      'sleep-baseline': 'сон — базовая линия',
+    });
   });
 
   it('нарушения: нет summary, id не по пути, неизвестный format', async () => {

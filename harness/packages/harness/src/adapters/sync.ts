@@ -1,6 +1,7 @@
 import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { Diagnostic } from '../diagnostics.ts';
+import { errorCode } from '../guards.ts';
 import { claudeMemory, CODEX_CONFIG, codexMemory } from './memory.ts';
 import {
   claudeAgent,
@@ -55,7 +56,7 @@ async function readOrNull(abs: string): Promise<Buffer | null> {
   try {
     return await readFile(abs);
   } catch (error) {
-    const code = (error as NodeJS.ErrnoException).code;
+    const code = errorCode(error);
     if (code === 'ENOENT' || code === 'EISDIR') return null;
     throw error;
   }
@@ -69,7 +70,7 @@ async function listFiles(abs: string): Promise<string[]> {
       .map((e) => path.relative(abs, path.join(e.parentPath, e.name)).split(path.sep).join('/'))
       .sort();
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
+    if (errorCode(error) === 'ENOENT') return [];
     throw error;
   }
 }
@@ -78,7 +79,7 @@ async function listNames(abs: string): Promise<string[]> {
   try {
     return (await readdir(abs)).sort();
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
+    if (errorCode(error) === 'ENOENT') return [];
     throw error;
   }
 }

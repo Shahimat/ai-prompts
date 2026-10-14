@@ -20,6 +20,7 @@ import {
 import { attention, ticketCommits } from '@shahimat/expectations';
 import { parse } from 'yaml';
 import { anyContract } from './shared/any-contract.expect.ts';
+import { at, recordOrEmpty, stringList, unknownList } from './shared/guards.ts';
 
 budget({ crit: 0, warn: 5 });
 
@@ -161,10 +162,11 @@ const SCHEMAS = 'expectations/schemas';
 const template = async (): Promise<string> => (await contract(KEY)).agentsMdTemplate ?? '';
 const v3Modules = async (): Promise<Awaited<ReturnType<typeof modules>>> =>
   (await modules()).filter((m) =>
-    ((m.frontmatter?.['applicable_to'] ?? []) as string[]).includes(KEY),
+    stringList(m.frontmatter?.['applicable_to'], `${m.key}: applicable_to`).includes(KEY),
   );
 const feature = async (key: string): Promise<Record<string, unknown>> =>
-  ((await module(key)).frontmatter?.['feature'] ?? {}) as Record<string, unknown>;
+  recordOrEmpty((await module(key)).frontmatter?.['feature'], `${key}: feature`);
+const parseYaml = (text: string): unknown => parse(text);
 const pathsOf = async (kind: string): Promise<string[]> =>
   (await indexEntries())
     .filter((e) => e.kind === kind)
@@ -227,7 +229,7 @@ class Check {
       ms,
       (m) => m.key,
       (m) => {
-        const f = (m.frontmatter?.['feature'] ?? {}) as Record<string, unknown>;
+        const f = recordOrEmpty(m.frontmatter?.['feature'], `${m.key}: feature`);
         return typeof f['summary'] === 'string' && typeof f['default'] === 'boolean';
       },
     );
@@ -249,7 +251,7 @@ class Check {
         const lines = (m.agentsMdBlock ?? '')
           .split('\n')
           .filter((l) => l.trim() !== '' && !l.startsWith('<!--')).length;
-        const guardrail = ((m.frontmatter?.['patterns'] ?? []) as string[]).includes(
+        const guardrail = stringList(m.frontmatter?.['patterns'], `${m.key}: patterns`).includes(
           'guardrail-dual-level',
         );
         return lines <= (guardrail ? 8 : 5);
@@ -261,12 +263,12 @@ class Check {
     const answers: { name: string; ok: boolean }[] = [];
     for (const p of await presets()) {
       for (const pm of p.modules) {
-        const asks = ((await feature(pm.key))['asks'] ?? []) as {
-          key: string;
-          options: unknown[];
-        }[];
+        const asks = unknownList((await feature(pm.key))['asks'], `${pm.key}: feature.asks`);
         for (const [k, v] of Object.entries(pm.answers)) {
-          const options = asks.find((a) => a.key === k)?.options.map(String) ?? [];
+          const ask = asks.find((a) => at(a, 'key') === k);
+          const options = unknownList(at(ask, 'options'), `${pm.key}: asks.${k}.options`).map(
+            String,
+          );
           for (const x of Array.isArray(v) ? v : [v])
             answers.push({
               name: `${p.key}/${pm.key}/${k}=${String(x)}`,
@@ -287,7 +289,7 @@ class Check {
     for (const p of await presets()) {
       const keys = p.modules.map((m) => m.key);
       for (const k of keys) {
-        for (const r of ((await feature(k))['requires'] ?? []) as string[])
+        for (const r of stringList((await feature(k))['requires'], `${k}: feature.requires`))
           pairs.push({ name: `${p.key}: ${k} → ${r}`, ok: keys.includes(r) });
       }
     }
@@ -344,7 +346,7 @@ class Check {
     const instances = await Promise.all(
       sources.map(async (s) => ({
         name: s,
-        data: parse(codeBlock(await readRepo(s), 'yaml', 'version:') ?? 'null') as unknown,
+        data: parseYaml(codeBlock(await readRepo(s), 'yaml', 'version:') ?? 'null'),
       })),
     );
     await expectSchema(instances, `${SCHEMAS}/harness-config.schema.json`);
@@ -367,7 +369,7 @@ class Check {
 
   static async singleChangelog(): Promise<void> {
     const files = (await modules()).flatMap((m) =>
-      ((m.provides?.['files'] ?? []) as string[]).map((f) => `${m.key}: ${f}`),
+      stringList(m.provides?.['files'], `${m.key}: provides.files`).map((f) => `${m.key}: ${f}`),
     );
     expectAll(
       files,

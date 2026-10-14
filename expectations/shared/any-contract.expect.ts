@@ -1,5 +1,6 @@
 import { describe, expect } from 'vitest';
 import { contract, crit, expectAtMost, indexEntries } from '@shahimat/harness/expect';
+import { stringList } from './guards.ts';
 
 /** Общие ожидания к любому контракту. Подключение: anyContract('<key>'). */
 export function anyContract(key: string): void {
@@ -32,7 +33,10 @@ class AnyContractCheck {
   }
 
   async patternsExist(): Promise<void> {
-    const patterns = ((await contract(this.key)).frontmatter?.['patterns'] ?? []) as string[];
+    const patterns = stringList(
+      (await contract(this.key)).frontmatter?.['patterns'],
+      `${this.key}: patterns`,
+    );
     const known = (await indexEntries()).filter((e) => e.kind === 'pattern').map((e) => e.key);
     expect(patterns.filter((p) => !known.includes(p))).toEqual([]);
   }

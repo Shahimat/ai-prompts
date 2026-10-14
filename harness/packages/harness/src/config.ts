@@ -3,6 +3,7 @@ import path from 'node:path';
 import { parse } from 'yaml';
 import { KNOWN_ADAPTERS, type AdapterName } from './adapters/sync.ts';
 import { UsageError } from './diagnostics.ts';
+import { errorCode, errorMessage, isOneOf, isRecord } from './guards.ts';
 
 export const CONFIG_PATH = 'context/harness.yml';
 
@@ -32,10 +33,6 @@ export const KNOWN_CHECKS = ['changelog', 'context-index', 'adapters'] as const;
 
 function fail(message: string): never {
   throw new UsageError(`${CONFIG_PATH}: ${message}`);
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function unknownKeys(obj: Record<string, unknown>, known: readonly string[], where: string): void {
@@ -74,7 +71,7 @@ export function parseConfig(text: string): HarnessConfig {
   try {
     data = parse(text);
   } catch (error) {
-    fail(`невалидный YAML: ${(error as Error).message.split('\n')[0]}`);
+    fail(`невалидный YAML: ${errorMessage(error).split('\n')[0]}`);
   }
   if (data === null || data === undefined) data = {};
   if (!isRecord(data)) fail('корень должен быть объектом');
@@ -88,10 +85,11 @@ export function parseConfig(text: string): HarnessConfig {
   }
   if (data['adapters'] !== undefined) {
     const adapters = stringList(data['adapters'], 'adapters');
-    const unknown = adapters.filter((a) => !(KNOWN_ADAPTERS as readonly string[]).includes(a));
+    const known = adapters.filter((a): a is AdapterName => isOneOf(KNOWN_ADAPTERS, a));
+    const unknown = adapters.filter((a) => !isOneOf(KNOWN_ADAPTERS, a));
     if (unknown.length > 0)
       fail(`неизвестные adapters: ${unknown.join(', ')} (есть: ${KNOWN_ADAPTERS.join(', ')})`);
-    config.adapters = adapters as AdapterName[];
+    config.adapters = known;
   }
 
   const checks = data['checks'] ?? {};
@@ -114,7 +112,7 @@ export async function loadConfig(root: string): Promise<HarnessConfig | null> {
   try {
     text = await readFile(path.join(root, CONFIG_PATH), 'utf8');
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null;
+    if (errorCode(error) === 'ENOENT') return null;
     throw error;
   }
   return parseConfig(text);

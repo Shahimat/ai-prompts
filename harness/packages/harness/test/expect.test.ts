@@ -41,7 +41,8 @@ describe('planBatches', () => {
 
   it('пакет описывает вопросы, доказательства и файл ответа', () => {
     const [batch] = planBatches([item('a', [['x.md#Раздел', 10]])]);
-    const text = renderBatch(batch!, 'out.json');
+    if (batch === undefined) throw new Error('нет пакета');
+    const text = renderBatch(batch, 'out.json');
     expect(text).toContain('`x.md#Раздел`');
     expect(text).toContain('`a` — группа → ожидание a');
     expect(text).toContain('`out.json`');

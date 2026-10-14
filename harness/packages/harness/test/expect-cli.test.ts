@@ -3,6 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { main } from '../src/cli.ts';
+import { isRecord } from '../src/guards.ts';
 
 // Временный проект внутри пакета: vitest находится в node_modules репозитория.
 const ROOT = path.resolve(fileURLToPath(import.meta.url), '../.tmp/expect-cli');
@@ -54,13 +55,14 @@ describe('harness expect report | lint | judge', () => {
 
   it('judge: готовит проверку заголовков; --apply с ответом — report проходит', async () => {
     expect(await main(['expect', 'judge', '--root', ROOT], NOW)).toBe(1);
-    const plan = JSON.parse(
+    const plan: unknown = JSON.parse(
       await readFile(path.join(ROOT, 'expectations/.judge/plan.json'), 'utf8'),
-    ) as {
-      lint: { answer: string }[];
-    };
-    expect(plan.lint).toHaveLength(1);
-    await put(plan.lint[0]?.answer ?? '', '{"contradictions": [], "unmeasurable": []}');
+    );
+    const lint = isRecord(plan) && Array.isArray(plan['lint']) ? plan['lint'] : [];
+    expect(lint).toHaveLength(1);
+    const answer: unknown = isRecord(lint[0]) ? lint[0]['answer'] : undefined;
+    if (typeof answer !== 'string') throw new Error('в плане нет файла ответа');
+    await put(answer, '{"contradictions": [], "unmeasurable": []}');
     expect(await main(['expect', 'judge', '--apply', '--root', ROOT], NOW)).toBe(0);
     expect(await main(['expect', 'report', '--root', ROOT], NOW)).toBe(0);
     expect(await main(['expect', 'judge', '--root', ROOT], NOW)).toBe(0);

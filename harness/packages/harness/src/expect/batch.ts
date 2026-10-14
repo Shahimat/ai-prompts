@@ -1,7 +1,8 @@
 // expect:judge-clean-context
+import { isRecord } from '../guards.ts';
 import { containsQuote } from './evidence.ts';
 import type { PendingItem } from './judge.ts';
-import type { LintVerdict, Verdict } from './verdicts.ts';
+import { isContradictions, isUnmeasurable, type LintVerdict, type Verdict } from './verdicts.ts';
 
 export interface BatchLimits {
   maxItems: number;
@@ -131,23 +132,27 @@ export function applyAnswers(
     return result;
   }
   const byId = new Map(items.map((i) => [i.id, i]));
-  for (const raw of answers as Partial<Answer>[]) {
-    const id = String(raw.id ?? '');
+  // Поля ответа — строки; нестроковое значение считается отсутствующим.
+  const text = (v: unknown): string => (typeof v === 'string' ? v : '');
+  for (const entry of answers) {
+    const raw = isRecord(entry) ? entry : {};
+    const id = text(raw['id']);
     const item = byId.get(id);
     if (item === undefined) {
       result.rejected.push({ id, reason: 'неизвестный id' });
       continue;
     }
-    if (typeof raw.verdict !== 'boolean') {
+    const verdict = raw['verdict'];
+    if (typeof verdict !== 'boolean') {
       result.rejected.push({ id, reason: 'verdict — не true/false' });
       continue;
     }
-    const ref = String(raw.ref ?? '');
+    const ref = text(raw['ref']);
     if (!item.evidence.some((e) => e.ref === ref)) {
       result.rejected.push({ id, reason: `ref «${ref}» не из доказательств вопроса` });
       continue;
     }
-    const quote = String(raw.quote ?? '');
+    const quote = text(raw['quote']);
     if (quote.length > 300 || !containsQuote(evidenceText.get(ref) ?? '', quote)) {
       result.rejected.push({ id, reason: 'цитата не найдена в доказательстве дословно' });
       continue;
@@ -155,10 +160,10 @@ export function applyAnswers(
     result.accepted[id] = {
       question: item.question,
       evidence: Object.fromEntries(item.evidence.map((e) => [e.ref, e.sha])),
-      verdict: raw.verdict,
+      verdict,
       quote,
       ref,
-      reason: String(raw.reason ?? ''),
+      reason: text(raw['reason']),
       at: now.toISOString().slice(0, 10),
     };
   }
@@ -208,25 +213,21 @@ export function applyLintAnswer(
   answer: unknown,
   now: Date,
 ): { verdict: LintVerdict | null; error: string | null } {
-  const a = answer as Partial<LintVerdict> | null;
-  if (
-    a === null ||
-    typeof a !== 'object' ||
-    !Array.isArray(a.contradictions) ||
-    !Array.isArray(a.unmeasurable)
-  ) {
+  const contradictions = isRecord(answer) ? answer['contradictions'] : undefined;
+  const unmeasurable = isRecord(answer) ? answer['unmeasurable'] : undefined;
+  if (!isContradictions(contradictions) || !isUnmeasurable(unmeasurable)) {
     return { verdict: null, error: 'ответ — не {contradictions: [], unmeasurable: []}' };
   }
   const bad = [
-    ...a.contradictions.flatMap((c) => [c.a, c.b]),
-    ...a.unmeasurable.map((u) => u.id),
+    ...contradictions.flatMap((c) => [c.a, c.b]),
+    ...unmeasurable.map((u) => u.id),
   ].filter((id) => !ids.has(id));
   if (bad.length > 0) return { verdict: null, error: `неизвестные id: ${bad.join(', ')}` };
   return {
     verdict: {
       titles: titlesSha,
-      contradictions: a.contradictions,
-      unmeasurable: a.unmeasurable,
+      contradictions,
+      unmeasurable,
       at: now.toISOString().slice(0, 10),
     },
     error: null,

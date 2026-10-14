@@ -1,6 +1,7 @@
 import { describe, expect } from 'vitest';
 import { budget, crit, readRepo } from '@shahimat/harness/expect';
 import { attention, ticketCommits } from '@shahimat/expectations';
+import { at, parseJson, recordOrEmpty, stringAt } from './shared/guards.ts';
 
 // Правила работы агента в самом репозитории: skill ticket-commits и
 // особенности репозитория в CLAUDE.md (якоря expect:ticket-commits*).
@@ -24,8 +25,7 @@ describe('публичные npm-пакеты', () => {
 const PACKAGES = ['harness', 'expectations'];
 
 const localVersion = async (pkg: string): Promise<string> =>
-  (JSON.parse(await readRepo(`harness/packages/${pkg}/package.json`)) as { version: string })
-    .version;
+  stringAt(parseJson(await readRepo(`harness/packages/${pkg}/package.json`)), 'version');
 
 const parse = (v: string): number[] => v.split('.').map((x) => Number.parseInt(x, 10));
 
@@ -40,13 +40,12 @@ class Check {
     for (const pkg of PACKAGES) {
       const response = await fetch(`https://registry.npmjs.org/@shahimat%2f${pkg}`);
       expect(response.ok, `npm: @shahimat/${pkg}`).toBe(true);
-      const meta = (await response.json()) as {
-        versions: Record<string, unknown>;
-        'dist-tags': { latest: string };
-      };
+      const meta: unknown = await response.json();
+      const versions = recordOrEmpty(at(meta, 'versions'), `npm: @shahimat/${pkg} versions`);
+      const latest = stringAt(meta, 'dist-tags', 'latest');
       const local = await localVersion(pkg);
-      const ok = local in meta.versions || isNextVersion(meta['dist-tags'].latest, local);
-      expect({ pkg, local, latest: meta['dist-tags'].latest, ok }).toMatchObject({ ok: true });
+      const ok = local in versions || isNextVersion(latest, local);
+      expect({ pkg, local, latest, ok }).toMatchObject({ ok: true });
     }
   }
 

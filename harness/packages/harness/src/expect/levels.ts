@@ -1,7 +1,8 @@
 import { expect, it } from 'vitest';
 
 /** Уровень ожидания: crit и warn считаются в бюджет файла, info — никогда. */
-export type Level = 'crit' | 'warn' | 'info';
+export const LEVELS = ['crit', 'warn', 'info'] as const;
+export type Level = (typeof LEVELS)[number];
 
 export interface Budget {
   crit: number;
@@ -14,19 +15,28 @@ export const BUDGET_TITLE = '__budget__';
 /** Доля порога, после которой формальная метрика оставляет info. */
 export const NEAR_LIMIT = 0.9;
 
+/** Метаданные теста, которые читает отчёт `harness expect`. */
+declare module 'vitest' {
+  interface TaskMeta {
+    level?: Level;
+    notes?: string[];
+    budget?: Budget;
+  }
+}
+
 let notes: string[] = [];
 
 type Body = () => unknown;
 
 function levelled(level: Level, title: string, fn: Body): void {
   it(title, async (ctx) => {
-    const meta = ctx.task.meta as Record<string, unknown>;
-    meta['level'] = level;
+    const meta = ctx.task.meta;
+    meta.level = level;
     notes = [];
     try {
       await fn();
     } finally {
-      meta['notes'] = notes;
+      meta.notes = notes;
       notes = [];
     }
   });
@@ -46,7 +56,7 @@ export function note(text: string): void {
 /** Бюджет файла: сколько нарушений crit и warn допустимо. По умолчанию 0 / 0. */
 export function budget(value: Budget): void {
   it(BUDGET_TITLE, (ctx) => {
-    (ctx.task.meta as Record<string, unknown>)['budget'] = value;
+    ctx.task.meta.budget = value;
   });
 }
 
