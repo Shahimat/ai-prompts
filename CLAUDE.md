@@ -80,6 +80,17 @@ JSON и YAML: markdown промптов он не трогает (`.prettierigno
 принцип шире линтера: обходы (`as unknown as T`, отключение правила)
 — только по согласованию.
 
+**Пути вверх по дереву (`../`) запрещены.** Внутри пакета — алиасы
+`#…` из поля `imports` его `package.json` (`#shared/guards`, `#bin`):
+условие `source` ведёт в `src/*.ts`, без него — в `dist/*.js`; файлы
+рантайма — через `import.meta.resolve('#…')` или `import.meta.dirname`.
+Исходники `.ts` голым Node — с `--conditions=source`.
+
+**Комментарии в коде запрещены**, кроме якорей `// expect:KEY` и
+shebang: пояснения — в именах, ожиданиях и README. Правило
+`local/no-comments` (`packages/oxlint-plugin.ts`), `oxlint --fix`
+удаляет лишние.
+
 **Слои harness** (`packages/harness/src`), импорт только вниз:
 `shared` → `lib` → `commands` → `scripts` → `harnesses`.
 
