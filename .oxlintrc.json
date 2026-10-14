@@ -1,0 +1,29 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["eslint", "typescript", "unicorn", "oxc", "import", "node", "vitest"],
+  "categories": {
+    "correctness": "error"
+  },
+  "rules": {
+    "typescript/no-misused-spread": "off",
+    "vitest/warn-todo": "off",
+    "vitest/require-to-throw-message": "off"
+  },
+  "overrides": [
+    {
+      "files": ["expectations/**/*.ts", "harness/packages/*/src/**/*.ts"],
+      "rules": {
+        "vitest/no-standalone-expect": "off"
+      }
+    },
+    {
+      "files": ["harness/packages/harness/src/expect/levels.ts"],
+      "rules": {
+        "vitest/valid-title": "off",
+        "vitest/expect-expect": "off",
+        "vitest/valid-expect": "off"
+      }
+    }
+  ],
+  "ignorePatterns": ["**/dist/**", "harness/packages/harness/test/.tmp/**"]
+}

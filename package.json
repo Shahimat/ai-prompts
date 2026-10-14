@@ -10,12 +10,20 @@
   ],
   "scripts": {
     "build": "npm run build -w @shahimat/harness && npm run build -w @shahimat/expectations",
-    "typecheck": "npm run build -w @shahimat/harness && npm run typecheck -w @shahimat/harness && npm run typecheck -w @shahimat/expectations",
+    "typecheck": "npm run build && npm run typecheck -w @shahimat/harness && npm run typecheck -w @shahimat/expectations && tsc -p expectations",
     "test": "npm test -w @shahimat/harness",
+    "lint": "oxlint --type-aware --deny-warnings",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "index:build": "node harness/packages/harness/dist/bin.js index build --root . --raw-base https://raw.githubusercontent.com/Shahimat/ai-prompts/main",
     "index:check": "node harness/packages/harness/dist/bin.js index check --root . --raw-base https://raw.githubusercontent.com/Shahimat/ai-prompts/main",
     "expect": "node harness/packages/harness/dist/bin.js expect report --root .",
     "expect:judge": "node harness/packages/harness/dist/bin.js expect judge --root .",
     "expect:apply": "node harness/packages/harness/dist/bin.js expect judge --apply --root ."
+  },
+  "devDependencies": {
+    "oxlint": "^1.88.0",
+    "oxlint-tsgolint": "^7.0.2004",
+    "prettier": "^3.9.10"
   }
 }

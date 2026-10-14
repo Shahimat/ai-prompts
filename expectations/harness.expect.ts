@@ -233,9 +233,14 @@ class Check {
   }
 
   static async tsStrict(): Promise<void> {
+    // Флаги с учётом цепочки extends: пакеты наследуют tsconfig.base.json.
+    const compilerOptions = async (file: string): Promise<Record<string, unknown>> => {
+      const cfg = JSON.parse(await readRepo(file)) as { extends?: string; compilerOptions?: Record<string, unknown> };
+      const base = cfg.extends === undefined ? {} : await compilerOptions(path.posix.join(path.posix.dirname(file), cfg.extends));
+      return { ...base, ...cfg.compilerOptions };
+    };
     for (const pkg of ['harness', 'expectations']) {
-      const opts = (JSON.parse(await readRepo(`harness/packages/${pkg}/tsconfig.json`)) as { compilerOptions: Record<string, unknown> })
-        .compilerOptions;
+      const opts = await compilerOptions(`harness/packages/${pkg}/tsconfig.json`);
       expect({ pkg, strict: opts['strict'], nui: opts['noUncheckedIndexedAccess'], eopt: opts['exactOptionalPropertyTypes'] }).toEqual({
         pkg,
         strict: true,

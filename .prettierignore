@@ -1,0 +1,19 @@
+# Prettier форматирует только код и конфиги: markdown промптов и данные
+# потребителей не трогаем — их правка меняет SHA в prompts/index.yml.
+/*
+!/*.json
+!/.github/
+!/expectations/
+!/harness/
+/.github/**/*
+!/.github/**/
+!/.github/**/*.yml
+/expectations/**/*.md
+
+# Генерируемое.
+package-lock.json
+dist/
+expectations/.verdicts.json
+expectations/.judge/
+harness/packages/harness/test/.tmp/
+**/*.md
