@@ -330,6 +330,29 @@ describe('[harness] expect', () => {
   );
 });
 
+describe('[harness] expect patterns', () => {
+  crit(
+    'паттерн ожиданий — функция с параметрами: регистрирует ожидания для переданных целей, без путей и имён проекта внутри',
+    () => Patterns.pure(),
+  );
+  crit(
+    'два применения паттерна в одном файле с разными целями не дают дублей: цели входят в заголовок',
+    () => Patterns.targets(),
+  );
+  crit(
+    'паттерны для любых проектов лежат в @shahimat/expectations, только для этого репозитория — в expectations/shared',
+    () => Patterns.home(),
+  );
+  crit('проверка паттерна с judged получает якоря доказательств параметром', () =>
+    Patterns.judgedKeys(),
+  );
+  warn('в HTML у ожидания из паттерна виден ключ паттерна', () => Patterns.html());
+  crit(
+    'общий блок вне *.expect.ts объявляет разделы через describe из @shahimat/harness/expect, а не из vitest',
+    () => Patterns.sharedDescribe(),
+  );
+});
+
 describe('[harness] expect plan', () => {
   crit(
     'шаг плана — step(id, { title, status, after }), его ожидания — DoD; статус todo | active | done',
@@ -2257,5 +2280,106 @@ class Entry {
       .filter((f) => f.endsWith('.expect.ts') && f !== 'index.expect.ts')
       .sort();
     expect(files.filter((f) => !index.includes(`'./${f}'`))).toEqual([]);
+  }
+}
+
+const PATTERN_DIRS = ['packages/expectations/src', 'expectations/shared'];
+
+const PROJECT_NAMES = [
+  'plan-review',
+  'docs-delta',
+  'source-sync',
+  'ai-prompts',
+  'expectations/',
+  'packages/',
+];
+
+async function sharedModules(): Promise<{ file: string; text: string }[]> {
+  const out: { file: string; text: string }[] = [];
+  for (const dir of PATTERN_DIRS)
+    for (const name of (await readdir(path.join(repoRoot(), dir))).sort())
+      if (name.endsWith('.ts') && !name.endsWith('.expect.ts'))
+        out.push({ file: `${dir}/${name}`, text: await readRepo(`${dir}/${name}`) });
+  return out;
+}
+
+const definesPattern = (text: string): boolean => /\bpattern\(\s*['"`]/.test(text);
+
+async function repoSources(): Promise<string[]> {
+  const skip = /(^|\/)(node_modules|dist|\.tmp|\.claude|\.git)(\/|$)|^packages\/harness\//;
+  return (await readdir(repoRoot(), { recursive: true }))
+    .map((f) => f.split(path.sep).join('/'))
+    .filter((f) => f.endsWith('.ts') && !skip.test(f));
+}
+
+const PATTERN_FN = 'pattern';
+
+const DEMO_PATTERN = `import { crit, ${PATTERN_FN} } from '@shahimat/harness/expect';
+export const demo = ${PATTERN_FN}('demo-pattern', (o: { target: string }) => {
+  crit(\`цель \${o.target} в порядке\`, () => {});
+});
+`;
+
+const patternFixture = (targets: string[]): Record<string, string> => ({
+  'expectations/shared/demo.ts': DEMO_PATTERN,
+  ...planFile(
+    `import { demo } from './shared/demo.ts';\ndescribe('раздел', () => {\n${targets.map((t) => `  demo({ target: '${t}' });`).join('\n')}\n});\n`,
+  ),
+});
+
+class Patterns {
+  static async pure(): Promise<void> {
+    const modules = (await sharedModules()).filter((m) => definesPattern(m.text));
+    expect(modules.length).toBeGreaterThan(0);
+    const found = modules.flatMap((m) =>
+      PROJECT_NAMES.filter((n) => m.text.includes(n)).map((n) => `${m.file}: ${n}`),
+    );
+    expect(found).toEqual([]);
+  }
+
+  static async targets(): Promise<void> {
+    await withPlanFixture(patternFixture(['a', 'b']), async (_dir, run) => {
+      const { status, out } = await run();
+      expect(out).toContain('цель a в порядке');
+      expect(out).toContain('цель b в порядке');
+      expect(out).not.toContain('дубль');
+      expect(status).toBe(0);
+    });
+    await withPlanFixture(patternFixture(['a', 'a']), async (_dir, run) => {
+      const { status, out } = await run();
+      expect(out).toContain('дубль');
+      expect(status).toBe(1);
+    });
+  }
+
+  static async home(): Promise<void> {
+    const outside: string[] = [];
+    for (const file of await repoSources())
+      if (
+        !PATTERN_DIRS.some((d) => file.startsWith(`${d}/`)) &&
+        definesPattern(await readRepo(file))
+      )
+        outside.push(file);
+    expect(outside).toEqual([]);
+  }
+
+  static async judgedKeys(): Promise<void> {
+    const literal = (await sharedModules()).filter(
+      (m) => definesPattern(m.text) && /judged\(\s*\[\s*['"`]@/.test(m.text),
+    );
+    expect(literal.map((m) => m.file)).toEqual([]);
+  }
+
+  static async html(): Promise<void> {
+    await withPlanFixture(patternFixture(['a']), async (_dir, run) => {
+      const item = listItems((await run()).html).find((i) => i.text.includes('цель a в порядке'));
+      expect(item?.text).toContain('паттерн demo-pattern');
+    });
+  }
+
+  static async sharedDescribe(): Promise<void> {
+    const vitestDescribe = /import\s*\{[^}]*\bdescribe\b[^}]*\}\s*from\s*['"]vitest['"]/;
+    const bad = (await sharedModules()).filter((m) => vitestDescribe.test(m.text));
+    expect(bad.map((m) => m.file)).toEqual([]);
   }
 }
