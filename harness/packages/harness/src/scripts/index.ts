@@ -1,2 +1,3 @@
 export { CHECK } from './check.ts';
-export { runScript, type FindRun } from './run.ts';
+export { COMMAND_NODES } from './commands.ts';
+export { runScript } from './run.ts';

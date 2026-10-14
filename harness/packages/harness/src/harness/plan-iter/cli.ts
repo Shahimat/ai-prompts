@@ -1,4 +1,5 @@
-// Команды категории plan и сессий: harness plan …, harness session ….
+// plan/iter: модуль каталога и свои операции — start, check, render, read,
+// clone. Общие операции категорий и сессий — в каталоге ядра.
 
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -6,24 +7,27 @@ import { existsSync, statSync } from 'node:fs';
 import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import type { CommandArgs } from '../../shared/args.ts';
 import { UsageError } from '../../shared/diagnostics.ts';
 import { errorCode, isRecord } from '../../shared/guards.ts';
-import { drive, machineMermaid, type Journal } from '../core/index.ts';
-import { loadHarness, loadHarnessOrFail, type LoadedHarness } from './load.ts';
-import { readReview, startCycle, type PlanContext } from './actions.ts';
-import { formalCheck, formatFinding } from './plan/formal.ts';
-import { renderPlanHtml } from './plan/render.ts';
-import { ClaudeRunner, type ModelRunner } from '../core/index.ts';
-import { terminalPrompter, type Prompter } from '../core/index.ts';
 import {
+  ClaudeRunner,
   createSession,
-  harnessHome,
-  listHarnesses,
-  listSessions,
+  driveSession,
+  homeOf,
   openSession,
+  param,
+  report,
+  terminalPrompter,
+  type HarnessModule,
+  type ModelRunner,
+  type Prompter,
   type Session,
 } from '../core/index.ts';
-import type { CommandArgs } from '../../shared/args.ts';
+import { readReview, startCycle, type PlanContext } from './actions.ts';
+import { loadHarness, loadHarnessOrFail, type LoadedHarness } from './load.ts';
+import { formalCheck, formatFinding } from './plan/formal.ts';
+import { renderPlanHtml } from './plan/render.ts';
 
 /** Ввод-вывод процесса; тесты подменяют модель и терминал. */
 export const io: { runner: () => ModelRunner; prompter: () => Prompter } = {
@@ -37,14 +41,6 @@ export function selfCommand(): string[] {
   return [process.execPath, fileURLToPath(new URL(bin, import.meta.url))];
 }
 
-function param(args: CommandArgs, key: string): string {
-  const value = args.params?.[key];
-  if (value === undefined) throw new UsageError(`нет параметра <${key}>`);
-  return value;
-}
-
-const homeOf = (args: CommandArgs): string => harnessHome(args.home);
-
 function context(session: Session, home: string, harness: LoadedHarness): PlanContext {
   return {
     session,
@@ -57,39 +53,43 @@ function context(session: Session, home: string, harness: LoadedHarness): PlanCo
   };
 }
 
-function journal(session: Session): Journal {
-  return {
-    load: async () => ({ state: session.data.state, counters: { ...session.data.counters } }),
-    save: async (next, from, event) => {
-      session.data.state = next.state;
-      session.data.counters = next.counters;
-      await session.save();
-      await session.log({ from, event, to: next.state, counters: next.counters });
-    },
-  };
-}
-
-async function run(session: Session, home: string, event?: string): Promise<number> {
-  const harness = await loadHarnessOrFail(home, session.data.harness);
-  const ctx = context(session, home, harness);
-  const result = await drive(harness.def, harness.registry, journal(session), ctx, event);
-  if ('final' in result) console.log(`${session.id}: ${result.final}`);
-  else console.log(`${session.id}: ${result.paused} — ${result.message}`);
-  return 0;
-}
+/** plan/iter в каталоге harness. */
+export const PLAN_ITER: HarnessModule = {
+  name: 'plan/iter',
+  validate: async (home) => {
+    const result = await loadHarness(home, 'plan/iter');
+    if (result.harness === undefined) return { errors: result.errors, plugins: [] };
+    return { errors: [], plugins: result.harness.plugins, def: result.harness.def };
+  },
+  drive: async (session, home, event) => {
+    const harness = await loadHarnessOrFail(home, session.data.harness);
+    const ctx = context(session, home, harness);
+    return driveSession(harness.def, harness.registry, session, ctx, event);
+  },
+  status: async (s) => {
+    const counters = Object.entries(s.data.counters)
+      .map(([k, v]) => `${k} ${v}`)
+      .join(', ');
+    const lines = [
+      `план: ${s.planPath}${existsSync(s.planPath) ? '' : ' (ещё нет)'}`,
+      `ревью: ${s.data.round}${counters === '' ? '' : ` · счётчики: ${counters}`}`,
+    ];
+    if (s.data.round > 0) {
+      const last = await readReview(s, s.data.round);
+      lines.push(
+        `последнее ревью: ${last.pass ? 'пройдено' : 'провал'}, замечаний ${last.findings.length}`,
+      );
+    }
+    return lines;
+  },
+  beforeRetry: startCycle,
+};
 
 // ─────────────────────────────── plan ───────────────────────────────
 
-export async function runPlanList(args: CommandArgs): Promise<number> {
-  for (const name of await listHarnesses(homeOf(args), 'plan')) console.log(name);
-  return 0;
-}
-
-const harnessName = (args: CommandArgs): string => `plan/${param(args, 'harness')}`;
-
 export async function runPlanStart(args: CommandArgs): Promise<number> {
   const home = homeOf(args);
-  const harness = await loadHarnessOrFail(home, harnessName(args));
+  const harness = await loadHarnessOrFail(home, `plan/${param(args, 'harness')}`);
   const prompter = io.prompter();
   const ask = async (value: string | undefined, question: string, flag: string) => {
     if (value !== undefined && value.trim() !== '') return value.trim();
@@ -109,71 +109,13 @@ export async function runPlanStart(args: CommandArgs): Promise<number> {
     now: args.now,
   });
   console.log(`сессия ${session.id}: ${session.dir}`);
-  return run(session, home);
-}
-
-export async function runPlanValidate(args: CommandArgs): Promise<number> {
-  const result = await loadHarness(homeOf(args), harnessName(args));
-  if (result.harness !== undefined) {
-    const plugins = result.harness.plugins;
-    console.log(
-      `${harnessName(args)}: ok${plugins.length > 0 ? ` (плагины: ${plugins.join(', ')})` : ''}`,
-    );
-    return 0;
-  }
-  for (const e of result.errors) console.error(e);
-  console.error(`${harnessName(args)}: ошибок ${result.errors.length}`);
-  return 1;
-}
-
-export async function runPlanGraph(args: CommandArgs): Promise<number> {
-  const harness = await loadHarnessOrFail(homeOf(args), harnessName(args));
-  console.log(machineMermaid(harness.def));
-  return 0;
+  return report(session, await PLAN_ITER.drive(session, home));
 }
 
 // ─────────────────────────────── session ───────────────────────────────
 
-export async function runSessionList(args: CommandArgs): Promise<number> {
-  for (const s of await listSessions(homeOf(args)))
-    console.log(`${s.id}\t${s.data.harness}\t${s.data.state}\t${s.data.title}`);
-  return 0;
-}
-
 const sessionOf = async (args: CommandArgs): Promise<Session> =>
   openSession(homeOf(args), param(args, 'session'));
-
-export async function runSessionStatus(args: CommandArgs): Promise<number> {
-  const s = await sessionOf(args);
-  const counters = Object.entries(s.data.counters)
-    .map(([k, v]) => `${k} ${v}`)
-    .join(', ');
-  console.log(`сессия: ${s.id}`);
-  console.log(`harness: ${s.data.harness}`);
-  console.log(`состояние: ${s.data.state}`);
-  console.log(`проект: ${s.data.project}`);
-  console.log(`план: ${s.planPath}${existsSync(s.planPath) ? '' : ' (ещё нет)'}`);
-  console.log(`ревью: ${s.data.round}${counters === '' ? '' : ` · счётчики: ${counters}`}`);
-  if (s.data.round > 0) {
-    const last = await readReview(s, s.data.round);
-    console.log(
-      `последнее ревью: ${last.pass ? 'пройдено' : 'провал'}, замечаний ${last.findings.length}`,
-    );
-  }
-  return 0;
-}
-
-export async function runSessionResume(args: CommandArgs): Promise<number> {
-  return run(await sessionOf(args), homeOf(args));
-}
-
-export async function runSessionRetry(args: CommandArgs): Promise<number> {
-  const s = await sessionOf(args);
-  if (s.data.state !== 'failed')
-    throw new UsageError(`retry — только из failed; сейчас ${s.data.state}`);
-  await startCycle(s);
-  return run(s, homeOf(args), 'retry');
-}
 
 interface HookState {
   hash: string;

@@ -1107,9 +1107,11 @@ class Layers {
         if (extra.length > 0) bad.push(`${label(s)}: лишние поля шага ${extra.join(', ')}`);
       }
     }
-    // Объявления скриптов — данные; исполняет их один общий модуль scripts/run.ts.
+    // Объявления скриптов — данные; исполняет их scripts/run.ts по реестру
+    // команд scripts/commands.ts.
+    const logic = ['scripts/run.ts', 'scripts/commands.ts'];
     const declarations = (await srcFiles()).filter(
-      (f) => layerOf(f) === 'scripts' && f !== 'scripts/run.ts',
+      (f) => layerOf(f) === 'scripts' && !logic.includes(f),
     );
     for (const f of declarations)
       if (/=>|\bfunction\b|\bif\s*\(|\bfor\s*\(|\bawait\b/.test(await readRepo(`${PKG}/src/${f}`)))
