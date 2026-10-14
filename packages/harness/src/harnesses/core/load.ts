@@ -19,7 +19,10 @@ export interface MachineResult<C> {
 }
 
 export const definitionWhere = (home: string, name: string, rel: string): string =>
-  path.relative(home, harnessFile(home, name, rel)) || rel;
+  path
+    .relative(home, harnessFile(home, name, rel))
+    .split(path.sep)
+    .join('/') || rel;
 
 export async function loadMachine<C>(
   home: string,
