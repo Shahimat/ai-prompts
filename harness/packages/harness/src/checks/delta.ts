@@ -5,6 +5,7 @@ import path from 'node:path';
 import { Ajv2020 } from 'ajv/dist/2020.js';
 import { parse } from 'yaml';
 import { UsageError, type Diagnostic } from '../diagnostics.ts';
+import { errorCode, errorMessage } from '../guards.ts';
 
 /** Каталог дельт: временные ожидания к документации, не часть её контекста. */
 export const DELTA_DIR = 'context/.delta';
@@ -39,6 +40,8 @@ export const DELTA_SCHEMA = {
           why: { type: 'string', minLength: 1 },
         },
         if: { properties: { op: { const: 'revise' } } },
+        // Ключ `then` — условие JSON Schema, а не thenable-объект.
+        // oxlint-disable-next-line unicorn/no-thenable
         then: { required: ['was', 'why'] },
       },
     },
@@ -99,7 +102,7 @@ async function docRoots(root: string): Promise<string[]> {
       f.endsWith('.yml'),
     );
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+    if (errorCode(error) !== 'ENOENT') throw error;
   }
   for (const m of manifests) {
     let data: unknown;
@@ -172,7 +175,7 @@ async function readDeltas(root: string, diagnostics: Diagnostic[]): Promise<Delt
   try {
     names = (await readdir(path.join(root, DELTA_DIR))).filter((f) => /\.ya?ml$/.test(f)).sort();
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+    if (errorCode(error) !== 'ENOENT') throw error;
   }
   const validate = new Ajv2020({ allErrors: true, strict: false }).compile(DELTA_SCHEMA);
   const deltas: Delta[] = [];
@@ -184,7 +187,7 @@ async function readDeltas(root: string, diagnostics: Diagnostic[]): Promise<Delt
     } catch (error) {
       diagnostics.push({
         file,
-        message: `невалидный YAML: ${(error as Error).message.split('\n')[0]}`,
+        message: `невалидный YAML: ${errorMessage(error).split('\n')[0]}`,
       });
       continue;
     }
