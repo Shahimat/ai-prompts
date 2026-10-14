@@ -289,6 +289,53 @@ describe('[harness] expect', () => {
   crit('ожидание — не длиннее 200 символов', () => Check.titleLimit());
 });
 
+describe('[harness] expect plan', () => {
+  crit(
+    'шаг плана — step(id, { title, status, after }), его ожидания — DoD; статус todo | active | done',
+    () => Plan.stepForm(),
+  );
+  crit(
+    'ожидания шага todo не запускаются; active — запускаются, но не блокируют прогон; done — блокируют',
+    () => Plan.stepStatuses(),
+  );
+  crit('шаг не бывает done, пока не done все шаги из after; граф шагов без циклов', () =>
+    Plan.stepOrder(),
+  );
+  crit('crit.todo и warn.todo несут уровень ожидания без проверки и не блокируют прогон', () =>
+    Plan.todoLevels(),
+  );
+  crit(
+    'machine(name, { initial, limits, states }) описывает автомат данными: состояния, actor, события, переходы, лимиты',
+    () => Plan.machineData(),
+  );
+  crit(
+    'ожидания привязываются к состоянию, переходу или автомату целиком: state, transition, whole',
+    () => Plan.machineScopes(),
+  );
+  crit('неизвестное состояние или событие в machine, state и transition — ошибка typecheck', () =>
+    Plan.machineTypos(),
+  );
+  crit(
+    'зонды Graph: sameAs — совпадение с harness.yaml, canReach — достижимость, onlyVia — путь только через состояние',
+    () => Plan.graphProbes(),
+  );
+  crit(
+    'expect report --html <out> [--file <path>] пишет самодостаточный HTML: без сети и без JS; тот же вход — побайтно тот же файл',
+    () => Plan.htmlStandalone(),
+  );
+  crit(
+    'схемы автомата и шагов в HTML — SVG от Graphviz-wasm при генерации; узел и переход ведут к своей карточке',
+    () => Plan.htmlGraphs(),
+  );
+  warn('цвет узла на схеме — статус его ожиданий: todo, пройдено, провал', () =>
+    Plan.htmlStatuses(),
+  );
+  crit(
+    'HTML отмечает новые и удалённые относительно HEAD ожидания; замена в том же разделе — изменение',
+    () => Plan.htmlDiff(),
+  );
+});
+
 describe('[harness] delta', () => {
   crit(
     'команды harness delta check | close — дельта проектной документации в context/.delta/',
@@ -1608,5 +1655,317 @@ class Processes {
       if (/--continue|process\.env\[['"]CLAUDE/.test(text)) bad.push(f);
     }
     expect(bad).toEqual([]);
+  }
+}
+
+const PLAN_IMPORTS =
+  "import { describe, expect } from 'vitest';\nimport { budget, crit, warn, step, machine, Graph } from '@shahimat/harness/expect';\n";
+
+const DEMO_MACHINE = `const M = machine('demo-flow', {
+  initial: 'a',
+  limits: { loop: 2 },
+  states: {
+    a: { actor: 'model', on: { go: 'b', fail: [{ to: 'a', count: 'loop' }, 'c'] } },
+    b: { actor: 'user', on: { ok: 'done', back: 'a' } },
+    c: { actor: 'script', on: { x: 'done' } },
+    done: { final: true },
+  },
+});
+`;
+
+interface PlanRun {
+  status: number | null;
+  out: string;
+  html: string;
+}
+
+async function withPlanFixture(
+  files: Record<string, string>,
+  fn: (dir: string, run: (extra?: string[]) => Promise<PlanRun>) => Promise<void>,
+): Promise<void> {
+  const base = path.join(repoRoot(), PKG, 'test/.tmp');
+  await mkdir(base, { recursive: true });
+  const dir = await mkdtemp(path.join(base, 'expect-plan-'));
+  const put = async (rel: string, text: string) => {
+    await mkdir(path.dirname(path.join(dir, rel)), { recursive: true });
+    await writeFile(path.join(dir, rel), text, 'utf8');
+  };
+  try {
+    await put('package.json', '{"name":"fixture","private":true,"type":"module"}');
+    await put(
+      'expectations/vitest.config.ts',
+      "import { defineConfig } from 'vitest/config';\nexport default defineConfig({ test: { include: ['expectations/**/*.expect.ts'] } });\n",
+    );
+    for (const [rel, text] of Object.entries(files)) await put(rel, text);
+    cliOut(['expect', 'judge', '--root', dir]);
+    const judgePlan = path.join(dir, 'expectations/.judge/plan.json');
+    if (existsSync(judgePlan)) {
+      for (const item of unknownList(
+        at(parseJson(await readFile(judgePlan, 'utf8')), 'lint'),
+        'lint',
+      ))
+        await put(stringAt(item, 'answer'), '{"contradictions": [], "unmeasurable": []}');
+      cliOut(['expect', 'judge', '--apply', '--root', dir]);
+    }
+    const html = path.join(dir, 'report.html');
+    await fn(dir, async (extra = []) => {
+      await rm(html, { force: true });
+      const r = cliOut(['expect', 'report', '--root', dir, '--html', html, ...extra]);
+      return {
+        status: r.status,
+        out: `${r.stdout}\n${r.stderr}`,
+        html: existsSync(html) ? await readFile(html, 'utf8') : '',
+      };
+    });
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+}
+
+const planFile = (body: string): Record<string, string> => ({
+  'expectations/plan.expect.ts': `${PLAN_IMPORTS}import { writeFileSync } from 'node:fs';\nimport path from 'node:path';\nbudget({ crit: 0, warn: 0 });\nconst mark = (name: string) => writeFileSync(path.join(import.meta.dirname, '..', name), 'x');\nvoid mark;\n${body}`,
+});
+
+function card(html: string, id: string): string {
+  const m = new RegExp(`<section[^>]*id="${id}"[^>]*>([\\s\\S]*?)</section>`).exec(html);
+  return m?.[1] ?? '';
+}
+
+function listItems(html: string): { cls: string; text: string }[] {
+  return [...html.matchAll(/<li[^>]*class="([^"]*)"[^>]*>([\s\S]*?)<\/li>/g)].map((m) => ({
+    cls: m[1] ?? '',
+    text: m[2] ?? '',
+  }));
+}
+
+const STEPS = (t2: string) => `step('T1', { title: 'Каркас', status: 'done' }, () => {
+  crit('T1 проходит', () => expect(1).toBe(1));
+});
+step('T2', { title: 'Разбор', status: '${t2}', after: ['T1'] }, () => {
+  crit('T2 ещё не готов', () => expect(1).toBe(2));
+});
+step('T3', { title: 'Рендер', status: 'todo', after: ['T2'] }, () => {
+  crit('T3 не запускается', () => mark('ran-T3'));
+  describe('вложенный раздел T3', () => {
+    crit('вложенное в T3 не запускается', () => mark('ran-T3-nested'));
+  });
+});
+step('T4', { title: 'Вложенный active', status: 'active', after: ['T1'] }, () => {
+  describe('вложенный раздел T4', () => {
+    crit('вложенное в T4 ещё не готово', () => expect(1).toBe(2));
+  });
+});
+`;
+
+function gitCommitAll(dir: string): void {
+  const git = (...args: string[]) => spawnSync('git', args, { cwd: dir, encoding: 'utf8' });
+  git('init', '-q');
+  git('add', '.');
+  git('-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-qm', 'v1');
+}
+
+class Plan {
+  static async stepForm(): Promise<void> {
+    await withPlanFixture(planFile(STEPS('active')), async (_dir, run) => {
+      const { out, html } = await run();
+      for (const [id, title, status] of [
+        ['T1', 'Каркас', 'done'],
+        ['T2', 'Разбор', 'active'],
+        ['T3', 'Рендер', 'todo'],
+      ] as const) {
+        expect(out).toMatch(new RegExp(`${id}\\. ${title}.*${status}`));
+        expect(card(html, `step-${id}`)).toContain(title);
+      }
+    });
+  }
+
+  static async stepStatuses(): Promise<void> {
+    await withPlanFixture(planFile(STEPS('active')), async (dir, run) => {
+      const active = await run();
+      expect({
+        status: active.status,
+        ran: ['ran-T3', 'ran-T3-nested'].filter((m) => existsSync(path.join(dir, m))),
+      }).toEqual({ status: 0, ran: [] });
+      expect(active.out).toContain('T2 ещё не готов');
+      const file = path.join(dir, 'expectations/plan.expect.ts');
+      await writeFile(
+        file,
+        (await readFile(file, 'utf8')).replace("status: 'active'", "status: 'done'"),
+      );
+      expect((await run()).status).toBe(1);
+    });
+  }
+
+  static async stepOrder(): Promise<void> {
+    const cases = [
+      `step('T1', { title: 'a', status: 'todo' }, () => {});\nstep('T2', { title: 'b', status: 'done', after: ['T1'] }, () => { crit('ok', () => {}); });\n`,
+      `step('T1', { title: 'a', status: 'todo', after: ['T2'] }, () => {});\nstep('T2', { title: 'b', status: 'todo', after: ['T1'] }, () => {});\n`,
+      `step('T1', { title: 'a', status: 'todo', after: ['T9'] }, () => {});\n`,
+    ];
+    for (const body of cases)
+      await withPlanFixture(planFile(body), async (_dir, run) => {
+        const { status, out } = await run();
+        expect({ body, status }).toEqual({ body, status: 1 });
+        expect(out).toMatch(/T1|T2|T9/);
+      });
+  }
+
+  static async todoLevels(): Promise<void> {
+    const body = `describe('будущее', () => {\n  crit.todo('будущее crit');\n  warn.todo('будущее warn');\n});\n`;
+    await withPlanFixture(planFile(body), async (_dir, run) => {
+      const { status, out } = await run();
+      expect(status).toBe(0);
+      expect(out).toMatch(/crit.*будущее crit/);
+      expect(out).toMatch(/warn.*будущее warn/);
+    });
+  }
+
+  static async machineData(): Promise<void> {
+    const body = `${DEMO_MACHINE}describe('данные', () => {
+  crit('machine возвращает объявление как есть', () => {
+    expect(M.name).toBe('demo-flow');
+    expect(M.def.initial).toBe('a');
+    expect(M.def.limits).toEqual({ loop: 2 });
+    expect(Object.keys(M.def.states)).toEqual(['a', 'b', 'c', 'done']);
+    expect(M.def.states.a.actor).toBe('model');
+    expect(M.def.states.a.on.fail).toEqual([{ to: 'a', count: 'loop' }, 'c']);
+  });
+});
+`;
+    await withPlanFixture(planFile(body), async (_dir, run) => {
+      const { status, out } = await run();
+      expect(status).toBe(0);
+      expect(out).toContain('✓ machine возвращает объявление как есть');
+    });
+  }
+
+  static async machineScopes(): Promise<void> {
+    const body = `${DEMO_MACHINE}M.state('a', () => { crit('карточка a', () => {}); });
+M.transition('a', 'go', () => { crit('карточка a-go', () => {}); });
+M.whole(() => { crit('весь автомат', () => {}); });
+`;
+    await withPlanFixture(planFile(body), async (_dir, run) => {
+      const { html } = await run();
+      expect(card(html, 'state-a')).toContain('карточка a');
+      expect(card(html, 'tr-a-go')).toContain('карточка a-go');
+      expect(card(html, 'machine-demo-flow')).toContain('весь автомат');
+      expect(card(html, 'state-b')).not.toContain('карточка a');
+    });
+  }
+
+  static async machineTypos(): Promise<void> {
+    const tsc = path.join(repoRoot(), 'node_modules/typescript/bin/tsc');
+    const good = `${PLAN_IMPORTS}${DEMO_MACHINE}M.state('a', () => {});\nM.transition('b', 'back', () => {});\n`;
+    const bad = [
+      `M.state('zzz', () => {});`,
+      `M.transition('a', 'nope', () => {});`,
+      `M.transition('c', 'go', () => {});`,
+      `const N = machine('n-n', { initial: 'a', states: { a: { actor: 'model', on: { go: 'missing' } } } });\nvoid N;`,
+    ];
+    const files = {
+      'tsconfig.json': JSON.stringify({
+        extends: path.join(repoRoot(), 'tsconfig.base.json'),
+        compilerOptions: { noUnusedLocals: false },
+        include: ['*.ts'],
+      }),
+      'good.ts': good,
+      ...Object.fromEntries(
+        bad.map((line, i) => [`bad${i}.ts`, `${PLAN_IMPORTS}${DEMO_MACHINE}${line}\n`]),
+      ),
+    };
+    await withPlanFixture(files, async (dir) => {
+      const r = spawnSync(process.execPath, [tsc, '-p', dir], { cwd: dir, encoding: 'utf8' });
+      const out = `${r.stdout}${r.stderr}`;
+      expect(out).not.toMatch(/good\.ts/);
+      for (let i = 0; i < bad.length; i++) expect(out).toMatch(new RegExp(`bad${i}\\.ts`));
+    });
+  }
+
+  static async graphProbes(): Promise<void> {
+    const yaml = (to: string) =>
+      `harness: demo-flow\ninitial: a\nlimits:\n  loop: 2\nstates:\n  a:\n    actor: model\n    action: x\n    on:\n      go: b\n      fail:\n        - { to: a, count: loop }\n        - c\n  b:\n    actor: user\n    action: x\n    on:\n      ok: done\n      back: ${to}\n  c:\n    actor: script\n    action: x\n    on:\n      x: done\n  done:\n    final: true\n`;
+    const body = `import { parseMachine } from '@shahimat/harness';
+${DEMO_MACHINE}const def = (text: string) => {
+  const d = parseMachine(text, 'demo').def;
+  if (d === undefined) throw new Error('не разобран');
+  return d;
+};
+describe('зонды', () => {
+  crit('sameAs: совпадает', () => Graph.sameAs(M, def(${JSON.stringify(yaml('a'))})));
+  crit('sameAs: расхождение', () => expect(() => Graph.sameAs(M, def(${JSON.stringify(yaml('c'))}))).toThrow(/b/));
+  crit('canReach: done', () => Graph.canReach(M, ['done']));
+  crit('canReach: из done нет пути в c', () => expect(() => Graph.canReach(M, ['c'])).toThrow(/done/));
+  crit('onlyVia: в b только через a', () => Graph.onlyVia(M, 'b', 'a'));
+  crit('onlyVia: в done не только через c', () => expect(() => Graph.onlyVia(M, 'done', 'c')).toThrow());
+});
+`;
+    await withPlanFixture(planFile(body), async (_dir, run) => {
+      const { status, out } = await run();
+      expect({ status, failed: out.split('\n').filter((l) => l.includes('✗')) }).toEqual({
+        status: 0,
+        failed: [],
+      });
+    });
+  }
+
+  static async htmlStandalone(): Promise<void> {
+    const files = {
+      ...planFile(`${DEMO_MACHINE}M.state('a', () => { crit('карточка a', () => {}); });\n`),
+      'expectations/other.expect.ts': `${PLAN_IMPORTS}describe('другой файл', () => { crit('чужое ожидание', () => {}); });\n`,
+    };
+    await withPlanFixture(files, async (_dir, run) => {
+      const first = await run(['--file', 'expectations/plan.expect.ts']);
+      const second = await run(['--file', 'expectations/plan.expect.ts']);
+      expect(first.html).toContain('карточка a');
+      expect(first.html).not.toContain('чужое ожидание');
+      expect(first.html).not.toMatch(/<script|<link[^>]+href=|(src|href)="https?:/i);
+      expect(second.html).toBe(first.html);
+    });
+  }
+
+  static async htmlGraphs(): Promise<void> {
+    const body = `${DEMO_MACHINE}${STEPS('active')}M.transition('a', 'go', () => { crit('переход', () => {}); });\n`;
+    await withPlanFixture(planFile(body), async (_dir, run) => {
+      const { html } = await run();
+      const svgs = [...html.matchAll(/<svg[\s\S]*?<\/svg>/g)].map((m) => m[0]);
+      expect(html).toMatch(/Generated by graphviz/i);
+      expect(svgs.some((s) => /href="#state-a"/.test(s) && /href="#tr-a-go"/.test(s))).toBe(true);
+      expect(svgs.some((s) => /href="#step-T1"/.test(s) && /href="#step-T3"/.test(s))).toBe(true);
+    });
+  }
+
+  static async htmlStatuses(): Promise<void> {
+    const body = `${DEMO_MACHINE}M.state('a', () => { crit('a проходит', () => {}); });
+M.state('b', () => { crit('b падает', () => expect(1).toBe(2)); });
+M.state('c', () => { crit.todo('c впереди'); });
+`;
+    await withPlanFixture(planFile(body), async (_dir, run) => {
+      const { html } = await run();
+      const node = (name: string) =>
+        new RegExp(`<g[^>]*class="node[^"]*"[^>]*>\\s*<title>${name}</title>`).exec(html)?.[0] ??
+        '';
+      expect(node('a')).toMatch(/pass/);
+      expect(node('b')).toMatch(/fail/);
+      expect(node('c')).toMatch(/todo/);
+    });
+  }
+
+  static async htmlDiff(): Promise<void> {
+    const v1 = `describe('X', () => {\n  crit('старое один', () => {});\n  crit('остаётся', () => {});\n});\ndescribe('Z', () => {\n  crit('уходит', () => {});\n});\n`;
+    const v2 = `describe('X', () => {\n  crit('новое один', () => {});\n  crit('остаётся', () => {});\n});\ndescribe('W', () => {\n  crit('совсем новое', () => {});\n});\n`;
+    await withPlanFixture(planFile(v1), async (dir, run) => {
+      gitCommitAll(dir);
+      await writeFile(
+        path.join(dir, 'expectations/plan.expect.ts'),
+        planFile(v2)['expectations/plan.expect.ts'] ?? '',
+      );
+      const list = listItems((await run()).html);
+      const find = (text: string) => list.find((i) => i.text.includes(text));
+      expect(find('совсем новое')?.cls).toMatch(/diff-added/);
+      expect(find('уходит')?.cls).toMatch(/diff-removed/);
+      expect(find('новое один')?.cls).toMatch(/diff-changed/);
+      expect(find('новое один')?.text).toContain('старое один');
+      expect(find('остаётся')?.cls).not.toMatch(/diff-/);
+    });
   }
 }
