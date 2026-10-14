@@ -35,7 +35,7 @@ budget({ crit: 0, warn: 0 });
 
 describe('[harness] common', () => {
   crit(
-    'процессы harness: check, changelog, context, adapters, delta, outdated, expect, index, plan_iter (команды plan и session)',
+    'процессы harness: check, changelog, context, adapters, delta, outdated, expect, index, secrets, plan_iter (команды plan и session)',
     () => Check.processes(),
   );
   crit(
@@ -88,7 +88,7 @@ describe('[harness] check', () => {
   crit('команда harness check — все проверки из context/harness.yml разом', () =>
     Check.commands(['check']),
   );
-  crit('проверки harness check: changelog, context-index, adapters — других нет', () =>
+  crit('проверки harness check: changelog, context-index, adapters, secrets — других нет', () =>
     Check.checks(),
   );
 });
@@ -173,6 +173,34 @@ describe('[harness] delta', () => {
   );
 });
 
+describe('[harness] secrets', () => {
+  crit('команда harness secrets scan [--file <path>] — поиск секретов в проекте или в файле', () =>
+    Check.commands(['secrets scan']),
+  );
+  crit(
+    'проверка secrets падает, если в отслеживаемых файлах проекта есть секрет: ключ API, токен, пароль, приватный ключ',
+    () => Check.secretsFound(),
+  );
+  crit(
+    'secrets включена в harness check по умолчанию; выключить её можно только явно в context/harness.yml',
+    () => Check.secretsByDefault(),
+  );
+  crit(
+    'ложное срабатывание снимается только явным исключением в context/harness.yml с указанием причины',
+    () => Check.secretsAllow(),
+  );
+  crit('в выводе найденный секрет замаскирован: путь, строка и тип — без значения', () =>
+    Check.secretsMasked(),
+  );
+  crit('secrets проверяет и файл вне проекта по пути — для артефактов, которые уходят наружу', () =>
+    Check.secretsFile(),
+  );
+  warn(
+    'docs-keeper не записывает секрет в документацию: вместо значения — указатель на хранилище',
+    () => Check.docsKeeperSecrets(),
+  );
+});
+
 describe('[harness] index', () => {
   crit('команды harness index build | check — индекс prompts/index.yml источника промптов', () =>
     Check.commands(['index build', 'index check']),
@@ -236,6 +264,36 @@ async function withGitProject(fn: (dir: string) => Promise<void>): Promise<void>
   }
 }
 
+/**
+ * Образцы секретов по типам. Собраны из частей, чтобы в самом репозитории
+ * не было литерала, на который сработает secrets.
+ */
+const SECRET_SAMPLES: Record<string, string> = {
+  'api-key': `aws_key = ${'AKIA'}${'Q7XK2M9PLR4TWZ8N'}`,
+  token: `token: ${'ghp'}_${'a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8'}`,
+  password: `password: "${'Tr0ub4dor'}&3-${'horse'}"`,
+  'private-key': `${'-----BEGIN'} RSA PRIVATE KEY-----\nMIIEow\n-----END RSA PRIVATE KEY-----`,
+};
+const SECRET_VALUE = `${'AKIA'}${'Q7XK2M9PLR4TWZ8N'}`;
+
+/** Временный git-проект с context/harness.yml и отслеживаемым файлом `notes.md`. */
+async function withSecretProject(
+  config: string,
+  notes: string,
+  fn: (dir: string) => Promise<void>,
+): Promise<void> {
+  await withGitProject(async (dir) => {
+    const git = (...args: string[]) => spawnSync('git', args, { cwd: dir, encoding: 'utf8' });
+    await writeFile(path.join(dir, 'context/harness.yml'), config);
+    await writeFile(path.join(dir, 'notes.md'), `# Заметки\n\n${notes}\n`);
+    git('add', '.');
+    await fn(dir);
+  });
+}
+
+const cliOut = (args: string[], cwd = repoRoot()) =>
+  spawnSync(process.execPath, [BIN(), ...args], { cwd, encoding: 'utf8' });
+
 /** Слой файла пакета: 0 — cli, 1 — commands, 2 — ядро. */
 const layerOf = (file: string): number =>
   file === 'cli.ts' || file === 'bin.ts' ? 0 : file.startsWith('commands/') ? 1 : 2;
@@ -259,6 +317,7 @@ const DECLARED_COMMANDS = [
   'outdated',
   'index build',
   'index check',
+  'secrets scan',
   // plan_iter: harness-plan-iter.expect.ts
   'plan list',
   'plan <harness> start',
@@ -276,6 +335,68 @@ const DECLARED_COMMANDS = [
 ];
 
 class Check {
+  // secrets
+  static async secretsFound(): Promise<void> {
+    for (const [kind, sample] of Object.entries(SECRET_SAMPLES)) {
+      await withSecretProject('checks: {}\n', sample, async (dir) => {
+        expect({ kind, status: cli(['check', '--root', dir]) }).toEqual({ kind, status: 1 });
+      });
+    }
+    await withSecretProject('checks: {}\n', 'без секретов', async (dir) => {
+      expect(cli(['check', '--root', dir])).toBe(0);
+    });
+  }
+
+  static async secretsByDefault(): Promise<void> {
+    const sample = SECRET_SAMPLES['api-key'] ?? '';
+    await withSecretProject('version: "0"\n', sample, async (dir) => {
+      expect(cli(['check', '--root', dir])).toBe(1);
+    });
+    await withSecretProject('checks:\n  secrets: false\n', sample, async (dir) => {
+      expect(cli(['check', '--root', dir])).toBe(0);
+    });
+  }
+
+  static async secretsAllow(): Promise<void> {
+    const sample = SECRET_SAMPLES['api-key'] ?? '';
+    const allow = (extra: string) =>
+      `checks:\n  secrets:\n    allow:\n      - path: notes.md\n        line: 3\n${extra}`;
+    await withSecretProject(
+      allow('        reason: пример из документации AWS\n'),
+      sample,
+      async (dir) => {
+        expect(cli(['check', '--root', dir])).toBe(0);
+      },
+    );
+    await withSecretProject(allow(''), sample, async (dir) => {
+      expect(cli(['check', '--root', dir])).toBe(2);
+    });
+  }
+
+  static async secretsMasked(): Promise<void> {
+    await withSecretProject('checks: {}\n', SECRET_SAMPLES['api-key'] ?? '', async (dir) => {
+      const run = cliOut(['check', '--root', dir]);
+      const out = `${run.stdout}${run.stderr}`;
+      expect(out).toMatch(/notes\.md:3: \S/);
+      expect(out).not.toContain(SECRET_VALUE);
+    });
+  }
+
+  static async secretsFile(): Promise<void> {
+    const dir = await tempDir();
+    try {
+      const file = path.join(dir, 'proposal.json');
+      await writeFile(file, JSON.stringify({ evidence: SECRET_SAMPLES['token'] }));
+      expect(cli(['secrets', 'scan', '--file', file])).toBe(1);
+      await writeFile(file, JSON.stringify({ evidence: 'обезличенная выдержка' }));
+      expect(cli(['secrets', 'scan', '--file', file])).toBe(0);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  }
+
+  static docsKeeperSecrets = (): Promise<void> => judged(['@docs-secrets']);
+
   // состав
   static async packages(): Promise<void> {
     const dirs = (await readdir(path.join(repoRoot(), 'harness/packages'))).sort();
@@ -303,6 +424,7 @@ class Check {
       'index',
       'outdated',
       'plan',
+      'secrets',
       'session',
     ]);
     const planIter = await readRepo('expectations/harness-plan-iter.expect.ts');
@@ -314,7 +436,7 @@ class Check {
   }
 
   static checks(): void {
-    expect([...KNOWN_CHECKS].sort()).toEqual(['adapters', 'changelog', 'context-index']);
+    expect([...KNOWN_CHECKS].sort()).toEqual(['adapters', 'changelog', 'context-index', 'secrets']);
   }
 
   static adapters(): void {

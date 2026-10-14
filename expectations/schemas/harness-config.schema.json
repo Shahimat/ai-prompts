@@ -19,7 +19,31 @@
           }
         },
         "context-index": { "type": ["object", "null"], "maxProperties": 0 },
-        "adapters": { "type": ["object", "null"], "maxProperties": 0 }
+        "adapters": { "type": ["object", "null"], "maxProperties": 0 },
+        "secrets": {
+          "oneOf": [
+            { "const": false },
+            {
+              "type": ["object", "null"],
+              "additionalProperties": false,
+              "properties": {
+                "allow": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["path", "reason"],
+                    "properties": {
+                      "path": { "type": "string", "minLength": 1 },
+                      "line": { "type": "integer", "minimum": 1 },
+                      "reason": { "type": "string", "minLength": 1 }
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
       }
     },
     "worktrees": { "type": "object", "properties": { "dir": { "type": "string" } } },
