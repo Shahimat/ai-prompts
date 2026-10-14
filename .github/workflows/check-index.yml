@@ -25,23 +25,6 @@ jobs:
       - name: Install
         run: npm ci
 
-      - name: Format
-        run: npm run format:check
-
-      - name: Typecheck
-        run: npm run typecheck
-
-      - name: Build
-        run: npm run build
-
-      - name: Lint
-        run: npm run lint
-
-      - name: Test
-        run: npm test
-
-      - name: Verify prompts/index.yml is up to date
-        run: npm run index:check
-
-      - name: Expectations
-        run: npm run expect
+      # Те же проверки, что локально: npm run ci.
+      - name: CI
+        run: npm run ci

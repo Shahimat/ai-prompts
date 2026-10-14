@@ -36,6 +36,86 @@
         "vitest/expect-expect": "off",
         "vitest/valid-expect": "off"
       }
+    },
+    {
+      "files": ["harness/packages/harness/src/shared/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["**/lib/**", "**/commands/**", "**/scripts/**", "**/harness/**"],
+                "message": "shared — нижний слой: импортирует только shared"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["harness/packages/harness/src/lib/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["**/commands/**", "**/scripts/**", "**/harness/**"],
+                "message": "lib импортирует только shared и lib"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["harness/packages/harness/src/commands/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["**/scripts/**", "**/harness/**"],
+                "message": "команда не вызывает скрипты и harness"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["harness/packages/harness/src/scripts/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["**/harness/**"],
+                "message": "скрипт агрегирует только команды"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["harness/packages/harness/src/harness/core/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["**/plan-iter/**"],
+                "message": "ядро harness не зависит от конкретного harness"
+              }
+            ]
+          }
+        ]
+      }
     }
   ],
   "ignorePatterns": ["**/dist/**", "harness/packages/harness/test/.tmp/**"]
