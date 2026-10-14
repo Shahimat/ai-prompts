@@ -20,7 +20,7 @@ import {
 import { attention, ticketCommits } from '@shahimat/expectations';
 import { parse } from 'yaml';
 import { anyContract } from './shared/any-contract.expect.ts';
-import { at, recordOrEmpty, stringList, unknownList } from './shared/guards.ts';
+import { at, parseJson, recordOrEmpty, stringList, unknownList } from './shared/guards.ts';
 
 budget({ crit: 0, warn: 5 });
 
@@ -144,6 +144,30 @@ describe('обновление', () => {
   );
   crit('в ядре контракта нет протокола обновления — он только в skill source-sync', () =>
     Check.noUpdateProtocolInCore(),
+  );
+});
+
+describe('предложения в источник', () => {
+  crit(
+    'skill source-feedback собирает из проекта предложения в источник: дрейф поставленных частей, локальные обобщения, пробелы и обходы схемы',
+    () => Check.feedbackProtocol(),
+  );
+  crit('пример предложения в skill source-feedback соответствует схеме source-proposal', () =>
+    Check.proposalSchema(),
+  );
+  crit('агент только формирует файл предложения; передать его в источник решает пользователь', () =>
+    Check.feedbackNotSent(),
+  );
+  warn('дрейф поставленных частей определяется сверкой SHA с parts и индексом, а не на глаз', () =>
+    Check.driftBySha(),
+  );
+  crit(
+    'перед передачей файл предложения проходит harness secrets scan --file; без harness агент проверяет по тем же правилам сам',
+    () => Check.feedbackSecrets(),
+  );
+  warn(
+    'в предложении нет персональных данных и ссылок из external — только обезличенные выдержки',
+    () => Check.feedbackSanitized(),
   );
 });
 
@@ -398,6 +422,22 @@ class Check {
   }
   static attributionRule = (): Promise<void> => judged(['@attribution-rule']);
   static privacyRule = (): Promise<void> => judged(['@privacy-rule']);
+
+  // предложения в источник
+  static feedbackProtocol = (): Promise<void> => judged(['@source-feedback']);
+  static feedbackNotSent = (): Promise<void> => judged(['@source-feedback']);
+  static driftBySha = (): Promise<void> => judged(['@feedback-drift']);
+  static feedbackSecrets = (): Promise<void> => judged(['@feedback-sanitized']);
+  static feedbackSanitized = (): Promise<void> => judged(['@feedback-sanitized']);
+
+  static async proposalSchema(): Promise<void> {
+    const block = codeBlock((await skill('source-feedback')).text, 'json', '{\n  "format"');
+    expect(block).not.toBeNull();
+    await expectSchema(
+      [{ name: 'source-feedback', data: parseJson(block ?? 'null') }],
+      `${SCHEMAS}/source-proposal.schema.json`,
+    );
+  }
 
   // ядро
   static singleLink = (): Promise<void> => judged(['@single-link']);

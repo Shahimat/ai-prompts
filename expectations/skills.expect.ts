@@ -18,7 +18,9 @@ import { stringList } from './shared/guards.ts';
 budget({ crit: 0, warn: 0 });
 
 describe('состав skills', () => {
-  crit('skills ядра: contract-setup, workflow, docs-keeper, source-sync', () => Check.coreSkills());
+  crit('skills ядра: contract-setup, workflow, docs-keeper, source-sync, source-feedback', () =>
+    Check.coreSkills(),
+  );
   crit(
     'skills модулей, по имени модуля: domain, manuals, goals, harness, worktrees, ticket-commits, app-loop, data-access',
     () =>
@@ -46,7 +48,7 @@ describe('состав skills', () => {
         'knowledge-external-gui',
       ]),
   );
-  crit('других skills нет — всего 19', () => Check.skillCount());
+  crit('других skills нет — всего 20', () => Check.skillCount());
   crit('субагенты: только docs-keeper', () => Check.onlyDocsKeeper());
 });
 
@@ -100,7 +102,7 @@ describe('поведение ключевых skills', () => {
 
 // ─────────────────────────────── проверки ───────────────────────────────
 
-const CORE_SKILLS = ['contract-setup', 'workflow', 'docs-keeper', 'source-sync'];
+const CORE_SKILLS = ['contract-setup', 'workflow', 'docs-keeper', 'source-sync', 'source-feedback'];
 const SCHEMAS = 'expectations/schemas';
 
 /** Inline-блок паттерна: текст между `---` в разделе «Inline-блок для целевого промпта». */
@@ -158,7 +160,7 @@ class Check {
   }
 
   static async skillCount(): Promise<void> {
-    expect((await skills()).length).toBe(19);
+    expect((await skills()).length).toBe(20);
   }
 
   static async onlyDocsKeeper(): Promise<void> {

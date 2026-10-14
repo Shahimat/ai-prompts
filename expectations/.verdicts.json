@@ -745,7 +745,7 @@
   },
   "lint": {
     "expectations/agent-operational-contract-v3.expect.ts": {
-      "titles": "7bf551817c5492b7f68fa453f693b8516a4f9e62bd78ac0a7dcd5d6f8b263313",
+      "titles": "59ee325b7c602e1001cffb3a321e517d2ca2362000b36d465e9d25c0446a3f0b",
       "contradictions": [],
       "unmeasurable": [],
       "at": "2026-10-14"
@@ -781,10 +781,10 @@
       "at": "2026-10-13"
     },
     "expectations/skills.expect.ts": {
-      "titles": "e0a4ef2b2a47522e4f76a65c06ea9ad859ddde6fa9c4b2abd96836a8f3e413ad",
+      "titles": "e7ac9f30e2fd6da498c8b133fd00d3477af167b8807f0f43a4abdef07b0a9fea",
       "contradictions": [],
       "unmeasurable": [],
-      "at": "2026-10-13"
+      "at": "2026-10-14"
     }
   }
 }
