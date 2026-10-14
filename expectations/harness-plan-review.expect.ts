@@ -15,7 +15,7 @@ import {
   openSession,
   parseMachine,
   planIo,
-  planIterRegistry,
+  planReviewRegistry,
   REVIEW_TOOLS,
   staticErrors,
   verdict,
@@ -36,10 +36,10 @@ import { parseJson } from './shared/guards.ts';
 
 budget({ crit: 0, warn: 0 });
 
-// Процесс plan_iter: план построения — design/harness-plan-iter.md.
-describe('[harness] plan_iter', () => {
+// Процесс plan-review: план построения — design/harness-plan-review.md.
+describe('[harness] plan-review', () => {
   crit(
-    'команды планера: harness plan iter start | validate | graph, harness session <сессия> status | resume | retry | check | render | read | clone',
+    'команды планера: harness plan-review start | open | list | status | validate | graph | check | render | read | clone',
     () => Check.commands(),
   );
   crit('результат планера — plan.md; HTML для просмотра собирает отдельная команда render', () =>
@@ -86,7 +86,7 @@ describe('[harness] plan_iter', () => {
 const NOW = new Date('2026-10-14T12:00:00Z');
 
 const PLAN = `---
-harness: plan/iter
+harness: plan-review
 session: SESSION
 status: draft
 revision: 1
@@ -155,8 +155,8 @@ interface Flow {
  * скрипт, человек — очередь ответов. Каталоги временные.
  */
 async function withFlow(script: Script, fn: (flow: Flow) => Promise<void>): Promise<void> {
-  const home = await mkdtemp(path.join(tmpdir(), 'plan-iter-home-'));
-  const project = await mkdtemp(path.join(tmpdir(), 'plan-iter-proj-'));
+  const home = await mkdtemp(path.join(tmpdir(), 'plan-review-home-'));
+  const project = await mkdtemp(path.join(tmpdir(), 'plan-review-proj-'));
   spawnSync('git', ['init', '-q'], { cwd: project });
   await writeFile(path.join(project, 'README.md'), '# проект\n');
   const saved = { runner: planIo.runner, prompter: planIo.prompter };
@@ -226,7 +226,7 @@ async function withFlow(script: Script, fn: (flow: Flow) => Promise<void>): Prom
   const log = console.log;
   console.log = () => undefined;
   try {
-    await flow.run('plan', 'iter', 'start');
+    await flow.run('plan-review', 'start');
     const [id = ''] = await readdir(path.join(home, 'sessions'));
     flow.id = id;
     flow.dir = path.join(home, 'sessions', id);
@@ -246,7 +246,7 @@ const state = async (flow: Flow): Promise<string> =>
 const CRIT_1B = { findings: [{ criterion: 'dod-checkable', item: 'T1', text: 'не проверяем' }] };
 
 async function builtinDef() {
-  const result = await loadHarness(path.join(tmpdir(), 'plan-iter-no-home'), 'plan/iter');
+  const result = await loadHarness(path.join(tmpdir(), 'plan-review-no-home'), 'plan-review');
   if (result.harness === undefined) throw new Error(result.errors.join('\n'));
   return result.harness;
 }
@@ -254,17 +254,17 @@ async function builtinDef() {
 class Check {
   static async commands(): Promise<void> {
     const lines = [
-      'plan iter start',
-      'plan iter validate',
-      'plan iter graph',
-      'session s status',
-      'session s resume',
-      'session s retry',
-      'session s check',
-      'session s render',
-      'session s read',
-      'session s clone md',
-      'session s clone *',
+      'plan-review start',
+      'plan-review open s',
+      'plan-review list',
+      'plan-review status s',
+      'plan-review validate',
+      'plan-review graph',
+      'plan-review check s',
+      'plan-review render s',
+      'plan-review read s',
+      'plan-review clone s',
+      'plan-review clone s md',
     ];
     expect(lines.filter((l) => findCommand(l.split(' ')) === undefined)).toEqual([]);
   }
@@ -274,7 +274,7 @@ class Check {
       expect(await state(flow)).toBe('approved');
       expect(existsSync(path.join(flow.dir, 'plan.md'))).toBe(true);
       expect(existsSync(path.join(flow.dir, 'plan.html'))).toBe(false);
-      expect(await flow.run('session', flow.id, 'render')).toBe(0);
+      expect(await flow.run('plan-review', 'render', flow.id)).toBe(0);
       expect(await readFile(path.join(flow.dir, 'plan.html'), 'utf8')).toContain('<svg');
     });
   }
@@ -282,7 +282,9 @@ class Check {
   static async cloneOnly(): Promise<void> {
     await withFlow({ answers: ['approve'] }, async (flow) => {
       expect(await readdir(flow.project)).toEqual(['.git', 'README.md']);
-      expect(await flow.run('session', flow.id, 'clone', 'md', '--out', 'docs/plan.md')).toBe(0);
+      expect(await flow.run('plan-review', 'clone', flow.id, 'md', '--out', 'docs/plan.md')).toBe(
+        0,
+      );
       expect(await readFile(path.join(flow.project, 'docs/plan.md'), 'utf8')).toContain(
         'status: approved',
       );
@@ -303,14 +305,14 @@ class Check {
     const { def, registry } = await builtinDef();
     expect(staticErrors(def, registry, 'h')).toEqual([]);
     const yaml = (on: string) =>
-      `harness: t/t\ninitial: a\nstates:\n  a:\n    action: plan-check\n    on:\n${on}\n  z:\n    final: true\n`;
+      `harness: t-t\ninitial: a\nstates:\n  a:\n    action: plan-check\n    on:\n${on}\n  z:\n    final: true\n`;
     const parsed = parseMachine(yaml('      ok: a\n      broken: a\n      exhausted: a'), 'h');
     if (parsed.def === undefined) throw new Error(parsed.errors.join('\n'));
     const errors = staticErrors(parsed.def, registry, 'h').join('\n');
     expect(errors).toContain('недостижимо');
     expect(errors).toContain('цикл без лимита');
     const dead = parseMachine(
-      'harness: t/t\ninitial: a\nstates:\n  a:\n    action: plan-check\n',
+      'harness: t-t\ninitial: a\nstates:\n  a:\n    action: plan-check\n',
       'h',
     );
     if (dead.def === undefined) throw new Error(dead.errors.join('\n'));
@@ -318,12 +320,12 @@ class Check {
   }
 
   static async noExpressions(): Promise<void> {
-    const text = await readFile(path.join(BUILTIN_HARNESSES, 'plan/iter/harness.yaml'), 'utf8');
+    const text = await readFile(path.join(BUILTIN_HARNESSES, 'plan-review/harness.yaml'), 'utf8');
     expect(parseMachine(text, 'h').errors).toEqual([]);
     const expr = text.replace('pass: awaiting_user', "pass: 'crit == 0 ? awaiting_user : fix'");
     expect(parseMachine(expr, 'h').errors.join('\n')).toContain('h/states/review/on/pass');
     const { def } = await builtinDef();
-    const registry = planIterRegistry();
+    const registry = planReviewRegistry();
     expect(
       def.states.filter((s) => s.action !== undefined && !registry.actions.has(s.action)),
     ).toEqual([]);
@@ -334,11 +336,11 @@ class Check {
 
   static async criteriaFile(): Promise<void> {
     const files = (
-      await readdir(path.join(BUILTIN_HARNESSES, 'plan/iter'), { recursive: true })
-    ).filter((f) => /criteria/.test(f));
+      await readdir(path.join(BUILTIN_HARNESSES, 'plan-review'), { recursive: true })
+    ).filter((f) => /criteria.*\.ya?ml$/.test(f));
     expect(files).toEqual(['criteria.yaml']);
     await expectSchema(
-      await dataFiles(['harness/packages/harness/harnesses/plan/iter/criteria.yaml']),
+      await dataFiles(['packages/harness/src/harnesses/plan-review/criteria.yaml']),
       'expectations/schemas/plan-criteria.schema.json',
     );
     expect(parseJson(await readRepo('expectations/schemas/plan-criteria.schema.json'))).toEqual(
@@ -450,8 +452,7 @@ class Check {
   static async approvedFrozen(): Promise<void> {
     await withFlow({ answers: ['approve'] }, async (flow) => {
       const before = await readFile(path.join(flow.dir, 'plan.md'), 'utf8');
-      await expect(flow.run('session', flow.id, 'retry')).rejects.toThrow('только из failed');
-      expect(await flow.run('session', flow.id, 'resume')).toBe(0);
+      expect(await flow.run('plan-review', 'open', flow.id)).toBe(0);
       expect(await readFile(path.join(flow.dir, 'plan.md'), 'utf8')).toBe(before);
       expect(flow.headless.filter((r) => r.schema === undefined)).toHaveLength(0);
     });

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "harness.yaml — автомат процесса harness",
+  "title": "harness.yaml — автомат harness",
   "type": "object",
   "additionalProperties": false,
   "required": ["harness", "initial", "states"],
@@ -41,8 +41,9 @@
   },
   "properties": {
     "harness": {
+      "description": "Имя harness: категория-вид через дефис, совпадает с каталогом",
       "type": "string",
-      "pattern": "^[a-z][a-z0-9-]*/[a-z][a-z0-9-]*$"
+      "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)+$"
     },
     "description": {
       "type": "string"

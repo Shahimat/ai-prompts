@@ -12,9 +12,9 @@
       "additionalProperties": false,
       "properties": {
         "runs": {
-          "description": "Что skill запускает: путь скрипта или команды CLI (`refresh`, `secrets scan`) или harness пакета (`docs/delta`)",
+          "description": "Что skill запускает: путь скрипта или команды CLI (`refresh`, `secrets scan`) или имя процесса пакета (`docs-delta`)",
           "type": "string",
-          "pattern": "^[a-z][a-z0-9-]*((/| )[a-z][a-z0-9-]*)*$"
+          "pattern": "^[a-z][a-z0-9-]*( [a-z][a-z0-9-]*)*$"
         }
       }
     }

@@ -25,7 +25,7 @@ describe('публичные npm-пакеты', () => {
 const PACKAGES = ['harness', 'expectations'];
 
 const localVersion = async (pkg: string): Promise<string> =>
-  stringAt(parseJson(await readRepo(`harness/packages/${pkg}/package.json`)), 'version');
+  stringAt(parseJson(await readRepo(`packages/${pkg}/package.json`)), 'version');
 
 const parse = (v: string): number[] => v.split('.').map((x) => Number.parseInt(x, 10));
 
@@ -51,7 +51,7 @@ class Check {
 
   static async changelogMatchesVersion(): Promise<void> {
     for (const pkg of PACKAGES) {
-      const top = /^## (\S+)/m.exec(await readRepo(`harness/packages/${pkg}/CHANGELOG.md`))?.[1];
+      const top = /^## (\S+)/m.exec(await readRepo(`packages/${pkg}/CHANGELOG.md`))?.[1];
       expect({ pkg, top }).toEqual({ pkg, top: await localVersion(pkg) });
     }
   }

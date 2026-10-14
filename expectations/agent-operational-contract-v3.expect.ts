@@ -366,7 +366,7 @@ class Check {
   }
 
   static async harnessConfigSchema(): Promise<void> {
-    const sources = ['skills/harness/SKILL.md', 'harness/packages/harness/README.md'];
+    const sources = ['skills/harness/SKILL.md', 'packages/harness/README.md'];
     const instances = await Promise.all(
       sources.map(async (s) => ({
         name: s,

@@ -259,17 +259,6 @@
       "reason": "В режиме целиком тикет — один коммит без дробления.",
       "at": "2026-10-14"
     },
-    "42e6d377c595": {
-      "question": "[harness] plan_iter > переходами управляет автомат из harness.yaml; модель работает только внутри состояний",
-      "evidence": {
-        "@fsm-drive": "6048db475437de9741b1b80eb06e40df3f757b21c656858cf0dd00699a40813f"
-      },
-      "verdict": true,
-      "quote": "Автомат процесса: топология и параметры — в harness.yaml",
-      "ref": "@fsm-drive",
-      "reason": "drive выполняет действие состояния и выбирает переход через resolve по автомату; действие лишь возвращает событие.",
-      "at": "2026-10-14"
-    },
     "44bbe7c51e80": {
       "question": "тикет — задача, техзадача или бага: последовательность шагов-коммитов > git-запись (commit, amend, push) агент сам не выполняет; вне сообщения коммита в конце шага её не предлагает; выполняет только по явной просьбе после списка команд",
       "evidence": {
@@ -324,17 +313,6 @@
       "ref": "@external-reality",
       "reason": "Источник реальности ядра — ключи external целевых систем, а не this-repo.",
       "at": "2026-10-13"
-    },
-    "63aaccc6f834": {
-      "question": "[harness] layers > skill запускает только то, что объявлено в metadata.runs; остальные команды harness лишь упоминает",
-      "evidence": {
-        "@skill-runs": "ec0cd97aee9ee7d40c37ff6ed3990230e5db3824b435101acc96a9e5059d8d4a"
-      },
-      "verdict": true,
-      "quote": "Сам skill запускает одно: `harness refresh` в конце каждой задачи и",
-      "ref": "@skill-runs",
-      "reason": "Каждый skill запускает только команду из своего metadata.runs, прочие команды harness даны как справка или шаги процесса.",
-      "at": "2026-10-14"
     },
     "694f0f4b5141": {
       "question": "[harness] expect > в кэше вердиктов только вердикты живых ожиданий",
@@ -616,6 +594,17 @@
       "reason": "Own — только в формулировке пользователя; вывод агента — разбор (analysis) или tension.",
       "at": "2026-10-14"
     },
+    "c2c4ecf68df9": {
+      "question": "[harness] plan-review > планер не планирует дальше нерешённого spike",
+      "evidence": {
+        "@spike-horizon": "0b2002e9997ae8852595c35e100c21eade68a98054605a9a62e473ac95921949"
+      },
+      "verdict": true,
+      "quote": "Если\nсодержание задачи зависит от ответа spike — эту задачу не планируй,\nопиши её в «За горизонтом» с указанием spike, который её разблокирует.",
+      "ref": "@spike-horizon",
+      "reason": "Промпт планера прямо запрещает планировать задачи, зависящие от ответа spike; критерий spike-horizon (crit) проверяет это на ревью.",
+      "at": "2026-10-14"
+    },
     "c6b9e7459e9b": {
       "question": "[flow] delta > revise не блокирует работу: объявлен в дельте, попадает в отчёт и в тело сообщения коммита",
       "evidence": {
@@ -786,17 +775,6 @@
       "reason": "Шаблон и блоки модулей дают маршруты и ссылки на skills/harness; указаний самой править документацию нет, остальное — guardrails о достоверности.",
       "at": "2026-10-14"
     },
-    "fe1171fee6d4": {
-      "question": "[harness] plan_iter > планер не планирует дальше нерешённого spike",
-      "evidence": {
-        "@spike-horizon": "0b2002e9997ae8852595c35e100c21eade68a98054605a9a62e473ac95921949"
-      },
-      "verdict": true,
-      "quote": "нет задач, чьё содержание зависит от ответа нерешённого spike; такое — в «За горизонтом»",
-      "ref": "@spike-horizon",
-      "reason": "промпт планера запрещает планировать задачи, зависящие от ответа spike, и crit-критерий ревью stage 2 это проверяет",
-      "at": "2026-10-14"
-    },
     "fea56d1882e8": {
       "question": "поведение ключевых skills > contract-setup: модули подключаются по одному, каждый — с manifest и отчётом",
       "evidence": {
@@ -828,14 +806,14 @@
       "unmeasurable": [],
       "at": "2026-10-14"
     },
-    "expectations/harness-plan-iter.expect.ts": {
-      "titles": "93024153fa58be6cc21aa46eeeb0d1d1ef937ec7630ac3b85c0a50e7bf2a71c0",
+    "expectations/harness-plan-review.expect.ts": {
+      "titles": "25daf98b8ea457738077fb1aa61dca4f4744fcc974969f27d05c5847a850f97b",
       "contradictions": [],
       "unmeasurable": [],
       "at": "2026-10-14"
     },
     "expectations/harness.expect.ts": {
-      "titles": "ef4d4d4e305fba71f16658396699d3f094cd92db35f356718603b11b1e93b120",
+      "titles": "6212d5f85ce40de298444145be4ab2ab2f78496412ccb60c05ea0da9c124d922",
       "contradictions": [],
       "unmeasurable": [],
       "at": "2026-10-14"

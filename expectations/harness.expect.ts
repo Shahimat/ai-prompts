@@ -58,15 +58,15 @@ budget({ crit: 0, warn: 0 });
 
 describe('[harness] common', () => {
   crit(
-    'процессы harness: check, refresh, changelog, context, adapters, delta, outdated, expect, index, secrets, plan_iter, docs_delta, source_sync (команды plan, docs, source и session)',
-    () => Check.processes(),
+    'состав harness: команды и скрипты check, refresh, changelog, context, adapters, delta, outdated, expect, index, secrets; harness plan-review, docs-delta, source-sync (команды harness — под его именем)',
+    () => Check.composition(),
   );
   crit(
     'пакеты: @shahimat/harness — CLI и механизм ожиданий, @shahimat/expectations — наборы ожиданий; других нет',
     () => Check.packages(),
   );
   crit(
-    'других команд, кроме перечисленных в разделах [harness] <процесс> этого файла и harness-plan-iter.expect.ts, у harness нет',
+    'других команд, кроме перечисленных в разделах [harness] <процесс> этого файла и harness-plan-review.expect.ts, у harness нет',
     () => Check.noOtherCommands(),
   );
   crit('в репозитории нет bash-скриптов: вся автоматизация на TS и Node ≥ 24', () =>
@@ -98,6 +98,25 @@ describe('[harness] common', () => {
   crit('уровни замечаний общие для ожиданий и критериев плана: crit, warn, info', () =>
     Check.sharedLevels(),
   );
+  crit(
+    'harness живёт в одном каталоге src/harnesses/<имя>: harness.yaml, критерии и промпты рядом с кодом',
+    () => Processes.colocated(),
+  );
+  crit('имя harness — категория-вид через дефис; core зарезервировано за ядром', () =>
+    Processes.names(),
+  );
+  crit(
+    'id сессии — sha256; в выводе 7 символов, open принимает уникальный префикс от 4 символов',
+    () => Processes.shortIds(),
+  );
+  crit(
+    'пауза — выход: каждый переход сразу на диске; open заново выполняет действие текущего состояния — в состоянии агента это приём задания, из failed — сброс счётчиков',
+    () => Processes.pauseIsExit(),
+  );
+  crit(
+    'harness не использует контекст вызывающей сессии: входы — аргументы start, файлы проекта и ответы, записанные в сессию',
+    () => Processes.noCallerContext(),
+  );
   it.todo(
     'дополнения проекта и пользователя подключаются из конфига динамическим import, без форка пакета',
   );
@@ -105,7 +124,7 @@ describe('[harness] common', () => {
 
 describe('[harness] layers', () => {
   crit(
-    'слои пакета: shared → lib → commands → scripts → harness; импорт только вниз по слоям',
+    'слои пакета: shared → lib → commands → scripts → harnesses; импорт только вниз по слоям',
     () => Layers.downward(),
   );
   crit('команда не импортирует другие команды, скрипты и harness', () => Layers.commandsIsolated());
@@ -154,7 +173,7 @@ describe('[harness] layers', () => {
     Skills.agentsRunNothing(),
   );
   crit(
-    'в состоянии агента harness останавливается с заданием; session <s> resume продолжает со следующего состояния',
+    'в состоянии агента harness останавливается с заданием; open <id> продолжает со следующего состояния',
     () => Processes.handoff(),
   );
 });
@@ -165,29 +184,28 @@ describe('[harness] refresh', () => {
   );
 });
 
-describe('[harness] docs_delta', () => {
-  crit(
-    'команды harness docs delta start | validate | graph; сессией управляют команды session',
-    () => Processes.resolve(['docs delta start', 'docs delta validate', 'docs delta graph']),
+describe('[harness] docs-delta', () => {
+  crit('команды harness docs-delta start | open | list | status | validate | graph', () =>
+    Processes.resolve('docs-delta'),
   );
   crit(
-    'автомат docs/delta: apply → verify → close; провал verify или close возвращает в apply не больше 3 раз, затем failed',
+    'автомат docs-delta: apply → verify → close; провал verify или close возвращает в apply не больше 3 раз, затем failed',
     () => Processes.docsDelta(),
   );
-  crit('verify в docs/delta — context index, adapters sync, delta check и шаги check', () =>
+  crit('verify в docs-delta — context index, adapters sync, delta check и шаги check', () =>
     Processes.docsVerify(),
   );
 });
 
-describe('[harness] source_sync', () => {
-  crit('команды harness source sync start | validate | graph', () =>
-    Processes.resolve(['source sync start', 'source sync validate', 'source sync graph']),
+describe('[harness] source-sync', () => {
+  crit('команды harness source-sync start | open | list | status | validate | graph', () =>
+    Processes.resolve('source-sync'),
   );
   crit(
-    'автомат source/sync: outdated → update → refresh; провал refresh возвращает в update не больше 3 раз, затем failed',
+    'автомат source-sync: outdated → update → refresh; провал refresh возвращает в update не больше 3 раз, затем failed',
     () => Processes.sourceSync(),
   );
-  crit('skill docs-keeper объявляет runs: docs/delta, skill source-sync — runs: source/sync', () =>
+  crit('skill docs-keeper объявляет runs: docs-delta, skill source-sync — runs: source-sync', () =>
     Skills.processSkills(),
   );
 });
@@ -326,7 +344,7 @@ describe('[harness] index', () => {
 
 // ─────────────────────────────── проверки ───────────────────────────────
 
-const PKG = 'harness/packages/harness';
+const PKG = 'packages/harness';
 const SCHEMAS = 'expectations/schemas';
 const BIN = () => path.join(repoRoot(), PKG, 'dist/bin.js');
 const cli = (args: string[], cwd = repoRoot()) =>
@@ -434,27 +452,20 @@ const DECLARED_COMMANDS = [
   'index check',
   'secrets scan',
   'refresh',
-  // docs_delta, source_sync
-  'docs <harness> start',
-  'docs <harness> validate',
-  'docs <harness> graph',
-  'source <harness> start',
-  'source <harness> validate',
-  'source <harness> graph',
-  // plan_iter: harness-plan-iter.expect.ts
-  'plan list',
-  'plan <harness> start',
-  'plan <harness> validate',
-  'plan <harness> graph',
-  'session list',
-  'session <session> status',
-  'session <session> resume',
-  'session <session> retry',
-  'session <session> check',
-  'session <session> render',
-  'session <session> read',
-  'session <session> clone *',
-  'session <session> clone md',
+  // harness: команды под его именем; plan-review — harness-plan-review.expect.ts
+  ...['plan-review', 'docs-delta', 'source-sync'].flatMap((p) => [
+    `${p} start`,
+    `${p} open <id>`,
+    `${p} list`,
+    `${p} status <id>`,
+    `${p} validate`,
+    `${p} graph`,
+  ]),
+  'plan-review check <id>',
+  'plan-review render <id>',
+  'plan-review read <id>',
+  'plan-review clone <id>',
+  'plan-review clone <id> md',
 ];
 
 class Check {
@@ -522,10 +533,10 @@ class Check {
 
   // состав
   static async packages(): Promise<void> {
-    const dirs = (await readdir(path.join(repoRoot(), 'harness/packages'))).sort();
+    const dirs = (await packageDirs()).sort();
     const names = await Promise.all(
       dirs.map(async (d) =>
-        stringAt(parseJson(await readRepo(`harness/packages/${d}/package.json`)), 'name'),
+        stringAt(parseJson(await readRepo(`packages/${d}/package.json`)), 'name'),
       ),
     );
     expect(names.sort()).toEqual(['@shahimat/expectations', '@shahimat/harness']);
@@ -536,27 +547,26 @@ class Check {
     expect(list.filter((c) => !usage.includes(c))).toEqual([]);
   }
 
-  static async processes(): Promise<void> {
+  static async composition(): Promise<void> {
     expect([...new Set(COMMANDS.map((c) => c.path[0] ?? ''))].sort()).toEqual([
       'adapters',
       'changelog',
       'check',
       'context',
       'delta',
-      'docs',
+      'docs-delta',
       'expect',
       'index',
       'outdated',
-      'plan',
+      'plan-review',
       'refresh',
       'secrets',
-      'session',
-      'source',
+      'source-sync',
     ]);
-    const planIter = await readRepo('expectations/harness-plan-iter.expect.ts');
-    expect(planIter).toContain("describe('[harness] plan_iter'");
+    const planIter = await readRepo('expectations/harness-plan-review.expect.ts');
+    expect(planIter).toContain("describe('[harness] plan-review'");
     const own = await readRepo('expectations/harness.expect.ts');
-    for (const section of ['refresh', 'docs_delta', 'source_sync'])
+    for (const section of ['refresh', 'docs-delta', 'source-sync'])
       expect(own).toContain(`describe('[harness] ${section}'`);
   }
 
@@ -602,7 +612,7 @@ class Check {
       return { ...base, ...recordOrEmpty(at(cfg, 'compilerOptions'), `${file}: compilerOptions`) };
     };
     for (const pkg of ['harness', 'expectations']) {
-      const opts = await compilerOptions(`harness/packages/${pkg}/tsconfig.json`);
+      const opts = await compilerOptions(`packages/${pkg}/tsconfig.json`);
       expect({
         pkg,
         strict: opts['strict'],
@@ -748,8 +758,8 @@ class Check {
       .filter((f) => f.endsWith('.expect.ts'))
       .map((f) => `expectations/${f.split(path.sep).join('/')}`)
       .concat(
-        'harness/packages/expectations/src/ticket-commits.ts',
-        'harness/packages/expectations/src/attention.ts',
+        'packages/expectations/src/ticket-commits.ts',
+        'packages/expectations/src/attention.ts',
       );
     const paths: string[] = [];
     for (const f of files) {
@@ -885,7 +895,7 @@ class Check {
 
 // ─────────────────────────────── слои ───────────────────────────────
 
-const LAYERS = ['shared', 'lib', 'commands', 'scripts', 'harness', 'app'] as const;
+const LAYERS = ['shared', 'lib', 'commands', 'scripts', 'harnesses', 'app'] as const;
 type Layer = (typeof LAYERS)[number];
 /** Файлы верхнего слоя: точка входа, оболочка, дерево CLI и фасад пакета. */
 const APP_FILES = ['bin.ts', 'cli.ts', 'index.ts', 'tree.ts', 'shell.ts'];
@@ -895,15 +905,15 @@ const FACADE = 'index.ts';
 function layerOf(file: string): Layer | undefined {
   if (APP_FILES.includes(file)) return 'app';
   const [head = '', ...rest] = file.split('/');
-  // В корне слоя harness — только каталог harness/index.ts, остальное — в слайсах.
-  if (head === 'harness' && rest.length === 1 && rest[0] !== 'index.ts') return undefined;
+  // В корне слоя harnesses — только каталог harnesses/index.ts, остальное — в слайсах.
+  if (head === 'harnesses' && rest.length === 1 && rest[0] !== 'index.ts') return undefined;
   return LAYERS.find((l) => l === head && l !== 'app' && rest.length > 0);
 }
 
-/** Слайс: `commands/<x>`, `harness/<x>`, `harness/core`, каталог `harness` или слой целиком. */
+/** Слайс: `commands/<x>`, `harnesses/<x>`, `harnesses/core`, каталог `harnesses` или слой целиком. */
 function sliceOf(file: string): string {
   const parts = file.split('/');
-  if ((parts[0] === 'commands' || parts[0] === 'harness') && parts.length > 2)
+  if ((parts[0] === 'commands' || parts[0] === 'harnesses') && parts.length > 2)
     return `${parts[0]}/${parts[1] ?? ''}`;
   return layerOf(file) ?? file;
 }
@@ -965,13 +975,18 @@ async function readNpmScripts(rel: string): Promise<NpmScripts> {
   };
 }
 
+/** Каталоги пакетов в packages/: без общих build.ts и tsconfig.json. */
+async function packageDirs(): Promise<string[]> {
+  return (await readdir(path.join(repoRoot(), 'packages'), { withFileTypes: true }))
+    .filter((e) => e.isDirectory())
+    .map((e) => e.name);
+}
+
 async function npmPackages(): Promise<{ root: NpmScripts; workspaces: NpmScripts[] }> {
-  const dirs = await readdir(path.join(repoRoot(), 'harness/packages'));
+  const dirs = await packageDirs();
   return {
     root: await readNpmScripts('package.json'),
-    workspaces: await Promise.all(
-      dirs.map((d) => readNpmScripts(`harness/packages/${d}/package.json`)),
-    ),
+    workspaces: await Promise.all(dirs.map((d) => readNpmScripts(`packages/${d}/package.json`))),
   };
 }
 
@@ -1018,7 +1033,7 @@ function harnessWords(line: string): string[] | undefined {
 }
 
 const PLAN_SAMPLE =
-  '---\nharness: plan/iter\nsession: s\nstatus: draft\nrevision: 1\n---\n# План\n\n## Цель\n\nцель\n\n## Пункты\n\n### T1. Пункт\n\n- Тип: task\n- Зависит от: —\n- Мотивация: м\n- DoD:\n  - [ ] д\n';
+  '---\nharness: plan-review\nsession: s\nstatus: draft\nrevision: 1\n---\n# План\n\n## Цель\n\nцель\n\n## Пункты\n\n### T1. Пункт\n\n- Тип: task\n- Зависит от: —\n- Мотивация: м\n- DoD:\n  - [ ] д\n';
 
 class Layers {
   static async downward(): Promise<void> {
@@ -1034,7 +1049,7 @@ class Layers {
         (f, t) =>
           layerOf(f) === 'commands' &&
           (layerOf(t) === 'scripts' ||
-            layerOf(t) === 'harness' ||
+            layerOf(t) === 'harnesses' ||
             (layerOf(t) === 'commands' && sliceOf(t) !== sliceOf(f))),
       ),
     ).toEqual([]);
@@ -1044,34 +1059,34 @@ class Layers {
     expect(
       await violations(
         (f, t) =>
-          (layerOf(t) === 'commands' || layerOf(t) === 'harness') &&
+          (layerOf(t) === 'commands' || layerOf(t) === 'harnesses') &&
           sliceOf(t) !== sliceOf(f) &&
-          t !== 'harness/index.ts' &&
+          t !== 'harnesses/index.ts' &&
           !isPublic(t),
       ),
     ).toEqual([]);
   }
 
   static async harnessIsolated(): Promise<void> {
-    const own = (s: string): boolean => s.startsWith('harness/') && s !== 'harness/core';
+    const own = (s: string): boolean => s.startsWith('harnesses/') && s !== 'harnesses/core';
     expect(
       await violations(
         (f, t) =>
           own(sliceOf(f)) &&
-          (t === 'harness/index.ts' || (own(sliceOf(t)) && sliceOf(t) !== sliceOf(f))),
+          (t === 'harnesses/index.ts' || (own(sliceOf(t)) && sliceOf(t) !== sliceOf(f))),
       ),
     ).toEqual([]);
   }
 
   static async coreIndependent(): Promise<void> {
     const files = await srcFiles();
-    expect(files.filter((f) => sliceOf(f) === 'harness/core').length).toBeGreaterThan(3);
+    expect(files.filter((f) => sliceOf(f) === 'harnesses/core').length).toBeGreaterThan(3);
     expect(
       await violations(
         (f, t) =>
-          sliceOf(f) === 'harness/core' &&
-          layerOf(t) === 'harness' &&
-          sliceOf(t) !== 'harness/core',
+          sliceOf(f) === 'harnesses/core' &&
+          layerOf(t) === 'harnesses' &&
+          sliceOf(t) !== 'harnesses/core',
       ),
     ).toEqual([]);
   }
@@ -1152,7 +1167,7 @@ class Layers {
           'adapters: [claude-code, codex]\nchecks:\n  changelog: {}\n  context-index: {}\n  adapters: {}\n',
         );
         const session = await createSession(home, {
-          harness: 'plan/iter',
+          harness: 'plan-review',
           title: 'демо',
           request: 'запрос',
           project: dir,
@@ -1161,7 +1176,7 @@ class Layers {
         });
         await writeFile(path.join(session.dir, 'plan.md'), PLAN_SAMPLE);
         // Свежий plan.html: read не пересобирает его, а только открывает.
-        expect(cli(['session', session.id, 'render', '--home', home])).toBe(0);
+        expect(cli(['plan-review', 'render', session.id, '--home', home])).toBe(0);
 
         const query = COMMANDS.filter((n) => effectOf(n) === 'query');
         expect(query.length).toBeGreaterThan(10);
@@ -1169,11 +1184,7 @@ class Layers {
         const before = [await snapshot(dir, notGit), await snapshot(home)];
         for (const n of query) {
           const words = stringList(at(n, 'path'), 'path').map((seg) =>
-            seg === '<harness>'
-              ? (HARNESS_OF[words0(n)] ?? seg)
-              : seg === '<session>'
-                ? session.id
-                : seg,
+            seg === '<id>' ? session.id : seg,
           );
           const args = ['--root', dir, '--home', home, '--raw-base', 'https://example.invalid'];
           // BROWSER — сам Node: session read «открывает» HTML без браузера.
@@ -1206,15 +1217,15 @@ class Layers {
     const home = await tempDir();
     try {
       const session = await createSession(home, {
-        harness: 'plan/iter',
+        harness: 'plan-review',
         title: 'демо',
         request: 'запрос',
         project: home,
         initial: 'draft',
         now: new Date(),
       });
-      const { harness } = await loadHarness(home, 'plan/iter');
-      if (harness === undefined) throw new Error('plan/iter не загрузился');
+      const { harness } = await loadHarness(home, 'plan-review');
+      if (harness === undefined) throw new Error('plan-review не загрузился');
       const ctx: PlanContext = {
         session,
         home,
@@ -1294,15 +1305,13 @@ class Layers {
   }
 }
 
-// ─────────────────────────────── skills и процессы ───────────────────────────────
+// ─────────────────────────────── skills и harness ───────────────────────────────
 
-/** Имя harness для параметра `<harness>` по категории: `plan iter`, `docs delta`. */
-const HARNESS_OF: Record<string, string> = { plan: 'iter', docs: 'delta', source: 'sync' };
-const words0 = (n: unknown): string => stringList(at(n, 'path'), 'path')[0] ?? '';
-
-const BUILTIN = `${PKG}/harnesses`;
+/** Harness пакета: каталог на harness, определение рядом с кодом. */
+const HARNESSES = `${PKG}/src/harnesses`;
+const HARNESS_NAME = /^[a-z][a-z0-9]*(-[a-z0-9]+)+$/;
 const RUNS_ANCHOR = 'skill-runs';
-/** Команда harness в тексте: `harness check`, `harness docs delta start`. */
+/** Команда harness в тексте: `harness check`, `harness docs-delta start`. */
 const MENTION = /`harness [a-z]/;
 
 interface SkillFile {
@@ -1323,8 +1332,8 @@ async function skillFiles(): Promise<SkillFile[]> {
   );
 }
 
-/** Как runs выглядит в тексте skill: `harness refresh`, `harness docs delta`. */
-const runsCall = (runs: string): string => `harness ${runs.split('/').join(' ')}`;
+/** Как runs выглядит в тексте skill: `harness refresh`, `harness docs-delta`. */
+const runsCall = (runs: string): string => `harness ${runs}`;
 
 /** Текст skill без регионов якоря skill-runs. */
 const outsideRuns = (s: SkillFile): string =>
@@ -1343,8 +1352,8 @@ class Skills {
         bad.push(`${s.name}: metadata.runs — не строка`);
         continue;
       }
-      if (s.runs.includes('/')) {
-        if (!existsSync(path.join(repoRoot(), BUILTIN, s.runs, 'harness.yaml')))
+      if (HARNESS_NAME.test(s.runs)) {
+        if (!existsSync(path.join(repoRoot(), HARNESSES, s.runs, 'harness.yaml')))
           bad.push(`${s.name}: нет harness ${s.runs}`);
       } else if (!['script', 'command'].includes(String(kindOf(node(s.runs.split(' ')))))) {
         bad.push(`${s.name}: ${s.runs} — не скрипт и не команда`);
@@ -1386,14 +1395,14 @@ class Skills {
   static async processSkills(): Promise<void> {
     const runs = Object.fromEntries((await skillFiles()).map((s) => [s.name, s.runs]));
     expect({ docs: runs['docs-keeper'], source: runs['source-sync'] }).toEqual({
-      docs: 'docs/delta',
-      source: 'source/sync',
+      docs: 'docs-delta',
+      source: 'source-sync',
     });
   }
 }
 
-async function machine(harness: string): Promise<MachineDef> {
-  const file = `${BUILTIN}/${harness}/harness.yaml`;
+async function machine(name: string): Promise<MachineDef> {
+  const file = `${HARNESSES}/${name}/harness.yaml`;
   const { def, errors } = parseMachine(await readRepo(file), file);
   if (def === undefined) throw new Error(errors.join('\n'));
   return def;
@@ -1411,10 +1420,35 @@ const resets = (def: MachineDef, state: string, event: string): string[] =>
 const stepCommands = (steps: unknown): string[] =>
   unknownList(steps, 'steps').map((s) => stringList(at(s, 'command'), 'command').join(' '));
 
+async function harnessDirs(): Promise<string[]> {
+  return (await readdir(path.join(repoRoot(), HARNESSES), { withFileTypes: true }))
+    .filter((e) => e.isDirectory() && e.name !== 'core')
+    .map((e) => e.name)
+    .sort();
+}
+
+/** Сессия docs-delta в git-проекте: стоит в apply с выданным заданием. */
+async function withProcessSession(
+  fn: (s: { dir: string; home: string; id: string; start: string }) => Promise<void>,
+): Promise<void> {
+  await withGitProject(async (dir) => {
+    const home = await tempDir();
+    try {
+      await writeFile(path.join(dir, 'context/harness.yml'), 'checks: {}\n');
+      const run = cliOut(['docs-delta', 'start', '--name', 'демо', '--root', dir, '--home', home]);
+      expect(run.status).toBe(0);
+      const [id = ''] = await readdir(path.join(home, 'sessions'));
+      await fn({ dir, home, id, start: `${run.stdout}${run.stderr}` });
+    } finally {
+      await rm(home, { recursive: true, force: true });
+    }
+  });
+}
+
 class Processes {
-  static resolve(list: string[]): void {
-    const sessionOps = ['session x status', 'session x resume', 'session x retry'];
-    expect([...list, ...sessionOps].filter((c) => node(c.split(' ')) === undefined)).toEqual([]);
+  static resolve(harness: string): void {
+    const ops = ['start', 'open x', 'list', 'status x', 'validate', 'graph'];
+    expect(ops.filter((op) => node([harness, ...op.split(' ')]) === undefined)).toEqual([]);
   }
 
   static refresh(): void {
@@ -1428,7 +1462,7 @@ class Processes {
   }
 
   static async docsDelta(): Promise<void> {
-    const def = await machine('docs/delta');
+    const def = await machine('docs-delta');
     const counter = edges(def, 'verify', 'fail')[0]?.count ?? '';
     expect(def.initial).toBe('apply');
     expect({
@@ -1455,7 +1489,7 @@ class Processes {
   }
 
   static async sourceSync(): Promise<void> {
-    const def = await machine('source/sync');
+    const def = await machine('source-sync');
     const counter = edges(def, 'refresh', 'fail')[0]?.count ?? '';
     expect(def.initial).toBe('outdated');
     expect({
@@ -1495,8 +1529,7 @@ class Processes {
       try {
         await writeFile(path.join(dir, 'context/harness.yml'), 'checks: {}\n');
         const start = cliOut([
-          'docs',
-          'delta',
+          'docs-delta',
           'start',
           '--name',
           'демо',
@@ -1506,7 +1539,7 @@ class Processes {
           home,
         ]);
         expect(start.status).toBe(0);
-        expect(start.stdout).toMatch(/resume/);
+        expect(start.stdout).toMatch(/docs-delta open/);
         const [id = ''] = (await readdir(path.join(home, 'sessions'))).sort();
         const log = async (): Promise<unknown[]> =>
           (await readFile(path.join(home, 'sessions', id, 'log.jsonl'), 'utf8'))
@@ -1514,7 +1547,7 @@ class Processes {
             .split('\n')
             .map((l): unknown => JSON.parse(l));
         expect((await log()).filter((e) => at(e, 'from') === 'apply')).toEqual([]);
-        expect(cli(['session', id, 'resume', '--home', home])).toBe(0);
+        expect(cli(['docs-delta', 'open', id.slice(0, 7), '--home', home])).toBe(0);
         expect(
           (await log()).some((e) => at(e, 'from') === 'apply' && at(e, 'to') === 'verify'),
         ).toBe(true);
@@ -1522,5 +1555,110 @@ class Processes {
         await rm(home, { recursive: true, force: true });
       }
     });
+  }
+
+  static async colocated(): Promise<void> {
+    const dirs = await harnessDirs();
+    expect(dirs.length).toBeGreaterThan(2);
+    expect(
+      dirs.filter((d) => !existsSync(path.join(repoRoot(), HARNESSES, d, 'harness.yaml'))),
+    ).toEqual([]);
+    for (const f of ['criteria.yaml', 'prompts'])
+      expect({ f, ok: existsSync(path.join(repoRoot(), HARNESSES, 'plan-review', f)) }).toEqual({
+        f,
+        ok: true,
+      });
+    // Отдельного каталога определений больше нет: в пакет уходит только сборка.
+    expect(existsSync(path.join(repoRoot(), PKG, 'harnesses'))).toBe(false);
+    const files = stringList(
+      at(parseJson(await readRepo(`${PKG}/package.json`)), 'files'),
+      'files',
+    );
+    expect(files.filter((f) => !['dist', 'README.md', 'CHANGELOG.md'].includes(f))).toEqual([]);
+  }
+
+  static async names(): Promise<void> {
+    const bad: string[] = [];
+    for (const d of await harnessDirs()) {
+      if (!HARNESS_NAME.test(d)) bad.push(`${d}: не категория-вид`);
+      const text = await readRepo(`${HARNESSES}/${d}/harness.yaml`);
+      if (/^harness: (\S+)$/m.exec(text)?.[1] !== d)
+        bad.push(`${d}: harness в harness.yaml ≠ имени каталога`);
+    }
+    expect(bad).toEqual([]);
+    expect(existsSync(path.join(repoRoot(), HARNESSES, 'core', 'harness.yaml'))).toBe(false);
+  }
+
+  static async shortIds(): Promise<void> {
+    await withProcessSession(async ({ home, id, start }) => {
+      expect(id).toMatch(/^[0-9a-f]{64}$/);
+      expect(start).toContain(id.slice(0, 7));
+      expect(start).not.toContain(id);
+      const status = (prefix: string, process = 'docs-delta') =>
+        cli([process, 'status', prefix, '--home', home]);
+      expect(status(id.slice(0, 4))).toBe(0);
+      expect(status(id.slice(0, 3))).toBe(2);
+      expect(status('zzzz')).toBe(2);
+      // Сессия чужого harness не открывается.
+      expect(status(id.slice(0, 7), 'source-sync')).toBe(2);
+    });
+  }
+
+  static async pauseIsExit(): Promise<void> {
+    await withProcessSession(async ({ dir, home, id }) => {
+      const data = async (): Promise<unknown> =>
+        parseJson(await readFile(path.join(home, 'sessions', id, 'session.json'), 'utf8'));
+      expect(at(await data(), 'state')).toBe('apply');
+      // Знание изменено без пункта revise — verify не пройдёт.
+      await writeFile(
+        path.join(dir, 'context/conventions/naming.yml'),
+        'key: naming\nsummary: snake_case\nrule: x\n',
+      );
+      const open = () => cli(['docs-delta', 'open', id.slice(0, 7), '--home', home]);
+      for (let i = 0; i < 4; i++) expect(open()).toBe(0);
+      expect(at(await data(), 'state')).toBe('failed');
+      expect(open()).toBe(0);
+      expect(at(await data(), 'state')).toBe('apply');
+      expect(at(await data(), 'counters', 'verify') ?? 0).toBe(0);
+    });
+  }
+
+  static async noCallerContext(): Promise<void> {
+    const runs = [
+      interactiveArgs({
+        cwd: '.',
+        model: 'opus',
+        sessionId: 's',
+        name: 'n',
+        addDirs: [],
+        systemPrompt: '',
+        settings: {},
+        tools: ['Read'],
+        allowedTools: [],
+        prompt: '',
+      }),
+      headlessArgs({
+        cwd: '.',
+        model: 'opus',
+        addDirs: [],
+        systemPrompt: '',
+        tools: ['Read'],
+        allowedTools: [],
+        prompt: '',
+        persist: false,
+        maxTurns: 1,
+      }),
+    ];
+    for (const args of runs) {
+      expect(args[args.indexOf('--setting-sources') + 1]).toBe('');
+      expect(args).not.toContain('--continue');
+    }
+    // Код harness не читает окружение вызывающей сессии Claude Code.
+    const bad: string[] = [];
+    for (const f of (await srcFiles()).filter((f) => layerOf(f) === 'harnesses')) {
+      const text = await readRepo(`${PKG}/src/${f}`);
+      if (/--continue|process\.env\[['"]CLAUDE/.test(text)) bad.push(f);
+    }
+    expect(bad).toEqual([]);
   }
 }
