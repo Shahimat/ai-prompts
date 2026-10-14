@@ -64,6 +64,13 @@ patterns: [source-sync, ...]
 Индекс собирает harness (`harness/packages/harness`, TS). Нужен
 Node ≥ 24; перед первым запуском — `npm ci && npm run build`.
 
+После правки TS-кода (`harness/`, `expectations/`) — `npm run
+typecheck`, `npm run lint`, `npm test` и `npm run format:check`; CI
+валит билд на любом из них. Строгость TS — в общем
+`tsconfig.base.json`; линтер — oxlint с type-aware правилами
+(`.oxlintrc.json`); формат — prettier (`npm run format`), только TS,
+JSON и YAML: markdown промптов он не трогает (`.prettierignore`).
+
 ## При добавлении или правке промпта
 
 Перед планом:
