@@ -4,6 +4,13 @@
 
 ## 0.4.0
 
+- Планер `plan/iter`: `harness plan list | <harness> start | validate |
+  graph`, `harness session list | <сессия> status | resume | retry |
+  check [--hook] | render | read | clone * | clone md`. Автомат из
+  `harness.yaml` (схема `harness-fsm`), критерии `criteria.yaml`,
+  плагины `handlers/`, сессии в `~/.config/harness`.
+- `list` и `help` на каждом уровне дерева команд; без аргументов в
+  терминале — оболочка с переходом по уровням.
 - `harness delta check | close` — дельта документации `context/.delta/`:
   удаление или изменение знания без пункта `revise` — нарушение; `close`
   удаляет принятую дельту. `context index` не читает `context/.delta/`.

@@ -41,6 +41,7 @@
   },
   "files": [
     "dist",
+    "harnesses",
     "README.md",
     "CHANGELOG.md"
   ],

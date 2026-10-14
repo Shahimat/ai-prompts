@@ -1,0 +1,82 @@
+# expect:spike-horizon
+# Критерии ревью плана — единственное место ожиданий от плана.
+# Схема — expectations/schemas/plan-criteria.schema.json. Уровень задаёт
+# критерий, а не модель. Критерии 1a реализует скрипт: их id фиксированы.
+criteria:
+  # 1a — структура, без модели
+  - id: frontmatter
+    stage: 1a
+    level: crit
+    text: frontmatter с harness plan/iter, session, status и целым revision
+  - id: sections
+    stage: 1a
+    level: crit
+    text: заголовок и разделы Цель, Пункты, За горизонтом; пункты в формате «### T1. Название»
+  - id: item-fields
+    stage: 1a
+    level: crit
+    text: у задачи Тип, Зависит от, Мотивация и DoD; у spike Тип, Вопрос, Ожидаемое решение, Таймбокс
+  - id: deps-exist
+    stage: 1a
+    level: crit
+    text: зависимости ссылаются на существующие пункты
+  - id: deps-acyclic
+    stage: 1a
+    level: crit
+    text: в зависимостях нет циклов
+  - id: duplicates
+    stage: 1a
+    level: crit
+    text: нет повторов ID, названий и пунктов DoD
+
+  # 1b — текст плана, дешёвая модель без сети
+  - id: contradictions
+    stage: 1b
+    level: crit
+    text: пункты и разделы не противоречат друг другу
+  - id: semantic-duplicates
+    stage: 1b
+    level: warn
+    text: нет пунктов, которые разными словами описывают одну работу
+  - id: dod-checkable
+    stage: 1b
+    level: crit
+    text: каждый пункт DoD проверяем да/нет или числом
+  - id: no-excuses
+    stage: 1b
+    level: warn
+    text: нет оправданий и рассуждений вместо решений; мотивация — одна-две фразы
+  - id: no-filler
+    stage: 1b
+    level: warn
+    text: нет воды и повторов одного и того же другими словами
+  - id: balance
+    stage: 1b
+    level: info
+    text: пункты сопоставимы по объёму; нет пункта, который стоит разбить или слить
+  - id: typos
+    stage: 1b
+    level: info
+    text: нет опечаток и грамматических ошибок
+
+  # 2 — достоверность и полнота, сильная модель с проектом и сетью
+  - id: facts-project
+    stage: '2'
+    level: crit
+    text: утверждения о проекте (файлы, модули, команды, API) подтверждаются кодом проекта
+  - id: facts-external
+    stage: '2'
+    level: crit
+    text: утверждения о внешних библиотеках и сервисах подтверждаются документацией
+  - id: dod-sufficient
+    stage: '2'
+    level: warn
+    text: выполненный DoD действительно закрывает мотивацию пункта
+  - id: spike-horizon
+    stage: '2'
+    level: crit
+    text: нет задач, чьё содержание зависит от ответа нерешённого spike; такое — в «За горизонтом»
+  - id: missing-work
+    stage: '2'
+    level: warn
+    text: нет пропущенной работы, без которой цель не достигается

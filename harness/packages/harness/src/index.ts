@@ -44,7 +44,62 @@ export {
   runOutdated,
   type Fetcher,
 } from './commands/outdated.ts';
-export { COMMANDS, findCommand, renderUsage, type Command } from './commands/tree.ts';
+export {
+  childrenOf,
+  COMMANDS,
+  findCommand,
+  isNamespace,
+  renderUsage,
+  type Command,
+  type Match,
+} from './commands/tree.ts';
+export { shellStep, splitWords } from './commands/shell.ts';
+export { io as planIo, selfCommand } from './commands/plan.ts';
+export {
+  drive,
+  machineMermaid,
+  parseMachine,
+  resolve,
+  staticErrors,
+  type ActionDef,
+  type Guard,
+  type MachineDef,
+  type Registry,
+} from './fsm/machine.ts';
+export { FSM_SCHEMA } from './fsm/schema.ts';
+export { loadHarness, type LoadedHarness } from './handlers/load.ts';
+export {
+  failureReport,
+  hookSettings,
+  plannerTools,
+  planIterRegistry,
+  REVIEW_TOOLS,
+  type PlanContext,
+} from './handlers/plan-iter.ts';
+export {
+  acceptFindings,
+  CRITERIA_SCHEMA,
+  findingsSchema,
+  parseCriteria,
+  verdict,
+  type Criterion,
+  type Finding,
+} from './plan/criteria.ts';
+export { FORMAL_CRITERIA, formalCheck } from './plan/formal.ts';
+export {
+  changedParts,
+  parsePlan,
+  replaceSection,
+  serializeBlocks,
+  setFrontmatter,
+  withDependents,
+  type PlanItem,
+  type PlanModel,
+} from './plan/model.ts';
+export { renderPlanHtml } from './plan/render.ts';
+export { headlessArgs, interactiveArgs, type ModelRunner } from './runner/claude.ts';
+export { type Prompter } from './runner/terminal.ts';
+export { BUILTIN_HARNESSES, createSession, harnessHome, openSession } from './store/session.ts';
 export {
   checkDelta,
   DELTA_DIR,

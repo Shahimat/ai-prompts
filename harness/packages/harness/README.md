@@ -46,6 +46,32 @@ npx -y @shahimat/harness@<version> <команда> --root .
 - `harness index build | check --raw-base <url>` — индекс
   `prompts/index.yml` репозитория промптов.
 
+### Планер `plan/iter`
+
+Команды user scope: ставятся глобально (`npm i -g @shahimat/harness`),
+сессии — в `~/.config/harness/` (`--home <dir>` или `HARNESS_HOME`).
+
+- `harness plan iter start [--name <название>] [--request <запрос>]` —
+  интерактивный `claude` с ролью планера в каталоге проекта → проверка
+  структуры (1a) → ревью: дешёвая модель без сети (1b) и сильная с
+  проектом и сетью (2) → правки до 3 на цикл → меню: согласовать,
+  вернуть всё или по пунктам, переработать, уточнить.
+- `harness plan list`, `harness plan iter validate | graph` — определения,
+  проверка `harness.yaml` и Mermaid автомата.
+- `harness session list`, `harness session <сессия> status | resume |
+  retry | check [--hook] | render [--out] | read | clone * | clone md
+  [--out]`.
+- Без аргументов в терминале `harness` открывает оболочку: вход в
+  уровень по имени, `..`, `list` и `help` на каждом уровне.
+
+Определение — `harnesses/plan/iter/` пакета: `harness.yaml` (автомат,
+лимиты, бюджет, модели), `criteria.yaml` (критерии ревью), `prompts/`.
+Файлы `~/.config/harness/harnesses/plan/<имя>/` перекрывают встроенные;
+`handlers/*.{js,mjs,ts}` — свои действия и guards
+(`export default { actions, guards }`). Модели запускаются с
+`--setting-sources ""`: settings, hooks и `CLAUDE.md` пользователя и
+проекта в прогоны не попадают.
+
 Коды выхода: `0` — ok, `1` — нарушения, `2` — ошибка вызова или
 конфигурации.
 

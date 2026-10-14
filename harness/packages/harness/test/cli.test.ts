@@ -1,9 +1,12 @@
+import { spawnSync } from 'node:child_process';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { main, run } from '../src/cli.ts';
-import { COMMANDS, renderUsage } from '../src/commands/tree.ts';
+import { promptOf, shellStep, splitWords } from '../src/commands/shell.ts';
+import { childrenOf, COMMANDS, findCommand, renderUsage } from '../src/commands/tree.ts';
 
 const NOW = new Date('2026-10-13T12:00:00Z');
 const GOOD = '# Журнал\n\n- 2026-10-13 · [arch] a · b\n';
@@ -207,5 +210,72 @@ describe('harness index build | check', () => {
     expect(await main(['index', 'check', '--root', root, '--raw-base', RAW], NOW)).toBe(0);
     await put('prompts/b.md', '---\nkey: b\nkind: prompt\n---\n');
     expect(await main(['index', 'check', '--root', root, '--raw-base', RAW], NOW)).toBe(1);
+  });
+});
+
+describe('дерево команд: уровни, list, help, оболочка', () => {
+  let out: string[];
+  beforeEach(() => {
+    out = [];
+    vi.spyOn(console, 'log').mockImplementation((...args: unknown[]) => {
+      out.push(args.join(' '));
+    });
+  });
+
+  it('параметры пути и приоритет литералов', () => {
+    expect(findCommand(['session', 'list'])?.params).toEqual({});
+    expect(findCommand(['session', 'x-1', 'status'])?.params).toEqual({ session: 'x-1' });
+    expect(findCommand(['plan', 'iter', 'start'])?.params).toEqual({ harness: 'iter' });
+    expect(findCommand(['session', 'x', 'clone', '*'])?.command.path.at(-1)).toBe('*');
+    expect(findCommand(['check', 'extra'])).toBeUndefined();
+  });
+
+  it('list и help на каждом уровне', async () => {
+    expect(await main(['list'], NOW)).toBe(0);
+    expect(out.at(-1)).toContain('plan');
+    expect(await main(['plan', 'iter', 'list'], NOW)).toBe(0);
+    expect(out.at(-1)?.split('\n')).toEqual(['start', 'validate', 'graph']);
+    expect(await main(['session', 'x', 'help'], NOW)).toBe(0);
+    expect(out.at(-1)).toContain('harness session <session> status');
+    expect(out.at(-1)).not.toContain('harness check');
+    expect(childrenOf(['session', 'x', 'clone'])).toEqual(['*', 'md']);
+    expect(await run(['plan'])).toBe(2);
+  });
+
+  it('оболочка: вход в уровень, .., list, help, запуск команды относительно уровня', () => {
+    expect(splitWords(`start --name "два слова" '*'`)).toEqual([
+      'start',
+      '--name',
+      'два слова',
+      '*',
+    ]);
+    expect(shellStep([], 'plan')).toEqual({ cwd: ['plan'] });
+    expect(shellStep(['plan'], 'iter')).toEqual({ cwd: ['plan', 'iter'] });
+    expect(shellStep(['plan', 'iter'], '..')).toEqual({ cwd: ['plan'] });
+    expect(shellStep(['plan', 'iter'], 'list').output).toBe('start\nvalidate\ngraph');
+    expect(shellStep(['plan', 'iter'], 'help').output).toContain('harness plan <harness> start');
+    expect(shellStep(['plan', 'iter'], 'start --name x')).toEqual({
+      cwd: ['plan', 'iter'],
+      run: ['plan', 'iter', 'start', '--name', 'x'],
+    });
+    expect(shellStep(['plan'], 'list')).toEqual({ cwd: ['plan'], run: ['plan', 'list'] });
+    expect(shellStep(['session'], 'demo-1')).toEqual({ cwd: ['session', 'demo-1'] });
+    expect(shellStep([], 'exit').exit).toBe(true);
+    expect(promptOf(['plan', 'iter'])).toBe('/harness/plan/iter> ');
+  });
+
+  it('любая команда — одной строкой из шелла; .ts-плагин грузится голым Node без сборки', async () => {
+    const home = path.join(root, 'home');
+    await put(
+      'home/harnesses/plan/iter/handlers/extra.ts',
+      'const yes = (_c: unknown): boolean => true;\nexport default { guards: { yes } };\n',
+    );
+    const bin = fileURLToPath(new URL('../src/bin.ts', import.meta.url));
+    const r = spawnSync(process.execPath, [bin, 'plan', 'iter', 'validate', '--home', home], {
+      encoding: 'utf8',
+    });
+    expect(r.stderr).toBe('');
+    expect(r.stdout).toContain('plan/iter: ok (плагины: extra.ts)');
+    expect(r.status).toBe(0);
   });
 });

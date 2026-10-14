@@ -35,7 +35,7 @@ budget({ crit: 0, warn: 0 });
 
 describe('[harness] common', () => {
   crit(
-    'процессы harness: check, changelog, context, adapters, delta, outdated, expect, index; plan_iter — в разработке: его команд нет в CLI, ожидания — только todo',
+    'процессы harness: check, changelog, context, adapters, delta, outdated, expect, index, plan_iter (команды plan и session)',
     () => Check.processes(),
   );
   crit(
@@ -259,6 +259,20 @@ const DECLARED_COMMANDS = [
   'outdated',
   'index build',
   'index check',
+  // plan_iter: harness-plan-iter.expect.ts
+  'plan list',
+  'plan <harness> start',
+  'plan <harness> validate',
+  'plan <harness> graph',
+  'session list',
+  'session <session> status',
+  'session <session> resume',
+  'session <session> retry',
+  'session <session> check',
+  'session <session> render',
+  'session <session> read',
+  'session <session> clone *',
+  'session <session> clone md',
 ];
 
 class Check {
@@ -288,10 +302,11 @@ class Check {
       'expect',
       'index',
       'outdated',
+      'plan',
+      'session',
     ]);
     const planIter = await readRepo('expectations/harness-plan-iter.expect.ts');
     expect(planIter).toContain("describe('[harness] plan_iter'");
-    expect(planIter).not.toMatch(/\b(crit|warn)\(/);
   }
 
   static async noOtherCommands(): Promise<void> {
@@ -362,9 +377,16 @@ class Check {
     ).join('\n');
     const untested = commands.filter((c) => {
       const [group = '', sub] = c.split(' ');
-      return sub === undefined
-        ? !new RegExp(`\\['${group}'|run${group[0]?.toUpperCase()}${group.slice(1)}\\(`).test(tests)
-        : !tests.includes(`'${group}', '${sub}'`);
+      if (sub === undefined)
+        return !new RegExp(`\\['${group}'|run${group[0]?.toUpperCase()}${group.slice(1)}\\(`).test(
+          tests,
+        );
+      // Параметр пути (`<session>`) в тесте — любое значение: литерал или переменная.
+      const call = c
+        .split(' ')
+        .map((seg) => (seg.startsWith('<') ? '[^,()]+' : `'${seg.replace(/[*]/g, '\\*')}'`))
+        .join(',\\s*');
+      return !new RegExp(call).test(tests);
     });
     expect(commands.length).toBeGreaterThan(5);
     expect(untested).toEqual([]);
