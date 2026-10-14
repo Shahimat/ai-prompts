@@ -4,7 +4,7 @@ kind: contract
 title: Операционный контракт агента v3 — ядро, возможности, harness
 patterns: [source-sync]
 tags: [docs-as-code, workflow, agent-contract, agents-md, skills, harness, features-checklist]
-use_case: Скармливается AI-агенту одной ссылкой, чтобы развернуть в проекте операционный контракт v3 — тонкий AGENTS.md с маршрутизацией и жёсткими правилами, skills ядра (contract-setup, workflow, docs-keeper, source-sync), субагент docs-keeper и выбранные чеклистом возможности (domain, manuals, goals, harness, worktrees и др.). Работает с любым агентом, читающим AGENTS.md (Claude Code, Codex, Cursor, Copilot); специфика инструментов — в генерируемых адаптерах. Если в проекте уже есть v2 или своя документация — план миграции.
+use_case: Скармливается AI-агенту одной ссылкой, чтобы развернуть в проекте операционный контракт v3 — тонкий AGENTS.md с маршрутизацией и жёсткими правилами, skills ядра (contract-setup, workflow, docs-keeper, source-sync, source-feedback), субагент docs-keeper и выбранные чеклистом возможности (domain, manuals, goals, harness, worktrees и др.). Работает с любым агентом, читающим AGENTS.md (Claude Code, Codex, Cursor, Copilot); специфика инструментов — в генерируемых адаптерах. Если в проекте уже есть v2 или своя документация — план миграции.
 ---
 
 # Операционный контракт агента v3 — ядро, возможности, harness
@@ -85,13 +85,14 @@ context/
     workflow/                      ← сценарии, блокирующий вопрос, тикеты и коммиты
     docs-keeper/                   ← правила записи в документацию
     source-sync/                   ← обновление из источника
+    source-feedback/               ← предложения из проекта в источник
   agents/
     docs-keeper.md                 ← субагент записи (канон)
 ```
 
 Skills и субагент берутся из индекса: skills `contract-setup`,
-`workflow`, `docs-keeper`, `source-sync`, агент `docs-keeper`.
-Кладутся в проект байт в байт, их SHA записываются в
+`workflow`, `docs-keeper`, `source-sync`, `source-feedback`, агент
+`docs-keeper`. Кладутся в проект байт в байт, их SHA записываются в
 `sync.contract.parts`.
 
 Канон для всех агентов — `AGENTS.md` и `.agents/`. Файлы под конкретный
@@ -123,7 +124,7 @@ sync:
     key: agent-operational-contract-v3
     synced_sha: <hex>
     parts:
-      skills: {contract-setup: <hex>, workflow: <hex>, docs-keeper: <hex>, source-sync: <hex>}
+      skills: {contract-setup: <hex>, workflow: <hex>, docs-keeper: <hex>, source-sync: <hex>, source-feedback: <hex>}
       agents: {docs-keeper: <hex>}
 ```
 
@@ -216,6 +217,7 @@ CHANGELOG.md merge=union
 - `workflow` — сценарии, формат вопроса, тикеты и коммиты;
 - `docs-keeper` — правила записи в документацию;
 - `source-sync` — обновление из источника, «что нового»;
+- `source-feedback` — предложения из проекта в источник;
 - `contract-setup` — «что добавить / убрать в проекте».
 
 <!-- блоки возможностей ниже добавляет contract-setup -->
