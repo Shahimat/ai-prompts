@@ -1,6 +1,6 @@
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { mkdtemp, readdir, readFile, rm, writeFile, mkdir } from 'node:fs/promises';
+import { mkdtemp, readdir, readFile, realpath, rm, writeFile, mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -118,6 +118,13 @@ describe('[harness] common', () => {
   );
   it.todo(
     'дополнения проекта и пользователя подключаются из конфига динамическим import, без форка пакета',
+  );
+  crit('без --root harness ищет проект вверх от места вызова: первый каталог с .claude', () =>
+    Root.discovered(),
+  );
+  crit(
+    'нет .claude в проекте — start любого harness не стартует и сообщает об этом; сам ничего не создаёт',
+    () => Root.missing(),
   );
   crit.todo(
     'любой harness прогоняет ровно один файл ожиданий — свой; другие ожидания попадают в прогон только через import в нём',
@@ -494,6 +501,7 @@ async function withGitProject(fn: (dir: string) => Promise<void>): Promise<void>
   const dir = await tempDir();
   const git = (...args: string[]) => spawnSync('git', args, { cwd: dir, encoding: 'utf8' });
   try {
+    await mkdir(path.join(dir, '.claude'), { recursive: true });
     await mkdir(path.join(dir, 'context/conventions'), { recursive: true });
     await mkdir(path.join(dir, 'context/.delta'), { recursive: true });
     await mkdir(path.join(dir, 'context/modules'), { recursive: true });
@@ -2318,5 +2326,82 @@ class Patterns {
     const vitestDescribe = /import\s*\{[^}]*\bdescribe\b[^}]*\}\s*from\s*['"]vitest['"]/;
     const bad = (await sharedModules()).filter((m) => vitestDescribe.test(m.text));
     expect(bad.map((m) => m.file)).toEqual([]);
+  }
+}
+
+const sessionProjects = async (home: string): Promise<string[]> => {
+  const dir = path.join(home, 'sessions');
+  const out: string[] = [];
+  for (const id of existsSync(dir) ? await readdir(dir) : [])
+    out.push(
+      stringAt(parseJson(await readFile(path.join(dir, id, 'session.json'), 'utf8')), 'project'),
+    );
+  return out;
+};
+
+class Root {
+  static async discovered(): Promise<void> {
+    const project = await mkdtemp(path.join(tmpdir(), 'harness-root-'));
+    const home = await tempDir();
+    try {
+      await mkdir(path.join(project, '.claude'), { recursive: true });
+      await mkdir(path.join(project, 'context'), { recursive: true });
+      await writeFile(path.join(project, 'context/harness.yml'), 'checks: {}\n');
+      const deep = path.join(project, 'sub/deeper');
+      await mkdir(deep, { recursive: true });
+      const run = (words: string[]) =>
+        spawnSync(process.execPath, [BIN(), ...words, '--home', home], {
+          cwd: deep,
+          encoding: 'utf8',
+        });
+      expect(run(['plan-review', 'start', '--name', 'Корень', '--request', 'r']).status).toBe(0);
+      expect(run(['docs-delta', 'start', '--name', 'корень']).status).toBe(0);
+      expect(run(['source-sync', 'start']).status).toBe(0);
+      const real = await realpath(project);
+      const projects = await Promise.all((await sessionProjects(home)).map((p) => realpath(p)));
+      expect(projects).toEqual([real, real, real]);
+      expect(existsSync(path.join(project, '.claude/artifacts/plan-review/корень.expect.ts'))).toBe(
+        true,
+      );
+      expect(await readdir(deep)).toEqual([]);
+    } finally {
+      await rm(project, { recursive: true, force: true });
+      await rm(home, { recursive: true, force: true });
+    }
+  }
+
+  static async missing(): Promise<void> {
+    const project = await mkdtemp(path.join(tmpdir(), 'harness-noroot-'));
+    const home = await tempDir();
+    try {
+      for (const words of [
+        ['plan-review', 'start', '--name', 'x', '--request', 'r'],
+        ['docs-delta', 'start', '--name', 'x'],
+        ['source-sync', 'start'],
+      ]) {
+        const r = spawnSync(
+          process.execPath,
+          [BIN(), ...words, '--root', project, '--home', home],
+          {
+            cwd: project,
+            encoding: 'utf8',
+          },
+        );
+        expect({
+          words,
+          status: r.status,
+          claude: `${r.stdout}${r.stderr}`.includes('.claude'),
+        }).toEqual({
+          words,
+          status: 2,
+          claude: true,
+        });
+      }
+      expect(await readdir(project)).toEqual([]);
+      expect(await sessionProjects(home)).toEqual([]);
+    } finally {
+      await rm(project, { recursive: true, force: true });
+      await rm(home, { recursive: true, force: true });
+    }
   }
 }

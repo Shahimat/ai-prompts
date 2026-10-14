@@ -162,6 +162,7 @@ async function withFlow(script: Script, fn: (flow: Flow) => Promise<void>): Prom
   const home = await mkdtemp(path.join(tmpdir(), 'plan-review-home-'));
   const project = await mkdtemp(path.join(tmpdir(), 'plan-review-proj-'));
   spawnSync('git', ['init', '-q'], { cwd: project });
+  await mkdir(path.join(project, '.claude'), { recursive: true });
   await writeFile(path.join(project, 'README.md'), '# проект\n');
   const saved = { runner: planIo.runner, prompter: planIo.prompter };
   const flow: Flow = {
@@ -493,6 +494,7 @@ class Start {
     const project = await mkdtemp(path.join(tmpdir(), 'plan-review-noname-'));
     const home = await mkdtemp(path.join(tmpdir(), 'plan-review-noname-home-'));
     try {
+      await mkdir(path.join(project, '.claude'), { recursive: true });
       const r = spawnSync(
         process.execPath,
         [
