@@ -192,7 +192,7 @@ const draft: ActionDef<PlanContext> = {
     ctx.session.data.plannerSession = sessionId;
     await ctx.session.save();
     const systemPrompt = await template(ctx, 'planner', baseVars(ctx));
-    const { allowed } = plannerTools(ctx);
+    const { tools, allowed } = plannerTools(ctx);
     await guardProject(ctx, 'планер', () =>
       ctx.runner.interactive({
         cwd: ctx.session.data.project,
@@ -202,6 +202,7 @@ const draft: ActionDef<PlanContext> = {
         addDirs: [ctx.session.dir],
         systemPrompt,
         settings: hookSettings(ctx),
+        tools,
         allowedTools: allowed,
         prompt: ctx.session.data.request,
       }),

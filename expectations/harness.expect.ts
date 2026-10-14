@@ -1164,6 +1164,7 @@ class Layers {
         addDirs: [],
         systemPrompt: '',
         settings: {},
+        tools: planner.tools,
         allowedTools: planner.allowed,
         prompt: '',
       });

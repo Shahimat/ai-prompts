@@ -12,7 +12,10 @@
   graph`, `harness session list | <сессия> status | resume | retry |
   check [--hook] | render | read | clone * | clone md`. Автомат из
   `harness.yaml` (схема `harness-fsm`), критерии `criteria.yaml`,
-  плагины `handlers/`, сессии в `~/.config/harness`.
+  плагины `handlers/`, сессии в `~/.config/harness`. Модель в любом
+  состоянии, включая интерактивного планера, — без skills
+  (`--disable-slash-commands`) и только с перечисленными инструментами
+  (`--tools`).
 - `list` и `help` на каждом уровне дерева команд; без аргументов в
   терминале — оболочка с переходом по уровням.
 - `harness delta check | close` — дельта документации `context/.delta/`:

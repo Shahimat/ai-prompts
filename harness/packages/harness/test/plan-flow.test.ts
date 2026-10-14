@@ -186,7 +186,9 @@ describe('plan iter: сквозной прогон', () => {
     expect(JSON.stringify(run?.settings)).toContain('check --hook');
     expect(run?.allowedTools.some((t) => t.startsWith('Bash(') && t.includes('check'))).toBe(true);
     const args = interactiveArgs(run);
-    expect(args.slice(0, 2)).toEqual(['--setting-sources', '']);
+    expect(args.slice(0, 3)).toEqual(['--setting-sources', '', '--disable-slash-commands']);
+    expect(args[args.indexOf('--tools') + 1]).toBe(run.tools.join(','));
+    expect(run.tools).not.toContain('Skill');
   });
 
   it('ревьюеры получают только копию плана: без context.md, сеть только у стадии 2', async () => {
@@ -215,6 +217,7 @@ describe('plan iter: сквозной прогон', () => {
       const args = headlessArgs(r);
       expect(args).toContain('--setting-sources');
       expect(args[args.indexOf('--setting-sources') + 1]).toBe('');
+      expect(args).toContain('--disable-slash-commands');
       expect(args).toContain('dontAsk');
     }
     if (r1b === undefined) throw new Error('нет прогона 1b');

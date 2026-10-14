@@ -1,7 +1,8 @@
 // Запуск Claude Code: интерактивная сессия планера и headless-прогоны.
 // Флаги задаются явно, на умолчания CLI не полагаемся: `--setting-sources ""`
 // отключает settings, hooks и CLAUDE.md пользователя и проекта (spike S1),
-// вход по подписке при этом работает (spike S2).
+// вход по подписке при этом работает (spike S2); `--disable-slash-commands`
+// отключает skills — модель в состоянии harness их не вызывает.
 
 import { spawn } from 'node:child_process';
 import { isRecord } from '../guards.ts';
@@ -16,6 +17,8 @@ export interface InteractiveRun {
   systemPrompt: string;
   /** Настройки одной сессии: Stop-hook и только он. */
   settings: object;
+  /** Встроенные инструменты, доступные планеру; остальных нет. */
+  tools: string[];
   allowedTools: string[];
   prompt: string;
 }
@@ -52,7 +55,7 @@ export interface ModelRunner {
   headless: (run: HeadlessRun) => Promise<HeadlessResult>;
 }
 
-const BASE = ['--setting-sources', ''];
+const BASE = ['--setting-sources', '', '--disable-slash-commands'];
 
 export function interactiveArgs(r: InteractiveRun): string[] {
   return [
@@ -68,6 +71,8 @@ export function interactiveArgs(r: InteractiveRun): string[] {
     r.systemPrompt,
     '--settings',
     JSON.stringify(r.settings),
+    '--tools',
+    r.tools.join(','),
     '--allowedTools',
     r.allowedTools.join(','),
     '--disallowedTools',
