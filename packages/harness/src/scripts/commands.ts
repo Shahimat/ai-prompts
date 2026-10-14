@@ -62,6 +62,8 @@ export const COMMAND_NODES: readonly CommandNode[] = [
     path: ['expect', 'report'],
     kind: 'command',
     effect: 'query',
+    effects: { html: 'mutation' },
+    options: '[--html <out>] [--file <path>]',
     run: (args) => runExpect('report', args),
   },
   {

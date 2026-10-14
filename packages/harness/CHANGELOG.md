@@ -4,6 +4,20 @@
 
 ## 0.4.0
 
+- План в форме ожиданий (`@shahimat/harness/expect`): `step(id, { title,
+  status, after, why }, body)` — шаг плана, его ожидания — DoD; `todo` не
+  запускается, `active` запускается без блокировки, `done` блокирует;
+  `done` раньше шагов из `after` и циклы шагов — нарушение плана.
+  `crit.todo` и `warn.todo` — ожидание с уровнем без проверки.
+  `machine(name, { initial, limits, states })` — автомат данными с
+  типами имён: `state`, `transition` и `whole` привязывают ожидания к
+  узлу, переходу и автомату, опечатка — ошибка typecheck. Зонды
+  `Graph.sameAs` (сверка с `harness.yaml`), `Graph.canReach`,
+  `Graph.onlyVia`.
+- `harness expect report --html <out> [--file <path>]` — HTML без сети и
+  без JS: схемы шагов и автоматов — SVG Graphviz (`@hpcc-js/wasm-graphviz`),
+  узел и переход ведут к карточке, цвет — статус ожиданий; новые,
+  изменённые и удалённые относительно HEAD ожидания отмечены.
 - CLI harness — под его именем: `harness <имя> start | open <id> | list
   | status <id> | validate | graph`; неймспейсы `plan` и `session`, а с
   ними `resume` и `retry`, убраны. id сессии — sha256, в выводе 7

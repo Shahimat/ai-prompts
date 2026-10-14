@@ -20,7 +20,29 @@ export {
   type SkillDoc,
 } from './repo.ts';
 export { dataFiles, expectSchema, frontmatters, schemaErrors, type Instance } from './schema.ts';
-export { budget, crit, expectAtMost, note, warn, type Budget, type Level } from './levels.ts';
+export {
+  budget,
+  crit,
+  expectAtMost,
+  note,
+  warn,
+  type Budget,
+  type Level,
+  type StepDef,
+} from './levels.ts';
+export {
+  Graph,
+  graphOf,
+  machine,
+  step,
+  type Machine,
+  type MachineGraph,
+  type MachineRef,
+  type MachineSpec,
+  type StepOptions,
+  type YamlMachine,
+} from './plan.ts';
+export { STEP_STATUSES, type StepStatus } from './scope.ts';
 export {
   allAnchors,
   anchorEvidence,

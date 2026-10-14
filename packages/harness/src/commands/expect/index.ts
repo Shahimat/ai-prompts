@@ -17,65 +17,30 @@ import {
 } from '#lib/expect/batch';
 import { readEvidence, shaOf } from '#lib/expect/evidence';
 import { COLLECT_ENV, idOf, isPendingItem, SEEN_ENV, type PendingItem } from '#lib/expect/judge';
-import { BUDGET_TITLE, LEVELS, type Budget, type Level } from '#lib/expect/levels';
-import { isOneOf, isRecord, isStringArray } from '#shared/guards';
+import { isRecord, isStringArray } from '#shared/guards';
 import { lintTitles, type Title } from '#lib/expect/lint';
 import { loadVerdicts, pruneStore, saveVerdicts, VERDICTS_PATH } from '#lib/expect/verdicts';
 import type { CommandArgs } from '#shared/args';
+import { headTitles } from './head.ts';
+import { renderHtml, type FileReport } from './html.ts';
+import {
+  budgetOf,
+  byFile,
+  fullName,
+  isPlannedTest,
+  isProgress,
+  machinesOf,
+  parseVitestReport,
+  stepIssues,
+  stepsOf,
+  visible,
+  type TestResult,
+} from './results.ts';
 
 export const EXPECT_CONFIG = 'expectations/vitest.config.ts';
 const JUDGE_DIR = 'expectations/.judge';
 
-const STATUSES = ['passed', 'failed', 'todo', 'skipped', 'pending', 'disabled'] as const;
-
-interface TestResult {
-  file: string;
-  path: string[];
-  title: string;
-  status: (typeof STATUSES)[number];
-  message: string;
-  level: Level;
-  notes: string[];
-  budget?: Budget;
-}
-
-const isBudget = (v: unknown): v is Budget =>
-  isRecord(v) && typeof v['crit'] === 'number' && typeof v['warn'] === 'number';
-
-function parseVitestReport(data: unknown, root: string): TestResult[] {
-  const fail = (what: string): never => {
-    throw new Error(`отчёт vitest: ${what}`);
-  };
-  if (!isRecord(data) || !Array.isArray(data['testResults'])) return fail('нет testResults');
-  return data['testResults'].flatMap((file: unknown) => {
-    if (!isRecord(file) || typeof file['name'] !== 'string') return fail('файл без name');
-    const name = file['name'];
-    if (!Array.isArray(file['assertionResults'])) return fail(`${name}: нет assertionResults`);
-    return file['assertionResults'].map((a: unknown) => {
-      if (!isRecord(a) || typeof a['title'] !== 'string') return fail(`${name}: тест без title`);
-      const { ancestorTitles, status, failureMessages } = a;
-      if (!isStringArray(ancestorTitles)) return fail(`${name}: ancestorTitles — не строки`);
-      if (!isOneOf(STATUSES, status)) return fail(`${name}: неизвестный статус ${String(status)}`);
-      if (!isStringArray(failureMessages)) return fail(`${name}: failureMessages — не строки`);
-      const meta = isRecord(a['meta']) ? a['meta'] : {};
-      const { level, notes, budget } = meta;
-      const result: TestResult = {
-        file: path.relative(root, name).split(path.sep).join('/'),
-        path: ancestorTitles,
-        title: a['title'],
-        status,
-        message: (failureMessages[0] ?? '').split('\n')[0] ?? '',
-        level: isOneOf(LEVELS, level) ? level : 'crit',
-        notes: isStringArray(notes) ? notes : [],
-      };
-      if (isBudget(budget)) result.budget = budget;
-      return result;
-    });
-  });
-}
-
-function runVitest(root: string, env: Record<string, string> = {}): TestResult[] {
-  if (!existsSync(path.join(root, EXPECT_CONFIG))) throw new UsageError(`нет ${EXPECT_CONFIG}`);
+function vitestBin(root: string): string {
   const require = createRequire(path.join(root, 'package.json'));
   let vitestPkg: string;
   try {
@@ -87,11 +52,20 @@ function runVitest(root: string, env: Record<string, string> = {}): TestResult[]
   const bins = isRecord(pkg) ? pkg['bin'] : undefined;
   const bin = isRecord(bins) ? bins['vitest'] : undefined;
   if (typeof bin !== 'string') throw new Error(`${vitestPkg}: нет bin.vitest`);
+  return path.join(path.dirname(vitestPkg), bin);
+}
+
+function runVitest(
+  root: string,
+  env: Record<string, string> = {},
+  extra: string[] = [],
+): TestResult[] {
+  if (!existsSync(path.join(root, EXPECT_CONFIG))) throw new UsageError(`нет ${EXPECT_CONFIG}`);
   const out = path.join(tmpdir(), `harness-expect-${process.pid}-${Date.now()}.json`);
   spawnSync(
     process.execPath,
     [
-      path.join(path.dirname(vitestPkg), bin),
+      vitestBin(root),
       'run',
       '--root',
       root,
@@ -99,6 +73,7 @@ function runVitest(root: string, env: Record<string, string> = {}): TestResult[]
       EXPECT_CONFIG,
       '--reporter=json',
       `--outputFile=${out}`,
+      ...extra,
     ],
     {
       cwd: root,
@@ -112,46 +87,60 @@ function runVitest(root: string, env: Record<string, string> = {}): TestResult[]
   return parseVitestReport(data, root);
 }
 
-const fullName = (t: { path: string[]; title: string }): string => [...t.path, t.title].join(' > ');
-
-function byFile(results: TestResult[]): Map<string, TestResult[]> {
-  const files = new Map<string, TestResult[]>();
-  for (const r of results) files.set(r.file, [...(files.get(r.file) ?? []), r]);
-  return files;
-}
+const NOTHING = '(?!)';
 
 const titlesSha = (tests: TestResult[]): string => shaOf(tests.map(fullName).sort().join('\n'));
 
 const isPending = (t: TestResult): boolean =>
   t.status === 'failed' && t.message.includes('нет свежего вердикта');
 
+function fileFilter(args: CommandArgs): string[] {
+  if (args.file === undefined) return [];
+  const rel = path.relative(args.root, path.resolve(args.root, args.file));
+  if (!existsSync(path.join(args.root, rel))) throw new UsageError(`нет файла ${args.file}`);
+  return [rel.split(path.sep).join('/')];
+}
+
+function stepLabels(tests: TestResult[]): Map<string, string> {
+  const labels = new Map<string, string>();
+  for (const t of tests)
+    if (t.stepDef !== undefined) labels.set(t.path.join('\u0000'), t.stepDef.status);
+  return labels;
+}
+
 async function report(args: CommandArgs): Promise<number> {
-  const all = runVitest(args.root);
+  const files = fileFilter(args);
+  const all = runVitest(args.root, {}, files);
   const store = await loadVerdicts();
   const titleIssues = lintTitles(
-    all
-      .filter((r) => r.title !== BUDGET_TITLE)
-      .map((r) => ({ file: r.file, path: r.path, title: r.title })),
+    visible(all).map((r) => ({ file: r.file, path: r.path, title: r.title })),
   );
   let blocked = false;
   let total = { tests: 0, crit: 0, warn: 0, info: 0, pending: 0 };
+  const reports: FileReport[] = [];
 
   for (const [file, tests] of byFile(all)) {
-    const budget: Budget = tests.find((t) => t.title === BUDGET_TITLE)?.budget ?? {
-      crit: 0,
-      warn: 0,
-    };
-    const items = tests.filter((t) => t.title !== BUDGET_TITLE);
+    const budget = budgetOf(tests);
+    const items = visible(tests);
+    const steps = stepsOf(tests);
+    const labels = stepLabels(tests);
+    const issues: string[] = [];
     const count = { crit: 0, warn: 0, info: 0, pending: 0 };
     console.log(file);
     let prev: string[] = [];
     for (const t of items) {
       t.path.forEach((p, i) => {
-        if (prev[i] !== p) console.log(`${'  '.repeat(i + 1)}${p}`);
+        if (prev[i] === p) return;
+        const status = labels.get(t.path.slice(0, i + 1).join('\u0000'));
+        console.log(`${'  '.repeat(i + 1)}${p}${status === undefined ? '' : ` · ${status}`}`);
       });
       prev = t.path;
       const pad = '  '.repeat(t.path.length + 1);
-      if (isPending(t)) {
+      if (isPlannedTest(t)) {
+        console.log(`${pad}○ ${t.level} ${t.title}`);
+      } else if (isProgress(t)) {
+        console.log(`${pad}◐ ${t.title}  — ${t.message} (шаг active)`);
+      } else if (isPending(t)) {
         count.pending++;
         console.log(`${pad}? ${t.title}  — нужен вердикт судьи`);
       } else if (t.status === 'failed') {
@@ -166,8 +155,14 @@ async function report(args: CommandArgs): Promise<number> {
       count.info += t.notes.length;
     }
 
+    for (const issue of stepIssues(steps, tests)) {
+      count.crit++;
+      issues.push(issue);
+      console.log(`  ✗ план: ${issue}`);
+    }
     for (const d of titleIssues.filter((i) => i.title.file === file)) {
       count[d.level]++;
+      issues.push(`заголовок «${d.title.title}» — ${d.message}`);
       console.log(
         `  ${d.level === 'crit' ? '✗' : '⚠'} заголовок «${d.title.title}» — ${d.message}`,
       );
@@ -178,10 +173,16 @@ async function report(args: CommandArgs): Promise<number> {
       console.log('  ? смысловая проверка заголовков устарела — harness expect judge');
     } else {
       const name = new Map(items.map((t) => [idOf(fullName(t)), t.title]));
-      for (const c of lint.contradictions)
-        console.log(`  ⚠ противоречие: «${name.get(c.a)}» ↔ «${name.get(c.b)}» — ${c.reason}`);
-      for (const u of lint.unmeasurable)
-        console.log(`  ⚠ неизмеримо: «${name.get(u.id)}» — ${u.reason}`);
+      for (const c of lint.contradictions) {
+        const line = `противоречие: «${name.get(c.a)}» ↔ «${name.get(c.b)}» — ${c.reason}`;
+        issues.push(line);
+        console.log(`  ⚠ ${line}`);
+      }
+      for (const u of lint.unmeasurable) {
+        const line = `неизмеримо: «${name.get(u.id)}» — ${u.reason}`;
+        issues.push(line);
+        console.log(`  ⚠ ${line}`);
+      }
       count.warn += lint.contradictions.length + lint.unmeasurable.length;
     }
 
@@ -198,17 +199,32 @@ async function report(args: CommandArgs): Promise<number> {
       info: total.info + count.info,
       pending: total.pending + count.pending,
     };
+    reports.push({ file, tests: items, steps, machines: machinesOf(tests), issues, budget, count });
   }
   console.log(
     `\nожиданий ${total.tests}: crit ${total.crit} · warn ${total.warn} · info ${total.info} · ? ${total.pending} — ${blocked ? 'бюджет превышен' : 'в бюджете'}`,
   );
+  if (args.html !== undefined) {
+    const out = path.resolve(args.root, args.html);
+    for (const r of reports) {
+      const head = headTitles(args.root, r.file, (rel) =>
+        visible(runVitest(args.root, {}, [rel, '-t', NOTHING])),
+      );
+      if (head !== undefined) r.head = head;
+    }
+    await mkdir(path.dirname(out), { recursive: true });
+    await writeFile(out, await renderHtml(reports), 'utf8');
+    console.log(`html: ${out}`);
+  }
   return blocked ? 1 : 0;
 }
 
 async function lint(args: CommandArgs): Promise<number> {
-  const titles: Title[] = runVitest(args.root)
-    .filter((r) => r.title !== BUDGET_TITLE)
-    .map((r) => ({ file: r.file, path: r.path, title: r.title }));
+  const titles: Title[] = visible(runVitest(args.root)).map((r) => ({
+    file: r.file,
+    path: r.path,
+    title: r.title,
+  }));
   const diags = lintTitles(titles);
   for (const d of diags)
     console.error(`${d.level} ${d.title.file}: «${d.title.title}» — ${d.message}`);
@@ -281,7 +297,7 @@ async function judgePrepare(args: CommandArgs): Promise<number> {
     console.log(`expect judge: удалено устаревших вердиктов ${removed}`);
   }
   for (const [file, all] of byFile(results)) {
-    const tests = all.filter((t) => t.title !== BUDGET_TITLE);
+    const tests = visible(all);
     const sha = titlesSha(tests);
     if (store.lint[file]?.titles === sha) continue;
     const n = plan.lint.length + 1;
