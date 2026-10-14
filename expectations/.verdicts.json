@@ -824,8 +824,14 @@
       "at": "2026-10-14"
     },
     "expectations/harness.expect.ts": {
-      "titles": "176176c70558cc8ffa2d22af678f40e2a0685e5ad0a53409b3698e4762400f50",
-      "contradictions": [],
+      "titles": "52f893b10a97304b3a84da53096745b2f849307e234ac5055854194135339bc7",
+      "contradictions": [
+        {
+          "a": "1af9555bff3c",
+          "b": "52c1cc120aa0",
+          "reason": "1af9555bff3c требует процесс plan_iter с командами plan и session, но раздела [harness] plan_iter среди ожиданий нет; по 52c1cc120aa0 команды вне разделов [harness] <процесс> запрещены, значит plan и session существовать не могут"
+        }
+      ],
       "unmeasurable": [],
       "at": "2026-10-14"
     },

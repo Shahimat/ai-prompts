@@ -8,14 +8,25 @@ import {
   buildContextIndex,
   COMMANDS,
   computeSync,
+  createSession,
   DELTA_SCHEMA,
   DEFAULT_CHANGELOG,
+  findCommand,
+  headlessArgs,
+  interactiveArgs,
   KNOWN_ADAPTERS,
   KNOWN_CHECKS,
+  loadHarness,
   parseConfig,
+  planIo,
+  plannerTools,
   renderUsage,
+  REVIEW_TOOLS,
   runOutdated,
+  selfCommand,
+  splitWords,
   UsageError,
+  type PlanContext,
 } from '@shahimat/harness';
 import {
   applyAnswers,
@@ -29,7 +40,14 @@ import {
   repoRoot,
   warn,
 } from '@shahimat/harness/expect';
-import { at, parseJson, recordOrEmpty, stringAt } from './shared/guards.ts';
+import {
+  at,
+  parseJson,
+  recordOrEmpty,
+  stringAt,
+  stringList,
+  unknownList,
+} from './shared/guards.ts';
 
 budget({ crit: 0, warn: 0 });
 
@@ -63,11 +81,6 @@ describe('[harness] common', () => {
   );
   crit('справка CLI строится из декларативного дерева команд', () => Check.commandTree());
   crit('ошибка конфига называет путь до поля', () => Check.configErrorPath());
-  crit('слои пакета зависят в одну сторону: cli → commands → ядро', () => Check.layers());
-  crit(
-    'проверки ничего не пишут в проект: файлы пишут только генерация (adapters sync, context index, index build, expect init | judge, delta close) и session clone из plan_iter',
-    () => Check.checksReadOnly(),
-  );
   warn('итог прогона считает код по бюджету и ответам модели, а не модель', () =>
     Check.verdictByCode(),
   );
@@ -82,6 +95,52 @@ describe('[harness] common', () => {
   it.todo(
     'дополнения проекта и пользователя подключаются из конфига динамическим import, без форка пакета',
   );
+});
+
+describe('[harness] layers', () => {
+  crit(
+    'слои пакета: shared → lib → commands → scripts → harness; импорт только вниз по слоям',
+    () => Layers.downward(),
+  );
+  crit('команда не импортирует другие команды, скрипты и harness', () => Layers.commandsIsolated());
+  crit('внутренний модуль команды или harness импортируется только из своего скоупа', () =>
+    Layers.scopes(),
+  );
+  crit('harness не импортирует другие harness', () => Layers.harnessIsolated());
+  crit(
+    'ядро автомата (fsm, runner, store, registry) не зависит ни от одного конкретного harness',
+    () => Layers.coreIndependent(),
+  );
+  crit('каждый модуль shared импортируют хотя бы два слайса', () => Layers.sharedReused());
+  crit(
+    'скрипт — только последовательность команд или алиасов одной команды, без своей логики',
+    () => Layers.scriptsAreSequences(),
+  );
+  crit('каждый узел дерева CLI объявляет вид: command, script или harness', () =>
+    Layers.nodeKinds(),
+  );
+  crit(
+    'каждая команда объявляет эффект: query или mutation; эффект скрипта выводится из его команд',
+    () => Layers.effects(),
+  );
+  crit(
+    'query-команда не меняет ни одного файла, кроме кэша, адресованного по содержимому и не лежащего в git',
+    () => Layers.queryReadOnly(),
+  );
+  crit('CI запускает один скрипт ci, и все его команды — query', () => Layers.ciQuery());
+  crit(
+    'модель в состоянии harness получает в Bash только query-команды и не получает инструмента Skill',
+    () => Layers.stateTools(),
+  );
+  crit('проверка JSON Schema в пакете — одна функция в shared', () => Layers.oneSchemaCheck());
+  crit('скрипт package.json не вызывает скрипт, который сам агрегирует несколько команд', () =>
+    Layers.npmScriptsFlat(),
+  );
+  // Миграция skills — отдельный тикет.
+  it.todo(
+    'skill либо объявляет metadata.runs — ровно один скрипт или harness, либо ничего не запускает',
+  );
+  it.todo('skill запускает только то, что объявлено в metadata.runs');
 });
 
 describe('[harness] check', () => {
@@ -105,6 +164,10 @@ describe('[harness] context', () => {
   crit('команда harness context index — генерация context/index.yml из слоёв документации', () =>
     Check.commands(['context index']),
   );
+  crit(
+    'команда harness context check — сверка context/index.yml со слоями документации без записи',
+    () => Check.commands(['context check']),
+  );
   warn('context/index.yml генерируется harness context index и не содержит даты генерации', () =>
     Check.contextIndexNoDate(),
   );
@@ -114,6 +177,10 @@ describe('[harness] adapters', () => {
   crit(
     'команда harness adapters sync — файлы под Claude Code и Codex из AGENTS.md и .agents/',
     () => Check.commands(['adapters sync']),
+  );
+  crit(
+    'команда harness adapters check — сверка файлов адаптеров с AGENTS.md и .agents/ без записи',
+    () => Check.commands(['adapters check']),
   );
   crit('адаптеры под инструменты: claude-code и codex — других нет', () => Check.adapters());
   crit('adapters sync не меняет и не удаляет файлы без метки harness', () => Check.adaptersSafe());
@@ -221,16 +288,17 @@ async function tempDir(): Promise<string> {
 }
 
 /** Содержимое всех файлов каталога: путь → текст. */
-async function snapshot(dir: string): Promise<Record<string, string>> {
-  const files = (await readdir(dir, { recursive: true, withFileTypes: true })).filter((e) =>
-    e.isFile(),
-  );
+async function snapshot(
+  dir: string,
+  skip: (rel: string) => boolean = () => false,
+): Promise<Record<string, string>> {
+  const files = (await readdir(dir, { recursive: true, withFileTypes: true }))
+    .filter((e) => e.isFile())
+    .map((e) => path.join(e.parentPath, e.name))
+    .filter((file) => !skip(path.relative(dir, file).split(path.sep).join('/')));
   return Object.fromEntries(
     await Promise.all(
-      files.map(async (e) => {
-        const file = path.join(e.parentPath, e.name);
-        return [path.relative(dir, file), await readFile(file, 'utf8')] as const;
-      }),
+      files.map(async (file) => [path.relative(dir, file), await readFile(file, 'utf8')] as const),
     ),
   );
 }
@@ -294,10 +362,6 @@ async function withSecretProject(
 const cliOut = (args: string[], cwd = repoRoot()) =>
   spawnSync(process.execPath, [BIN(), ...args], { cwd, encoding: 'utf8' });
 
-/** Слой файла пакета: 0 — cli, 1 — commands, 2 — ядро. */
-const layerOf = (file: string): number =>
-  file === 'cli.ts' || file === 'bin.ts' ? 0 : file.startsWith('commands/') ? 1 : 2;
-
 /** Команды из дерева CLI: `check`, `adapters sync`, `expect init`, … */
 async function usageCommands(): Promise<string[]> {
   return COMMANDS.map((c) => c.path.join(' '));
@@ -307,7 +371,9 @@ const DECLARED_COMMANDS = [
   'check',
   'changelog lint',
   'context index',
+  'context check',
   'adapters sync',
+  'adapters check',
   'expect init',
   'expect report',
   'expect lint',
@@ -550,42 +616,6 @@ class Check {
     expect(() => parseConfig('checks:\n  changelog:\n    bogus: 1\n')).toThrow('checks.changelog');
   }
 
-  static async layers(): Promise<void> {
-    const src = path.join(repoRoot(), PKG, 'src');
-    // index.ts — фасад пакета: экспортирует все слои.
-    const files = (await readdir(src, { recursive: true }))
-      .map((f) => f.split(path.sep).join('/'))
-      .filter((f) => f.endsWith('.ts') && f !== 'index.ts');
-    const upward: string[] = [];
-    for (const file of files) {
-      for (const m of (await readRepo(`${PKG}/src/${file}`)).matchAll(/from '(\.[^']+)'/g)) {
-        const target = path.posix.normalize(path.posix.join(path.posix.dirname(file), m[1] ?? ''));
-        if (layerOf(target) < layerOf(file)) upward.push(`${file} → ${target}`);
-      }
-    }
-    expect(files.length).toBeGreaterThan(10);
-    expect(upward).toEqual([]);
-  }
-
-  static async checksReadOnly(): Promise<void> {
-    const dir = await tempDir();
-    try {
-      await writeFile(path.join(dir, 'AGENTS.md'), '# x\n');
-      await writeFile(path.join(dir, 'CHANGELOG.md'), '- 2026-10-14 · без тега · b\n');
-      await mkdir(path.join(dir, 'context'));
-      await writeFile(
-        path.join(dir, 'context/harness.yml'),
-        'adapters: [claude-code, codex]\nchecks:\n  changelog: {}\n  context-index: {}\n  adapters: {}\n',
-      );
-      const before = await snapshot(dir);
-      expect(cli(['check', '--root', dir])).toBe(1);
-      expect(cli(['changelog', 'lint', '--root', dir])).toBe(1);
-      expect(await snapshot(dir)).toEqual(before);
-    } finally {
-      await rm(dir, { recursive: true, force: true });
-    }
-  }
-
   // модели
   static verdictByCode = (): Promise<void> => judged(['@verdict-by-code']);
 
@@ -645,8 +675,9 @@ class Check {
 
   static async ciWithoutLlm(): Promise<void> {
     const ci = await readRepo('.github/workflows/check-index.yml');
-    expect(ci).toContain('run: npm run expect');
-    expect(ci).not.toMatch(/secrets\.|ANTHROPIC|OPENAI|expect:judge/);
+    const leaves = await npmLeaves(ciRuns(ci));
+    expect(leaves.some((l) => /bin\.js expect report/.test(l))).toBe(true);
+    expect([ci, ...leaves].join('\n')).not.toMatch(/secrets\.|ANTHROPIC|OPENAI|expect judge/);
   }
 
   static async anchorsOnly(): Promise<void> {
@@ -786,5 +817,403 @@ class Check {
       console.log = log;
       await rm(dir, { recursive: true, force: true });
     }
+  }
+}
+
+// ─────────────────────────────── слои ───────────────────────────────
+
+const LAYERS = ['shared', 'lib', 'commands', 'scripts', 'harness', 'app'] as const;
+type Layer = (typeof LAYERS)[number];
+/** Файлы верхнего слоя: точка входа, оболочка, дерево CLI и фасад пакета. */
+const APP_FILES = ['bin.ts', 'cli.ts', 'index.ts', 'tree.ts', 'shell.ts'];
+const FACADE = 'index.ts';
+
+/** Слой файла `src/`; undefined — файл вне слоёв. */
+function layerOf(file: string): Layer | undefined {
+  if (APP_FILES.includes(file)) return 'app';
+  const [head = '', ...rest] = file.split('/');
+  // В корне слоя harness — только каталог harness/index.ts, остальное — в слайсах.
+  if (head === 'harness' && rest.length === 1 && rest[0] !== 'index.ts') return undefined;
+  return LAYERS.find((l) => l === head && l !== 'app' && rest.length > 0);
+}
+
+/** Слайс: `commands/<x>`, `harness/<x>`, `harness/core`, каталог `harness` или слой целиком. */
+function sliceOf(file: string): string {
+  const parts = file.split('/');
+  if ((parts[0] === 'commands' || parts[0] === 'harness') && parts.length > 2)
+    return `${parts[0]}/${parts[1] ?? ''}`;
+  return layerOf(file) ?? file;
+}
+
+/** Публичный модуль слайса команды или harness — его `index.ts`. */
+const isPublic = (file: string): boolean =>
+  file.endsWith('/index.ts') && file.split('/').length === 3;
+
+const rank = (file: string): number => LAYERS.indexOf(layerOf(file) ?? 'app');
+
+async function srcFiles(): Promise<string[]> {
+  return (await readdir(path.join(repoRoot(), PKG, 'src'), { recursive: true }))
+    .map((f) => f.split(path.sep).join('/'))
+    .filter((f) => f.endsWith('.ts'));
+}
+
+/** Относительные импорты файла `src/`: статические, реэкспорты и `import('…')`. */
+async function importsOf(file: string): Promise<string[]> {
+  const text = await readRepo(`${PKG}/src/${file}`);
+  return [...text.matchAll(/(?:from |import\()'(\.[^']+)'/g)].map((m) =>
+    path.posix.normalize(path.posix.join(path.posix.dirname(file), m[1] ?? '')),
+  );
+}
+
+/** Нарушения правила по всем импортам `src/`: `файл → цель`. */
+async function violations(bad: (file: string, target: string) => boolean): Promise<string[]> {
+  const out: string[] = [];
+  for (const file of await srcFiles())
+    for (const target of await importsOf(file))
+      if (bad(file, target)) out.push(`${file} → ${target}`);
+  return out;
+}
+
+const node = (words: readonly string[]): unknown => findCommand(words)?.command;
+const kindOf = (n: unknown): unknown => at(n, 'kind');
+const effectOf = (n: unknown): unknown => at(n, 'effect');
+const isEffect = (v: unknown): boolean => v === 'query' || v === 'mutation';
+const label = (n: unknown): string => stringList(at(n, 'path'), 'path').join(' ');
+
+/** `run:` шагов CI, кроме установки зависимостей. */
+const ciRuns = (workflow: string): string[] =>
+  [...workflow.matchAll(/^\s*run: (.+)$/gm)]
+    .map((m) => (m[1] ?? '').trim())
+    .filter((r) => r !== 'npm ci');
+
+interface NpmScripts {
+  name: string;
+  scripts: Record<string, string>;
+}
+
+async function readNpmScripts(rel: string): Promise<NpmScripts> {
+  const pkg = parseJson(await readRepo(rel));
+  const scripts = recordOrEmpty(at(pkg, 'scripts'), `${rel}: scripts`);
+  return {
+    name: stringAt(pkg, 'name'),
+    scripts: Object.fromEntries(
+      Object.entries(scripts).map(([k, v]) => [k, typeof v === 'string' ? v : '']),
+    ),
+  };
+}
+
+async function npmPackages(): Promise<{ root: NpmScripts; workspaces: NpmScripts[] }> {
+  const dirs = await readdir(path.join(repoRoot(), 'harness/packages'));
+  return {
+    root: await readNpmScripts('package.json'),
+    workspaces: await Promise.all(
+      dirs.map((d) => readNpmScripts(`harness/packages/${d}/package.json`)),
+    ),
+  };
+}
+
+/** Ссылка на npm-скрипт: `npm run x [-w pkg]`, `npm test [-w pkg]`. */
+function npmRef(part: string): { script: string; workspace?: string } | undefined {
+  const m = /^npm (?:run (\S+)|(test))(?: -w (\S+))?$/.exec(part.trim());
+  if (m === null) return undefined;
+  const script = m[1] ?? m[2] ?? '';
+  return m[3] === undefined ? { script } : { script, workspace: m[3] };
+}
+
+const partsOf = (script: string): string[] => script.split('&&').map((p) => p.trim());
+
+/** Конечные команды за шагами CI: ссылки на npm-скрипты раскрыты. */
+async function npmLeaves(runs: string[]): Promise<string[]> {
+  const { root, workspaces } = await npmPackages();
+  const expand = (part: string, pkg: NpmScripts, seen: string[]): string[] => {
+    const ref = npmRef(part);
+    if (ref === undefined) return [part];
+    const target =
+      ref.workspace === undefined ? pkg : workspaces.find((w) => w.name === ref.workspace);
+    const body = target?.scripts[ref.script];
+    const key = `${target?.name ?? '?'}:${ref.script}`;
+    if (target === undefined || body === undefined || seen.includes(key)) return [part];
+    return partsOf(body).flatMap((p) => expand(p, target, [...seen, key]));
+  };
+  return runs.flatMap((r) => partsOf(r).flatMap((p) => expand(p, root, [])));
+}
+
+/** Путь команды harness в строке вызова: `node …/bin.js index check --raw-base x`. */
+function harnessWords(line: string): string[] | undefined {
+  const words = splitWords(line);
+  const start = words.findIndex((w) => /(^|\/)(bin\.js|harness)$/.test(w));
+  if (start < 0) return undefined;
+  const rest = words.slice(start + 1);
+  const end = rest.findIndex((w) => w.startsWith('--'));
+  return end < 0 ? rest : rest.slice(0, end);
+}
+
+const PLAN_SAMPLE =
+  '---\nharness: plan/iter\nsession: s\nstatus: draft\nrevision: 1\n---\n# План\n\n## Цель\n\nцель\n\n## Пункты\n\n### T1. Пункт\n\n- Тип: task\n- Зависит от: —\n- Мотивация: м\n- DoD:\n  - [ ] д\n';
+
+class Layers {
+  static async downward(): Promise<void> {
+    const files = await srcFiles();
+    expect(files.filter((f) => layerOf(f) === undefined)).toEqual([]);
+    expect(LAYERS.filter((l) => !files.some((f) => layerOf(f) === l))).toEqual([]);
+    expect(await violations((f, t) => rank(t) > rank(f))).toEqual([]);
+  }
+
+  static async commandsIsolated(): Promise<void> {
+    expect(
+      await violations(
+        (f, t) =>
+          layerOf(f) === 'commands' &&
+          (layerOf(t) === 'scripts' ||
+            layerOf(t) === 'harness' ||
+            (layerOf(t) === 'commands' && sliceOf(t) !== sliceOf(f))),
+      ),
+    ).toEqual([]);
+  }
+
+  static async scopes(): Promise<void> {
+    expect(
+      await violations(
+        (f, t) =>
+          (layerOf(t) === 'commands' || layerOf(t) === 'harness') &&
+          sliceOf(t) !== sliceOf(f) &&
+          t !== 'harness/index.ts' &&
+          !isPublic(t),
+      ),
+    ).toEqual([]);
+  }
+
+  static async harnessIsolated(): Promise<void> {
+    const own = (s: string): boolean => s.startsWith('harness/') && s !== 'harness/core';
+    expect(
+      await violations(
+        (f, t) =>
+          own(sliceOf(f)) &&
+          (t === 'harness/index.ts' || (own(sliceOf(t)) && sliceOf(t) !== sliceOf(f))),
+      ),
+    ).toEqual([]);
+  }
+
+  static async coreIndependent(): Promise<void> {
+    const files = await srcFiles();
+    expect(files.filter((f) => sliceOf(f) === 'harness/core').length).toBeGreaterThan(3);
+    expect(
+      await violations(
+        (f, t) =>
+          sliceOf(f) === 'harness/core' &&
+          layerOf(t) === 'harness' &&
+          sliceOf(t) !== 'harness/core',
+      ),
+    ).toEqual([]);
+  }
+
+  static async sharedReused(): Promise<void> {
+    const users = new Map<string, Set<string>>();
+    for (const file of await srcFiles()) {
+      if (layerOf(file) === 'shared') users.set(file, users.get(file) ?? new Set());
+      if (layerOf(file) === 'shared' || file === FACADE) continue;
+      for (const t of await importsOf(file))
+        if (layerOf(t) === 'shared') users.set(t, (users.get(t) ?? new Set()).add(sliceOf(file)));
+    }
+    expect(users.size).toBeGreaterThan(0);
+    expect(
+      [...users].filter(([, s]) => s.size < 2).map(([f, s]) => `${f}: ${[...s].join(', ')}`),
+    ).toEqual([]);
+  }
+
+  static async scriptsAreSequences(): Promise<void> {
+    const scripts = COMMANDS.filter((n) => kindOf(n) === 'script');
+    expect(scripts.map(label)).toContain('check');
+    const bad: string[] = [];
+    for (const s of scripts) {
+      const steps = unknownList(at(s, 'steps'), `${label(s)}: steps`);
+      if (steps.length === 0) bad.push(`${label(s)}: нет шагов`);
+      for (const step of steps) {
+        const command = stringList(at(step, 'command'), `${label(s)}: steps.command`);
+        const extra = Object.keys(recordOrEmpty(step, 'step')).filter(
+          (k) => k !== 'command' && k !== 'enabledBy',
+        );
+        if (kindOf(node(command)) !== 'command')
+          bad.push(`${label(s)}: ${command.join(' ')} — не команда`);
+        if (extra.length > 0) bad.push(`${label(s)}: лишние поля шага ${extra.join(', ')}`);
+      }
+    }
+    // Объявления скриптов — данные; исполняет их один общий модуль scripts/run.ts.
+    const declarations = (await srcFiles()).filter(
+      (f) => layerOf(f) === 'scripts' && f !== 'scripts/run.ts',
+    );
+    for (const f of declarations)
+      if (/=>|\bfunction\b|\bif\s*\(|\bfor\s*\(|\bawait\b/.test(await readRepo(`${PKG}/src/${f}`)))
+        bad.push(`${f}: логика в объявлении скрипта`);
+    expect(bad).toEqual([]);
+  }
+
+  static nodeKinds(): void {
+    const kinds: unknown[] = ['command', 'script', 'harness'];
+    expect(COMMANDS.filter((n) => !kinds.includes(kindOf(n))).map(label)).toEqual([]);
+  }
+
+  static effects(): void {
+    const bad: string[] = [];
+    for (const n of COMMANDS) {
+      if (kindOf(n) !== 'script') {
+        if (!isEffect(effectOf(n))) bad.push(`${label(n)}: нет эффекта`);
+        continue;
+      }
+      if (effectOf(n) !== undefined) bad.push(`${label(n)}: эффект скрипта объявлен, а не выведен`);
+      for (const step of unknownList(at(n, 'steps'), 'steps')) {
+        const command = stringList(at(step, 'command'), 'steps.command');
+        if (!isEffect(effectOf(node(command))))
+          bad.push(`${label(n)}: у шага ${command.join(' ')} нет эффекта`);
+      }
+    }
+    expect(bad).toEqual([]);
+  }
+
+  static async queryReadOnly(): Promise<void> {
+    await withGitProject(async (dir) => {
+      const home = await tempDir();
+      try {
+        await writeFile(path.join(dir, 'AGENTS.md'), '# x\n');
+        await writeFile(path.join(dir, 'CHANGELOG.md'), '- 2026-10-14 · без тега · b\n');
+        await writeFile(
+          path.join(dir, 'context/harness.yml'),
+          'adapters: [claude-code, codex]\nchecks:\n  changelog: {}\n  context-index: {}\n  adapters: {}\n',
+        );
+        const session = await createSession(home, {
+          harness: 'plan/iter',
+          title: 'демо',
+          request: 'запрос',
+          project: dir,
+          initial: 'awaiting_user',
+          now: new Date(),
+        });
+        await writeFile(path.join(session.dir, 'plan.md'), PLAN_SAMPLE);
+        // Свежий plan.html: read не пересобирает его, а только открывает.
+        expect(cli(['session', session.id, 'render', '--home', home])).toBe(0);
+
+        const query = COMMANDS.filter((n) => effectOf(n) === 'query');
+        expect(query.length).toBeGreaterThan(10);
+        const notGit = (rel: string): boolean => rel === '.git' || rel.startsWith('.git/');
+        const before = [await snapshot(dir, notGit), await snapshot(home)];
+        for (const n of query) {
+          const words = stringList(at(n, 'path'), 'path').map((seg) =>
+            seg === '<harness>' ? 'iter' : seg === '<session>' ? session.id : seg,
+          );
+          const args = ['--root', dir, '--home', home, '--raw-base', 'https://example.invalid'];
+          // BROWSER — сам Node: session read «открывает» HTML без браузера.
+          spawnSync(process.execPath, [BIN(), ...words, ...args], {
+            cwd: dir,
+            encoding: 'utf8',
+            env: { ...process.env, BROWSER: process.execPath },
+          });
+        }
+        expect([await snapshot(dir, notGit), await snapshot(home)]).toEqual(before);
+      } finally {
+        await rm(home, { recursive: true, force: true });
+      }
+    });
+  }
+
+  static async ciQuery(): Promise<void> {
+    const runs = ciRuns(await readRepo('.github/workflows/check-index.yml'));
+    expect(runs).toEqual(['npm run ci']);
+    const bad: string[] = [];
+    for (const leaf of await npmLeaves(runs)) {
+      const words = harnessWords(leaf);
+      if (words !== undefined && effectOf(node(words)) !== 'query') bad.push(`${leaf}: не query`);
+      if (/--write\b/.test(leaf)) bad.push(`${leaf}: пишет файлы проекта`);
+    }
+    expect(bad).toEqual([]);
+  }
+
+  static async stateTools(): Promise<void> {
+    const home = await tempDir();
+    try {
+      const session = await createSession(home, {
+        harness: 'plan/iter',
+        title: 'демо',
+        request: 'запрос',
+        project: home,
+        initial: 'draft',
+        now: new Date(),
+      });
+      const { harness } = await loadHarness(home, 'plan/iter');
+      if (harness === undefined) throw new Error('plan/iter не загрузился');
+      const ctx: PlanContext = {
+        session,
+        home,
+        def: harness.def,
+        criteria: harness.criteria,
+        runner: planIo.runner(),
+        prompter: planIo.prompter(),
+        self: selfCommand(),
+      };
+      const planner = plannerTools(ctx);
+      const bash = planner.allowed.flatMap((r) => /^Bash\((.*)\)$/.exec(r)?.[1] ?? []);
+      expect(bash.length).toBeGreaterThan(0);
+      expect(bash.filter((cmd) => effectOf(node(harnessWords(cmd) ?? [])) !== 'query')).toEqual([]);
+
+      const toolsOf = (args: string[]): string[] =>
+        (args[args.indexOf('--tools') + 1] ?? '').split(',');
+      const interactive = interactiveArgs({
+        cwd: home,
+        model: 'opus',
+        sessionId: 's',
+        name: 'n',
+        addDirs: [],
+        systemPrompt: '',
+        settings: {},
+        allowedTools: planner.allowed,
+        prompt: '',
+      });
+      const headless = [planner.tools, ...Object.values(REVIEW_TOOLS)].map((tools) =>
+        headlessArgs({
+          cwd: home,
+          model: 'opus',
+          addDirs: [],
+          systemPrompt: '',
+          tools,
+          allowedTools: [],
+          prompt: '',
+          persist: false,
+          maxTurns: 1,
+        }),
+      );
+      for (const args of [interactive, ...headless]) {
+        expect(args).toContain('--disable-slash-commands');
+        expect(args).toContain('--tools');
+        expect(toolsOf(args)).not.toContain('Skill');
+      }
+      for (const tools of Object.values(REVIEW_TOOLS)) expect(tools).not.toContain('Bash');
+    } finally {
+      await rm(home, { recursive: true, force: true });
+    }
+  }
+
+  static async oneSchemaCheck(): Promise<void> {
+    const users: string[] = [];
+    for (const f of await srcFiles())
+      if (/from 'ajv(?:\/[^']*)?'/.test(await readRepo(`${PKG}/src/${f}`))) users.push(f);
+    expect(users).toEqual(['shared/schema.ts']);
+  }
+
+  static async npmScriptsFlat(): Promise<void> {
+    const { root, workspaces } = await npmPackages();
+    const bad: string[] = [];
+    for (const pkg of [root, ...workspaces])
+      for (const [name, body] of Object.entries(pkg.scripts)) {
+        if (partsOf(body).length < 2) continue;
+        for (const p of partsOf(body)) {
+          const ref = npmRef(p);
+          if (ref === undefined) continue;
+          const target =
+            ref.workspace === undefined ? pkg : workspaces.find((w) => w.name === ref.workspace);
+          const referenced = target?.scripts[ref.script];
+          if (referenced !== undefined && partsOf(referenced).length > 1)
+            bad.push(`${pkg.name}: ${name} → ${target?.name ?? ''}:${ref.script}`);
+        }
+      }
+    expect(bad).toEqual([]);
   }
 }
