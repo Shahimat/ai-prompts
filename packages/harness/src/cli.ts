@@ -15,6 +15,7 @@ export async function main(argv: string[], now: Date = new Date()): Promise<numb
       out: { type: 'string' },
       file: { type: 'string' },
       html: { type: 'string' },
+      port: { type: 'string' },
       'raw-base': { type: 'string' },
       apply: { type: 'boolean' },
       home: { type: 'string' },
@@ -32,6 +33,7 @@ export async function main(argv: string[], now: Date = new Date()): Promise<numb
   if (values.out !== undefined) args.out = values.out;
   if (values.file !== undefined) args.file = values.file;
   if (values.html !== undefined) args.html = values.html;
+  if (values.port !== undefined) args.port = values.port;
   if (values['raw-base'] !== undefined) args.rawBase = values['raw-base'];
   if (values.apply === true) args.apply = true;
   if (values.home !== undefined) args.home = values.home;

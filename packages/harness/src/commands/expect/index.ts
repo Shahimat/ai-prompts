@@ -22,6 +22,7 @@ import { lintTitles, type Title } from '#lib/expect/lint';
 import { loadVerdicts, pruneStore, saveVerdicts, VERDICTS_PATH } from '#lib/expect/verdicts';
 import type { CommandArgs } from '#shared/args';
 import { headTitles } from './head.ts';
+import { portOf, serveHtml } from './serve.ts';
 import { renderHtml, type FileReport } from './html.ts';
 import {
   budgetOf,
@@ -108,7 +109,10 @@ function stepLabels(tests: TestResult[]): Map<string, string> {
   return labels;
 }
 
-async function report(args: CommandArgs): Promise<number> {
+async function collect(
+  args: CommandArgs,
+  log: (line: string) => void,
+): Promise<{ reports: FileReport[]; blocked: boolean }> {
   const files = fileFilter(args);
   const all = runVitest(args.root, {}, files);
   const store = await loadVerdicts();
@@ -126,69 +130,65 @@ async function report(args: CommandArgs): Promise<number> {
     const labels = stepLabels(tests);
     const issues: string[] = [];
     const count = { crit: 0, warn: 0, info: 0, pending: 0 };
-    console.log(file);
+    log(file);
     let prev: string[] = [];
     for (const t of items) {
       t.path.forEach((p, i) => {
         if (prev[i] === p) return;
         const status = labels.get(t.path.slice(0, i + 1).join('\u0000'));
-        console.log(`${'  '.repeat(i + 1)}${p}${status === undefined ? '' : ` · ${status}`}`);
+        log(`${'  '.repeat(i + 1)}${p}${status === undefined ? '' : ` · ${status}`}`);
       });
       prev = t.path;
       const pad = '  '.repeat(t.path.length + 1);
       if (isPlannedTest(t)) {
-        console.log(`${pad}○ ${t.level} ${t.title}`);
+        log(`${pad}○ ${t.level} ${t.title}`);
       } else if (isProgress(t)) {
-        console.log(`${pad}◐ ${t.title}  — ${t.message} (шаг active)`);
+        log(`${pad}◐ ${t.title}  — ${t.message} (шаг active)`);
       } else if (isPending(t)) {
         count.pending++;
-        console.log(`${pad}? ${t.title}  — нужен вердикт судьи`);
+        log(`${pad}? ${t.title}  — нужен вердикт судьи`);
       } else if (t.status === 'failed') {
         count[t.level === 'warn' ? 'warn' : 'crit']++;
-        console.log(`${pad}${t.level === 'warn' ? '⚠' : '✗'} ${t.title}  — ${t.message}`);
+        log(`${pad}${t.level === 'warn' ? '⚠' : '✗'} ${t.title}  — ${t.message}`);
       } else {
-        console.log(
-          `${pad}${t.status === 'todo' ? '○' : t.status === 'passed' ? '✓' : '-'} ${t.title}`,
-        );
+        log(`${pad}${t.status === 'todo' ? '○' : t.status === 'passed' ? '✓' : '-'} ${t.title}`);
       }
-      for (const n of t.notes) console.log(`${pad}  ℹ ${n}`);
+      for (const n of t.notes) log(`${pad}  ℹ ${n}`);
       count.info += t.notes.length;
     }
 
     for (const issue of stepIssues(steps, tests)) {
       count.crit++;
       issues.push(issue);
-      console.log(`  ✗ план: ${issue}`);
+      log(`  ✗ план: ${issue}`);
     }
     for (const d of titleIssues.filter((i) => i.title.file === file)) {
       count[d.level]++;
       issues.push(`заголовок «${d.title.title}» — ${d.message}`);
-      console.log(
-        `  ${d.level === 'crit' ? '✗' : '⚠'} заголовок «${d.title.title}» — ${d.message}`,
-      );
+      log(`  ${d.level === 'crit' ? '✗' : '⚠'} заголовок «${d.title.title}» — ${d.message}`);
     }
     const lint = store.lint[file];
     if (lint === undefined || lint.titles !== titlesSha(items)) {
       count.pending++;
-      console.log('  ? смысловая проверка заголовков устарела — harness expect judge');
+      log('  ? смысловая проверка заголовков устарела — harness expect judge');
     } else {
       const name = new Map(items.map((t) => [idOf(fullName(t)), t.title]));
       for (const c of lint.contradictions) {
         const line = `противоречие: «${name.get(c.a)}» ↔ «${name.get(c.b)}» — ${c.reason}`;
         issues.push(line);
-        console.log(`  ⚠ ${line}`);
+        log(`  ⚠ ${line}`);
       }
       for (const u of lint.unmeasurable) {
         const line = `неизмеримо: «${name.get(u.id)}» — ${u.reason}`;
         issues.push(line);
-        console.log(`  ⚠ ${line}`);
+        log(`  ⚠ ${line}`);
       }
       count.warn += lint.contradictions.length + lint.unmeasurable.length;
     }
 
     const over = count.crit > budget.crit || count.warn > budget.warn || count.pending > 0;
     blocked ||= over;
-    console.log(
+    log(
       `  ${over ? '✗' : '✓'} crit ${count.crit}/${budget.crit} · warn ${count.warn}/${budget.warn} · info ${count.info}` +
         (count.pending > 0 ? ` · ? ${count.pending} без вердикта` : ''),
     );
@@ -201,22 +201,44 @@ async function report(args: CommandArgs): Promise<number> {
     };
     reports.push({ file, tests: items, steps, machines: machinesOf(tests), issues, budget, count });
   }
-  console.log(
+  log(
     `\nожиданий ${total.tests}: crit ${total.crit} · warn ${total.warn} · info ${total.info} · ? ${total.pending} — ${blocked ? 'бюджет превышен' : 'в бюджете'}`,
   );
+  return { reports, blocked };
+}
+
+async function pageHtml(args: CommandArgs, reports: FileReport[]): Promise<string> {
+  for (const r of reports) {
+    const head = headTitles(args.root, r.file, (rel) =>
+      visible(runVitest(args.root, {}, [rel, '-t', NOTHING])),
+    );
+    if (head !== undefined) r.head = head;
+  }
+  return renderHtml(reports);
+}
+
+async function report(args: CommandArgs): Promise<number> {
+  const { reports, blocked } = await collect(args, (line) => {
+    console.log(line);
+  });
   if (args.html !== undefined) {
     const out = path.resolve(args.root, args.html);
-    for (const r of reports) {
-      const head = headTitles(args.root, r.file, (rel) =>
-        visible(runVitest(args.root, {}, [rel, '-t', NOTHING])),
-      );
-      if (head !== undefined) r.head = head;
-    }
     await mkdir(path.dirname(out), { recursive: true });
-    await writeFile(out, await renderHtml(reports), 'utf8');
+    await writeFile(out, await pageHtml(args, reports), 'utf8');
     console.log(`html: ${out}`);
   }
   return blocked ? 1 : 0;
+}
+
+async function serve(args: CommandArgs): Promise<number> {
+  if (!existsSync(path.join(args.root, EXPECT_CONFIG)))
+    throw new UsageError(`нет ${EXPECT_CONFIG}`);
+  fileFilter(args);
+  const render = async (): Promise<string> => {
+    const { reports } = await collect(args, () => undefined);
+    return pageHtml(args, reports);
+  };
+  return serveHtml({ root: args.root, port: portOf(args.port), render });
 }
 
 async function lint(args: CommandArgs): Promise<number> {
@@ -453,6 +475,8 @@ export async function runExpect(command: string | undefined, args: CommandArgs):
       return init(args);
     case 'report':
       return report(args);
+    case 'serve':
+      return serve(args);
     case 'lint':
       return lint(args);
     case 'judge':

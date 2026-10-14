@@ -3,6 +3,7 @@ export interface CommandArgs {
   out?: string;
   file?: string;
   html?: string;
+  port?: string;
   rawBase?: string;
   apply?: boolean;
   now: Date;

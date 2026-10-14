@@ -67,6 +67,13 @@ export const COMMAND_NODES: readonly CommandNode[] = [
     run: (args) => runExpect('report', args),
   },
   {
+    path: ['expect', 'serve'],
+    kind: 'command',
+    effect: 'query',
+    options: '[--file <path>] [--port <n>]',
+    run: (args) => runExpect('serve', args),
+  },
+  {
     path: ['expect', 'lint'],
     kind: 'command',
     effect: 'query',

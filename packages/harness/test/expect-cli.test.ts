@@ -52,6 +52,23 @@ describe('harness expect report | lint | judge', () => {
     expect(text).toContain('смысловая проверка заголовков устарела');
   }, 60_000);
 
+  it('serve: страница отчёта с 127.0.0.1; SIGINT — код 0', async () => {
+    out.length = 0;
+    const running = main(['expect', 'serve', '--root', ROOT, '--port', '0'], NOW);
+    let url: string | undefined;
+    for (let i = 0; i < 200 && url === undefined; i++) {
+      url = /http:\/\/127\.0\.0\.1:\d+\//.exec(out.join('\n'))?.[0];
+      if (url === undefined) await new Promise((r) => setTimeout(r, 50));
+    }
+    if (url === undefined) throw new Error(`serve не напечатал адрес: ${out.join('\n')}`);
+    const page = await fetch(url);
+    expect(page.status).toBe(200);
+    expect(await page.text()).toContain('два плюс два — четыре');
+    expect((await fetch(`${url}other`)).status).toBe(404);
+    process.emit('SIGINT');
+    expect(await running).toBe(0);
+  }, 60_000);
+
   it('judge: готовит проверку заголовков; --apply с ответом — report проходит', async () => {
     expect(await main(['expect', 'judge', '--root', ROOT], NOW)).toBe(1);
     const plan: unknown = JSON.parse(
