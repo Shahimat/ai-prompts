@@ -34,6 +34,11 @@ npx -y @shahimat/harness@<version> <команда> --root .
 - `harness outdated` — версия из `context/harness.yml` против последней
   в npm и записи журнала пакета между ними (код 1 — есть новее). Её
   вызывает обновление из источника (skill `source-sync`).
+- `harness delta check` — сверка слоёв документации с `HEAD`: удалённое
+  или изменённое знание без пункта `revise` в дельте `context/.delta/`
+  — нарушение. Её запускает docs-keeper при приёмке.
+- `harness delta close` — после приёмки (check чист, пункты выполнены)
+  удаляет дельту и печатает строки `revise` для тела коммита.
 - `harness adapters sync` — пересобрать файлы под инструменты
   (`CLAUDE.md`, `.claude/`, `.codex/`) из `AGENTS.md` и `.agents/` и
   выключить memory агента: `autoMemoryEnabled: false` в
