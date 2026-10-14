@@ -1,12 +1,6 @@
 import { describe } from 'vitest';
 import { crit, judged } from '@shahimat/harness/expect';
 
-/**
- * Ожидания к принципу «внимание пользователя — самый дорогой ресурс».
- * `keys` — ключи якорей `expect:KEY`, которыми в реализации проекта
- * размечено правило. Каждое ожидание проверяет судья по всем
- * размеченным областям.
- */
 export function attention(...keys: string[]): void {
   if (keys.length === 0) throw new Error('attention: нужен хотя бы один ключ якоря');
   const check = (): Promise<void> => judged(keys.map((k) => `@${k}`));

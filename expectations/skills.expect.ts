@@ -100,19 +100,15 @@ describe('поведение ключевых skills', () => {
   );
 });
 
-// ─────────────────────────────── проверки ───────────────────────────────
-
 const CORE_SKILLS = ['contract-setup', 'workflow', 'docs-keeper', 'source-sync', 'source-feedback'];
 const SCHEMAS = 'expectations/schemas';
 
-/** Inline-блок паттерна: текст между `---` в разделе «Inline-блок для целевого промпта». */
 async function inlineBlock(pattern: string): Promise<string> {
   const text = await readRepo(`patterns/${pattern}.md`);
   return text.slice(text.indexOf('## Inline-блок для целевого промпта')).split('\n---\n')[1] ?? '';
 }
 
 class Check {
-  // общее
   static async skillSchema(): Promise<void> {
     const paths = (await indexEntries())
       .filter((e) => e.kind === 'skill')
@@ -187,9 +183,7 @@ class Check {
     expect((await skills()).map((s) => s.name).filter((n) => !provided.has(n))).toEqual([]);
   }
 
-  // копии источников
   static async goalsCopy(): Promise<void> {
-    // Заголовки в skill на два уровня выше: ### → #, #### → ##.
     const expected = (await inlineBlock('goals'))
       .trim()
       .split('\n')
@@ -213,14 +207,12 @@ class Check {
   }
 
   static async guardrailCopies(): Promise<void> {
-    // Заголовок блока в skill на уровень выше: ### → ##.
     const expected = (await inlineBlock('guardrail-dual-level')).trim().replace(/^### /m, '## ');
     for (const name of ['privacy', 'safety-boundaries', 'analysis']) {
       expect({ name, ok: (await skill(name)).text.includes(expected) }).toEqual({ name, ok: true });
     }
   }
 
-  // субагенты
   static async docsKeeperPreload(): Promise<void> {
     expect((await doc('agents/docs-keeper.md')).frontmatter?.['skills']).toContain('docs-keeper');
   }
@@ -240,7 +232,6 @@ class Check {
     }
   }
 
-  // поведение ключевых skills
   static blockingQuestion = (): Promise<void> => judged(['@blocking-question']);
   static moduleInstall = (): Promise<void> => judged(['@module-install']);
   static intentsEvidence = (): Promise<void> => judged(['@docs-keeper-intents']);

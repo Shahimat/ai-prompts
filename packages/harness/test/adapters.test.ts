@@ -3,11 +3,11 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { parse as parseYaml } from 'yaml';
-import { codexAgent } from '../src/commands/adapters/render.ts';
-import { readSources, type AgentDef } from '../src/commands/adapters/source.ts';
-import { applyActions, checkAdapters, computeSync } from '../src/commands/adapters/sync.ts';
-import type { AdapterName } from '../src/shared/config.ts';
-import { parseFrontmatter } from '../src/shared/frontmatter.ts';
+import { codexAgent } from '#commands/adapters/render';
+import { readSources, type AgentDef } from '#commands/adapters/source';
+import { applyActions, checkAdapters, computeSync } from '#commands/adapters/sync';
+import type { AdapterName } from '#shared/config';
+import { parseFrontmatter } from '#shared/frontmatter';
 
 const BOTH: AdapterName[] = ['claude-code', 'codex'];
 let root: string;

@@ -7,32 +7,21 @@ import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { UsageError } from '../../shared/diagnostics.ts';
+import { UsageError } from '#shared/diagnostics';
 import {
   applyAnswers,
   applyLintAnswer,
   planBatches,
   renderBatch,
   renderLintBatch,
-} from '../../lib/expect/batch.ts';
-import { readEvidence, shaOf } from '../../lib/expect/evidence.ts';
-import {
-  COLLECT_ENV,
-  idOf,
-  isPendingItem,
-  SEEN_ENV,
-  type PendingItem,
-} from '../../lib/expect/judge.ts';
-import { BUDGET_TITLE, LEVELS, type Budget, type Level } from '../../lib/expect/levels.ts';
-import { isOneOf, isRecord, isStringArray } from '../../shared/guards.ts';
-import { lintTitles, type Title } from '../../lib/expect/lint.ts';
-import {
-  loadVerdicts,
-  pruneStore,
-  saveVerdicts,
-  VERDICTS_PATH,
-} from '../../lib/expect/verdicts.ts';
-import type { CommandArgs } from '../../shared/args.ts';
+} from '#lib/expect/batch';
+import { readEvidence, shaOf } from '#lib/expect/evidence';
+import { COLLECT_ENV, idOf, isPendingItem, SEEN_ENV, type PendingItem } from '#lib/expect/judge';
+import { BUDGET_TITLE, LEVELS, type Budget, type Level } from '#lib/expect/levels';
+import { isOneOf, isRecord, isStringArray } from '#shared/guards';
+import { lintTitles, type Title } from '#lib/expect/lint';
+import { loadVerdicts, pruneStore, saveVerdicts, VERDICTS_PATH } from '#lib/expect/verdicts';
+import type { CommandArgs } from '#shared/args';
 
 export const EXPECT_CONFIG = 'expectations/vitest.config.ts';
 const JUDGE_DIR = 'expectations/.judge';
@@ -53,7 +42,6 @@ interface TestResult {
 const isBudget = (v: unknown): v is Budget =>
   isRecord(v) && typeof v['crit'] === 'number' && typeof v['warn'] === 'number';
 
-/** Результаты из JSON-отчёта vitest; неожиданная форма — ошибка, а не пустой отчёт. */
 function parseVitestReport(data: unknown, root: string): TestResult[] {
   const fail = (what: string): never => {
     throw new Error(`отчёт vitest: ${what}`);
@@ -77,7 +65,6 @@ function parseVitestReport(data: unknown, root: string): TestResult[] {
         title: a['title'],
         status,
         message: (failureMessages[0] ?? '').split('\n')[0] ?? '',
-        // Обычный it() без обёртки — crit: формальная проверка по умолчанию.
         level: isOneOf(LEVELS, level) ? level : 'crit',
         notes: isStringArray(notes) ? notes : [],
       };
@@ -87,7 +74,6 @@ function parseVitestReport(data: unknown, root: string): TestResult[] {
   });
 }
 
-/** Запускает vitest проекта на файлах ожиданий и возвращает результаты. */
 function runVitest(root: string, env: Record<string, string> = {}): TestResult[] {
   if (!existsSync(path.join(root, EXPECT_CONFIG))) throw new UsageError(`нет ${EXPECT_CONFIG}`);
   const require = createRequire(path.join(root, 'package.json'));
@@ -395,7 +381,6 @@ class Check {}
 void Check;
 `;
 
-/** Каркас ожиданий в проекте; существующие файлы не трогаются. */
 async function init(args: CommandArgs): Promise<number> {
   const done: string[] = [];
   const put = async (rel: string, content: string): Promise<void> => {
@@ -446,7 +431,6 @@ async function init(args: CommandArgs): Promise<number> {
 }
 
 export async function runExpect(command: string | undefined, args: CommandArgs): Promise<number> {
-  // Кэш вердиктов и доказательства читаются от --root, а не от текущей папки.
   process.env['HARNESS_EXPECT_ROOT'] = args.root;
   switch (command) {
     case 'init':

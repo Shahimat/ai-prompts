@@ -1,17 +1,13 @@
-// Действия процессов, в которых работает агент, вызвавший harness: задание
-// агенту, шаг-скрипт, шаг-команда и справка о провале.
-
-import { COMMAND_NODES, runScript } from '../../scripts/index.ts';
-import type { CommandArgs } from '../../shared/args.ts';
-import { UsageError } from '../../shared/diagnostics.ts';
-import { errorMessage } from '../../shared/guards.ts';
-import type { ScriptDef } from '../../shared/node.ts';
+import { COMMAND_NODES, runScript } from '#scripts/index';
+import type { CommandArgs } from '#shared/args';
+import { UsageError } from '#shared/diagnostics';
+import { errorMessage } from '#shared/guards';
+import type { ScriptDef } from '#shared/node';
 import { driveSession, homeOf, type HarnessModule } from './catalog.ts';
 import type { ActionDef, Registry } from './fsm/machine.ts';
 import { loadMachine } from './load.ts';
 import { createSession, type Session } from './store/session.ts';
 
-/** Контекст процесса без своих моделей: сессия и каталог harness. */
 export interface ProcessContext {
   session: Session;
   home: string;
@@ -24,10 +20,6 @@ const argsOf = (ctx: ProcessContext): CommandArgs => ({
 
 const resume = (s: Session): string => `harness ${s.data.harness} open ${s.short}`;
 
-/**
- * Состояние агента: при входе — пауза с заданием, после `session resume` —
- * событие done. Задание помнит сессия, поэтому повторный resume не теряет шаг.
- */
 export function handoff<C extends ProcessContext>(task: (ctx: C) => string): ActionDef<C> {
   return {
     events: ['done'],
@@ -45,7 +37,6 @@ export function handoff<C extends ProcessContext>(task: (ctx: C) => string): Act
   };
 }
 
-/** Шаг-скрипт: ok — все шаги чисты, fail — иначе. */
 export const scriptAction = <C extends ProcessContext>(script: ScriptDef): ActionDef<C> => ({
   events: ['ok', 'fail'],
   run: async (ctx) => ({ event: (await runScript(script, argsOf(ctx))) === 0 ? 'ok' : 'fail' }),
@@ -59,7 +50,6 @@ function commandOf(path: readonly string[]) {
   return found;
 }
 
-/** Шаг-команда: ok — код 0, fail — иначе. */
 export const commandAction = <C extends ProcessContext>(path: readonly string[]): ActionDef<C> => ({
   events: ['ok', 'fail'],
   run: async (ctx) => ({
@@ -67,7 +57,6 @@ export const commandAction = <C extends ProcessContext>(path: readonly string[])
   }),
 });
 
-/** Шаг-сведение: команда печатает итог, процесс идёт дальше при любом исходе. */
 export const reportAction = <C extends ProcessContext>(path: readonly string[]): ActionDef<C> => ({
   events: ['done'],
   run: async (ctx) => {
@@ -80,7 +69,6 @@ export const reportAction = <C extends ProcessContext>(path: readonly string[]):
   },
 });
 
-/** Состояние failed: пауза до `session retry` после исправления причины. */
 export const failureAction = <C extends ProcessContext>(): ActionDef<C> => ({
   events: ['retry'],
   run: async (ctx) => ({
@@ -88,7 +76,6 @@ export const failureAction = <C extends ProcessContext>(): ActionDef<C> => ({
   }),
 });
 
-/** Модуль каталога для процесса без своих моделей: имя сессии берётся из аргументов start. */
 export function processModule(
   name: string,
   registry: () => Registry<ProcessContext>,

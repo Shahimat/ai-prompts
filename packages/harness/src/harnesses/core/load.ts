@@ -1,11 +1,7 @@
-// Загрузка определения автомата: harness.yaml, реестр действий с плагинами
-// пользователя и статическая проверка графа. Своё сверх этого (критерии
-// plan-review) harness проверяет сам.
-
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { UsageError } from '../../shared/diagnostics.ts';
-import { errorMessage } from '../../shared/guards.ts';
+import { UsageError } from '#shared/diagnostics';
+import { errorMessage } from '#shared/guards';
 import { parseMachine, staticErrors, type MachineDef, type Registry } from './fsm/machine.ts';
 import { loadPlugins } from './plugins.ts';
 import { harnessExists, harnessFile } from './store/session.ts';
@@ -19,11 +15,9 @@ export interface LoadedMachine<C> {
 
 export interface MachineResult<C> {
   machine?: LoadedMachine<C>;
-  /** Ошибки с путём до поля; пусто — определение пригодно. */
   errors: string[];
 }
 
-/** Путь файла определения для сообщений: относительно home или как есть. */
 export const definitionWhere = (home: string, name: string, rel: string): string =>
   path.relative(home, harnessFile(home, name, rel)) || rel;
 

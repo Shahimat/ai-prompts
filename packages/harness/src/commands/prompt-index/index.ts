@@ -1,8 +1,8 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { UsageError } from '../../shared/diagnostics.ts';
-import { collectEntries, diffIndex, INDEX_PATH, renderIndex } from '../../lib/prompt-index.ts';
-import type { CommandArgs } from '../../shared/args.ts';
+import { UsageError } from '#shared/diagnostics';
+import { collectEntries, diffIndex, INDEX_PATH, renderIndex } from '#lib/prompt-index';
+import type { CommandArgs } from '#shared/args';
 
 const MAX_DIFF_LINES = 50;
 

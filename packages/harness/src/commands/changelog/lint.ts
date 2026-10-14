@@ -1,9 +1,9 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import type { ChangelogOptions } from '../../shared/config.ts';
-import type { Diagnostic } from '../../shared/diagnostics.ts';
-import { normalizeEol } from '../../shared/frontmatter.ts';
-import { errorCode } from '../../shared/guards.ts';
+import type { ChangelogOptions } from '#shared/config';
+import type { Diagnostic } from '#shared/diagnostics';
+import { normalizeEol } from '#shared/frontmatter';
+import { errorCode } from '#shared/guards';
 
 export const CHANGELOG_PATH = 'CHANGELOG.md';
 const SEPARATOR = ' · ';
@@ -20,11 +20,6 @@ function parseIsoDate(value: string): number | null {
   return time;
 }
 
-/**
- * Проверяет журнал решений. Формат записи:
- * `- YYYY-MM-DD · [tag] суть · почему`. До первой записи — свободный
- * текст (заголовок, пояснение), после — только записи и пустые строки.
- */
 export function lintChangelog(
   text: string,
   options: ChangelogOptions,
@@ -50,7 +45,6 @@ export function lintChangelog(
       }
       seenEntry = true;
 
-      // Символы, а не UTF-16 и не байты: кириллица не должна считаться вдвое.
       const length = [...line].length;
       if (length > options.maxLine) report(`длина ${length} символов > ${options.maxLine}`);
 

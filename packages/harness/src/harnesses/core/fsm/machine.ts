@@ -1,11 +1,8 @@
 // expect:fsm-drive
-// Автомат процесса: топология и параметры — в harness.yaml, действия и
-// guards — имена из реестра. YAML не содержит выражений: переход
-// выбирается по событию действия, затем по guard и лимиту счётчика.
 
 import { parse } from 'yaml';
-import { errorMessage, isOneOf, isRecord } from '../../../shared/guards.ts';
-import { schemaErrors } from '../../../shared/schema.ts';
+import { errorMessage, isOneOf, isRecord } from '#shared/guards';
+import { schemaErrors } from '#shared/schema';
 import { FSM_SCHEMA } from './schema.ts';
 
 export const ACTORS = ['script', 'model', 'user'] as const;
@@ -13,9 +10,7 @@ export type Actor = (typeof ACTORS)[number];
 
 export interface Transition {
   to: string;
-  /** Счётчик из `limits`: переход берётся, пока счётчик меньше лимита, и увеличивает его. */
   count?: string;
-  /** Счётчики, которые обнуляет переход. */
   reset: string[];
   guard?: string;
 }
@@ -25,7 +20,6 @@ export interface StateDef {
   actor: Actor;
   action?: string;
   final: boolean;
-  /** Событие действия → варианты перехода по порядку. */
   on: Record<string, Transition[]>;
 }
 
@@ -47,7 +41,6 @@ export const DEFAULT_MODELS: MachineDef['models'] = { planner: 'opus', '1b': 'ha
 export type ActionResult = { event: string } | { pause: string };
 
 export interface ActionDef<C> {
-  /** События, которые действие может вернуть: по ним проверяется полнота `on`. */
   events: readonly string[];
   run: (ctx: C) => Promise<ActionResult>;
 }
@@ -75,7 +68,6 @@ function transitionsOf(value: unknown): Transition[] {
 
 export interface ParseResult {
   def?: MachineDef;
-  /** Ошибки формы с путём до поля. */
   errors: string[];
 }
 
@@ -137,11 +129,6 @@ export function parseMachine(text: string, where: string): ParseResult {
 export const stateOf = (def: MachineDef, name: string): StateDef | undefined =>
   def.states.find((s) => s.name === name);
 
-/**
- * Статическая проверка графа: цели и имена существуют, все состояния
- * достижимы, тупиков нет, события действий обработаны полностью, а
- * у каждого цикла есть лимит — счётчик или решение человека.
- */
 export function staticErrors<C>(def: MachineDef, registry: Registry<C>, where: string): string[] {
   const errors: string[] = [];
   const names = new Set(def.states.map((s) => s.name));
@@ -194,7 +181,6 @@ export function staticErrors<C>(def: MachineDef, registry: Registry<C>, where: s
   }
   if (errors.length > 0) return errors;
 
-  // Достижимость.
   const reached = new Set([def.initial]);
   const queue = [def.initial];
   while (queue.length > 0) {
@@ -210,8 +196,6 @@ export function staticErrors<C>(def: MachineDef, registry: Registry<C>, where: s
     if (!reached.has(s.name)) errors.push(`${at(s.name)}: недостижимо из ${def.initial}`);
   if (!def.states.some((s) => s.final)) errors.push(`${where}/states: нет конечного состояния`);
 
-  // Циклы без лимита: без переходов со счётчиком и выходов из состояний
-  // человека граф обязан быть ацикличным.
   const edges = new Map<string, string[]>();
   for (const s of def.states) {
     if (s.actor === 'user') continue;
@@ -239,7 +223,6 @@ export function staticErrors<C>(def: MachineDef, registry: Registry<C>, where: s
   return errors;
 }
 
-/** Mermaid-диаграмма автомата. */
 export function machineMermaid(def: MachineDef): string {
   const lines = ['stateDiagram-v2', `    [*] --> ${def.initial}`];
   for (const s of def.states) {
@@ -264,7 +247,6 @@ export interface MachineState {
   counters: Record<string, number>;
 }
 
-/** Переход по событию: первый вариант, у которого guard и лимит пропускают. */
 export async function resolve<C>(
   def: MachineDef,
   registry: Registry<C>,
@@ -298,12 +280,6 @@ export interface Journal {
 
 export type DriveResult = { final: string } | { paused: string; message: string };
 
-/**
- * Исполнение: действие текущего состояния → событие → переход →
- * сохранение. Прерванный прогон продолжается с сохранённого состояния:
- * действие текущего состояния выполняется заново. `event` — внешнее
- * событие (например, `retry`) перед первым шагом.
- */
 export async function drive<C>(
   def: MachineDef,
   registry: Registry<C>,

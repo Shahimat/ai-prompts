@@ -1,9 +1,9 @@
 import { rm } from 'node:fs/promises';
 import path from 'node:path';
 import { checkDelta, revisionLines, unfinishedItems } from './delta.ts';
-import { UsageError } from '../../shared/diagnostics.ts';
-import { report } from '../../shared/report.ts';
-import type { CommandArgs } from '../../shared/args.ts';
+import { UsageError } from '#shared/diagnostics';
+import { report } from '#shared/report';
+import type { CommandArgs } from '#shared/args';
 
 export async function runDelta(command: string | undefined, args: CommandArgs): Promise<number> {
   if (command !== 'check' && command !== 'close')
@@ -14,7 +14,6 @@ export async function runDelta(command: string | undefined, args: CommandArgs): 
 
   const diagnostics = [...result.diagnostics, ...unfinishedItems(args.root, result)];
   if (diagnostics.length > 0) return report('delta close', diagnostics);
-  // Приёмка пройдена: знание уже в документации, дельта больше не нужна.
   for (const d of result.deltas) {
     await rm(path.join(args.root, d.file), { force: true });
     console.error(`removed ${d.file}`);

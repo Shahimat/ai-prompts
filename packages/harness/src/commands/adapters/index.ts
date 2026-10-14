@@ -1,8 +1,8 @@
 import { applyActions, checkAdapters, computeSync } from './sync.ts';
-import { CONFIG_PATH, loadConfig } from '../../shared/config.ts';
-import { UsageError } from '../../shared/diagnostics.ts';
-import { report } from '../../shared/report.ts';
-import type { CommandArgs } from '../../shared/args.ts';
+import { CONFIG_PATH, loadConfig } from '#shared/config';
+import { UsageError } from '#shared/diagnostics';
+import { report } from '#shared/report';
+import type { CommandArgs } from '#shared/args';
 
 export async function runAdapters(command: string | undefined, args: CommandArgs): Promise<number> {
   if (command !== 'sync' && command !== 'check')

@@ -1,14 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import {
-  applyAnswers,
-  applyLintAnswer,
-  planBatches,
-  renderBatch,
-} from '../src/lib/expect/batch.ts';
-import { containsQuote } from '../src/lib/expect/evidence.ts';
-import type { PendingItem } from '../src/lib/expect/judge.ts';
-import { lintTitles } from '../src/lib/expect/lint.ts';
-import { codeBlock, extractSection } from '../src/lib/expect/repo.ts';
+import { applyAnswers, applyLintAnswer, planBatches, renderBatch } from '#lib/expect/batch';
+import { containsQuote } from '#lib/expect/evidence';
+import type { PendingItem } from '#lib/expect/judge';
+import { lintTitles } from '#lib/expect/lint';
+import { codeBlock, extractSection } from '#lib/expect/repo';
 
 const NOW = new Date('2026-10-13T12:00:00Z');
 const item = (id: string, refs: [string, number][]): PendingItem => ({
@@ -198,7 +193,7 @@ describe('extractSection / codeBlock', () => {
 });
 
 describe('якоря expect:KEY', async () => {
-  const { markdownRegions, fileAnchorKeys } = await import('../src/lib/expect/anchors.ts');
+  const { markdownRegions, fileAnchorKeys } = await import('#lib/expect/anchors');
 
   it('области в markdown, несколько ключей и повтор ключа', () => {
     const md = [
@@ -244,7 +239,7 @@ describe('якоря expect:KEY', async () => {
 });
 
 describe('pruneStore', async () => {
-  const { pruneStore } = await import('../src/lib/expect/verdicts.ts');
+  const { pruneStore } = await import('#lib/expect/verdicts');
   const v = {
     question: 'q',
     evidence: {},

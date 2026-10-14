@@ -3,17 +3,11 @@ import { existsSync } from 'node:fs';
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { parse } from 'yaml';
-import { UsageError, type Diagnostic } from '../../shared/diagnostics.ts';
-import { errorCode, errorMessage, isOneOf, isRecord } from '../../shared/guards.ts';
-import { CONTEXT_INDEX_PATH, DELTA_DIR } from '../../shared/layout.ts';
-import { compileSchema } from '../../shared/schema.ts';
+import { UsageError, type Diagnostic } from '#shared/diagnostics';
+import { errorCode, errorMessage, isOneOf, isRecord } from '#shared/guards';
+import { CONTEXT_INDEX_PATH, DELTA_DIR } from '#shared/layout';
+import { compileSchema } from '#shared/schema';
 
-/** Каталог дельт: временные ожидания к документации, не часть её контекста. */
-
-/**
- * Формат дельты. Копия `expectations/schemas/docs-delta.schema.json`
- * источника; совпадение проверяют ожидания репозитория.
- */
 export const DELTA_SCHEMA = {
   $schema: 'https://json-schema.org/draft/2020-12/schema',
   title: 'context/.delta/<имя>.yml — дельта проектной документации',
@@ -40,8 +34,6 @@ export const DELTA_SCHEMA = {
           why: { type: 'string', minLength: 1 },
         },
         if: { properties: { op: { const: 'revise' } } },
-        // Ключ `then` — условие JSON Schema, а не thenable-объект.
-        // oxlint-disable-next-line unicorn/no-thenable
         then: { required: ['was', 'why'] },
       },
     },
@@ -65,23 +57,19 @@ export interface Delta {
   items: DeltaItem[];
 }
 
-/** Изменение существующего знания относительно HEAD. */
 export interface Revision {
   file: string;
   deleted: boolean;
-  /** Что ушло или изменилось: ключи YAML или строки текста, не больше трёх. */
   lost: string[];
 }
 
 export interface DeltaResult {
   deltas: Delta[];
   revisions: Revision[];
-  /** Файлы документации, изменённые или добавленные относительно HEAD. */
   changed: Set<string>;
   diagnostics: Diagnostic[];
 }
 
-/** Не документация: генерируемое, конфиг harness, manifest модулей и сами дельты. */
 const NOT_DOCS = [CONTEXT_INDEX_PATH, 'context/harness.yml', 'context/modules/', `${DELTA_DIR}/`];
 
 function git(root: string, args: string[]): { ok: boolean; out: string } {
@@ -89,7 +77,6 @@ function git(root: string, args: string[]): { ok: boolean; out: string } {
   return { ok: r.status === 0, out: r.stdout ?? '' };
 }
 
-/** Корни слоёв документации: ядро и `provides.layers` подключённых модулей. */
 async function docRoots(root: string): Promise<string[]> {
   const roots = new Set(['context', 'docs', 'CHANGELOG.md']);
   let manifests: string[] = [];
@@ -119,7 +106,6 @@ async function docRoots(root: string): Promise<string[]> {
 const isDoc = (file: string): boolean =>
   !NOT_DOCS.some((p) => (p.endsWith('/') ? file.startsWith(p) : file === p));
 
-/** Ключи и значения YAML, которых нет в новой версии: удалённые или изменённые. */
 function lostYaml(before: unknown, after: unknown, at: string, out: string[]): void {
   if (isRecord(before) && isRecord(after)) {
     for (const [k, v] of Object.entries(before)) {
@@ -138,7 +124,6 @@ function lostYaml(before: unknown, after: unknown, at: string, out: string[]): v
   if (JSON.stringify(before) !== JSON.stringify(after)) out.push(at === '' ? '<корень>' : at);
 }
 
-/** Непустые строки старого текста, которых не хватает в новом (с учётом повторов). */
 function lostLines(before: string, after: string): string[] {
   const rest = new Map<string, number>();
   for (const line of after.split('\n')) rest.set(line.trim(), (rest.get(line.trim()) ?? 0) + 1);
@@ -159,9 +144,7 @@ function lostIn(file: string, before: string, after: string): string[] {
       const out: string[] = [];
       lostYaml(parse(before), parse(after), '', out);
       return out;
-    } catch {
-      // невалидный YAML — сравниваем как текст
-    }
+    } catch {}
   }
   return lostLines(before, after);
 }
@@ -181,7 +164,6 @@ function isDeltaItem(v: unknown): v is DeltaItem {
   );
 }
 
-/** Сужение после проверки схемой: схема — правда о форме, guard — о типе. */
 function isDeltaBody(v: unknown): v is Omit<Delta, 'file'> {
   return (
     isRecord(v) &&
@@ -225,15 +207,9 @@ async function readDeltas(root: string, diagnostics: Diagnostic[]): Promise<Delt
   return deltas;
 }
 
-/** Цель пункта: путь от корня или id — имя файла без расширения. */
 export const matchesTarget = (target: string, file: string): boolean =>
   target === file || path.posix.basename(file).replace(/\.[^.]+$/, '') === target;
 
-/**
- * Сверка слоёв документации с HEAD: каждое удаление или изменение
- * существующего знания должно быть объявлено пунктом `revise` дельты.
- * Добавления не требуют пункта.
- */
 export async function checkDelta(root: string): Promise<DeltaResult> {
   if (!git(root, ['rev-parse', '--verify', 'HEAD']).ok)
     throw new UsageError('delta: нужен git-репозиторий с коммитом HEAD');
@@ -272,7 +248,6 @@ export async function checkDelta(root: string): Promise<DeltaResult> {
   return { deltas, revisions, changed, diagnostics };
 }
 
-/** Невыполненные пункты дельты: приёмка перед удалением. */
 export function unfinishedItems(root: string, result: DeltaResult): Diagnostic[] {
   const out: Diagnostic[] = [];
   const touched = [...result.changed, ...result.revisions.map((r) => r.file)];
@@ -293,7 +268,6 @@ export function unfinishedItems(root: string, result: DeltaResult): Diagnostic[]
   return out;
 }
 
-/** Строки пересмотров для отчёта и тела сообщения коммита. */
 export function revisionLines(deltas: Delta[]): string[] {
   return deltas.flatMap((d) =>
     d.items

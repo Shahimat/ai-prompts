@@ -4,8 +4,8 @@ import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promis
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { main } from '../src/cli.ts';
-import { openSession } from '../src/harnesses/core/store/session.ts';
+import { main } from '#cli';
+import { openSession } from '#harnesses/core/store/session';
 
 const NOW = new Date('2026-10-14T12:00:00Z');
 
@@ -20,7 +20,6 @@ async function put(rel: string, content: string): Promise<void> {
 
 const git = (...args: string[]) => spawnSync('git', args, { cwd: root, encoding: 'utf8' });
 
-/** Проект с git, одной convention и включёнными проверками. */
 async function project(): Promise<void> {
   await put('context/harness.yml', 'checks:\n  context-index: {}\n');
   await put('context/project.yml', 'name: demo\nnamespaces:\n  core: ядро\n');
@@ -96,10 +95,8 @@ describe('harness docs delta', () => {
     await project();
     const args = ['--root', root, '--home', home];
     expect(await main(['docs-delta', 'start', '--name', 'naming', ...args], NOW)).toBe(0);
-    // Знание изменено без пункта revise — delta check не пройдёт.
     await put('context/conventions/naming.yml', 'key: naming\nsummary: snake_case\nrule: x\n');
     const id = await sessionId();
-    // Три возврата в apply, четвёртый провал — failed.
     for (let i = 0; i < 3; i++) {
       expect(await main(['docs-delta', 'open', id, '--home', home], NOW)).toBe(0);
       expect(await state()).toBe('apply');
@@ -129,7 +126,6 @@ describe('harness source sync', () => {
     expect(await main(['source-sync', 'list', '--home', home], NOW)).toBe(0);
     expect(out).toEqual([`${short}\tupdate\tsync`]);
     expect(await main(['source-sync', 'status', short, '--home', home], NOW)).toBe(0);
-    // Сессия чужого harness не открывается.
     await expect(main(['docs-delta', 'status', short, '--home', home], NOW)).rejects.toThrow(
       'принадлежит source-sync',
     );

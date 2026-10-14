@@ -1,12 +1,11 @@
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { main } from '../src/cli.ts';
-import { isRecord } from '../src/shared/guards.ts';
+import { main } from '#cli';
+import { isRecord } from '#shared/guards';
 
-// Временный проект внутри пакета: vitest находится в node_modules репозитория.
-const ROOT = path.resolve(fileURLToPath(import.meta.url), '../.tmp/expect-cli');
+const TMP = path.join(import.meta.dirname, '.tmp');
+const ROOT = path.join(TMP, 'expect-cli');
 const NOW = new Date('2026-10-13T12:00:00Z');
 const out: string[] = [];
 
@@ -36,7 +35,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   vi.restoreAllMocks();
-  await rm(path.resolve(ROOT, '..'), { recursive: true, force: true });
+  await rm(TMP, { recursive: true, force: true });
 });
 
 describe('harness expect report | lint | judge', () => {

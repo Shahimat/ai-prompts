@@ -1,23 +1,14 @@
-// Запуск Claude Code: интерактивная сессия планера и headless-прогоны.
-// Флаги задаются явно, на умолчания CLI не полагаемся: `--setting-sources ""`
-// отключает settings, hooks и CLAUDE.md пользователя и проекта (spike S1),
-// вход по подписке при этом работает (spike S2); `--disable-slash-commands`
-// отключает skills — модель в состоянии harness их не вызывает.
-
 import { spawn } from 'node:child_process';
-import { isRecord } from '../../../shared/guards.ts';
+import { isRecord } from '#shared/guards';
 
 export interface InteractiveRun {
   cwd: string;
   model: string;
-  /** UUID сессии Claude Code — для `--resume` при провале 1a. */
   sessionId: string;
   name: string;
   addDirs: string[];
   systemPrompt: string;
-  /** Настройки одной сессии: Stop-hook и только он. */
   settings: object;
-  /** Встроенные инструменты, доступные планеру; остальных нет. */
   tools: string[];
   allowedTools: string[];
   prompt: string;
@@ -28,16 +19,12 @@ export interface HeadlessRun {
   model: string;
   addDirs: string[];
   systemPrompt: string;
-  /** Встроенные инструменты, доступные прогону; остальных нет. */
   tools: string[];
-  /** Разрешения без вопроса; всё, что спросило бы, отклоняется (`dontAsk`). */
   allowedTools: string[];
   prompt: string;
   schema?: object;
-  /** Продолжить сессию Claude Code вместо новой. */
   resume?: string;
   sessionId?: string;
-  /** false — сессия не сохраняется на диск (ревьюеры). */
   persist: boolean;
   maxTurns: number;
   settings?: object;
@@ -111,11 +98,9 @@ export function headlessArgs(r: HeadlessRun): string[] {
   return args;
 }
 
-/** Бинарь Claude Code: HARNESS_CLAUDE подменяет его в тестах. */
 export function claudeBin(): string[] {
   const own = process.env['HARNESS_CLAUDE'];
   if (own === undefined || own === '') return ['claude'];
-  // Скрипт на JS запускается текущим Node: тесты одинаково идут на всех ОС.
   return own.endsWith('.js') || own.endsWith('.mjs') ? [process.execPath, own] : [own];
 }
 

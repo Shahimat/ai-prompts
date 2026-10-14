@@ -1,15 +1,11 @@
-// Сессии и артефакты harness в user scope: `~/.config/harness/`
-// (переопределяется `--home` или HARNESS_HOME). В проект попадает только
-// то, что выгрузили командой clone.
-
 import { createHash, randomBytes } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { appendFile, mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { UsageError } from '../../../shared/diagnostics.ts';
-import { errorCode, isOneOf, isRecord, isStringArray } from '../../../shared/guards.ts';
+import { UsageError } from '#shared/diagnostics';
+import { errorCode, isOneOf, isRecord, isStringArray } from '#shared/guards';
 
 export function harnessHome(option?: string): string {
   const fromEnv = process.env['HARNESS_HOME'];
@@ -18,16 +14,15 @@ export function harnessHome(option?: string): string {
   return path.join(homedir(), '.config', 'harness');
 }
 
-/** Встроенные определения лежат рядом с кодом: `harnesses/<имя>/harness.yaml`. */
-export const BUILTIN_HARNESSES = fileURLToPath(new URL('../../', import.meta.url));
+export const BUILTIN_HARNESSES = path.dirname(
+  fileURLToPath(import.meta.resolve('#harnesses/index')),
+);
 
-/** Файл определения: вариант пользователя перекрывает встроенный. */
 export function harnessFile(home: string, harness: string, rel: string): string {
   const own = path.join(home, 'harnesses', harness, rel);
   return existsSync(own) ? own : path.join(BUILTIN_HARNESSES, harness, rel);
 }
 
-/** Процессы: встроенные и пользовательские, без повторов. */
 export async function listHarnesses(home: string): Promise<string[]> {
   const names = new Set<string>();
   for (const dir of [BUILTIN_HARNESSES, path.join(home, 'harnesses')]) {
@@ -51,26 +46,19 @@ export type FixInput =
 
 export interface SessionData {
   id: string;
-  /** Имя процесса: `plan-review`. */
   harness: string;
-  /** Абсолютный путь проекта, из которого запущен start. */
   project: string;
   title: string;
   request: string;
   created: string;
   state: string;
   counters: Record<string, number>;
-  /** Сессия Claude Code для `--resume` при провале 1a: планер или последний исправитель. */
   plannerSession?: string;
-  /** Номер последнего раунда ревью. */
   round: number;
-  /** Первый раунд текущего цикла ревью — для справки о провале. */
   cycleStart: number;
   fix?: FixInput;
   question?: string;
-  /** Hook отпустил планера после предела блокировок. */
   formalExhausted?: boolean;
-  /** Состояние, в котором агенту выдано задание: resume продолжает с него. */
   handoff?: string;
 }
 
@@ -140,7 +128,6 @@ export class Session {
     return this.data.id;
   }
 
-  /** Короткий id для вывода и команд, как у коммитов git. */
   get short(): string {
     return this.data.id.slice(0, SHORT_ID);
   }
@@ -181,7 +168,6 @@ export class Session {
 
 export const sessionsDir = (home: string): string => path.join(home, 'sessions');
 
-/** Длина короткого id в выводе и минимальный префикс в командах. */
 export const SHORT_ID = 7;
 const MIN_PREFIX = 4;
 
@@ -195,7 +181,6 @@ export interface NewSession {
 }
 
 export async function createSession(home: string, opts: NewSession): Promise<Session> {
-  // id — sha256: уникален без знания других сессий, короткий префикс читается как у git.
   const salt = randomBytes(16).toString('hex');
   const id = createHash('sha256')
     .update(`${opts.harness}\n${opts.now.toISOString()}\n${salt}`)
@@ -237,10 +222,6 @@ export async function openSession(home: string, id: string): Promise<Session> {
   return new Session(dir, parseSession(text, `${id}/session.json`));
 }
 
-/**
- * Сессия по префиксу id (от 4 символов): ни одной или несколько — ошибка
- * вызова; `harness` — сессия должна принадлежать этому harness.
- */
 export async function resolveSession(
   home: string,
   prefix: string,

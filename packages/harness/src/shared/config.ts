@@ -18,7 +18,6 @@ export const DEFAULT_CHANGELOG: ChangelogOptions = {
 
 export interface SecretsAllow {
   path: string;
-  /** Нет — исключение на весь файл. */
   line?: number;
   reason: string;
 }
@@ -33,12 +32,10 @@ export type AdapterName = (typeof KNOWN_ADAPTERS)[number];
 export interface HarnessConfig {
   version?: string;
   adapters: AdapterName[];
-  /** Включённые проверки; ключ отсутствует — проверка выключена. */
   checks: {
     changelog?: ChangelogOptions;
     'context-index'?: Record<string, never>;
     adapters?: Record<string, never>;
-    /** Включена по умолчанию; `secrets: false` — выключена явно. */
     secrets?: SecretsOptions;
   };
 }
@@ -95,7 +92,6 @@ function parseSecretsAllow(value: unknown, i: number): SecretsAllow {
   return { path: file, line, reason };
 }
 
-/** `secrets: false` — выключена (`null`); нет ключа, `null` или `{}` — включена. */
 function parseSecrets(value: unknown): SecretsOptions | null {
   if (value === false) return null;
   if (value === null || value === undefined) return { allow: [] };
@@ -148,7 +144,6 @@ export function parseConfig(text: string): HarnessConfig {
   return config;
 }
 
-/** Читает `context/harness.yml`; нет файла — `null`. */
 export async function loadConfig(root: string): Promise<HarnessConfig | null> {
   let text: string;
   try {

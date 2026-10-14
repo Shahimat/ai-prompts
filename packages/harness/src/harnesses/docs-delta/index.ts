@@ -1,8 +1,5 @@
-// docs-delta: запись в проектную документацию через дельту. Агент
-// docs-keeper собирает и применяет дельту, harness проверяет и закрывает её.
-
-import { DOCS_VERIFY } from '../../scripts/index.ts';
-import type { CommandArgs } from '../../shared/args.ts';
+import { DOCS_VERIFY } from '#scripts/index';
+import type { CommandArgs } from '#shared/args';
 import {
   commandAction,
   failureAction,
@@ -11,7 +8,7 @@ import {
   scriptAction,
   type ProcessContext,
   type Registry,
-} from '../core/index.ts';
+} from '#harnesses/core/index';
 
 function registry(): Registry<ProcessContext> {
   return {
@@ -31,7 +28,6 @@ function registry(): Registry<ProcessContext> {
   };
 }
 
-/** `harness docs-delta start --name <дельта>`: имя файла дельты без расширения. */
 export const DOCS_DELTA = processModule('docs-delta', registry, {
   options: '[--name <дельта>]',
   title: (args: CommandArgs) => args.name ?? 'delta',

@@ -1,11 +1,10 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { parse } from 'yaml';
-import { normalizeEol, parseFrontmatter, type Frontmatter } from '../../shared/frontmatter.ts';
-import { isRecord } from '../../shared/guards.ts';
-import { collectEntries, type IndexEntry } from '../prompt-index.ts';
+import { normalizeEol, parseFrontmatter, type Frontmatter } from '#shared/frontmatter';
+import { isRecord } from '#shared/guards';
+import { collectEntries, type IndexEntry } from '#lib/prompt-index';
 
-/** Корень репозитория для зондов: HARNESS_EXPECT_ROOT или cwd. */
 export function repoRoot(): string {
   return path.resolve(process.env['HARNESS_EXPECT_ROOT'] ?? process.cwd());
 }
@@ -14,7 +13,6 @@ export async function readRepo(rel: string): Promise<string> {
   return normalizeEol(await readFile(path.join(repoRoot(), rel), 'utf8'));
 }
 
-/** Markdown-документ репозитория с удобными зондами. */
 export interface Doc {
   path: string;
   text: string;
@@ -22,13 +20,11 @@ export interface Doc {
   lines: number;
   bytes: number;
   headings: string[];
-  /** Текст раздела с заголовком `heading` (любого уровня) до следующего заголовка того же или более высокого уровня. */
   section(heading: string): string | null;
 }
 
 const HEADING = /^(#{1,6}) (.+)$/;
 
-/** Раздел markdown по тексту заголовка; заголовки внутри ``` не считаются. */
 export function extractSection(text: string, heading: string): string | null {
   const lines = text.split('\n');
   let inFence = false;
@@ -79,7 +75,6 @@ export async function doc(rel: string): Promise<Doc> {
 
 let entriesCache: Promise<IndexEntry[]> | null = null;
 
-/** Записи индекса источника (собираются из файлов, не из prompts/index.yml). */
 export function indexEntries(): Promise<IndexEntry[]> {
   entriesCache ??= collectEntries(repoRoot()).then((r) => r.entries);
   return entriesCache;
@@ -91,7 +86,6 @@ async function entry(kind: string, key: string): Promise<IndexEntry> {
   return found;
 }
 
-/** Все ```-блоки языка `lang` (в том числе с отступом — в списке), текст которых начинается с `prefix`; отступ снимается. */
 export function codeBlocks(text: string, lang: string, prefix = ''): string[] {
   const re = new RegExp('^([ \\t]*)(`{3,4})' + lang + '\\n([\\s\\S]*?)\\n\\1\\2$', 'gm');
   const out: string[] = [];
@@ -106,7 +100,6 @@ export function codeBlocks(text: string, lang: string, prefix = ''): string[] {
   return out;
 }
 
-/** Первый ```-блок языка `lang` (в том числе с отступом — в списке), текст которого начинается с `prefix`; отступ снимается. */
 export function codeBlock(text: string, lang: string, prefix = ''): string | null {
   const re = new RegExp('^([ \\t]*)(`{3,4})' + lang + '\\n([\\s\\S]*?)\\n\\1\\2$', 'gm');
   for (const m of text.matchAll(re)) {
@@ -122,7 +115,6 @@ export function codeBlock(text: string, lang: string, prefix = ''): string | nul
 
 export interface ContractDoc extends Doc {
   key: string;
-  /** Шаблон AGENTS.md из раздела «Шаблон `AGENTS.md`». */
   agentsMdTemplate: string | null;
 }
 
@@ -134,11 +126,8 @@ export async function contract(key: string): Promise<ContractDoc> {
 
 export interface ModuleDoc extends Doc {
   key: string;
-  /** Блок модуля для AGENTS.md между маркерами, с маркерами. */
   agentsMdBlock: string | null;
-  /** Первый yaml-блок `provides:` модуля. */
   provides: Record<string, unknown> | null;
-  /** Все блоки `provides:` модуля — у модулей для v2 и v3 их несколько. */
   providesAll: Record<string, unknown>[];
 }
 
@@ -187,7 +176,6 @@ export interface PresetDoc {
   title: string;
   contract: string;
   modules: { key: string; answers: Record<string, unknown> }[];
-  /** AGENTS.md, собранный как при установке: шаблон ядра + блоки модулей. */
   agentsMd(): Promise<{ text: string; lines: number; bytes: number }>;
 }
 
@@ -198,7 +186,6 @@ interface PresetData {
   modules: { key: string; answers?: Record<string, unknown> }[];
 }
 
-/** Форма пресета; индекс уже проверил key, title, contract и ключи модулей. */
 function presetData(data: unknown, file: string): PresetData {
   const fail = (message: string): never => {
     throw new Error(`${file}: ${message}`);

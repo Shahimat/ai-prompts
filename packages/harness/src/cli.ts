@@ -40,7 +40,6 @@ export async function main(argv: string[], now: Date = new Date()): Promise<numb
   const match = findCommand(positionals);
   if (match !== undefined) return match.command.run({ ...args, params: match.params });
 
-  // list и help на любом уровне дерева: `harness plan list`, `harness session x help`.
   const last = positionals.at(-1);
   const prefix = positionals.slice(0, -1);
   if (last === 'help' && (prefix.length === 0 || isNamespace(prefix))) {
@@ -68,7 +67,6 @@ export async function run(argv: string[]): Promise<number> {
       console.error(renderUsage());
       return 2;
     }
-    // parseArgs бросает TypeError с code ERR_PARSE_ARGS_* на неизвестных опциях.
     return (errorCode(error) ?? '').startsWith('ERR_PARSE_ARGS') ? 2 : 1;
   }
 }

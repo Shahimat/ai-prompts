@@ -1,15 +1,12 @@
-// plan-review: модуль каталога и свои операции — start, check, render, read,
-// clone. Общие операции категорий и сессий — в каталоге ядра.
-
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, statSync } from 'node:fs';
 import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { CommandArgs } from '../../shared/args.ts';
-import { UsageError } from '../../shared/diagnostics.ts';
-import { errorCode, isRecord } from '../../shared/guards.ts';
+import type { CommandArgs } from '#shared/args';
+import { UsageError } from '#shared/diagnostics';
+import { errorCode, isRecord } from '#shared/guards';
 import {
   ClaudeRunner,
   createSession,
@@ -22,22 +19,22 @@ import {
   type ModelRunner,
   type Prompter,
   type Session,
-} from '../core/index.ts';
+} from '#harnesses/core/index';
 import { readReview, startCycle, type PlanContext } from './actions.ts';
 import { loadHarness, loadHarnessOrFail, type LoadedHarness } from './load.ts';
 import { formalCheck, formatFinding } from './plan/formal.ts';
 import { renderPlanHtml } from './plan/render.ts';
 
-/** Ввод-вывод процесса; тесты подменяют модель и терминал. */
 export const io: { runner: () => ModelRunner; prompter: () => Prompter } = {
   runner: () => new ClaudeRunner(),
   prompter: terminalPrompter,
 };
 
-/** Как вызвать этот harness из hook и из планера: тем же Node, тем же файлом. */
 export function selfCommand(): string[] {
-  const bin = import.meta.url.endsWith('.ts') ? '../../bin.ts' : '../../bin.js';
-  return [process.execPath, fileURLToPath(new URL(bin, import.meta.url))];
+  const bin = fileURLToPath(import.meta.resolve('#bin'));
+  return bin.endsWith('.ts')
+    ? [process.execPath, '--conditions=source', bin]
+    : [process.execPath, bin];
 }
 
 function context(session: Session, home: string, harness: LoadedHarness): PlanContext {
@@ -52,7 +49,6 @@ function context(session: Session, home: string, harness: LoadedHarness): PlanCo
   };
 }
 
-/** plan-review в каталоге harness. */
 export const PLAN_REVIEW: HarnessModule = {
   name: 'plan-review',
   startOptions: '[--name <название>] [--request <запрос>]',
@@ -86,7 +82,6 @@ export const PLAN_REVIEW: HarnessModule = {
   beforeRetry: startCycle,
   nodes: [
     {
-      // --hook ведёт счётчик блокировок Stop-hook в каталоге сессии.
       path: ['plan-review', 'check', '<id>'],
       kind: 'harness',
       effect: 'query',
@@ -102,7 +97,6 @@ export const PLAN_REVIEW: HarnessModule = {
       run: (args) => runRender(args),
     },
     {
-      // plan.html пересобирается, только если устарел: производный файл сессии.
       path: ['plan-review', 'read', '<id>'],
       kind: 'harness',
       effect: 'query',
@@ -167,12 +161,6 @@ async function readHookState(file: string): Promise<HookState> {
   return { hash: '', blocks: 0 };
 }
 
-/**
- * Проверка 1a. В режиме `--hook` — Stop-hook планера: молчит, пока плана
- * нет или он не менялся с последней чистой проверки; блокирует ход
- * (код 2) при нарушениях; после предела блокировок подряд отпускает и
- * отмечает сессию — автомат уйдёт в failed.
- */
 async function runCheck(args: CommandArgs): Promise<number> {
   const s = await sessionOf(args);
   const text = await s.readPlan();
@@ -253,7 +241,6 @@ async function runRead(args: CommandArgs): Promise<number> {
   return 0;
 }
 
-/** Экспортируемые артефакты сессии. */
 const EXPORTS = ['plan.md', 'context.md', 'plan.html', 'failure-report.md'];
 
 async function runClone(what: 'all' | 'md', args: CommandArgs): Promise<number> {

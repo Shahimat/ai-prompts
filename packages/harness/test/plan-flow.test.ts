@@ -4,8 +4,8 @@ import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { main } from '../src/cli.ts';
-import { io } from '../src/harnesses/plan-review/cli.ts';
+import { main } from '#cli';
+import { io } from '#harnesses/plan-review/cli';
 import {
   headlessArgs,
   interactiveArgs,
@@ -13,9 +13,9 @@ import {
   type HeadlessRun,
   type InteractiveRun,
   type ModelRunner,
-} from '../src/harnesses/core/runner/claude.ts';
-import type { Prompter } from '../src/harnesses/core/runner/terminal.ts';
-import { openSession } from '../src/harnesses/core/store/session.ts';
+} from '#harnesses/core/runner/claude';
+import type { Prompter } from '#harnesses/core/runner/terminal';
+import { openSession } from '#harnesses/core/store/session';
 import { PLAN } from './plan-model.test.ts';
 
 const NOW = new Date('2026-10-14T12:00:00Z');
@@ -28,14 +28,10 @@ let err: string[];
 interface Fake {
   interactive: InteractiveRun[];
   headless: HeadlessRun[];
-  /** Ответ ревьюера по стадии и номеру вызова. */
   review: (stage: '1b' | '2', n: number) => unknown;
-  /** Правка плана исправителем: текст → новый текст. */
   fix: (text: string, run: HeadlessRun) => string;
-  /** Что пишет интерактивный планер. */
   draft: (session: string) => string;
   answer: string;
-  /** План в момент вопроса «уточнить». */
   askedPlan?: string;
 }
 
@@ -72,7 +68,6 @@ const runner: ModelRunner = {
     }
     const planPath = path.join(run.addDirs[0] ?? '', 'plan.md');
     if (run.systemPrompt.includes('отвечает на вопрос')) {
-      // Злонамеренный ответчик пытается поменять план — скрипт обязан откатить.
       fake.askedPlan = await readFile(planPath, 'utf8');
       await writeFile(planPath, 'испорчено');
       return result(undefined, fake.answer);
@@ -166,7 +161,6 @@ describe('plan iter: сквозной прогон', () => {
     expect(plan).toContain('status: approved');
     expect(plan).toContain('## Схема');
     expect(plan).toContain('## Точки улучшения');
-    // В проект без clone не попало ни одного файла.
     expect(await readdir(project)).toEqual(['.git', 'README.md']);
     expect(
       spawnSync('git', ['status', '--porcelain'], { cwd: project, encoding: 'utf8' }).stdout,
@@ -206,7 +200,6 @@ describe('plan iter: сквозной прогон', () => {
     expect(r2?.cwd).toBe(project);
     expect(r2?.addDirs).toEqual([reviewDir]);
     expect((await readdir(reviewDir)).sort()).toEqual(['findings.json', 'plan.md']);
-    // Разделы скрипта (схема, прошлые замечания) ревьюер не видит.
     const copy = await readFile(path.join(reviewDir, 'plan.md'), 'utf8');
     expect(copy).not.toContain('## Схема');
     expect(copy).not.toContain('## Точки улучшения');
@@ -234,7 +227,6 @@ describe('plan iter: сквозной прогон', () => {
     const report = await readFile(path.join(s.dir, 'failure-report.md'), 'utf8');
     expect(report).toContain('| `dod-checkable` | crit T1 | crit T1 | crit T1 | crit T1 |');
     expect(report).toContain('кандидат на переформулировку');
-    // Исправитель получил замечания и новый контекст.
     expect(fixes[0]?.prompt).toContain('DoD не проверяем');
     expect(fixes[0]?.sessionId).toBeDefined();
     expect(fixes[0]?.resume).toBeUndefined();
@@ -283,7 +275,6 @@ describe('plan iter: сквозной прогон', () => {
   });
 
   it('вернуть по пунктам: правка неотмеченного пункта отклоняется, отмеченного и зависимых — принимается', async () => {
-    // Меню: пройти по пунктам; S1 — нормально, T1 — комментарий, T2 — нормально.
     answers = ['walk', '', 'уточни мотивацию', '', 'approve'];
     let call = 0;
     fake.fix = (t) => {

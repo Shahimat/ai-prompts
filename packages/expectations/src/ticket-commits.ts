@@ -1,12 +1,6 @@
 import { describe } from 'vitest';
 import { crit, judged, warn } from '@shahimat/harness/expect';
 
-/**
- * Ожидания к правилам «тикет и коммиты». `keys` — ключи якорей
- * `expect:KEY`, которыми в реализации проекта размечены эти правила:
- * переименование разделов и перенос текста ожидания не трогают.
- * Каждое ожидание проверяет судья по всем размеченным областям.
- */
 export function ticketCommits(...keys: string[]): void {
   if (keys.length === 0) throw new Error('ticketCommits: нужен хотя бы один ключ якоря');
   const check = (): Promise<void> => judged(keys.map((k) => `@${k}`));

@@ -2,10 +2,6 @@ import { createHash } from 'node:crypto';
 import { anchorEvidence } from './anchors.ts';
 import { readRepo, extractSection } from './repo.ts';
 
-/**
- * Ссылка на доказательство: `@KEY` — якоря в реализации (предпочтительно),
- * `path` или `path#Заголовок` (раздел markdown).
- */
 export async function readEvidence(ref: string): Promise<string> {
   if (ref.startsWith('@')) return anchorEvidence(ref.slice(1));
   const hash = ref.indexOf('#');
@@ -20,7 +16,6 @@ export async function readEvidence(ref: string): Promise<string> {
 export const shaOf = (text: string): string =>
   createHash('sha256').update(text, 'utf8').digest('hex');
 
-/** Сравнение цитаты с текстом без учёта пробелов, переносов и маркеров markdown. */
 export function containsQuote(text: string, quote: string): boolean {
   const norm = (s: string): string =>
     s

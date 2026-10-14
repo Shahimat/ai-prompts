@@ -1,8 +1,8 @@
 import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import type { AdapterName } from '../../shared/config.ts';
-import type { Diagnostic } from '../../shared/diagnostics.ts';
-import { errorCode } from '../../shared/guards.ts';
+import type { AdapterName } from '#shared/config';
+import type { Diagnostic } from '#shared/diagnostics';
+import { errorCode } from '#shared/guards';
 import { claudeMemory, CODEX_CONFIG, codexMemory } from './memory.ts';
 import {
   claudeAgent,
@@ -19,14 +19,12 @@ const CLAUDE_SKILLS = '.claude/skills';
 const CLAUDE_AGENTS = '.claude/agents';
 const CODEX_AGENTS = '.codex/agents';
 
-/** Сгенерированный файл; ownership — по метке в содержимом. */
 interface FileUnit {
   kind: 'file';
   path: string;
   content: Buffer;
 }
 
-/** Скопированный каталог skill; ownership — по файлу-метке внутри. */
 interface DirUnit {
   kind: 'dir';
   path: string;
@@ -37,7 +35,6 @@ type Unit = FileUnit | DirUnit;
 
 export interface Action {
   op: 'write' | 'delete';
-  /** Путь от корня проекта, через `/`. */
   path: string;
   content?: Buffer;
 }
@@ -130,7 +127,6 @@ const conflict = (file: string): Diagnostic => ({
     'существует и написан не harness — не трогаю; перенеси содержимое в источник (.agents/, AGENTS.md) и удали файл',
 });
 
-/** Сгенерированные файлы и каталоги на диске, которые не входят в план. */
 async function staleActions(root: string, planned: Set<string>): Promise<Action[]> {
   const actions: Action[] = [];
   const consider = async (rel: string): Promise<void> => {
@@ -155,10 +151,6 @@ async function staleActions(root: string, planned: Set<string>): Promise<Action[
   return actions;
 }
 
-/**
- * Сравнивает план с диском. Файлы без метки harness не трогаются никогда:
- * они попадают в нарушения, а не в действия.
- */
 export async function computeSync(
   root: string,
   adapters: readonly AdapterName[],
@@ -194,7 +186,6 @@ export async function computeSync(
     }
   }
 
-  // Memory агента запрещена контрактом — выключаем её настройкой инструмента.
   const planned = new Set(units.map((u) => u.path));
   for (const [adapter, apply] of [
     ['claude-code', claudeMemory],
@@ -223,7 +214,6 @@ export async function applyActions(root: string, actions: Action[]): Promise<voi
   }
 }
 
-/** Проверка для `harness check`: всё сгенерированное совпадает с источниками. */
 export async function checkAdapters(
   root: string,
   adapters: readonly AdapterName[],

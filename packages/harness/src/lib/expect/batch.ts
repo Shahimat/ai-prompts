@@ -1,5 +1,5 @@
 // expect:judge-clean-context
-import { isRecord } from '../../shared/guards.ts';
+import { isRecord } from '#shared/guards';
 import { containsQuote } from './evidence.ts';
 import type { PendingItem } from './judge.ts';
 import { isContradictions, isUnmeasurable, type LintVerdict, type Verdict } from './verdicts.ts';
@@ -13,15 +13,10 @@ export const DEFAULT_LIMITS: BatchLimits = { maxItems: 25, maxBytes: 80_000 };
 
 export interface Batch {
   items: PendingItem[];
-  /** Уникальные доказательства пакета — судья читает каждое один раз. */
   refs: string[];
   bytes: number;
 }
 
-/**
- * Пакеты для судьи: ожидания с одинаковыми доказательствами — вместе,
- * группы складываются в пакеты до лимита вопросов и объёма доказательств.
- */
 export function planBatches(items: PendingItem[], limits: BatchLimits = DEFAULT_LIMITS): Batch[] {
   const groups = new Map<string, PendingItem[]>();
   for (const item of [...items].sort((a, b) => (a.id < b.id ? -1 : 1))) {
@@ -62,7 +57,6 @@ export function planBatches(items: PendingItem[], limits: BatchLimits = DEFAULT_
   return batches;
 }
 
-/** `texts` — текст якорных доказательств `@KEY`: они вставляются в задание целиком. */
 export function renderBatch(
   batch: Batch,
   answerFile: string,
@@ -119,7 +113,6 @@ export interface ApplyResult {
   rejected: { id: string; reason: string }[];
 }
 
-/** Проверяет ответы судьи; цитата должна дословно встречаться в доказательстве. */
 export function applyAnswers(
   items: PendingItem[],
   answers: unknown,
@@ -132,7 +125,6 @@ export function applyAnswers(
     return result;
   }
   const byId = new Map(items.map((i) => [i.id, i]));
-  // Поля ответа — строки; нестроковое значение считается отсутствующим.
   const text = (v: unknown): string => (typeof v === 'string' ? v : '');
   for (const entry of answers) {
     const raw = isRecord(entry) ? entry : {};
@@ -175,7 +167,6 @@ export function applyAnswers(
   return result;
 }
 
-/** Смысловая проверка заголовков одного файла ожиданий — один проход. */
 export function renderLintBatch(
   file: string,
   titles: { id: string; title: string }[],

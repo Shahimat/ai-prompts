@@ -1,27 +1,22 @@
 // expect:verdict-prune
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { errorCode, isRecord } from '../../shared/guards.ts';
+import { errorCode, isRecord } from '#shared/guards';
 import { repoRoot } from './repo.ts';
 
 export const VERDICTS_PATH = 'expectations/.verdicts.json';
 
-/** Вердикт судьи по одному ожиданию. */
 export interface Verdict {
   question: string;
-  /** Ссылка на доказательство → SHA-256 его содержимого на момент вердикта. */
   evidence: Record<string, string>;
   verdict: boolean;
-  /** Дословная цитата из доказательства, на которой держится ответ. */
   quote: string;
   ref: string;
   reason: string;
   at: string;
 }
 
-/** Результат смысловой проверки заголовков одного файла ожиданий. */
 export interface LintVerdict {
-  /** SHA-256 списка заголовков файла. */
   titles: string;
   contradictions: { a: string; b: string; reason: string }[];
   unmeasurable: { id: string; reason: string }[];
@@ -79,7 +74,6 @@ function isLintVerdict(v: unknown): v is LintVerdict {
   );
 }
 
-/** Раздел кэша: каждая запись проверена; неверная форма — ошибка с её ключом. */
 function section<T>(value: unknown, name: string, is: (v: unknown) => v is T): Record<string, T> {
   if (value === undefined) return {};
   if (!isRecord(value)) throw new Error(`${VERDICTS_PATH}: ${name} должно быть объектом`);
@@ -106,10 +100,6 @@ export async function loadVerdicts(): Promise<VerdictStore> {
   };
 }
 
-/**
- * Убирает вердикты, которые не нужны ни одному текущему ожиданию, и
- * проверки заголовков удалённых файлов: кэш не растёт с историей правок.
- */
 export function pruneStore(
   store: VerdictStore,
   liveIds: Set<string>,
@@ -134,7 +124,6 @@ export function pruneStore(
 const sortKeys = <T>(obj: Record<string, T>): Record<string, T> =>
   Object.fromEntries(Object.entries(obj).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)));
 
-/** Ключи отсортированы: diff кэша в PR читается и не конфликтует без нужды. */
 export async function saveVerdicts(store: VerdictStore): Promise<void> {
   const file = path.join(repoRoot(), VERDICTS_PATH);
   await mkdir(path.dirname(file), { recursive: true });

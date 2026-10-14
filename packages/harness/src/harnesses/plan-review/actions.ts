@@ -1,14 +1,10 @@
-// Встроенные действия процесса plan-review. Каждое — одно состояние
-// автомата: модель работает только внутри действия, переход выбирает
-// автомат по возвращённому событию.
-
 import { spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import type { ActionDef, MachineDef, Registry } from '../core/index.ts';
-import { UsageError } from '../../shared/diagnostics.ts';
-import { isRecord } from '../../shared/guards.ts';
+import type { ActionDef, MachineDef, Registry } from '#harnesses/core/index';
+import { UsageError } from '#shared/diagnostics';
+import { isRecord } from '#shared/guards';
 import {
   acceptFindings,
   findingsSchema,
@@ -30,9 +26,9 @@ import {
   withDependents,
   withoutScriptSections,
 } from './plan/model.ts';
-import type { HeadlessRun, ModelRunner } from '../core/index.ts';
-import type { Prompter } from '../core/index.ts';
-import { harnessFile, type Session } from '../core/index.ts';
+import type { HeadlessRun, ModelRunner } from '#harnesses/core/index';
+import type { Prompter } from '#harnesses/core/index';
+import { harnessFile, type Session } from '#harnesses/core/index';
 
 export interface PlanContext {
   session: Session;
@@ -41,16 +37,12 @@ export interface PlanContext {
   criteria: Criterion[];
   runner: ModelRunner;
   prompter: Prompter;
-  /** Команда вызова этого harness: `[node, bin.js]`. */
   self: string[];
 }
-
-// ─────────────────────────────── общее ───────────────────────────────
 
 const quote = (s: string): string =>
   /^[\w./:@-]+$/.test(s) ? s : `"${s.replace(/(["\\$`])/g, '\\$1')}"`;
 
-/** Команда проверки 1a для планера и Stop-hook. */
 export function checkCommand(ctx: PlanContext, hook = false): string {
   return [
     ...ctx.self,
@@ -65,15 +57,12 @@ export function checkCommand(ctx: PlanContext, hook = false): string {
     .join(' ');
 }
 
-/** Настройки одной сессии Claude Code: только наш Stop-hook. */
 export function hookSettings(ctx: PlanContext): object {
   return { hooks: { Stop: [{ hooks: [{ type: 'command', command: checkCommand(ctx, true) }] }] } };
 }
 
-/** Абсолютный путь в правиле разрешений Claude Code начинается с `//`. */
 const rulePath = (dir: string): string => `/${dir.split(path.sep).join('/')}/**`;
 
-/** Разрешения планера и исправителя: читать проект, писать только в каталог сессии. */
 export function plannerTools(ctx: PlanContext): { tools: string[]; allowed: string[] } {
   const dir = rulePath(ctx.session.dir);
   return {
@@ -89,7 +78,6 @@ export function plannerTools(ctx: PlanContext): { tools: string[]; allowed: stri
   };
 }
 
-/** Инструменты стадий ревью: сеть только у стадии 2. */
 export const REVIEW_TOOLS: Record<ModelStage, string[]> = {
   '1b': ['Read'],
   '2': ['Read', 'Glob', 'Grep', 'WebSearch', 'WebFetch'],
@@ -129,7 +117,6 @@ function gitStatus(dir: string): string | undefined {
   return r.status === 0 ? r.stdout : undefined;
 }
 
-/** Проект не должен меняться: изменения после прогона — в журнал и на экран. */
 async function guardProject<T>(ctx: PlanContext, label: string, fn: () => Promise<T>): Promise<T> {
   const before = gitStatus(ctx.session.data.project);
   const result = await fn();
@@ -154,7 +141,6 @@ async function setStatus(ctx: PlanContext, status: string): Promise<void> {
 
 const isApproved = (text: string): boolean => parsePlan(text).frontmatter['status'] === 'approved';
 
-/** Headless-прогон планера-исправителя: новый или возобновлённый контекст. */
 async function runPlanner(
   ctx: PlanContext,
   promptText: string,
@@ -178,8 +164,6 @@ async function runPlanner(
   const result = await guardProject(ctx, 'исправитель', () => ctx.runner.headless(run));
   return result.sessionId ?? run.sessionId ?? resume;
 }
-
-// ─────────────────────────────── draft ───────────────────────────────
 
 const draft: ActionDef<PlanContext> = {
   events: ['done'],
@@ -211,8 +195,6 @@ const draft: ActionDef<PlanContext> = {
   },
 };
 
-// ─────────────────────────────── formal ───────────────────────────────
-
 const formal: ActionDef<PlanContext> = {
   events: ['ok', 'broken', 'exhausted'],
   run: async (ctx) => {
@@ -228,7 +210,6 @@ const formal: ActionDef<PlanContext> = {
         : formalCheck(text, ctx.session.id);
     await writeFile(ctx.session.file('formal.json'), `${JSON.stringify(findings, null, 2)}\n`);
     if (findings.length > 0 || text === undefined) return { event: 'broken' };
-    // Схема — раздел скрипта: строится из «Зависит от».
     const next = replaceSection(text, 'Схема', dependencyMermaid(parsePlan(text).items));
     if (next !== text) await writePlan(ctx, next);
     return { event: 'ok' };
@@ -260,8 +241,6 @@ const repair: ActionDef<PlanContext> = {
   },
 };
 
-// ─────────────────────────────── review ───────────────────────────────
-
 function criteriaList(criteria: Criterion[], stage: ModelStage): string {
   return criteria
     .filter((c) => c.stage === stage)
@@ -275,7 +254,6 @@ interface StageRun {
   costUsd: number | undefined;
 }
 
-/** Прогон стадии; стадии без критериев не запускаются — null. */
 async function reviewStage(
   ctx: PlanContext,
   stage: ModelStage,
@@ -284,7 +262,6 @@ async function reviewStage(
   if (!ctx.criteria.some((c) => c.stage === stage)) return null;
   const plan = path.join(reviewDir, 'plan.md');
   const result = await ctx.runner.headless({
-    // Стадии 1b нужен только план; стадии 2 — проект и сеть.
     cwd: stage === '1b' ? reviewDir : ctx.session.data.project,
     model: ctx.def.models[stage],
     addDirs: stage === '1b' ? [] : [reviewDir],
@@ -307,7 +284,6 @@ async function reviewStage(
   };
 }
 
-/** Раздел «Точки улучшения»: warn и info последнего ревью. */
 export function improvementPoints(findings: Finding[]): string {
   const points = findings.filter((f) => f.level !== 'crit');
   if (points.length === 0) return '—';
@@ -328,8 +304,6 @@ const review: ActionDef<PlanContext> = {
     const round = ctx.session.data.round + 1;
     const dir = ctx.session.file(path.join('review', String(round)));
     await mkdir(dir, { recursive: true });
-    // Ревьюеры видят только копию плана без разделов скрипта: context.md
-    // и прошлые замечания в каталог не попадают.
     await writeFile(path.join(dir, 'plan.md'), withoutScriptSections(text), 'utf8');
     const formalFindings = formalCheck(text, ctx.session.id);
     const findings: Finding[] = [...formalFindings];
@@ -393,8 +367,6 @@ export async function readReview(session: Session, round: number): Promise<Revie
   });
   return { round, findings, verdicts: [], pass: data['pass'] === true };
 }
-
-// ─────────────────────────────── fix ───────────────────────────────
 
 async function fixPrompt(ctx: PlanContext): Promise<string> {
   const fix = ctx.session.data.fix;
@@ -468,9 +440,6 @@ async function saveRevision(ctx: PlanContext, text: string): Promise<void> {
   await writeFile(path.join(dir, `${typeof rev === 'number' ? rev : 'x'}.md`), text, 'utf8');
 }
 
-// ─────────────────────────────── user ───────────────────────────────
-
-/** Новый цикл ревью: справка о провале считает раунды с этого номера. */
 export async function startCycle(session: Session): Promise<void> {
   session.data.cycleStart = session.data.round + 1;
   await session.save();
@@ -577,7 +546,6 @@ const answer: ActionDef<PlanContext> = {
         maxTurns: 20,
       }),
     );
-    // «Уточнить» не меняет план ни на байт.
     if ((await readPlanOrFail(ctx)) !== before) await writePlan(ctx, before);
     const context = await readFile(ctx.session.contextPath, 'utf8').catch(() => '');
     await writeFile(
@@ -592,9 +560,6 @@ const answer: ActionDef<PlanContext> = {
   },
 };
 
-// ─────────────────────────────── failed / approved ───────────────────────────────
-
-/** Таблица «критерий × итерация»: критерий, упавший во всех итерациях, — кандидат на переформулировку. */
 export function failureReport(title: string, records: ReviewRecord[]): string {
   const ids = [...new Set(records.flatMap((r) => r.findings.map((f) => f.criterion)))].sort();
   const header = `| Критерий | ${records.map((r) => `#${r.round}`).join(' | ')} | Повтор |`;

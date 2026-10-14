@@ -1,17 +1,8 @@
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { normalizeEol } from '../../shared/frontmatter.ts';
+import { normalizeEol } from '#shared/frontmatter';
 import { repoRoot } from './repo.ts';
 
-/**
- * Якорь доказательства — разметка в реализации, а не путь в ожиданиях:
- * переименование раздела или перенос текста не трогает файл ожиданий.
- *
- * - markdown: область между `<!-- expect:KEY -->` и `<!-- /expect:KEY -->`
- *   (разметка внутри блоков кода не считается);
- * - YAML / TOML: строка-комментарий `# expect:KEY` — якорем помечен весь файл;
- * - TypeScript: строка-комментарий `// expect:KEY` — тоже весь файл.
- */
 export interface AnchorRegion {
   key: string;
   path: string;
@@ -36,7 +27,6 @@ async function walk(dir: string, rel = ''): Promise<string[]> {
   return out;
 }
 
-/** Области якорей в markdown-тексте. */
 export function markdownRegions(text: string, file: string): AnchorRegion[] {
   const regions: AnchorRegion[] = [];
   const open = new Map<string, number>();
@@ -65,7 +55,6 @@ export function markdownRegions(text: string, file: string): AnchorRegion[] {
   return regions;
 }
 
-/** Ключи файловых якорей: `# expect:KEY` (YAML / TOML) или `// expect:KEY` (TS). */
 export function fileAnchorKeys(text: string, comment: '#' | '//' = '#'): string[] {
   const re = comment === '#' ? /^#\s*expect:([\w:.-]+)\s*$/gm : /^\/\/\s*expect:([\w:.-]+)\s*$/gm;
   return [...normalizeEol(text).matchAll(re)].map((m) => m[1] ?? '');
@@ -73,7 +62,6 @@ export function fileAnchorKeys(text: string, comment: '#' | '//' = '#'): string[
 
 let cache: Promise<AnchorRegion[]> | null = null;
 
-/** Все области якорей репозитория (один обход на процесс). */
 export function allAnchors(): Promise<AnchorRegion[]> {
   cache ??= (async () => {
     const root = repoRoot();
@@ -90,7 +78,6 @@ export function allAnchors(): Promise<AnchorRegion[]> {
   return cache;
 }
 
-/** Текст доказательства `@KEY`: все области с этим ключом, с заголовком-путём. */
 export async function anchorEvidence(key: string): Promise<string> {
   const regions = (await allAnchors()).filter((r) => r.key === key);
   if (regions.length === 0) throw new Error(`@${key}: в репозитории нет якоря expect:${key}`);

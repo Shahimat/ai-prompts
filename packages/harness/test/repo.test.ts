@@ -1,11 +1,13 @@
+import { execFileSync } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { collectEntries, diffIndex, INDEX_PATH, renderIndex } from '../src/lib/prompt-index.ts';
+import { collectEntries, diffIndex, INDEX_PATH, renderIndex } from '#lib/prompt-index';
 
-// Сверка на живом репозитории ai-prompts, в котором лежит пакет.
-const REPO_ROOT = path.resolve(fileURLToPath(import.meta.url), '../../../..');
+const REPO_ROOT = execFileSync('git', ['rev-parse', '--show-toplevel'], {
+  cwd: import.meta.dirname,
+  encoding: 'utf8',
+}).trim();
 const RAW_BASE = 'https://raw.githubusercontent.com/Shahimat/ai-prompts/main';
 
 describe('индекс репозитория ai-prompts', () => {

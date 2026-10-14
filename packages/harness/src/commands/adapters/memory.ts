@@ -1,19 +1,14 @@
 // expect:memory-off
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import type { Diagnostic } from '../../shared/diagnostics.ts';
-import { errorCode, errorMessage, isRecord } from '../../shared/guards.ts';
+import type { Diagnostic } from '#shared/diagnostics';
+import { errorCode, errorMessage, isRecord } from '#shared/guards';
 import { GENERATED_MARK } from './render.ts';
 import type { Action } from './sync.ts';
 
-/**
- * Memory агента запрещена контрактом: адаптер выключает её настройкой
- * инструмента в проекте.
- */
 export const CLAUDE_SETTINGS = '.claude/settings.json';
 export const CODEX_CONFIG = '.codex/config.toml';
 
-/** Ключи Codex, которые выключают memories: `таблица.ключ` → значение. */
 const CODEX_MEMORY_KEYS = [
   'features.memories',
   'memories.use_memories',
@@ -42,10 +37,6 @@ async function readOrNull(abs: string): Promise<string | null> {
   }
 }
 
-/**
- * `.claude/settings.json` правится по ключу: файл общий с permissions и
- * hooks проекта, остальное содержимое сохраняется.
- */
 export async function claudeMemory(
   root: string,
 ): Promise<{ actions: Action[]; diagnostics: Diagnostic[] }> {
@@ -76,7 +67,6 @@ export async function claudeMemory(
   return { actions: [write({ ...data, autoMemoryEnabled: false })], diagnostics: [] };
 }
 
-/** Значения `таблица.ключ` из простого TOML: таблицы, пары, dotted-ключи. */
 function scanToml(text: string): Map<string, string> {
   const values = new Map<string, string>();
   let table = '';
@@ -96,10 +86,6 @@ function scanToml(text: string): Map<string, string> {
   return values;
 }
 
-/**
- * `.codex/config.toml`: нет файла или он наш — генерируем целиком; написан
- * вручную — не трогаем, только проверяем ключи.
- */
 export async function codexMemory(
   root: string,
 ): Promise<{ actions: Action[]; diagnostics: Diagnostic[] }> {

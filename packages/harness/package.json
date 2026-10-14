@@ -39,6 +39,13 @@
       "import": "./dist/lib/expect/index.js"
     }
   },
+  "imports": {
+    "#*": {
+      "source": "./src/*.ts",
+      "types": "./dist/*.d.ts",
+      "default": "./dist/*.js"
+    }
+  },
   "files": [
     "dist",
     "README.md",

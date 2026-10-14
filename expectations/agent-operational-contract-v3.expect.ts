@@ -177,9 +177,6 @@ describe('ядро', () => {
   );
 });
 
-// ─────────────────────────────── проверки ───────────────────────────────
-// Ниже — как проверяется каждое ожидание. Для чтения ожиданий не нужно.
-
 const KEY = 'agent-operational-contract-v3';
 const SCHEMAS = 'expectations/schemas';
 
@@ -196,13 +193,11 @@ const pathsOf = async (kind: string): Promise<string[]> =>
     .filter((e) => e.kind === kind)
     .map((e) => (kind === 'skill' ? `${e.path}/SKILL.md` : e.path));
 
-/** Утверждение по списку: все элементы проходят `ok`, иначе — список провалившихся. */
 function expectAll<T>(items: T[], name: (x: T) => string, ok: (x: T) => boolean): void {
   expect(items.filter((x) => !ok(x)).map(name)).toEqual([]);
 }
 
 class Check {
-  // AGENTS.md
   static async templateLength(): Promise<void> {
     expectAtMost((await template()).split('\n').length, 80, 'строк в шаблоне AGENTS.md');
   }
@@ -246,7 +241,6 @@ class Check {
 
   static claudeMd = (): Promise<void> => judged(['@claude-md-import']);
 
-  // возможности и пресеты
   static async featureBlock(): Promise<void> {
     const ms = await v3Modules();
     expectAll(
@@ -328,7 +322,6 @@ class Check {
   static checklistFallback = (): Promise<void> => judged(['@checklist-fallback']);
   static extendsOnly = (): Promise<void> => judged(['@extends-only']);
 
-  // форматы по схемам
   static async presetSchema(): Promise<void> {
     await expectSchema(await dataFiles(await pathsOf('preset')), `${SCHEMAS}/preset.schema.json`);
   }
@@ -350,7 +343,6 @@ class Check {
   static async manifestSchema(): Promise<void> {
     const block = codeBlock((await skill('contract-setup')).text, 'yaml', 'key: <key>');
     expect(block).not.toBeNull();
-    // Шаблон с заглушками `<…>`: заглушки заменяются допустимым значением, форма проверяется строго.
     const fill = (v: unknown): unknown =>
       typeof v === 'string' && /^<.*>$/.test(v)
         ? 'placeholder'
@@ -376,9 +368,6 @@ class Check {
     await expectSchema(instances, `${SCHEMAS}/harness-config.schema.json`);
   }
 
-  // skills и субагенты
-
-  // документация и memory
   static docsReadonly = (): Promise<void> => judged(['@docs-readonly']);
   static generatedByHarness = (): Promise<void> => judged(['@docs-readonly']);
   static docsKeeperScope = (): Promise<void> => judged(['@docs-readonly']);
@@ -388,8 +377,6 @@ class Check {
   static async memoryRule(): Promise<void> {
     expect(await template()).toContain('Memory агента запрещена');
   }
-
-  // журнал решений
 
   static async singleChangelog(): Promise<void> {
     const files = (await modules()).flatMap((m) =>
@@ -408,12 +395,9 @@ class Check {
     expect((await contract(KEY)).text).toContain('CHANGELOG.md merge=union');
   }
 
-  // harness и источник
-
   static curlOnly = (): Promise<void> => judged(['@curl-only']);
   static syncWarnsDeprecated = (): Promise<void> => judged(['@sync-warns-deprecated']);
 
-  // приоритетные правила модулей
   static safetyRule = (): Promise<void> => judged(['@safety-rule']);
 
   static async redFlagsListed(): Promise<void> {
@@ -423,7 +407,6 @@ class Check {
   static attributionRule = (): Promise<void> => judged(['@attribution-rule']);
   static privacyRule = (): Promise<void> => judged(['@privacy-rule']);
 
-  // предложения в источник
   static feedbackProtocol = (): Promise<void> => judged(['@source-feedback']);
   static feedbackNotSent = (): Promise<void> => judged(['@source-feedback']);
   static driftBySha = (): Promise<void> => judged(['@feedback-drift']);
@@ -439,10 +422,8 @@ class Check {
     );
   }
 
-  // ядро
   static singleLink = (): Promise<void> => judged(['@single-link']);
 
-  // обновление
   static updateSkill = (): Promise<void> => judged(['@update-report', '@sync-warns-deprecated']);
 
   static async noUpdateProtocolInCore(): Promise<void> {

@@ -1,8 +1,4 @@
-// source-sync: синхронизация проекта с источниками промптов. harness
-// сообщает о новой версии, агент обновляет файлы, harness пересобирает и
-// проверяет проект.
-
-import { REFRESH } from '../../scripts/index.ts';
+import { REFRESH } from '#scripts/index';
 import {
   failureAction,
   handoff,
@@ -11,7 +7,7 @@ import {
   scriptAction,
   type ProcessContext,
   type Registry,
-} from '../core/index.ts';
+} from '#harnesses/core/index';
 
 function registry(): Registry<ProcessContext> {
   return {

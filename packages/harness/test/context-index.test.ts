@@ -3,13 +3,12 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
-import { buildContextIndex, checkContextIndex } from '../src/commands/context/context-index.ts';
-import { CONTEXT_INDEX_PATH } from '../src/shared/layout.ts';
-import { isRecord } from '../src/shared/guards.ts';
+import { buildContextIndex, checkContextIndex } from '#commands/context/context-index';
+import { CONTEXT_INDEX_PATH } from '#shared/layout';
+import { isRecord } from '#shared/guards';
 
 let root: string;
 
-/** Раздел namespaces собранного индекса. */
 function namespacesOf(text: string): Record<string, unknown> {
   const index: unknown = parse(text);
   if (!isRecord(index) || !isRecord(index['namespaces'])) throw new Error('нет namespaces');
@@ -26,7 +25,6 @@ async function messages(): Promise<string[]> {
   return diagnostics.map((d) => `${d.file}: ${d.message}`);
 }
 
-/** Минимальный корректный проект: два namespace, по сущности каждого слоя. */
 async function seed(): Promise<void> {
   await put(
     'context/project.yml',

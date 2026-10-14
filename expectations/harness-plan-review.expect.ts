@@ -36,7 +36,6 @@ import { parseJson } from './shared/guards.ts';
 
 budget({ crit: 0, warn: 0 });
 
-// Процесс plan-review: план построения — design/harness-plan-review.md.
 describe('[harness] plan-review', () => {
   crit(
     'команды планера: harness plan-review start | open | list | status | validate | graph | check | render | read | clone',
@@ -80,8 +79,6 @@ describe('[harness] plan-review', () => {
     Check.explicitFlags(),
   );
 });
-
-// ─────────────────────────────── проверки ───────────────────────────────
 
 const NOW = new Date('2026-10-14T12:00:00Z');
 
@@ -128,13 +125,9 @@ type HeadlessRun = Parameters<ModelRunner['headless']>[0];
 type InteractiveRun = Parameters<ModelRunner['interactive']>[0];
 
 interface Script {
-  /** Ответы меню и текстовых вопросов по порядку. */
   answers: string[];
-  /** Ответ ревьюера: стадия → замечания. */
   review?: (stage: '1b' | '2') => unknown;
-  /** Правка плана исправителем по номеру вызова. */
   fix?: (text: string, n: number) => string;
-  /** План, который пишет интерактивный планер. */
   draft?: (session: string) => string;
 }
 
@@ -145,15 +138,10 @@ interface Flow {
   dir: string;
   interactive: InteractiveRun[];
   headless: HeadlessRun[];
-  /** План в момент вопроса «уточнить». */
   askedPlan?: string;
   run: (...words: string[]) => Promise<number>;
 }
 
-/**
- * Прогон plan iter start с подменённой моделью и терминалом: модель —
- * скрипт, человек — очередь ответов. Каталоги временные.
- */
 async function withFlow(script: Script, fn: (flow: Flow) => Promise<void>): Promise<void> {
   const home = await mkdtemp(path.join(tmpdir(), 'plan-review-home-'));
   const project = await mkdtemp(path.join(tmpdir(), 'plan-review-proj-'));
@@ -436,7 +424,6 @@ class Check {
   }
 
   static async reviseScope(): Promise<void> {
-    // По пунктам: S1 — отмечен, T1 — нормально, T2 — зависит от S1.
     const fix = (t: string, n: number) =>
       n === 1
         ? t.replace('точка входа.', 'точка входа CLI.')

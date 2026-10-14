@@ -1,15 +1,13 @@
-// Загрузка plan-review: общий автомат ядра и критерии ревью criteria.yaml.
-
 import { readFile } from 'node:fs/promises';
-import { UsageError } from '../../shared/diagnostics.ts';
-import { errorMessage } from '../../shared/guards.ts';
+import { UsageError } from '#shared/diagnostics';
+import { errorMessage } from '#shared/guards';
 import {
   definitionWhere,
   harnessFile,
   loadMachine,
   type MachineDef,
   type Registry,
-} from '../core/index.ts';
+} from '#harnesses/core/index';
 import { planReviewRegistry, type PlanContext } from './actions.ts';
 import { parseCriteria, type Criterion } from './plan/criteria.ts';
 import { FORMAL_CRITERIA } from './plan/formal.ts';
@@ -24,7 +22,6 @@ export interface LoadedHarness {
 
 export interface LoadResult {
   harness?: LoadedHarness;
-  /** Ошибки с путём до поля; пусто — определение пригодно. */
   errors: string[];
 }
 
@@ -50,7 +47,6 @@ async function loadCriteria(
   return { criteria, errors };
 }
 
-/** Определение категории plan: встроенный реестр plan-review, плагины и критерии. */
 export async function loadHarness(home: string, name: string): Promise<LoadResult> {
   const { criteria, errors } = await loadCriteria(home, name);
   const loaded = await loadMachine(home, name, planReviewRegistry());

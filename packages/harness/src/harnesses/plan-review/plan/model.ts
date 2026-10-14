@@ -1,12 +1,6 @@
-// Модель plan.md: файл режется на сырые блоки (frontmatter, разделы `##`,
-// пункты `###`), поэтому запись обратно — конкатенация блоков, побайтно
-// тот же файл. Разбор полей пункта — поверх сырого текста, без третьего
-// представления.
-
 import { parse } from 'yaml';
-import { isRecord } from '../../../shared/guards.ts';
+import { isRecord } from '#shared/guards';
 
-/** Разделы, которые пишет скрипт: ревью и проверка диффом их пропускают. */
 export const SCRIPT_SECTIONS = ['Схема', 'Точки улучшения'] as const;
 export const REQUIRED_SECTIONS = ['Цель', 'Пункты', 'За горизонтом'] as const;
 export const SECTION_ORDER = ['Цель', 'Схема', 'Пункты', 'За горизонтом', 'Точки улучшения'];
@@ -18,41 +12,31 @@ export const TASK_FIELDS = ['Тип', 'Зависит от', 'Мотивация
 export const SPIKE_FIELDS = ['Тип', 'Вопрос', 'Ожидаемое решение', 'Таймбокс'] as const;
 
 export interface PlanItem {
-  /** `T1`, `S2`… */
   id: string;
   prefix: 'T' | 'S';
   title: string;
-  /** Поля `- Ключ: значение` первого уровня. */
   fields: Record<string, string>;
-  /** Пункты DoD: `- [ ] текст` под `- DoD:`. */
   dod: string[];
-  /** ID из «Зависит от»; `—` — пусто. */
   deps: string[];
-  /** Сырой текст блока, включая заголовок. */
   raw: string;
-  /** Строка заголовка, с 1. */
   line: number;
 }
 
 export interface PlanSection {
   name: string;
-  /** Сырой текст раздела без пунктов `###`. */
   raw: string;
   line: number;
 }
 
 export interface PlanModel {
   frontmatter: Record<string, unknown>;
-  /** Сырой frontmatter с разделителями; пусто — его нет. */
   frontmatterRaw: string;
   title: string | undefined;
   sections: PlanSection[];
   items: PlanItem[];
-  /** Пункты с одинаковым ID — для проверки 1a. */
   duplicateIds: string[];
 }
 
-/** Блок файла: сырой текст и разметка. */
 interface Block {
   kind: 'frontmatter' | 'preamble' | 'section' | 'item';
   name: string;
@@ -62,7 +46,6 @@ interface Block {
 
 const ITEM_HEADING = /^### ([TS])(\d+)\. (.*)$/;
 
-/** Строки с сохранённым переводом строки. */
 function linesOf(text: string): string[] {
   return text.match(/[^\n]*\n|[^\n]+$/g) ?? [];
 }
@@ -105,7 +88,6 @@ function blocks(text: string): Block[] {
   return result.filter((b) => b.raw !== '' || b.kind !== 'preamble');
 }
 
-/** Поля, DoD и зависимости пункта из его сырого текста. */
 function parseItem(block: Block): PlanItem | null {
   const heading = ITEM_HEADING.exec(block.raw.split('\n')[0]?.trimEnd() ?? '');
   if (heading === null) return null;
@@ -174,21 +156,18 @@ export function parsePlan(text: string): PlanModel {
   };
 }
 
-/** Заголовки `###` внутри «Пунктов», которые не разобрались как пункт. */
 export function malformedItems(text: string): { line: number; heading: string }[] {
   return blocks(text)
     .filter((b) => b.kind === 'item' && parseItem(b) === null)
     .map((b) => ({ line: b.line, heading: b.name }));
 }
 
-/** Запись блоков обратно: исходный текст без изменений. */
 export function serializeBlocks(text: string): string {
   return blocks(text)
     .map((b) => b.raw)
     .join('');
 }
 
-/** Значение поля frontmatter заменяется на месте; нет поля — добавляется. */
 export function setFrontmatter(text: string, key: string, value: string): string {
   const all = blocks(text);
   const fm = all.find((b) => b.kind === 'frontmatter');
@@ -203,10 +182,6 @@ export function setFrontmatter(text: string, key: string, value: string): string
   return all.map((b) => b.raw).join('');
 }
 
-/**
- * Тело раздела `## name` заменяется; пункты `###` внутри раздела не
- * трогаются. Нет раздела — он вставляется по порядку `SECTION_ORDER`.
- */
 export function replaceSection(text: string, name: string, body: string): string {
   const all = blocks(text);
   const content = `## ${name}\n\n${body.trimEnd()}\n\n`;
@@ -230,7 +205,6 @@ export function replaceSection(text: string, name: string, body: string): string
   return all.map((b) => b.raw).join('');
 }
 
-/** План без разделов скрипта — то, что видят ревьюеры. */
 export function withoutScriptSections(text: string): string {
   return blocks(text)
     .filter((b) => !(b.kind === 'section' && SCRIPT_SECTIONS.some((s) => s === b.name)))
@@ -238,7 +212,6 @@ export function withoutScriptSections(text: string): string {
     .join('');
 }
 
-/** Пункты, зависящие от `ids` прямо или транзитивно, включая сами `ids`. */
 export function withDependents(items: PlanItem[], ids: Iterable<string>): Set<string> {
   const result = new Set(ids);
   let grew = true;
@@ -254,11 +227,6 @@ export function withDependents(items: PlanItem[], ids: Iterable<string>): Set<st
   return result;
 }
 
-/**
- * Что изменилось между ревизиями: ID пунктов (добавленных, удалённых,
- * изменённых) и имена разделов вне пунктов. Разделы скрипта и
- * frontmatter не считаются.
- */
 export function changedParts(before: string, after: string): string[] {
   const a = parsePlan(before);
   const b = parsePlan(after);
@@ -280,7 +248,6 @@ export function changedParts(before: string, after: string): string[] {
   return changed;
 }
 
-/** Mermaid-схема зависимостей для раздела «Схема». */
 export function dependencyMermaid(items: PlanItem[]): string {
   const lines = ['```mermaid', 'flowchart LR'];
   const linked = new Set<string>();

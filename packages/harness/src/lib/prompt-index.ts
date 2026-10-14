@@ -2,8 +2,8 @@ import { createHash } from 'node:crypto';
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { parse, stringify } from 'yaml';
-import { normalizeEol, parseFrontmatter } from '../shared/frontmatter.ts';
-import { errorCode, errorMessage, isRecord } from '../shared/guards.ts';
+import { normalizeEol, parseFrontmatter } from '#shared/frontmatter';
+import { errorCode, errorMessage, isRecord } from '#shared/guards';
 
 export const INDEX_PATH = 'prompts/index.yml';
 const SOURCE_DIRS = ['prompts', 'patterns'] as const;
@@ -26,17 +26,13 @@ const GROUPS = [
 export interface IndexEntry {
   kind: string;
   key: string;
-  /** Путь от корня репозитория, всегда через `/`. */
   path: string;
   sha256: string;
   applicableTo: string[];
   patterns: string[];
   title?: string;
-  /** Чем заменён устаревший промпт: ключ или путь замены. */
   deprecated?: string;
-  /** Блок `feature` модуля-возможности — то, что нужно для чеклиста. */
   feature?: FeatureInfo;
-  /** Файлы skill: `path` от корня репозитория и SHA-256 каждого. */
   files?: { path: string; sha256: string }[];
 }
 
@@ -47,16 +43,13 @@ export interface FeatureInfo {
   conflicts: string[];
 }
 
-/** Поля `feature` во frontmatter; `asks` читается из самого модуля, в индекс не идёт. */
 const FEATURE_KEYS = ['summary', 'default', 'requires', 'conflicts', 'asks'];
 
 export interface CollectResult {
   entries: IndexEntry[];
-  /** Файлы без `key` / `kind` во frontmatter (README и т.п.). */
   skipped: string[];
 }
 
-/** SHA-256 от содержимого с LF, чтобы хэш совпадал на любой ОС. */
 export function sha256(content: string): string {
   return createHash('sha256').update(normalizeEol(content), 'utf8').digest('hex');
 }
@@ -96,7 +89,6 @@ function parseFeature(value: unknown, kind: string, file: string): FeatureInfo |
   };
 }
 
-/** requires / conflicts ссылаются только на модули из индекса и не на себя. */
 function checkFeatureRefs(entries: IndexEntry[]): void {
   const modules = new Set(entries.filter((e) => e.kind === 'module').map((e) => e.key));
   for (const e of entries) {
@@ -180,7 +172,6 @@ async function listNames(abs: string): Promise<string[]> {
   }
 }
 
-/** name во frontmatter совпадает с именем; description — однострочный title записи. */
 function nameAndTitle(content: string, expected: string, file: string): string {
   let fm;
   try {
@@ -195,11 +186,6 @@ function nameAndTitle(content: string, expected: string, file: string): string {
   return title;
 }
 
-/**
- * Skill — каталог `skills/<name>/` с `SKILL.md` по стандарту Agent Skills.
- * SHA-256 skill — от строк `<sha256 файла>  <путь внутри skill>`, по одной
- * на файл, в порядке путей: меняется при правке любого файла.
- */
 async function collectSkills(root: string): Promise<IndexEntry[]> {
   const entries: IndexEntry[] = [];
   for (const name of await listNames(path.join(root, SKILLS_DIR))) {
@@ -236,10 +222,6 @@ async function collectSkills(root: string): Promise<IndexEntry[]> {
   return entries;
 }
 
-/**
- * Пресет — `presets/<key>.yml`: готовый набор возможностей для типа
- * проекта. Модули пресета должны быть в индексе и применимы к его контракту.
- */
 async function collectPresets(root: string, known: IndexEntry[]): Promise<IndexEntry[]> {
   const entries: IndexEntry[] = [];
   for (const entry of await listNames(path.join(root, PRESETS_DIR))) {
@@ -290,7 +272,6 @@ async function collectPresets(root: string, known: IndexEntry[]): Promise<IndexE
   return entries;
 }
 
-/** Субагент — `agents/<name>.md`: frontmatter name, description, skills, tools + инструкция. */
 async function collectAgents(root: string): Promise<IndexEntry[]> {
   const entries: IndexEntry[] = [];
   for (const entry of await listNames(path.join(root, AGENTS_DIR))) {
@@ -312,13 +293,11 @@ async function collectAgents(root: string): Promise<IndexEntry[]> {
 }
 
 export interface RenderOptions {
-  /** Префикс raw-URL без завершающего `/`. */
   rawBase: string;
   generatedAt: Date;
 }
 
 const flowList = (items: string[]): string => `[${items.join(', ')}]`;
-/** Скаляр через YAML-сериализатор: кавычки появятся, только если без них YAML сломается. */
 const scalar = (value: string | boolean): string => stringify(value, { lineWidth: 0 }).trimEnd();
 
 export function renderIndex(entries: IndexEntry[], options: RenderOptions): string {
@@ -337,7 +316,6 @@ export function renderIndex(entries: IndexEntry[], options: RenderOptions): stri
         `  - key: ${e.key}`,
         ...(e.title === undefined ? [] : [`    title: ${scalar(e.title)}`]),
         `    path: ${e.path}`,
-        // У skill raw нет: это каталог, raw — у каждого файла.
         ...(e.files === undefined ? [`    raw: ${options.rawBase}/${e.path}`] : []),
         `    sha256: ${e.sha256}`,
       );
@@ -370,7 +348,6 @@ export function renderIndex(entries: IndexEntry[], options: RenderOptions): stri
   return `${lines.join('\n')}\n`;
 }
 
-/** Убирает строку `generated_at`: она меняется на каждой сборке. */
 export function stripTimestamp(index: string): string {
   return normalizeEol(index)
     .split('\n')
@@ -384,7 +361,6 @@ export interface IndexDiff {
   actual: string | undefined;
 }
 
-/** Построчное сравнение без учёта `generated_at`; пустой массив — индексы совпадают. */
 export function diffIndex(expected: string, actual: string): IndexDiff[] {
   const exp = stripTimestamp(expected).split('\n');
   const act = stripTimestamp(actual).split('\n');

@@ -1,4 +1,3 @@
-/** Копия expectations/schemas/harness-fsm.schema.json; совпадение проверяют ожидания. */
 export const FSM_SCHEMA = {
   $schema: 'https://json-schema.org/draft/2020-12/schema',
   title: 'harness.yaml — автомат harness',

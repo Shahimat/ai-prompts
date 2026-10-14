@@ -2,7 +2,6 @@ import { describe, expect } from 'vitest';
 import { contract, crit, expectAtMost, indexEntries } from '@shahimat/harness/expect';
 import { stringList } from './guards.ts';
 
-/** Общие ожидания к любому контракту. Подключение: anyContract('<key>'). */
 export function anyContract(key: string): void {
   const check = new AnyContractCheck(key);
 
@@ -14,8 +13,6 @@ export function anyContract(key: string): void {
     crit('контракт не помечен deprecated', () => check.notDeprecated());
   });
 }
-
-// ─────────────────────────────── проверки ───────────────────────────────
 
 class AnyContractCheck {
   private readonly key: string;

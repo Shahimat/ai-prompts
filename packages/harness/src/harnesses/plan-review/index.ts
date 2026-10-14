@@ -1,5 +1,3 @@
-// Публичный API harness plan-review: операции CLI и то, что нужно фасаду пакета.
-
 export * from './actions.ts';
 export * from './cli.ts';
 export * from './load.ts';

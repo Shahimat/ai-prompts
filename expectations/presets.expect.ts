@@ -10,8 +10,6 @@ import {
 } from '@shahimat/harness/expect';
 import { stringList } from './shared/guards.ts';
 
-// Виды контракта v3: operational, external, private, analytical.
-// Каждый вид — пресет; ниже — что обязано быть у каждого.
 budget({ crit: 0, warn: 0 });
 
 describe('виды контракта', () => {
@@ -82,8 +80,6 @@ describe('analytical — аналитический проект', () => {
     Check.hasNot('analytical', ['life', 'safety-boundaries']),
   );
 });
-
-// ─────────────────────────────── проверки ───────────────────────────────
 
 const KINDS = ['operational', 'external', 'private', 'analytical'];
 

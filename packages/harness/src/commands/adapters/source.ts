@@ -1,14 +1,13 @@
 import { access, readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
-import type { Diagnostic } from '../../shared/diagnostics.ts';
-import { errorCode, errorMessage } from '../../shared/guards.ts';
-import { normalizeEol, parseFrontmatter } from '../../shared/frontmatter.ts';
+import type { Diagnostic } from '#shared/diagnostics';
+import { errorCode, errorMessage } from '#shared/guards';
+import { normalizeEol, parseFrontmatter } from '#shared/frontmatter';
 
 export const AGENTS_MD = 'AGENTS.md';
 export const SKILLS_DIR = '.agents/skills';
 export const AGENTS_DIR = '.agents/agents';
 
-/** Файл skill: путь внутри каталога skill (через `/`) и содержимое. */
 export interface SkillFile {
   rel: string;
   content: Buffer;
@@ -19,7 +18,6 @@ export interface Skill {
   files: SkillFile[];
 }
 
-/** Субагент из `.agents/agents/<name>.md`. */
 export interface AgentDef {
   name: string;
   source: string;
@@ -119,7 +117,6 @@ function parseAgent(
   };
 }
 
-/** Читает канонические источники адаптеров. */
 export async function readSources(root: string): Promise<Sources> {
   const diagnostics: Diagnostic[] = [];
   const hasAgentsMd = await access(path.join(root, AGENTS_MD)).then(

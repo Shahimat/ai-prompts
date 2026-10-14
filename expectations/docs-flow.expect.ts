@@ -16,9 +16,6 @@ import { parse } from 'yaml';
 
 budget({ crit: 0, warn: 0 });
 
-// Поток «анализ → проектная документация»: основная сессия передаёт
-// намерения, docs-keeper ведёт дельту, harness проверяет и закрывает её.
-
 describe('[flow] ownership', () => {
   crit(
     'у каждой записи в проектную документацию один ответственный — skill docs-keeper или команда harness; таблица — в skill docs-keeper',
@@ -65,11 +62,8 @@ describe('[flow] delta', () => {
   );
 });
 
-// ─────────────────────────────── проверки ───────────────────────────────
-
 const SCHEMAS = 'expectations/schemas';
 
-/** Обязательные строки таблицы ответственных: что пишется. */
 const OWNED = [
   'context/project.yml',
   'context/conventions/',
@@ -88,7 +82,6 @@ const anchorText = async (key: string): Promise<string> =>
     .join('\n');
 
 class Check {
-  // ownership
   static async owners(): Promise<void> {
     const rows = (await anchorText('docs-owners'))
       .split('\n')
@@ -107,7 +100,6 @@ class Check {
   static shortReport = (): Promise<void> =>
     judged(['@docs-keeper-report', '@docs-intents-triggers', '@attention']);
 
-  // delta
   static async deltaFormat(): Promise<void> {
     const block = codeBlock(await anchorEvidence('docs-delta'), 'yaml', 'summary:');
     expect(block).not.toBeNull();

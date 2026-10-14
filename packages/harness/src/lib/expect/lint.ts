@@ -1,4 +1,3 @@
-/** Ожидание — заголовок `it` с путём `describe`. */
 export interface Title {
   file: string;
   path: string[];
@@ -7,7 +6,6 @@ export interface Title {
 
 export const MAX_TITLE = 200;
 
-/** Слова, после которых ожидание нельзя проверить «да/нет» или числом. */
 const VAGUE = [
   'удобно',
   'удобный',
@@ -29,11 +27,9 @@ const VAGUE = [
 export interface TitleIssue {
   title: Title;
   message: string;
-  /** Длина и дубли — crit; размытые слова — warn. */
   level: 'crit' | 'warn';
 }
 
-/** Механическая проверка заголовков: длина, размытые слова, дубли. */
 export function lintTitles(titles: Title[]): TitleIssue[] {
   const out: TitleIssue[] = [];
   const seen = new Set<string>();

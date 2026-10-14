@@ -5,9 +5,9 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { main, run } from '../src/cli.ts';
-import { promptOf, shellStep, splitWords } from '../src/shell.ts';
-import { childrenOf, COMMANDS, findCommand, renderUsage } from '../src/tree.ts';
+import { main, run } from '#cli';
+import { promptOf, shellStep, splitWords } from '#shell';
+import { childrenOf, COMMANDS, findCommand, renderUsage } from '#tree';
 
 const NOW = new Date('2026-10-13T12:00:00Z');
 const GOOD = '# Журнал\n\n- 2026-10-13 · [arch] a · b\n';
@@ -193,7 +193,7 @@ describe('harness expect init', () => {
 
 describe('harness outdated', async () => {
   const { changelogBetween, compareVersions, runOutdated } =
-    await import('../src/commands/outdated/index.ts');
+    await import('#commands/outdated/index');
   const LOG = '# Журнал\n\n## 0.5.0\n\n- outdated\n\n## 0.4.0\n\n- якоря\n\n## 0.3.0\n\n- expect\n';
   const fetcher = (latest: string) => async (url: string) => ({
     ok: true,
@@ -252,7 +252,6 @@ describe('дерево команд: уровни, list, help, оболочка'
   it('параметры пути и приоритет литералов', () => {
     expect(findCommand(['plan-review', 'list'])?.params).toEqual({});
     expect(findCommand(['plan-review', 'status', '0d57'])?.params).toEqual({ id: '0d57' });
-    // Литерал важнее параметра: clone <id> md — не clone <id> с лишним словом.
     expect(findCommand(['plan-review', 'clone', '0d57', 'md'])?.command.path.at(-1)).toBe('md');
     expect(findCommand(['check', 'extra'])).toBeUndefined();
   });
@@ -299,10 +298,14 @@ describe('дерево команд: уровни, list, help, оболочка'
       'home/harnesses/plan-review/handlers/extra.ts',
       'const yes = (_c: unknown): boolean => true;\nexport default { guards: { yes } };\n',
     );
-    const bin = fileURLToPath(new URL('../src/bin.ts', import.meta.url));
-    const r = spawnSync(process.execPath, [bin, 'plan-review', 'validate', '--home', home], {
-      encoding: 'utf8',
-    });
+    const bin = fileURLToPath(import.meta.resolve('#bin'));
+    const r = spawnSync(
+      process.execPath,
+      ['--conditions=source', bin, 'plan-review', 'validate', '--home', home],
+      {
+        encoding: 'utf8',
+      },
+    );
     expect(r.stderr).toBe('');
     expect(r.stdout).toContain('plan-review: ok (плагины: extra.ts)');
     expect(r.status).toBe(0);

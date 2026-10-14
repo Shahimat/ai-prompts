@@ -11,18 +11,15 @@ const script = (def: ScriptDef): Command => ({
   run: (args) => runScript(def, args),
 });
 
-/** Дерево команд CLI: из него строятся разбор аргументов, справка и оболочка. */
 export const COMMANDS: readonly Command[] = [
   script(CHECK),
   script(REFRESH),
   ...COMMAND_NODES,
-  // harness: команды под именем harness
   ...HARNESS_NODES,
 ];
 
 const isParam = (segment: string): boolean => segment.startsWith('<') && segment.endsWith('>');
 
-/** Параметры, если путь команды совпадает с префиксом слов; иначе null. */
 function matchPrefix(
   path: readonly string[],
   words: readonly string[],
@@ -42,7 +39,6 @@ export interface Match {
   params: Record<string, string>;
 }
 
-/** Команда, путь которой совпадает со словами целиком; литералы важнее параметров. */
 export function findCommand(positionals: readonly string[]): Match | undefined {
   const matches = COMMANDS.flatMap((command) => {
     if (command.path.length !== positionals.length) return [];
@@ -53,17 +49,14 @@ export function findCommand(positionals: readonly string[]): Match | undefined {
   return matches[0];
 }
 
-/** Команды под пространством имён `words` (`[]` — корень). */
 export function commandsUnder(words: readonly string[]): Command[] {
   return COMMANDS.filter(
     (c) => c.path.length > words.length && matchPrefix(c.path, words) !== null,
   );
 }
 
-/** Пространство имён: слова — строгий префикс хотя бы одной команды. */
 export const isNamespace = (words: readonly string[]): boolean => commandsUnder(words).length > 0;
 
-/** Следующие сегменты под пространством имён: для `list`. */
 export function childrenOf(words: readonly string[]): string[] {
   return [...new Set(commandsUnder(words).map((c) => c.path[words.length] ?? ''))];
 }
@@ -75,7 +68,6 @@ function usageLine(c: Command): string {
   return `  ${parts.join(' ')}`;
 }
 
-/** Справка: все команды или команды под пространством имён. */
 export function renderUsage(words: readonly string[] = []): string {
   const list = words.length === 0 ? COMMANDS : commandsUnder(words);
   return [

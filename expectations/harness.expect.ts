@@ -342,8 +342,6 @@ describe('[harness] index', () => {
   crit('у skill в индексе sha256 каждого файла', () => Check.skillFileShas());
 });
 
-// ─────────────────────────────── проверки ───────────────────────────────
-
 const PKG = 'packages/harness';
 const SCHEMAS = 'expectations/schemas';
 const BIN = () => path.join(repoRoot(), PKG, 'dist/bin.js');
@@ -354,7 +352,6 @@ async function tempDir(): Promise<string> {
   return mkdtemp(path.join(tmpdir(), 'harness-expect-'));
 }
 
-/** Содержимое всех файлов каталога: путь → текст. */
 async function snapshot(
   dir: string,
   skip: (rel: string) => boolean = () => false,
@@ -373,7 +370,6 @@ async function snapshot(
 const REVISE_NAMING =
   'summary: s\nitems:\n  - op: revise\n    kind: rule\n    target: naming\n    summary: snake_case\n    evidence: e\n    was: kebab-case\n    why: w\n';
 
-/** Временный git-проект с одной convention и пустой context/.delta/. */
 async function withGitProject(fn: (dir: string) => Promise<void>): Promise<void> {
   const dir = await tempDir();
   const git = (...args: string[]) => spawnSync('git', args, { cwd: dir, encoding: 'utf8' });
@@ -399,10 +395,6 @@ async function withGitProject(fn: (dir: string) => Promise<void>): Promise<void>
   }
 }
 
-/**
- * Образцы секретов по типам. Собраны из частей, чтобы в самом репозитории
- * не было литерала, на который сработает secrets.
- */
 const SECRET_SAMPLES: Record<string, string> = {
   'api-key': `aws_key = ${'AKIA'}${'Q7XK2M9PLR4TWZ8N'}`,
   token: `token: ${'ghp'}_${'a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8'}`,
@@ -411,7 +403,6 @@ const SECRET_SAMPLES: Record<string, string> = {
 };
 const SECRET_VALUE = `${'AKIA'}${'Q7XK2M9PLR4TWZ8N'}`;
 
-/** Временный git-проект с context/harness.yml и отслеживаемым файлом `notes.md`. */
 async function withSecretProject(
   config: string,
   notes: string,
@@ -429,7 +420,6 @@ async function withSecretProject(
 const cliOut = (args: string[], cwd = repoRoot()) =>
   spawnSync(process.execPath, [BIN(), ...args], { cwd, encoding: 'utf8' });
 
-/** Команды из дерева CLI: `check`, `adapters sync`, `expect init`, … */
 async function usageCommands(): Promise<string[]> {
   return COMMANDS.map((c) => c.path.join(' '));
 }
@@ -452,7 +442,6 @@ const DECLARED_COMMANDS = [
   'index check',
   'secrets scan',
   'refresh',
-  // harness: команды под его именем; plan-review — harness-plan-review.expect.ts
   ...['plan-review', 'docs-delta', 'source-sync'].flatMap((p) => [
     `${p} start`,
     `${p} open <id>`,
@@ -469,7 +458,6 @@ const DECLARED_COMMANDS = [
 ];
 
 class Check {
-  // secrets
   static async secretsFound(): Promise<void> {
     for (const [kind, sample] of Object.entries(SECRET_SAMPLES)) {
       await withSecretProject('checks: {}\n', sample, async (dir) => {
@@ -531,7 +519,6 @@ class Check {
 
   static docsKeeperSecrets = (): Promise<void> => judged(['@docs-secrets']);
 
-  // состав
   static async packages(): Promise<void> {
     const dirs = (await packageDirs()).sort();
     const names = await Promise.all(
@@ -582,7 +569,6 @@ class Check {
     expect([...KNOWN_ADAPTERS].sort()).toEqual(['claude-code', 'codex']);
   }
 
-  // основа
   static async noBash(): Promise<void> {
     const pkg = parseJson(await readRepo(`${PKG}/package.json`));
     expect(at(pkg, 'engines', 'node')).toBe('>=24');
@@ -601,7 +587,6 @@ class Check {
   }
 
   static async tsStrict(): Promise<void> {
-    // Флаги с учётом цепочки extends: пакеты наследуют tsconfig.base.json.
     const compilerOptions = async (file: string): Promise<Record<string, unknown>> => {
       const cfg = parseJson(await readRepo(file));
       const parent = at(cfg, 'extends');
@@ -642,7 +627,6 @@ class Check {
         return !new RegExp(`\\['${group}'|run${group[0]?.toUpperCase()}${group.slice(1)}\\(`).test(
           tests,
         );
-      // Параметр пути (`<session>`) в тесте — любое значение: литерал или переменная.
       const call = c
         .split(' ')
         .map((seg) => (seg.startsWith('<') ? '[^,()]+' : `'${seg.replace(/[*]/g, '\\*')}'`))
@@ -689,7 +673,6 @@ class Check {
     expect(() => parseConfig('checks:\n  changelog:\n    bogus: 1\n')).toThrow('checks.changelog');
   }
 
-  // модели
   static verdictByCode = (): Promise<void> => judged(['@verdict-by-code']);
 
   static answerSchema(): void {
@@ -717,7 +700,6 @@ class Check {
     ]);
   }
 
-  // ожидания
   static lintOnTitleChange = (): Promise<void> => judged(['@expect-cycles']);
   static judgeOnlyStale = (): Promise<void> => judged(['@expect-cycles']);
 
@@ -775,7 +757,6 @@ class Check {
     expect(MAX_TITLE).toBe(200);
   }
 
-  // генерация
   static async adaptersSafe(): Promise<void> {
     const dir = await tempDir();
     try {
@@ -808,7 +789,6 @@ class Check {
     expect(bad.map((e) => e.key)).toEqual([]);
   }
 
-  // delta
   static async deltaCheck(): Promise<void> {
     await withGitProject(async (dir) => {
       await writeFile(
@@ -854,7 +834,6 @@ class Check {
     expect(DELTA_SCHEMA).toEqual(JSON.parse(await readRepo(`${SCHEMAS}/docs-delta.schema.json`)));
   }
 
-  // журнал и версии
   static changelogLine(): void {
     expect(DEFAULT_CHANGELOG.maxLine).toBe(120);
   }
@@ -893,24 +872,18 @@ class Check {
   }
 }
 
-// ─────────────────────────────── слои ───────────────────────────────
-
 const LAYERS = ['shared', 'lib', 'commands', 'scripts', 'harnesses', 'app'] as const;
 type Layer = (typeof LAYERS)[number];
-/** Файлы верхнего слоя: точка входа, оболочка, дерево CLI и фасад пакета. */
 const APP_FILES = ['bin.ts', 'cli.ts', 'index.ts', 'tree.ts', 'shell.ts'];
 const FACADE = 'index.ts';
 
-/** Слой файла `src/`; undefined — файл вне слоёв. */
 function layerOf(file: string): Layer | undefined {
   if (APP_FILES.includes(file)) return 'app';
   const [head = '', ...rest] = file.split('/');
-  // В корне слоя harnesses — только каталог harnesses/index.ts, остальное — в слайсах.
   if (head === 'harnesses' && rest.length === 1 && rest[0] !== 'index.ts') return undefined;
   return LAYERS.find((l) => l === head && l !== 'app' && rest.length > 0);
 }
 
-/** Слайс: `commands/<x>`, `harnesses/<x>`, `harnesses/core`, каталог `harnesses` или слой целиком. */
 function sliceOf(file: string): string {
   const parts = file.split('/');
   if ((parts[0] === 'commands' || parts[0] === 'harnesses') && parts.length > 2)
@@ -918,7 +891,6 @@ function sliceOf(file: string): string {
   return layerOf(file) ?? file;
 }
 
-/** Публичный модуль слайса команды или harness — его `index.ts`. */
 const isPublic = (file: string): boolean =>
   file.endsWith('/index.ts') && file.split('/').length === 3;
 
@@ -930,15 +902,16 @@ async function srcFiles(): Promise<string[]> {
     .filter((f) => f.endsWith('.ts'));
 }
 
-/** Относительные импорты файла `src/`: статические, реэкспорты и `import('…')`. */
 async function importsOf(file: string): Promise<string[]> {
   const text = await readRepo(`${PKG}/src/${file}`);
-  return [...text.matchAll(/(?:from |import\()'(\.[^']+)'/g)].map((m) =>
-    path.posix.normalize(path.posix.join(path.posix.dirname(file), m[1] ?? '')),
-  );
+  return [...text.matchAll(/(?:from |import\()'([.#][^']+)'/g)].map((m) => {
+    const spec = m[1] ?? '';
+    return spec.startsWith('#')
+      ? `${spec.slice(1)}.ts`
+      : path.posix.normalize(path.posix.join(path.posix.dirname(file), spec));
+  });
 }
 
-/** Нарушения правила по всем импортам `src/`: `файл → цель`. */
 async function violations(bad: (file: string, target: string) => boolean): Promise<string[]> {
   const out: string[] = [];
   for (const file of await srcFiles())
@@ -953,7 +926,6 @@ const effectOf = (n: unknown): unknown => at(n, 'effect');
 const isEffect = (v: unknown): boolean => v === 'query' || v === 'mutation';
 const label = (n: unknown): string => stringList(at(n, 'path'), 'path').join(' ');
 
-/** `run:` шагов CI, кроме установки зависимостей. */
 const ciRuns = (workflow: string): string[] =>
   [...workflow.matchAll(/^\s*run: (.+)$/gm)]
     .map((m) => (m[1] ?? '').trim())
@@ -975,7 +947,6 @@ async function readNpmScripts(rel: string): Promise<NpmScripts> {
   };
 }
 
-/** Каталоги пакетов в packages/: без общих build.ts и tsconfig.json. */
 async function packageDirs(): Promise<string[]> {
   return (await readdir(path.join(repoRoot(), 'packages'), { withFileTypes: true }))
     .filter((e) => e.isDirectory())
@@ -990,7 +961,6 @@ async function npmPackages(): Promise<{ root: NpmScripts; workspaces: NpmScripts
   };
 }
 
-/** Ссылка на npm-скрипт: `npm run x [-w pkg]`, `npm test [-w pkg]`. */
 function npmRef(part: string): { script: string; workspace?: string } | undefined {
   const m = /^npm (?:run (\S+)|(test))(?: -w (\S+))?$/.exec(part.trim());
   if (m === null) return undefined;
@@ -1000,7 +970,6 @@ function npmRef(part: string): { script: string; workspace?: string } | undefine
 
 const partsOf = (script: string): string[] => script.split('&&').map((p) => p.trim());
 
-/** Конечные команды за шагами CI: ссылки на npm-скрипты раскрыты. */
 async function npmLeaves(runs: string[]): Promise<string[]> {
   const { root, workspaces } = await npmPackages();
   const expand = (part: string, pkg: NpmScripts, seen: string[]): string[] => {
@@ -1016,10 +985,8 @@ async function npmLeaves(runs: string[]): Promise<string[]> {
   return runs.flatMap((r) => partsOf(r).flatMap((p) => expand(p, root, [])));
 }
 
-/** Путь команды harness в строке вызова: `node …/bin.js index check --raw-base x`. */
 function harnessWords(line: string): string[] | undefined {
   const words = splitWords(line);
-  // Вызов harness: …/bin.js, `harness` первым словом или пакет после npx.
   const start = words.findIndex(
     (w, i) =>
       /(^|\/)bin\.js$/.test(w) ||
@@ -1122,8 +1089,6 @@ class Layers {
         if (extra.length > 0) bad.push(`${label(s)}: лишние поля шага ${extra.join(', ')}`);
       }
     }
-    // Объявления скриптов — данные; исполняет их scripts/run.ts по реестру
-    // команд scripts/commands.ts.
     const logic = ['scripts/run.ts', 'scripts/commands.ts'];
     const declarations = (await srcFiles()).filter(
       (f) => layerOf(f) === 'scripts' && !logic.includes(f),
@@ -1175,7 +1140,6 @@ class Layers {
           now: new Date(),
         });
         await writeFile(path.join(session.dir, 'plan.md'), PLAN_SAMPLE);
-        // Свежий plan.html: read не пересобирает его, а только открывает.
         expect(cli(['plan-review', 'render', session.id, '--home', home])).toBe(0);
 
         const query = COMMANDS.filter((n) => effectOf(n) === 'query');
@@ -1187,7 +1151,6 @@ class Layers {
             seg === '<id>' ? session.id : seg,
           );
           const args = ['--root', dir, '--home', home, '--raw-base', 'https://example.invalid'];
-          // BROWSER — сам Node: session read «открывает» HTML без браузера.
           spawnSync(process.execPath, [BIN(), ...words, ...args], {
             cwd: dir,
             encoding: 'utf8',
@@ -1305,13 +1268,9 @@ class Layers {
   }
 }
 
-// ─────────────────────────────── skills и harness ───────────────────────────────
-
-/** Harness пакета: каталог на harness, определение рядом с кодом. */
 const HARNESSES = `${PKG}/src/harnesses`;
 const HARNESS_NAME = /^[a-z][a-z0-9]*(-[a-z0-9]+)+$/;
 const RUNS_ANCHOR = 'skill-runs';
-/** Команда harness в тексте: `harness check`, `harness docs-delta start`. */
 const MENTION = /`harness [a-z]/;
 
 interface SkillFile {
@@ -1332,10 +1291,8 @@ async function skillFiles(): Promise<SkillFile[]> {
   );
 }
 
-/** Как runs выглядит в тексте skill: `harness refresh`, `harness docs-delta`. */
 const runsCall = (runs: string): string => `harness ${runs}`;
 
-/** Текст skill без регионов якоря skill-runs. */
 const outsideRuns = (s: SkillFile): string =>
   markdownRegions(s.text, s.path)
     .filter((r) => r.key === RUNS_ANCHOR)
@@ -1366,12 +1323,10 @@ class Skills {
   static async runsOnly(): Promise<void> {
     const bad: string[] = [];
     for (const s of await skillFiles()) {
-      // Каждое упоминание команды harness — в регионе skill-runs: его видит судья.
       if (MENTION.test(outsideRuns(s)))
         bad.push(`${s.name}: команда harness вне expect:${RUNS_ANCHOR}`);
       if (typeof s.runs === 'string' && !s.text.includes(runsCall(s.runs)))
         bad.push(`${s.name}: в тексте нет запуска ${runsCall(s.runs)}`);
-      // Объявление — в регионе строкой-комментарием: судья сверяет с ним текст.
       const declared = markdownRegions(s.text, s.path)
         .filter((r) => r.key === RUNS_ANCHOR)
         .flatMap((r) => [...r.text.matchAll(/<!-- metadata\.runs: (.+?) -->/g)].map((m) => m[1]));
@@ -1408,7 +1363,6 @@ async function machine(name: string): Promise<MachineDef> {
   return def;
 }
 
-/** Варианты перехода состояния по событию: `[{ to, count? }]`. */
 const edges = (def: MachineDef, state: string, event: string): { to: string; count?: string }[] =>
   (def.states.find((s) => s.name === state)?.on[event] ?? []).map((t) =>
     t.count === undefined ? { to: t.to } : { to: t.to, count: t.count },
@@ -1427,7 +1381,6 @@ async function harnessDirs(): Promise<string[]> {
     .sort();
 }
 
-/** Сессия docs-delta в git-проекте: стоит в apply с выданным заданием. */
 async function withProcessSession(
   fn: (s: { dir: string; home: string; id: string; start: string }) => Promise<void>,
 ): Promise<void> {
@@ -1514,7 +1467,6 @@ class Processes {
   }
 
   static docsVerify(): void {
-    // Скрипт состояния verify — данные пакета, в CLI его нет.
     expect(stepCommands(at(harnessPkg, 'DOCS_VERIFY', 'steps'))).toEqual([
       'context index',
       'adapters sync',
@@ -1568,7 +1520,6 @@ class Processes {
         f,
         ok: true,
       });
-    // Отдельного каталога определений больше нет: в пакет уходит только сборка.
     expect(existsSync(path.join(repoRoot(), PKG, 'harnesses'))).toBe(false);
     const files = stringList(
       at(parseJson(await readRepo(`${PKG}/package.json`)), 'files'),
@@ -1599,7 +1550,6 @@ class Processes {
       expect(status(id.slice(0, 4))).toBe(0);
       expect(status(id.slice(0, 3))).toBe(2);
       expect(status('zzzz')).toBe(2);
-      // Сессия чужого harness не открывается.
       expect(status(id.slice(0, 7), 'source-sync')).toBe(2);
     });
   }
@@ -1609,7 +1559,6 @@ class Processes {
       const data = async (): Promise<unknown> =>
         parseJson(await readFile(path.join(home, 'sessions', id, 'session.json'), 'utf8'));
       expect(at(await data(), 'state')).toBe('apply');
-      // Знание изменено без пункта revise — verify не пройдёт.
       await writeFile(
         path.join(dir, 'context/conventions/naming.yml'),
         'key: naming\nsummary: snake_case\nrule: x\n',
@@ -1653,7 +1602,6 @@ class Processes {
       expect(args[args.indexOf('--setting-sources') + 1]).toBe('');
       expect(args).not.toContain('--continue');
     }
-    // Код harness не читает окружение вызывающей сессии Claude Code.
     const bad: string[] = [];
     for (const f of (await srcFiles()).filter((f) => layerOf(f) === 'harnesses')) {
       const text = await readRepo(`${PKG}/src/${f}`);

@@ -38,6 +38,12 @@
       }
     },
     {
+      "files": ["packages/harness/src/commands/delta/delta.ts"],
+      "rules": {
+        "unicorn/no-thenable": "off"
+      }
+    },
+    {
       "files": ["packages/harness/src/shared/**/*.ts"],
       "rules": {
         "no-restricted-imports": [
@@ -45,7 +51,7 @@
           {
             "patterns": [
               {
-                "group": ["**/lib/**", "**/commands/**", "**/scripts/**", "**/harnesses/**"],
+                "group": ["#lib/**", "#commands/**", "#scripts/**", "#harnesses/**"],
                 "message": "shared — нижний слой: импортирует только shared"
               }
             ]
@@ -61,7 +67,7 @@
           {
             "patterns": [
               {
-                "group": ["**/commands/**", "**/scripts/**", "**/harnesses/**"],
+                "group": ["#commands/**", "#scripts/**", "#harnesses/**"],
                 "message": "lib импортирует только shared и lib"
               }
             ]
@@ -77,7 +83,7 @@
           {
             "patterns": [
               {
-                "group": ["**/scripts/**", "**/harnesses/**"],
+                "group": ["#scripts/**", "#harnesses/**"],
                 "message": "команда не вызывает скрипты и harness"
               }
             ]
@@ -93,7 +99,7 @@
           {
             "patterns": [
               {
-                "group": ["**/harnesses/**"],
+                "group": ["#harnesses/**"],
                 "message": "скрипт агрегирует только команды"
               }
             ]
@@ -109,7 +115,11 @@
           {
             "patterns": [
               {
-                "group": ["**/plan-review/**", "**/docs-delta/**", "**/source-sync/**"],
+                "group": [
+                  "#harnesses/plan-review/**",
+                  "#harnesses/docs-delta/**",
+                  "#harnesses/source-sync/**"
+                ],
                 "message": "ядро harness не зависит от конкретного harness"
               }
             ]

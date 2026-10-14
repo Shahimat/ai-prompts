@@ -1,20 +1,12 @@
-// Исполнитель скриптов: вместе с реестром команд — единственная логика слоя
-// scripts. Объявления скриптов — данные (`ScriptDef`).
-
-import type { CommandArgs } from '../shared/args.ts';
-import { CONFIG_PATH, loadConfig } from '../shared/config.ts';
-import { UsageError } from '../shared/diagnostics.ts';
-import type { ScriptDef } from '../shared/node.ts';
+import type { CommandArgs } from '#shared/args';
+import { CONFIG_PATH, loadConfig } from '#shared/config';
+import { UsageError } from '#shared/diagnostics';
+import type { ScriptDef } from '#shared/node';
 import { COMMAND_NODES } from './commands.ts';
 
 const commandOf = (path: readonly string[]) =>
   COMMAND_NODES.find((c) => c.path.length === path.length && c.path.every((p, i) => p === path[i]));
 
-/**
- * Выполняет шаги по порядку, все до конца: код выхода — худший из кодов
- * шагов. Шаг с `enabledBy` выполняется, только если проверка включена в
- * context/harness.yml.
- */
 export async function runScript(script: ScriptDef, args: CommandArgs): Promise<number> {
   const name = script.path.join(' ');
   const gated = script.steps.some((s) => s.enabledBy !== undefined);

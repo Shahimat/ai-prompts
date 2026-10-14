@@ -12,14 +12,13 @@ import {
   type MachineDef,
   type MachineState,
   type Registry,
-} from '../src/harnesses/core/fsm/machine.ts';
-import { loadHarness } from '../src/harnesses/plan-review/load.ts';
-import { loadPlugins } from '../src/harnesses/core/plugins.ts';
-import { BUILTIN_HARNESSES } from '../src/harnesses/core/store/session.ts';
+} from '#harnesses/core/fsm/machine';
+import { loadHarness } from '#harnesses/plan-review/load';
+import { loadPlugins } from '#harnesses/core/plugins';
+import { BUILTIN_HARNESSES } from '#harnesses/core/store/session';
 
 type Ctx = { calls: string[]; events: Record<string, string[]> };
 
-/** Действие, которое отдаёт события из очереди контекста. */
 const scripted = (name: string, events: string[]): ActionDef<Ctx> => ({
   events,
   run: async (ctx) => {

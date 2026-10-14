@@ -1,6 +1,5 @@
 import { formatDiagnostic, type Diagnostic } from './diagnostics.ts';
 
-/** Печатает нарушения и возвращает код выхода. */
 export function report(label: string, diags: Diagnostic[]): number {
   if (diags.length === 0) {
     console.log(`${label}: ok`);

@@ -1,6 +1,3 @@
-// Проверка 1a: структура plan.md без модели. Её запускают планер
-// (`session <id> check`), Stop-hook и автомат.
-
 import type { Finding } from './criteria.ts';
 import {
   ITEM_KINDS,
@@ -14,7 +11,6 @@ import {
   type PlanModel,
 } from './model.ts';
 
-/** Критерии 1a, которые реализует скрипт; criteria.yaml ссылается на них по id. */
 export const FORMAL_CRITERIA = [
   'frontmatter',
   'sections',
@@ -94,7 +90,6 @@ function checkDeps(plan: PlanModel): Finding[] {
       if (dep === item.id) out.push(finding('deps-acyclic', item.id, 'зависит от самого себя'));
     }
   }
-  // Цикл: обход в глубину с цветами.
   const color = new Map<string, 'grey' | 'black'>();
   const byId = new Map(plan.items.map((i) => [i.id, i]));
   const reported = new Set<string>();
@@ -137,7 +132,6 @@ function checkDuplicates(plan: PlanModel): Finding[] {
   return out;
 }
 
-/** Нарушения 1a; `session` — ожидаемое значение одноимённого поля frontmatter. */
 export function formalCheck(text: string, session?: string): Finding[] {
   const plan = parsePlan(text);
   return [

@@ -9,7 +9,7 @@ import {
   sha256,
   stripTimestamp,
   type IndexEntry,
-} from '../src/lib/prompt-index.ts';
+} from '#lib/prompt-index';
 
 const RAW = 'https://raw.example/repo/main';
 const AT = new Date('2026-01-02T03:04:05.678Z');

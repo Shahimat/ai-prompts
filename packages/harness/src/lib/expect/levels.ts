@@ -1,6 +1,5 @@
 import { expect, it } from 'vitest';
 
-/** Уровень ожидания: crit и warn считаются в бюджет файла, info — никогда. */
 export const LEVELS = ['crit', 'warn', 'info'] as const;
 export type Level = (typeof LEVELS)[number];
 
@@ -9,13 +8,10 @@ export interface Budget {
   warn: number;
 }
 
-/** Заголовок служебного теста с бюджетом файла; в отчёт не попадает. */
 export const BUDGET_TITLE = '__budget__';
 
-/** Доля порога, после которой формальная метрика оставляет info. */
 export const NEAR_LIMIT = 0.9;
 
-/** Метаданные теста, которые читает отчёт `harness expect`. */
 declare module 'vitest' {
   interface TaskMeta {
     level?: Level;
@@ -42,28 +38,20 @@ function levelled(level: Level, title: string, fn: Body): void {
   });
 }
 
-/** Ожидание уровня crit: формальная метрика, нарушение блокирует при бюджете 0. */
 export const crit = (title: string, fn: Body): void => levelled('crit', title, fn);
 
-/** Ожидание уровня warn: как правило — проверка судьёй. */
 export const warn = (title: string, fn: Body): void => levelled('warn', title, fn);
 
-/** Пояснение для исполнителя в отчёте (уровень info, не блокирует). */
 export function note(text: string): void {
   notes.push(text);
 }
 
-/** Бюджет файла: сколько нарушений crit и warn допустимо. По умолчанию 0 / 0. */
 export function budget(value: Budget): void {
   it(BUDGET_TITLE, (ctx) => {
     ctx.task.meta.budget = value;
   });
 }
 
-/**
- * Числовой порог: больше `limit` — нарушение; больше 90% порога —
- * info «близко к порогу».
- */
 export function expectAtMost(value: number, limit: number, label: string): void {
   if (value > limit * NEAR_LIMIT && value <= limit)
     note(`${label}: ${value} из ${limit} — ${Math.round((value / limit) * 100)}% порога`);

@@ -1,14 +1,9 @@
-// Реестр действий и guards: встроенные плюс плагины пользователя из
-// `<home>/harnesses/<harness>/handlers/*.{js,mjs,ts}`. Плагин —
-// модуль с `default: { actions?, guards? }`; `.ts` грузится без сборки
-// (type stripping Node ≥ 24).
-
 import { readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import type { ActionDef, ActionResult, Guard, Registry } from './fsm/machine.ts';
-import { UsageError } from '../../shared/diagnostics.ts';
-import { errorCode, isRecord, isStringArray } from '../../shared/guards.ts';
+import { UsageError } from '#shared/diagnostics';
+import { errorCode, isRecord, isStringArray } from '#shared/guards';
 
 function asResult(value: unknown, where: string): ActionResult {
   if (isRecord(value) && typeof value['event'] === 'string') return { event: value['event'] };
@@ -39,7 +34,6 @@ function pluginGuard<C>(value: unknown, where: string): Guard<C> {
   };
 }
 
-/** Плагины каталога дополняют и переопределяют встроенный реестр. */
 export async function loadPlugins<C>(registry: Registry<C>, dir: string): Promise<string[]> {
   let names: string[];
   try {

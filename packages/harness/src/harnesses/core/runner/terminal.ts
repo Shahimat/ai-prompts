@@ -1,6 +1,3 @@
-// Ввод человека в терминале: меню и текст. Без TTY интерактив
-// недоступен — состояния человека встают на паузу до `resume`.
-
 import { createInterface } from 'node:readline/promises';
 
 export interface Option {

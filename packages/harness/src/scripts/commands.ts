@@ -1,15 +1,12 @@
-// Реестр команд: узлы CLI вида command. Скрипты исполняются по нему,
-// дерево CLI собирается из него, скриптов и операций harness.
-
-import { runAdapters } from '../commands/adapters/index.ts';
-import { runChangelog } from '../commands/changelog/index.ts';
-import { runContext } from '../commands/context/index.ts';
-import { runDelta } from '../commands/delta/index.ts';
-import { runExpect } from '../commands/expect/index.ts';
-import { runOutdated } from '../commands/outdated/index.ts';
-import { runIndex } from '../commands/prompt-index/index.ts';
-import { runSecretsScan } from '../commands/secrets/index.ts';
-import type { CommandNode } from '../shared/node.ts';
+import { runAdapters } from '#commands/adapters/index';
+import { runChangelog } from '#commands/changelog/index';
+import { runContext } from '#commands/context/index';
+import { runDelta } from '#commands/delta/index';
+import { runExpect } from '#commands/expect/index';
+import { runOutdated } from '#commands/outdated/index';
+import { runIndex } from '#commands/prompt-index/index';
+import { runSecretsScan } from '#commands/secrets/index';
+import type { CommandNode } from '#shared/node';
 
 export const COMMAND_NODES: readonly CommandNode[] = [
   {

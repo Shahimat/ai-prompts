@@ -1,14 +1,13 @@
-import { loadConfig, CONFIG_PATH } from '../../shared/config.ts';
-import { UsageError } from '../../shared/diagnostics.ts';
-import { isRecord } from '../../shared/guards.ts';
-import type { CommandArgs } from '../../shared/args.ts';
+import { loadConfig, CONFIG_PATH } from '#shared/config';
+import { UsageError } from '#shared/diagnostics';
+import { isRecord } from '#shared/guards';
+import type { CommandArgs } from '#shared/args';
 
 const PACKAGE = '@shahimat/harness';
 const REGISTRY = `https://registry.npmjs.org/${PACKAGE.replace('/', '%2f')}`;
 const CHANGELOG_URL =
   'https://raw.githubusercontent.com/Shahimat/ai-prompts/main/packages/harness/CHANGELOG.md';
 
-/** Сравнение semver без пре-релизов: -1, 0, 1. */
 export function compareVersions(a: string, b: string): number {
   const pa = a.split('.').map((x) => Number.parseInt(x, 10));
   const pb = b.split('.').map((x) => Number.parseInt(x, 10));
@@ -19,7 +18,6 @@ export function compareVersions(a: string, b: string): number {
   return 0;
 }
 
-/** Разделы журнала `## <версия>` в (from, to] — то, что появилось после текущей версии. */
 export function changelogBetween(changelog: string, from: string, to: string): string[] {
   const sections = changelog.replace(/\r\n?/g, '\n').split(/^## /m).slice(1);
   return sections
@@ -35,7 +33,6 @@ export interface Fetcher {
   (url: string): Promise<{ ok: boolean; status: number; text(): Promise<string> }>;
 }
 
-/** Версия проекта против последней в npm; 0 — актуально, 1 — есть новее. */
 export async function runOutdated(args: CommandArgs, fetcher: Fetcher = fetch): Promise<number> {
   const config = await loadConfig(args.root);
   if (config?.version === undefined) throw new UsageError(`нет version в ${CONFIG_PATH}`);

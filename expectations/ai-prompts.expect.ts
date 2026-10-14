@@ -3,8 +3,6 @@ import { budget, crit, readRepo } from '@shahimat/harness/expect';
 import { attention, ticketCommits } from '@shahimat/expectations';
 import { at, parseJson, recordOrEmpty, stringAt } from './shared/guards.ts';
 
-// Правила работы агента в самом репозитории: skill ticket-commits и
-// особенности репозитория в CLAUDE.md (якоря expect:ticket-commits*).
 budget({ crit: 0, warn: 0 });
 
 ticketCommits('ticket-commits', 'ticket-commits:repo');
@@ -20,8 +18,6 @@ describe('публичные npm-пакеты', () => {
   );
 });
 
-// ─────────────────────────────── проверки ───────────────────────────────
-
 const PACKAGES = ['harness', 'expectations'];
 
 const localVersion = async (pkg: string): Promise<string> =>
@@ -29,7 +25,6 @@ const localVersion = async (pkg: string): Promise<string> =>
 
 const parse = (v: string): number[] => v.split('.').map((x) => Number.parseInt(x, 10));
 
-/** Следующая версия semver за `latest`: patch+1, minor+1 или major+1 с обнулением младших. */
 function isNextVersion(latest: string, next: string): boolean {
   const [a = 0, b = 0, c = 0] = parse(latest);
   return [`${a}.${b}.${c + 1}`, `${a}.${b + 1}.0`, `${a + 1}.0.0`].includes(next);

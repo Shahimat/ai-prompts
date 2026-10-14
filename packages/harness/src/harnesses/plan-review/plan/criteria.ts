@@ -1,16 +1,12 @@
-// Критерии ревью плана (criteria.yaml), замечания и вердикт. Уровень
-// замечания задаёт критерий, а не модель; вердикт считает скрипт.
-
 import { parse } from 'yaml';
-import { UsageError } from '../../../shared/diagnostics.ts';
-import { errorMessage, isOneOf, isRecord } from '../../../shared/guards.ts';
-import { schemaErrors } from '../../../shared/schema.ts';
+import { UsageError } from '#shared/diagnostics';
+import { errorMessage, isOneOf, isRecord } from '#shared/guards';
+import { schemaErrors } from '#shared/schema';
 
 export const LEVELS = ['crit', 'warn', 'info'] as const;
 export type Level = (typeof LEVELS)[number];
 export const STAGES = ['1a', '1b', '2'] as const;
 export type Stage = (typeof STAGES)[number];
-/** Стадии, которые ведут модели. */
 export const MODEL_STAGES = ['1b', '2'] as const;
 export type ModelStage = (typeof MODEL_STAGES)[number];
 
@@ -25,7 +21,6 @@ export interface Finding {
   criterion: string;
   level: Level;
   stage: Stage;
-  /** ID пункта (`T1`) или `plan` — замечание ко всему плану. */
   item: string;
   text: string;
 }
@@ -35,7 +30,6 @@ export interface Budget {
   warn: number;
 }
 
-/** Копия expectations/schemas/plan-criteria.schema.json; совпадение проверяют ожидания. */
 export const CRITERIA_SCHEMA = {
   $schema: 'https://json-schema.org/draft/2020-12/schema',
   title: 'criteria.yaml процесса plan-review',
@@ -90,7 +84,6 @@ export function parseCriteria(text: string, where: string): Criterion[] {
   return criteria;
 }
 
-/** JSON Schema ответа ревьюера стадии: критерий — только из этой стадии. */
 export function findingsSchema(criteria: Criterion[], stage: ModelStage): object {
   return {
     type: 'object',
@@ -114,11 +107,6 @@ export function findingsSchema(criteria: Criterion[], stage: ModelStage): object
   };
 }
 
-/**
- * Ответ модели → замечания с уровнем из критерия. Ответ вне схемы
- * отклоняется ошибкой: модель не может ни понизить уровень, ни
- * сослаться на чужой критерий.
- */
 export function acceptFindings(
   answer: unknown,
   criteria: Criterion[],
@@ -146,12 +134,6 @@ export interface StageVerdict {
   pass: boolean;
 }
 
-/**
- * Вердикт по стадиям: любой crit останавливает; warn — когда в одной
- * стадии их больше бюджета; info не останавливает никогда. Бюджеты
- * стадий не суммируются. `ran` — стадии, которые прогонялись: стадия
- * без замечаний тоже попадает в вердикт.
- */
 export function verdict(
   findings: Finding[],
   budget: Budget,

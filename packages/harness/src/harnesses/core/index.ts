@@ -1,6 +1,3 @@
-// Ядро слоя harness: автомат, запуск моделей, сессии, плагины. Ни от одного
-// конкретного harness не зависит.
-
 export * from './catalog.ts';
 export * from './fsm/machine.ts';
 export * from './fsm/schema.ts';

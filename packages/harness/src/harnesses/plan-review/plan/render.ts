@@ -1,7 +1,3 @@
-// HTML для просмотра plan.md: производное, источник истины — markdown.
-// Файл самодостаточный: стили встроены, схема зависимостей отрисована
-// в SVG на месте, без внешних скриптов и сети.
-
 import { parsePlan, SCRIPT_SECTIONS, type PlanItem } from './model.ts';
 
 const esc = (s: string): string =>
@@ -13,7 +9,6 @@ function inline(s: string): string {
     .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
 }
 
-/** Минимальный markdown: абзацы, списки, чекбоксы, код. */
 export function markdownToHtml(md: string): string {
   const out: string[] = [];
   let list = false;
@@ -71,7 +66,6 @@ export function markdownToHtml(md: string): string {
   return out.join('\n');
 }
 
-/** Слои графа: пункт стоит правее всех, от кого зависит. */
 function layers(items: PlanItem[]): Map<string, number> {
   const byId = new Map(items.map((i) => [i.id, i]));
   const depth = new Map<string, number>();
@@ -89,7 +83,6 @@ function layers(items: PlanItem[]): Map<string, number> {
   return depth;
 }
 
-/** SVG-схема зависимостей пунктов. */
 export function dependencySvg(items: PlanItem[]): string {
   if (items.length === 0) return '';
   const depth = layers(items);

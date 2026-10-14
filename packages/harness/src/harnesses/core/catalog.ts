@@ -1,10 +1,6 @@
-// Каталог harness: общие команды каждого harness поверх его модуля —
-// `harness <имя> start | open <id> | list | status <id> | validate | graph`.
-// Ядро модули не импортирует — их передаёт каталог слоя (`harnesses/index.ts`).
-
-import type { CommandArgs } from '../../shared/args.ts';
-import { UsageError } from '../../shared/diagnostics.ts';
-import type { CommandNode } from '../../shared/node.ts';
+import type { CommandArgs } from '#shared/args';
+import { UsageError } from '#shared/diagnostics';
+import type { CommandNode } from '#shared/node';
 import {
   drive,
   machineMermaid,
@@ -15,23 +11,14 @@ import {
 } from './fsm/machine.ts';
 import { harnessHome, listSessions, resolveSession, type Session } from './store/session.ts';
 
-/** Модуль harness: как начать сессию, загрузить автомат и вести его. */
 export interface HarnessModule {
-  /** `plan-review`. */
   name: string;
-  /** Опции `start` для справки, кроме общей `--home`. */
   startOptions?: string;
-  /** Новая сессия по аргументам `start`; автомат ещё не запущен. */
   start: (args: CommandArgs) => Promise<Session>;
-  /** Ошибки определения с путём до поля и загруженные плагины. */
   validate: (home: string) => Promise<{ errors: string[]; plugins: string[]; def?: MachineDef }>;
-  /** Действие текущего состояния и дальше — до паузы или конца. */
   drive: (session: Session, home: string, event?: string) => Promise<DriveResult>;
-  /** Строки `status` сверх общих. */
   status?: (session: Session) => Promise<string[]>;
-  /** Подготовка сессии к повтору из failed. */
   beforeRetry?: (session: Session) => Promise<void>;
-  /** Свои команды harness: `plan-review render <id>`. */
   nodes?: readonly CommandNode[];
 }
 
@@ -45,11 +32,9 @@ export function param(args: CommandArgs, key: string): string {
 
 export const homeOf = (args: CommandArgs): string => harnessHome(args.home);
 
-/** Сессия этого harness по префиксу id из параметра `<id>`. */
 export const sessionOf = (args: CommandArgs, harness: string): Promise<Session> =>
   resolveSession(homeOf(args), param(args, 'id'), harness);
 
-/** Журнал автомата в сессии: состояние, счётчики и строка в log.jsonl на переход. */
 export function sessionJournal(session: Session): Journal {
   return {
     load: async () => ({ state: session.data.state, counters: { ...session.data.counters } }),
@@ -62,7 +47,6 @@ export function sessionJournal(session: Session): Journal {
   };
 }
 
-/** Прогон автомата сессии по определению и реестру модуля. */
 export const driveSession = <C>(
   def: MachineDef,
   registry: Registry<C>,
@@ -77,17 +61,12 @@ export function report(session: Session, result: DriveResult): number {
   return 0;
 }
 
-/**
- * Пауза — выход: каждый переход уже на диске. open заново выполняет
- * действие текущего состояния; из failed — повтор со сбросом счётчиков.
- */
 async function open(m: HarnessModule, session: Session, home: string): Promise<number> {
   if (session.data.state !== 'failed') return report(session, await m.drive(session, home));
   await m.beforeRetry?.(session);
   return report(session, await m.drive(session, home, 'retry'));
 }
 
-/** Узлы CLI harness: общие команды и свои команды модуля. */
 export function harnessNodes(m: HarnessModule): CommandNode[] {
   const at = (...words: string[]): string[] => [m.name, ...words];
   return [
