@@ -4,7 +4,7 @@
 !/*.json
 !/.github/
 !/expectations/
-!/harness/
+!/packages/
 /.github/**/*
 !/.github/**/
 !/.github/**/*.yml
@@ -15,5 +15,5 @@ package-lock.json
 dist/
 expectations/.verdicts.json
 expectations/.judge/
-harness/packages/harness/test/.tmp/
+packages/harness/test/.tmp/
 **/*.md

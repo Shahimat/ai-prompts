@@ -8,4 +8,4 @@ node_modules/
 dist/
 coverage/
 expectations/.judge/
-harness/packages/harness/test/.tmp/
+packages/harness/test/.tmp/

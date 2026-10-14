@@ -1,0 +1,40 @@
+# Автомат docs-delta: запись в проектную документацию через дельту.
+# Агент docs-keeper работает в apply, остальное — скрипт.
+# Схема — expectations/schemas/harness-fsm.schema.json.
+harness: docs-delta
+description: Дельта документации — применение агентом, проверка и закрытие
+initial: apply
+
+limits:
+  # verify — возвраты в apply после провала verify или close.
+  verify: 3
+
+states:
+  apply:
+    actor: model
+    action: delta-apply
+    on:
+      done: verify
+  verify:
+    actor: script
+    action: docs-verify
+    on:
+      ok: close
+      fail:
+        - { to: apply, count: verify }
+        - failed
+  close:
+    actor: script
+    action: delta-close
+    on:
+      ok: done
+      fail:
+        - { to: apply, count: verify }
+        - failed
+  failed:
+    actor: user
+    action: report-failure
+    on:
+      retry: { to: apply, reset: [verify] }
+  done:
+    final: true

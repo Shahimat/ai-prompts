@@ -1,0 +1,81 @@
+# Автомат plan-review: переходами управляет скрипт, модель работает только
+# внутри состояний. Действия и guards — имена из реестра, выражений нет.
+# Схема — expectations/schemas/harness-fsm.schema.json.
+harness: plan-review
+description: Планирование задачи — диалог, ревью в два уровня, правки, решение человека
+initial: draft
+
+limits:
+  # formal — formal.max_blocks: блокировки Stop-hook подряд и возобновления 1a.
+  formal: 3
+  # fix — правки на цикл ревью; четвёртый провал — справка.
+  fix: 3
+
+review:
+  mode: collect
+  budget:
+    crit: 0
+    warn: 3
+
+models:
+  planner: opus
+  1b: haiku
+  '2': opus
+
+states:
+  draft:
+    actor: user
+    action: planner-draft
+    on:
+      done: formal
+  formal:
+    actor: script
+    action: plan-check
+    on:
+      ok: { to: review, reset: [formal] }
+      broken:
+        - { to: repair, count: formal }
+        - failed
+      exhausted: failed
+  repair:
+    actor: model
+    action: planner-repair
+    on:
+      done: formal
+  review:
+    actor: model
+    action: plan-review
+    on:
+      pass: awaiting_user
+      fail:
+        - { to: fix, count: fix }
+        - failed
+  fix:
+    actor: model
+    action: planner-fix
+    on:
+      done: formal
+      rejected:
+        - { to: fix, count: fix }
+        - failed
+  awaiting_user:
+    actor: user
+    action: user-menu
+    on:
+      approve: approved
+      revise: { to: fix, reset: [fix] }
+      rework: { to: fix, reset: [fix] }
+      ask: answer
+  answer:
+    actor: model
+    action: planner-answer
+    on:
+      done: awaiting_user
+  failed:
+    actor: user
+    action: report-failure
+    on:
+      retry: { to: fix, reset: [fix, formal] }
+  approved:
+    final: true
+    action: plan-approve

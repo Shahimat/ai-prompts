@@ -24,13 +24,13 @@
   },
   "overrides": [
     {
-      "files": ["expectations/**/*.ts", "harness/packages/*/src/**/*.ts"],
+      "files": ["expectations/**/*.ts", "packages/*/src/**/*.ts"],
       "rules": {
         "vitest/no-standalone-expect": "off"
       }
     },
     {
-      "files": ["harness/packages/harness/src/lib/expect/levels.ts"],
+      "files": ["packages/harness/src/lib/expect/levels.ts"],
       "rules": {
         "vitest/valid-title": "off",
         "vitest/expect-expect": "off",
@@ -38,14 +38,14 @@
       }
     },
     {
-      "files": ["harness/packages/harness/src/shared/**/*.ts"],
+      "files": ["packages/harness/src/shared/**/*.ts"],
       "rules": {
         "no-restricted-imports": [
           "error",
           {
             "patterns": [
               {
-                "group": ["**/lib/**", "**/commands/**", "**/scripts/**", "**/harness/**"],
+                "group": ["**/lib/**", "**/commands/**", "**/scripts/**", "**/harnesses/**"],
                 "message": "shared — нижний слой: импортирует только shared"
               }
             ]
@@ -54,14 +54,14 @@
       }
     },
     {
-      "files": ["harness/packages/harness/src/lib/**/*.ts"],
+      "files": ["packages/harness/src/lib/**/*.ts"],
       "rules": {
         "no-restricted-imports": [
           "error",
           {
             "patterns": [
               {
-                "group": ["**/commands/**", "**/scripts/**", "**/harness/**"],
+                "group": ["**/commands/**", "**/scripts/**", "**/harnesses/**"],
                 "message": "lib импортирует только shared и lib"
               }
             ]
@@ -70,14 +70,14 @@
       }
     },
     {
-      "files": ["harness/packages/harness/src/commands/**/*.ts"],
+      "files": ["packages/harness/src/commands/**/*.ts"],
       "rules": {
         "no-restricted-imports": [
           "error",
           {
             "patterns": [
               {
-                "group": ["**/scripts/**", "**/harness/**"],
+                "group": ["**/scripts/**", "**/harnesses/**"],
                 "message": "команда не вызывает скрипты и harness"
               }
             ]
@@ -86,14 +86,14 @@
       }
     },
     {
-      "files": ["harness/packages/harness/src/scripts/**/*.ts"],
+      "files": ["packages/harness/src/scripts/**/*.ts"],
       "rules": {
         "no-restricted-imports": [
           "error",
           {
             "patterns": [
               {
-                "group": ["**/harness/**"],
+                "group": ["**/harnesses/**"],
                 "message": "скрипт агрегирует только команды"
               }
             ]
@@ -102,14 +102,14 @@
       }
     },
     {
-      "files": ["harness/packages/harness/src/harness/core/**/*.ts"],
+      "files": ["packages/harness/src/harnesses/core/**/*.ts"],
       "rules": {
         "no-restricted-imports": [
           "error",
           {
             "patterns": [
               {
-                "group": ["**/plan-iter/**"],
+                "group": ["**/plan-review/**", "**/docs-delta/**", "**/source-sync/**"],
                 "message": "ядро harness не зависит от конкретного harness"
               }
             ]
@@ -118,5 +118,5 @@
       }
     }
   ],
-  "ignorePatterns": ["**/dist/**", "harness/packages/harness/test/.tmp/**"]
+  "ignorePatterns": ["**/dist/**", "packages/harness/test/.tmp/**"]
 }

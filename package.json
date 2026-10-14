@@ -6,21 +6,21 @@
     "node": ">=24"
   },
   "workspaces": [
-    "harness/packages/*"
+    "packages/*"
   ],
   "scripts": {
     "build": "npm run build -w @shahimat/harness && npm run build -w @shahimat/expectations",
-    "typecheck": "npm run build -w @shahimat/harness && npm run build -w @shahimat/expectations && npm run typecheck -w @shahimat/harness && npm run typecheck -w @shahimat/expectations && tsc -p expectations && tsc -p harness",
+    "typecheck": "npm run build -w @shahimat/harness && npm run build -w @shahimat/expectations && npm run typecheck -w @shahimat/harness && npm run typecheck -w @shahimat/expectations && tsc -p expectations && tsc -p packages",
     "test": "npm test -w @shahimat/harness",
     "lint": "oxlint --type-aware --deny-warnings",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "index:build": "node harness/packages/harness/dist/bin.js index build --root . --raw-base https://raw.githubusercontent.com/Shahimat/ai-prompts/main",
-    "index:check": "node harness/packages/harness/dist/bin.js index check --root . --raw-base https://raw.githubusercontent.com/Shahimat/ai-prompts/main",
-    "expect": "node harness/packages/harness/dist/bin.js expect report --root .",
-    "expect:judge": "node harness/packages/harness/dist/bin.js expect judge --root .",
-    "expect:apply": "node harness/packages/harness/dist/bin.js expect judge --apply --root .",
-    "ci": "npm run format:check && npm run build -w @shahimat/harness && npm run build -w @shahimat/expectations && npm run typecheck -w @shahimat/harness && npm run typecheck -w @shahimat/expectations && tsc -p expectations && tsc -p harness && npm run lint && npm test && npm run index:check && npm run expect"
+    "index:build": "node packages/harness/dist/bin.js index build --root . --raw-base https://raw.githubusercontent.com/Shahimat/ai-prompts/main",
+    "index:check": "node packages/harness/dist/bin.js index check --root . --raw-base https://raw.githubusercontent.com/Shahimat/ai-prompts/main",
+    "expect": "node packages/harness/dist/bin.js expect report --root .",
+    "expect:judge": "node packages/harness/dist/bin.js expect judge --root .",
+    "expect:apply": "node packages/harness/dist/bin.js expect judge --apply --root .",
+    "ci": "npm run format:check && npm run build -w @shahimat/harness && npm run build -w @shahimat/expectations && npm run typecheck -w @shahimat/harness && npm run typecheck -w @shahimat/expectations && tsc -p expectations && tsc -p packages && npm run lint && npm test && npm run index:check && npm run expect"
   },
   "devDependencies": {
     "oxlint": "^1.88.0",
