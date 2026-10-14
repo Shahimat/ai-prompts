@@ -13,6 +13,7 @@ import {
   driveSession,
   HOME,
   homeOf,
+  requireProject,
   sessionOf as sessionOfHarness,
   terminalPrompter,
   type HarnessModule,
@@ -121,6 +122,7 @@ export const PLAN_REVIEW: HarnessModule = {
 };
 
 async function start(args: CommandArgs): Promise<Session> {
+  requireProject(args.root);
   const home = homeOf(args);
   const harness = await loadHarnessOrFail(home, 'plan-review');
   const prompter = io.prompter();

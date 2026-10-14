@@ -1,3 +1,5 @@
+import { existsSync } from 'node:fs';
+import path from 'node:path';
 import type { CommandArgs } from '#shared/args';
 import { UsageError } from '#shared/diagnostics';
 import type { CommandNode } from '#shared/node';
@@ -23,6 +25,13 @@ export interface HarnessModule {
 }
 
 export const HOME = '[--home <dir>]';
+
+export function requireProject(root: string): void {
+  if (!existsSync(path.join(root, '.claude')))
+    throw new UsageError(
+      `нет каталога .claude в ${root}: harness запускается в проекте с .claude (поиск вверх от места вызова или --root)`,
+    );
+}
 
 export function param(args: CommandArgs, key: string): string {
   const value = args.params?.[key];

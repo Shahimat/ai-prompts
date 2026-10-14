@@ -35,6 +35,7 @@ const state = async (): Promise<string> => (await openSession(home, await sessio
 
 beforeEach(async () => {
   root = await mkdtemp(path.join(tmpdir(), 'harness-proc-'));
+  await mkdir(path.join(root, '.claude'));
   home = await mkdtemp(path.join(tmpdir(), 'harness-proc-home-'));
   out = [];
   vi.spyOn(console, 'log').mockImplementation((...args: unknown[]) => {

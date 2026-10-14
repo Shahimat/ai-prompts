@@ -3,7 +3,7 @@ import type { CommandArgs } from '#shared/args';
 import { UsageError } from '#shared/diagnostics';
 import { errorMessage } from '#shared/guards';
 import type { ScriptDef } from '#shared/node';
-import { driveSession, homeOf, type HarnessModule } from './catalog.ts';
+import { driveSession, homeOf, requireProject, type HarnessModule } from './catalog.ts';
 import type { ActionDef, Registry } from './fsm/machine.ts';
 import { loadMachine } from './load.ts';
 import { createSession, type Session } from './store/session.ts';
@@ -100,6 +100,7 @@ export function processModule(
     },
     drive,
     start: async (args) => {
+      requireProject(args.root);
       const home = homeOf(args);
       const machine = await load(home);
       return createSession(home, {

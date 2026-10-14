@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { main, run } from '#cli';
+import { main, projectOf, run } from '#cli';
 import { promptOf, shellStep, splitWords } from '#shell';
 import { childrenOf, COMMANDS, findCommand, renderUsage } from '#tree';
 
@@ -161,6 +161,22 @@ describe('harness adapters check', () => {
     expect(existsSync(path.join(root, 'CLAUDE.md'))).toBe(false);
     expect(await main(['adapters', 'sync', '--root', root], NOW)).toBe(0);
     expect(await main(['adapters', 'check', '--root', root], NOW)).toBe(0);
+  });
+});
+
+describe('корень проекта harness', () => {
+  it('ищет .claude вверх от места вызова; домашний каталог проектом не считается', async () => {
+    await mkdir(path.join(root, '.claude'));
+    await mkdir(path.join(root, 'a/b'), { recursive: true });
+    expect(projectOf(path.join(root, 'a/b'))).toBe(root);
+    const saved = process.env['HOME'];
+    process.env['HOME'] = root;
+    try {
+      expect(projectOf(path.join(root, 'a/b'))).toBeUndefined();
+    } finally {
+      if (saved === undefined) delete process.env['HOME'];
+      else process.env['HOME'] = saved;
+    }
   });
 });
 

@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -92,6 +92,7 @@ const crit = { findings: [{ criterion: 'dod-checkable', item: 'T1', text: 'DoD �
 beforeEach(async () => {
   home = await mkdtemp(path.join(tmpdir(), 'harness-home-'));
   project = await mkdtemp(path.join(tmpdir(), 'harness-proj-'));
+  await mkdir(path.join(project, '.claude'));
   spawnSync('git', ['init', '-q'], { cwd: project });
   await writeFile(path.join(project, 'README.md'), '# проект\n');
   out = [];
