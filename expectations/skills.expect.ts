@@ -54,7 +54,7 @@ describe('состав skills', () => {
 
 describe('skills — общее', () => {
   crit(
-    'frontmatter каждого SKILL.md соответствует схеме skill-frontmatter: только name и description',
+    'frontmatter каждого SKILL.md соответствует схеме skill-frontmatter: name, description и необязательное metadata.runs',
     () => Check.skillSchema(),
   );
   crit('name skill совпадает с именем его каталога', () => Check.nameMatchesDir());

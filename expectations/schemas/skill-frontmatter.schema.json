@@ -6,6 +6,17 @@
   "additionalProperties": false,
   "properties": {
     "name": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
-    "description": { "type": "string", "minLength": 20, "maxLength": 300, "pattern": "^[^\\n]+$" }
+    "description": { "type": "string", "minLength": 20, "maxLength": 300, "pattern": "^[^\\n]+$" },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "runs": {
+          "description": "Что skill запускает: путь скрипта или команды CLI (`refresh`, `secrets scan`) или harness пакета (`docs/delta`)",
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*((/| )[a-z][a-z0-9-]*)*$"
+        }
+      }
+    }
   }
 }

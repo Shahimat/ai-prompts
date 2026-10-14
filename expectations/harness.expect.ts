@@ -18,6 +18,8 @@ import {
   KNOWN_CHECKS,
   loadHarness,
   parseConfig,
+  parseFrontmatter,
+  parseMachine,
   planIo,
   plannerTools,
   renderUsage,
@@ -26,8 +28,10 @@ import {
   selfCommand,
   splitWords,
   UsageError,
+  type MachineDef,
   type PlanContext,
 } from '@shahimat/harness';
+import * as harnessPkg from '@shahimat/harness';
 import {
   applyAnswers,
   budget,
@@ -35,6 +39,7 @@ import {
   DEFAULT_LIMITS,
   indexEntries,
   judged,
+  markdownRegions,
   MAX_TITLE,
   readRepo,
   repoRoot,
@@ -53,7 +58,7 @@ budget({ crit: 0, warn: 0 });
 
 describe('[harness] common', () => {
   crit(
-    'процессы harness: check, changelog, context, adapters, delta, outdated, expect, index, secrets, plan_iter (команды plan и session)',
+    'процессы harness: check, refresh, changelog, context, adapters, delta, outdated, expect, index, secrets, plan_iter, docs_delta, source_sync (команды plan, docs, source и session)',
     () => Check.processes(),
   );
   crit(
@@ -137,11 +142,54 @@ describe('[harness] layers', () => {
   crit('скрипт package.json не вызывает скрипт, который сам агрегирует несколько команд', () =>
     Layers.npmScriptsFlat(),
   );
-  // Миграция skills — отдельный тикет.
-  it.todo(
-    'skill либо объявляет metadata.runs — ровно один скрипт или harness, либо ничего не запускает',
+  crit(
+    'skill либо объявляет metadata.runs — скрипт, одну команду или harness пакета, либо ничего не запускает',
+    () => Skills.runsDeclared(),
   );
-  it.todo('skill запускает только то, что объявлено в metadata.runs');
+  warn(
+    'skill запускает только то, что объявлено в metadata.runs; остальные команды harness лишь упоминает',
+    () => Skills.runsOnly(),
+  );
+  crit('субагент не запускает команды harness: запуск — в skill, который он загружает', () =>
+    Skills.agentsRunNothing(),
+  );
+  crit(
+    'в состоянии агента harness останавливается с заданием; session <s> resume продолжает со следующего состояния',
+    () => Processes.handoff(),
+  );
+});
+
+describe('[harness] refresh', () => {
+  crit('скрипт harness refresh — context index и adapters sync, затем шаги check', () =>
+    Processes.refresh(),
+  );
+});
+
+describe('[harness] docs_delta', () => {
+  crit(
+    'команды harness docs delta start | validate | graph; сессией управляют команды session',
+    () => Processes.resolve(['docs delta start', 'docs delta validate', 'docs delta graph']),
+  );
+  crit(
+    'автомат docs/delta: apply → verify → close; провал verify или close возвращает в apply не больше 3 раз, затем failed',
+    () => Processes.docsDelta(),
+  );
+  crit('verify в docs/delta — context index, adapters sync, delta check и шаги check', () =>
+    Processes.docsVerify(),
+  );
+});
+
+describe('[harness] source_sync', () => {
+  crit('команды harness source sync start | validate | graph', () =>
+    Processes.resolve(['source sync start', 'source sync validate', 'source sync graph']),
+  );
+  crit(
+    'автомат source/sync: outdated → update → refresh; провал refresh возвращает в update не больше 3 раз, затем failed',
+    () => Processes.sourceSync(),
+  );
+  crit('skill docs-keeper объявляет runs: docs/delta, skill source-sync — runs: source/sync', () =>
+    Skills.processSkills(),
+  );
 });
 
 describe('[harness] check', () => {
@@ -385,6 +433,14 @@ const DECLARED_COMMANDS = [
   'index build',
   'index check',
   'secrets scan',
+  'refresh',
+  // docs_delta, source_sync
+  'docs <harness> start',
+  'docs <harness> validate',
+  'docs <harness> graph',
+  'source <harness> start',
+  'source <harness> validate',
+  'source <harness> graph',
   // plan_iter: harness-plan-iter.expect.ts
   'plan list',
   'plan <harness> start',
@@ -487,15 +543,21 @@ class Check {
       'check',
       'context',
       'delta',
+      'docs',
       'expect',
       'index',
       'outdated',
       'plan',
+      'refresh',
       'secrets',
       'session',
+      'source',
     ]);
     const planIter = await readRepo('expectations/harness-plan-iter.expect.ts');
     expect(planIter).toContain("describe('[harness] plan_iter'");
+    const own = await readRepo('expectations/harness.expect.ts');
+    for (const section of ['refresh', 'docs_delta', 'source_sync'])
+      expect(own).toContain(`describe('[harness] ${section}'`);
   }
 
   static async noOtherCommands(): Promise<void> {
@@ -1105,7 +1167,11 @@ class Layers {
         const before = [await snapshot(dir, notGit), await snapshot(home)];
         for (const n of query) {
           const words = stringList(at(n, 'path'), 'path').map((seg) =>
-            seg === '<harness>' ? 'iter' : seg === '<session>' ? session.id : seg,
+            seg === '<harness>'
+              ? (HARNESS_OF[words0(n)] ?? seg)
+              : seg === '<session>'
+                ? session.id
+                : seg,
           );
           const args = ['--root', dir, '--home', home, '--raw-base', 'https://example.invalid'];
           // BROWSER — сам Node: session read «открывает» HTML без браузера.
@@ -1223,5 +1289,227 @@ class Layers {
         }
       }
     expect(bad).toEqual([]);
+  }
+}
+
+// ─────────────────────────────── skills и процессы ───────────────────────────────
+
+/** Имя harness для параметра `<harness>` по категории: `plan iter`, `docs delta`. */
+const HARNESS_OF: Record<string, string> = { plan: 'iter', docs: 'delta', source: 'sync' };
+const words0 = (n: unknown): string => stringList(at(n, 'path'), 'path')[0] ?? '';
+
+const BUILTIN = `${PKG}/harnesses`;
+const RUNS_ANCHOR = 'skill-runs';
+/** Команда harness в тексте: `harness check`, `harness docs delta start`. */
+const MENTION = /`harness [a-z]/;
+
+interface SkillFile {
+  name: string;
+  path: string;
+  text: string;
+  runs: unknown;
+}
+
+async function skillFiles(): Promise<SkillFile[]> {
+  const names = (await readdir(path.join(repoRoot(), 'skills'))).sort();
+  return Promise.all(
+    names.map(async (name) => {
+      const rel = `skills/${name}/SKILL.md`;
+      const text = await readRepo(rel);
+      return { name, path: rel, text, runs: at(parseFrontmatter(text), 'metadata', 'runs') };
+    }),
+  );
+}
+
+/** Как runs выглядит в тексте skill: `harness refresh`, `harness docs delta`. */
+const runsCall = (runs: string): string => `harness ${runs.split('/').join(' ')}`;
+
+/** Текст skill без регионов якоря skill-runs. */
+const outsideRuns = (s: SkillFile): string =>
+  markdownRegions(s.text, s.path)
+    .filter((r) => r.key === RUNS_ANCHOR)
+    .reduce((text, r) => text.replace(r.text, ''), s.text);
+
+class Skills {
+  static async runsDeclared(): Promise<void> {
+    const bad: string[] = [];
+    let declared = 0;
+    for (const s of await skillFiles()) {
+      if (s.runs === undefined) continue;
+      declared++;
+      if (typeof s.runs !== 'string') {
+        bad.push(`${s.name}: metadata.runs — не строка`);
+        continue;
+      }
+      if (s.runs.includes('/')) {
+        if (!existsSync(path.join(repoRoot(), BUILTIN, s.runs, 'harness.yaml')))
+          bad.push(`${s.name}: нет harness ${s.runs}`);
+      } else if (!['script', 'command'].includes(String(kindOf(node(s.runs.split(' ')))))) {
+        bad.push(`${s.name}: ${s.runs} — не скрипт и не команда`);
+      }
+    }
+    expect(declared).toBeGreaterThan(5);
+    expect(bad).toEqual([]);
+  }
+
+  static async runsOnly(): Promise<void> {
+    const bad: string[] = [];
+    for (const s of await skillFiles()) {
+      // Каждое упоминание команды harness — в регионе skill-runs: его видит судья.
+      if (MENTION.test(outsideRuns(s)))
+        bad.push(`${s.name}: команда harness вне expect:${RUNS_ANCHOR}`);
+      if (typeof s.runs === 'string' && !s.text.includes(runsCall(s.runs)))
+        bad.push(`${s.name}: в тексте нет запуска ${runsCall(s.runs)}`);
+    }
+    expect(bad).toEqual([]);
+    await judged([`@${RUNS_ANCHOR}`]);
+  }
+
+  static async agentsRunNothing(): Promise<void> {
+    const bad: string[] = [];
+    for (const f of await readdir(path.join(repoRoot(), 'agents')))
+      if (MENTION.test(await readRepo(`agents/${f}`))) bad.push(f);
+    expect(bad).toEqual([]);
+  }
+
+  static async processSkills(): Promise<void> {
+    const runs = Object.fromEntries((await skillFiles()).map((s) => [s.name, s.runs]));
+    expect({ docs: runs['docs-keeper'], source: runs['source-sync'] }).toEqual({
+      docs: 'docs/delta',
+      source: 'source/sync',
+    });
+  }
+}
+
+async function machine(harness: string): Promise<MachineDef> {
+  const file = `${BUILTIN}/${harness}/harness.yaml`;
+  const { def, errors } = parseMachine(await readRepo(file), file);
+  if (def === undefined) throw new Error(errors.join('\n'));
+  return def;
+}
+
+/** Варианты перехода состояния по событию: `[{ to, count? }]`. */
+const edges = (def: MachineDef, state: string, event: string): { to: string; count?: string }[] =>
+  (def.states.find((s) => s.name === state)?.on[event] ?? []).map((t) =>
+    t.count === undefined ? { to: t.to } : { to: t.to, count: t.count },
+  );
+
+const resets = (def: MachineDef, state: string, event: string): string[] =>
+  def.states.find((s) => s.name === state)?.on[event]?.[0]?.reset ?? [];
+
+const stepCommands = (steps: unknown): string[] =>
+  unknownList(steps, 'steps').map((s) => stringList(at(s, 'command'), 'command').join(' '));
+
+class Processes {
+  static resolve(list: string[]): void {
+    const sessionOps = ['session x status', 'session x resume', 'session x retry'];
+    expect([...list, ...sessionOps].filter((c) => node(c.split(' ')) === undefined)).toEqual([]);
+  }
+
+  static refresh(): void {
+    const refresh = node(['refresh']);
+    expect(kindOf(refresh)).toBe('script');
+    expect(stepCommands(at(refresh, 'steps'))).toEqual([
+      'context index',
+      'adapters sync',
+      ...stepCommands(at(node(['check']), 'steps')),
+    ]);
+  }
+
+  static async docsDelta(): Promise<void> {
+    const def = await machine('docs/delta');
+    const counter = edges(def, 'verify', 'fail')[0]?.count ?? '';
+    expect(def.initial).toBe('apply');
+    expect({
+      apply: edges(def, 'apply', 'done'),
+      verifyOk: edges(def, 'verify', 'ok'),
+      verifyFail: edges(def, 'verify', 'fail'),
+      closeOk: edges(def, 'close', 'ok'),
+      closeFail: edges(def, 'close', 'fail'),
+      limit: def.limits[counter],
+      retry: edges(def, 'failed', 'retry'),
+      retryReset: resets(def, 'failed', 'retry'),
+      done: def.states.find((s) => s.name === 'done')?.final,
+    }).toEqual({
+      apply: [{ to: 'verify' }],
+      verifyOk: [{ to: 'close' }],
+      verifyFail: [{ to: 'apply', count: counter }, { to: 'failed' }],
+      closeOk: [{ to: 'done' }],
+      closeFail: [{ to: 'apply', count: counter }, { to: 'failed' }],
+      limit: 3,
+      retry: [{ to: 'apply' }],
+      retryReset: [counter],
+      done: true,
+    });
+  }
+
+  static async sourceSync(): Promise<void> {
+    const def = await machine('source/sync');
+    const counter = edges(def, 'refresh', 'fail')[0]?.count ?? '';
+    expect(def.initial).toBe('outdated');
+    expect({
+      outdated: edges(def, 'outdated', 'done'),
+      update: edges(def, 'update', 'done'),
+      refreshOk: edges(def, 'refresh', 'ok'),
+      refreshFail: edges(def, 'refresh', 'fail'),
+      limit: def.limits[counter],
+      retry: edges(def, 'failed', 'retry'),
+      retryReset: resets(def, 'failed', 'retry'),
+      done: def.states.find((s) => s.name === 'done')?.final,
+    }).toEqual({
+      outdated: [{ to: 'update' }],
+      update: [{ to: 'refresh' }],
+      refreshOk: [{ to: 'done' }],
+      refreshFail: [{ to: 'update', count: counter }, { to: 'failed' }],
+      limit: 3,
+      retry: [{ to: 'update' }],
+      retryReset: [counter],
+      done: true,
+    });
+  }
+
+  static docsVerify(): void {
+    // Скрипт состояния verify — данные пакета, в CLI его нет.
+    expect(stepCommands(at(harnessPkg, 'DOCS_VERIFY', 'steps'))).toEqual([
+      'context index',
+      'adapters sync',
+      'delta check',
+      ...stepCommands(at(node(['check']), 'steps')),
+    ]);
+  }
+
+  static async handoff(): Promise<void> {
+    await withGitProject(async (dir) => {
+      const home = await tempDir();
+      try {
+        await writeFile(path.join(dir, 'context/harness.yml'), 'checks: {}\n');
+        const start = cliOut([
+          'docs',
+          'delta',
+          'start',
+          '--name',
+          'демо',
+          '--root',
+          dir,
+          '--home',
+          home,
+        ]);
+        expect(start.status).toBe(0);
+        expect(start.stdout).toMatch(/resume/);
+        const [id = ''] = (await readdir(path.join(home, 'sessions'))).sort();
+        const log = async (): Promise<unknown[]> =>
+          (await readFile(path.join(home, 'sessions', id, 'log.jsonl'), 'utf8'))
+            .trim()
+            .split('\n')
+            .map((l): unknown => JSON.parse(l));
+        expect((await log()).filter((e) => at(e, 'from') === 'apply')).toEqual([]);
+        expect(cli(['session', id, 'resume', '--home', home])).toBe(0);
+        expect(
+          (await log()).some((e) => at(e, 'from') === 'apply' && at(e, 'to') === 'verify'),
+        ).toBe(true);
+      } finally {
+        await rm(home, { recursive: true, force: true });
+      }
+    });
   }
 }
