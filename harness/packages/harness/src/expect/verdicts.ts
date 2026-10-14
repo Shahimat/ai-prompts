@@ -34,7 +34,9 @@ export interface VerdictStore {
 
 export async function loadVerdicts(): Promise<VerdictStore> {
   try {
-    const data = JSON.parse(await readFile(path.join(repoRoot(), VERDICTS_PATH), 'utf8')) as Partial<VerdictStore>;
+    const data = JSON.parse(
+      await readFile(path.join(repoRoot(), VERDICTS_PATH), 'utf8'),
+    ) as Partial<VerdictStore>;
     return { verdicts: data.verdicts ?? {}, lint: data.lint ?? {} };
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { verdicts: {}, lint: {} };
@@ -46,7 +48,11 @@ export async function loadVerdicts(): Promise<VerdictStore> {
  * Убирает вердикты, которые не нужны ни одному текущему ожиданию, и
  * проверки заголовков удалённых файлов: кэш не растёт с историей правок.
  */
-export function pruneStore(store: VerdictStore, liveIds: Set<string>, liveFiles: Set<string>): number {
+export function pruneStore(
+  store: VerdictStore,
+  liveIds: Set<string>,
+  liveFiles: Set<string>,
+): number {
   let removed = 0;
   for (const id of Object.keys(store.verdicts)) {
     if (!liveIds.has(id)) {

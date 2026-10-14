@@ -140,32 +140,46 @@ describe('harness expect init', () => {
     await put('.gitignore', 'node_modules/');
     expect(await main(['expect', 'init', '--root', root], NOW)).toBe(0);
     const { readFile } = await import('node:fs/promises');
-    const pkg = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8')) as { scripts: Record<string, string> };
+    const pkg = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8')) as {
+      scripts: Record<string, string>;
+    };
     expect(pkg.scripts).toMatchObject({ test: 'x', expect: 'harness expect report --root .' });
-    expect(await readFile(path.join(root, '.gitignore'), 'utf8')).toBe('node_modules/\nexpectations/.judge/\n');
-    const example = await readFile(path.join(root, `expectations/${path.basename(root)}.expect.ts`), 'utf8');
+    expect(await readFile(path.join(root, '.gitignore'), 'utf8')).toBe(
+      'node_modules/\nexpectations/.judge/\n',
+    );
+    const example = await readFile(
+      path.join(root, `expectations/${path.basename(root)}.expect.ts`),
+      'utf8',
+    );
     expect(example).toContain('budget({ crit: 0, warn: 0 });');
     const before = await readFile(path.join(root, 'package.json'), 'utf8');
     expect(await main(['expect', 'init', '--root', root], NOW)).toBe(0);
     expect(await readFile(path.join(root, 'package.json'), 'utf8')).toBe(before);
-    expect(await readFile(path.join(root, '.gitignore'), 'utf8')).toBe('node_modules/\nexpectations/.judge/\n');
+    expect(await readFile(path.join(root, '.gitignore'), 'utf8')).toBe(
+      'node_modules/\nexpectations/.judge/\n',
+    );
   });
 });
 
 describe('harness outdated', async () => {
-  const { changelogBetween, compareVersions, runOutdated } = await import('../src/commands/outdated.ts');
+  const { changelogBetween, compareVersions, runOutdated } =
+    await import('../src/commands/outdated.ts');
   const LOG = '# Журнал\n\n## 0.5.0\n\n- outdated\n\n## 0.4.0\n\n- якоря\n\n## 0.3.0\n\n- expect\n';
   const fetcher = (latest: string) => async (url: string) => ({
     ok: true,
     status: 200,
-    text: async () => (url.includes('registry') ? JSON.stringify({ 'dist-tags': { latest } }) : LOG),
+    text: async () =>
+      url.includes('registry') ? JSON.stringify({ 'dist-tags': { latest } }) : LOG,
   });
   const logs: string[] = [];
 
   it('сравнение версий и записи журнала между ними', () => {
     expect(compareVersions('0.10.0', '0.9.1')).toBe(1);
     expect(compareVersions('1.0.0', '1.0.0')).toBe(0);
-    expect(changelogBetween(LOG, '0.3.0', '0.5.0').map((e) => e.split('\n')[0])).toEqual(['0.5.0', '0.4.0']);
+    expect(changelogBetween(LOG, '0.3.0', '0.5.0').map((e) => e.split('\n')[0])).toEqual([
+      '0.5.0',
+      '0.4.0',
+    ]);
   });
 
   it('0 — актуально, 1 — есть новее с журналом', async () => {

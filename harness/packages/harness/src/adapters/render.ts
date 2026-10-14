@@ -34,14 +34,18 @@ function tomlMultiline(value: string): string {
     .replace(/\\/g, '\\\\')
     .replace(/"""/g, '""\\"')
     // Управляющие символы, кроме перевода строки и табуляции, в TOML недопустимы.
-    // oxlint-disable-next-line no-control-regex
-    .replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`);
+    .replace(
+      // oxlint-disable-next-line no-control-regex
+      /[\u0000-\u0008\u000b-\u001f\u007f]/g,
+      (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`,
+    );
   return `"""\n${escaped}\n"""`;
 }
 
 export function codexAgent(agent: AgentDef): string {
   // У Codex нет предзагрузки skills: явно просим загрузить их.
-  const preface = agent.skills.length > 0 ? `Перед работой загрузи skills: ${agent.skills.join(', ')}.\n\n` : '';
+  const preface =
+    agent.skills.length > 0 ? `Перед работой загрузи skills: ${agent.skills.join(', ')}.\n\n` : '';
   return [
     `# ${GENERATED_MARK} from ${agent.source} — do not edit`,
     `name = ${tomlString(agent.name)}`,

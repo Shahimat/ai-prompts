@@ -8,7 +8,11 @@
     "key": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
     "kind": { "const": "module" },
     "applicable_to": { "type": "array", "minItems": 1, "items": { "type": "string" } },
-    "patterns": { "type": "array", "contains": { "const": "source-sync" }, "items": { "type": "string" } },
+    "patterns": {
+      "type": "array",
+      "contains": { "const": "source-sync" },
+      "items": { "type": "string" }
+    },
     "title": { "type": "string", "minLength": 1, "maxLength": 120 },
     "use_case": { "type": "string", "minLength": 1 },
     "tags": { "type": "array", "items": { "type": "string" } },

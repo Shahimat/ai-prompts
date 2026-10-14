@@ -95,7 +95,9 @@ async function docRoots(root: string): Promise<string[]> {
   const roots = new Set(['context', 'docs', 'CHANGELOG.md']);
   let manifests: string[] = [];
   try {
-    manifests = (await readdir(path.join(root, 'context/modules'))).filter((f) => f.endsWith('.yml'));
+    manifests = (await readdir(path.join(root, 'context/modules'))).filter((f) =>
+      f.endsWith('.yml'),
+    );
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
   }
@@ -106,13 +108,17 @@ async function docRoots(root: string): Promise<string[]> {
     } catch {
       continue;
     }
-    const layers = isRecord(data) && isRecord(data['provides']) ? data['provides']['layers'] : undefined;
-    if (Array.isArray(layers)) for (const l of layers) if (typeof l === 'string' && l !== '') roots.add(l.replace(/\/+$/, ''));
+    const layers =
+      isRecord(data) && isRecord(data['provides']) ? data['provides']['layers'] : undefined;
+    if (Array.isArray(layers))
+      for (const l of layers)
+        if (typeof l === 'string' && l !== '') roots.add(l.replace(/\/+$/, ''));
   }
   return [...roots].sort();
 }
 
-const isDoc = (file: string): boolean => !NOT_DOCS.some((p) => (p.endsWith('/') ? file.startsWith(p) : file === p));
+const isDoc = (file: string): boolean =>
+  !NOT_DOCS.some((p) => (p.endsWith('/') ? file.startsWith(p) : file === p));
 
 /** Ключи и значения YAML, которых нет в новой версии: удалённые или изменённые. */
 function lostYaml(before: unknown, after: unknown, at: string, out: string[]): void {
@@ -126,7 +132,8 @@ function lostYaml(before: unknown, after: unknown, at: string, out: string[]): v
   }
   if (Array.isArray(before) && Array.isArray(after)) {
     const rest = after.map((v) => JSON.stringify(v));
-    for (const v of before) if (!rest.includes(JSON.stringify(v))) out.push(`${at}[] ${JSON.stringify(v)}`);
+    for (const v of before)
+      if (!rest.includes(JSON.stringify(v))) out.push(`${at}[] ${JSON.stringify(v)}`);
     return;
   }
   if (JSON.stringify(before) !== JSON.stringify(after)) out.push(at === '' ? '<корень>' : at);
@@ -175,11 +182,15 @@ async function readDeltas(root: string, diagnostics: Diagnostic[]): Promise<Delt
     try {
       data = parse(await readFile(path.join(root, file), 'utf8'));
     } catch (error) {
-      diagnostics.push({ file, message: `невалидный YAML: ${(error as Error).message.split('\n')[0]}` });
+      diagnostics.push({
+        file,
+        message: `невалидный YAML: ${(error as Error).message.split('\n')[0]}`,
+      });
       continue;
     }
     if (!validate(data)) {
-      for (const e of validate.errors ?? []) diagnostics.push({ file, message: `${e.instancePath || '/'} ${e.message ?? ''}`.trim() });
+      for (const e of validate.errors ?? [])
+        diagnostics.push({ file, message: `${e.instancePath || '/'} ${e.message ?? ''}`.trim() });
       continue;
     }
     deltas.push({ file, ...(data as Omit<Delta, 'file'>) });
@@ -197,7 +208,8 @@ export const matchesTarget = (target: string, file: string): boolean =>
  * Добавления не требуют пункта.
  */
 export async function checkDelta(root: string): Promise<DeltaResult> {
-  if (!git(root, ['rev-parse', '--verify', 'HEAD']).ok) throw new UsageError('delta: нужен git-репозиторий с коммитом HEAD');
+  if (!git(root, ['rev-parse', '--verify', 'HEAD']).ok)
+    throw new UsageError('delta: нужен git-репозиторий с коммитом HEAD');
   const diagnostics: Diagnostic[] = [];
   const deltas = await readDeltas(root, diagnostics);
   const roots = await docRoots(root);
@@ -241,9 +253,14 @@ export function unfinishedItems(root: string, result: DeltaResult): Diagnostic[]
     d.items.forEach((item, i) => {
       const done =
         item.op === 'add'
-          ? existsSync(path.join(root, item.target)) || touched.some((f) => matchesTarget(item.target, f))
+          ? existsSync(path.join(root, item.target)) ||
+            touched.some((f) => matchesTarget(item.target, f))
           : touched.some((f) => matchesTarget(item.target, f));
-      if (!done) out.push({ file: d.file, message: `пункт ${i + 1} (${item.op} ${item.target}) не выполнен` });
+      if (!done)
+        out.push({
+          file: d.file,
+          message: `пункт ${i + 1} (${item.op} ${item.target}) не выполнен`,
+        });
     });
   }
   return out;
@@ -252,6 +269,10 @@ export function unfinishedItems(root: string, result: DeltaResult): Diagnostic[]
 /** Строки пересмотров для отчёта и тела сообщения коммита. */
 export function revisionLines(deltas: Delta[]): string[] {
   return deltas.flatMap((d) =>
-    d.items.filter((i) => i.op === 'revise').map((i) => `revise ${i.target}: было «${i.was ?? ''}» → ${i.summary}; почему: ${i.why ?? ''}`),
+    d.items
+      .filter((i) => i.op === 'revise')
+      .map(
+        (i) => `revise ${i.target}: было «${i.was ?? ''}» → ${i.summary}; почему: ${i.why ?? ''}`,
+      ),
   );
 }

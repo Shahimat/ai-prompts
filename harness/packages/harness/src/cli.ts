@@ -26,7 +26,8 @@ export async function main(argv: string[], now: Date = new Date()): Promise<numb
   if (values.apply === true) args.apply = true;
 
   const command = findCommand(positionals);
-  if (command === undefined) throw new UsageError(`неизвестная команда: ${positionals.join(' ') || '<пусто>'}`);
+  if (command === undefined)
+    throw new UsageError(`неизвестная команда: ${positionals.join(' ') || '<пусто>'}`);
   return command.run(args);
 }
 

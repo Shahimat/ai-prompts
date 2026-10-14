@@ -17,11 +17,17 @@ export async function readEvidence(ref: string): Promise<string> {
   return section;
 }
 
-export const shaOf = (text: string): string => createHash('sha256').update(text, 'utf8').digest('hex');
+export const shaOf = (text: string): string =>
+  createHash('sha256').update(text, 'utf8').digest('hex');
 
 /** Сравнение цитаты с текстом без учёта пробелов, переносов и маркеров markdown. */
 export function containsQuote(text: string, quote: string): boolean {
-  const norm = (s: string): string => s.replace(/[`*_>]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
+  const norm = (s: string): string =>
+    s
+      .replace(/[`*_>]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase();
   const q = norm(quote);
   return q.length >= 8 && norm(text).includes(q);
 }

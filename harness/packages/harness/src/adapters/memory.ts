@@ -13,7 +13,11 @@ export const CLAUDE_SETTINGS = '.claude/settings.json';
 export const CODEX_CONFIG = '.codex/config.toml';
 
 /** Ключи Codex, которые выключают memories: `таблица.ключ` → значение. */
-const CODEX_MEMORY_KEYS = ['features.memories', 'memories.use_memories', 'memories.generate_memories'] as const;
+const CODEX_MEMORY_KEYS = [
+  'features.memories',
+  'memories.use_memories',
+  'memories.generate_memories',
+] as const;
 
 export function codexConfig(): string {
   return [
@@ -41,7 +45,9 @@ async function readOrNull(abs: string): Promise<string | null> {
  * `.claude/settings.json` правится по ключу: файл общий с permissions и
  * hooks проекта, остальное содержимое сохраняется.
  */
-export async function claudeMemory(root: string): Promise<{ actions: Action[]; diagnostics: Diagnostic[] }> {
+export async function claudeMemory(
+  root: string,
+): Promise<{ actions: Action[]; diagnostics: Diagnostic[] }> {
   const current = await readOrNull(path.join(root, CLAUDE_SETTINGS));
   const write = (data: Record<string, unknown>): Action => ({
     op: 'write',
@@ -56,11 +62,16 @@ export async function claudeMemory(root: string): Promise<{ actions: Action[]; d
   } catch (error) {
     return {
       actions: [],
-      diagnostics: [{ file: CLAUDE_SETTINGS, message: `невалидный JSON: ${(error as Error).message}` }],
+      diagnostics: [
+        { file: CLAUDE_SETTINGS, message: `невалидный JSON: ${(error as Error).message}` },
+      ],
     };
   }
   if (typeof data !== 'object' || data === null || Array.isArray(data)) {
-    return { actions: [], diagnostics: [{ file: CLAUDE_SETTINGS, message: 'корень должен быть объектом' }] };
+    return {
+      actions: [],
+      diagnostics: [{ file: CLAUDE_SETTINGS, message: 'корень должен быть объектом' }],
+    };
   }
   const settings = data as Record<string, unknown>;
   if (settings['autoMemoryEnabled'] === false) return { actions: [], diagnostics: [] };
@@ -91,12 +102,17 @@ function scanToml(text: string): Map<string, string> {
  * `.codex/config.toml`: нет файла или он наш — генерируем целиком; написан
  * вручную — не трогаем, только проверяем ключи.
  */
-export async function codexMemory(root: string): Promise<{ actions: Action[]; diagnostics: Diagnostic[] }> {
+export async function codexMemory(
+  root: string,
+): Promise<{ actions: Action[]; diagnostics: Diagnostic[] }> {
   const current = await readOrNull(path.join(root, CODEX_CONFIG));
   const expected = codexConfig();
   if (current === null || current.includes(GENERATED_MARK)) {
     if (current === expected) return { actions: [], diagnostics: [] };
-    return { actions: [{ op: 'write', path: CODEX_CONFIG, content: Buffer.from(expected, 'utf8') }], diagnostics: [] };
+    return {
+      actions: [{ op: 'write', path: CODEX_CONFIG, content: Buffer.from(expected, 'utf8') }],
+      diagnostics: [],
+    };
   }
   const values = scanToml(current);
   const missing = CODEX_MEMORY_KEYS.filter((key) => values.get(key) !== 'false');

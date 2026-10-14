@@ -42,7 +42,9 @@ class AnyContractCheck {
   }
 
   async noTables(): Promise<void> {
-    expect((await contract(this.key)).text.split('\n').filter((l) => /^\|.*\|$/.test(l.trim()))).toEqual([]);
+    expect(
+      (await contract(this.key)).text.split('\n').filter((l) => /^\|.*\|$/.test(l.trim())),
+    ).toEqual([]);
   }
 
   async notDeprecated(): Promise<void> {

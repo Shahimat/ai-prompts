@@ -1,6 +1,17 @@
 import { describe, expect } from 'vitest';
 import { COMMANDS, DELTA_DIR } from '@shahimat/harness';
-import { allAnchors, anchorEvidence, budget, codeBlock, contract, crit, expectSchema, judged, modules, warn } from '@shahimat/harness/expect';
+import {
+  allAnchors,
+  anchorEvidence,
+  budget,
+  codeBlock,
+  contract,
+  crit,
+  expectSchema,
+  judged,
+  modules,
+  warn,
+} from '@shahimat/harness/expect';
 import { parse } from 'yaml';
 
 budget({ crit: 0, warn: 0 });
@@ -9,21 +20,49 @@ budget({ crit: 0, warn: 0 });
 // намерения, docs-keeper ведёт дельту, harness проверяет и закрывает её.
 
 describe('[flow] ownership', () => {
-  crit('у каждой записи в проектную документацию один ответственный — skill docs-keeper или команда harness; таблица — в skill docs-keeper', () =>
-    Check.owners());
-  warn('основная сессия передаёт docs-keeper только намерения и получает отчёт не длиннее 10 строк', () => Check.shortReport());
+  crit(
+    'у каждой записи в проектную документацию один ответственный — skill docs-keeper или команда harness; таблица — в skill docs-keeper',
+    () => Check.owners(),
+  );
+  warn(
+    'основная сессия передаёт docs-keeper только намерения и получает отчёт не длиннее 10 строк',
+    () => Check.shortReport(),
+  );
 });
 
 describe('[flow] delta', () => {
-  crit('формат дельты — JSON Schema docs-delta: пункты add, refine, revise; у revise — что было и почему', () => Check.deltaFormat());
+  crit(
+    'формат дельты — JSON Schema docs-delta: пункты add, refine, revise; у revise — что было и почему',
+    () => Check.deltaFormat(),
+  );
   crit('дельта лежит в context/.delta/ и удаляется после приёмки', () => Check.deltaLifecycle());
-  crit('.delta не входит в контекст проекта: context/index.yml и маршруты AGENTS.md её не включают', () => Check.deltaOutOfContext());
-  warn('дельту ведёт docs-keeper: собирает из намерений, сверяет с текущей документацией, применяет', () => Check.deltaByKeeper());
-  warn('add и refine не требуют внимания пользователя: строка в итоговом отчёте', () => Check.deltaByKeeper());
-  warn('revise не блокирует работу: объявлен в дельте, попадает в отчёт и в тело сообщения коммита', () => Check.reviseTrace());
-  warn('приёмка: пункты дельты выполнены, прежние ожидания документации без revise не нарушены', () => Check.deltaByKeeper());
-  warn('утерянное знание восстанавливается из истории git через docs-keeper, причина потери записывается как rule', () => Check.recover());
-  warn('own-позиция записывается только в формулировке пользователя; вывод агента — разбор или tension', () => Check.ownVoice());
+  crit(
+    '.delta не входит в контекст проекта: context/index.yml и маршруты AGENTS.md её не включают',
+    () => Check.deltaOutOfContext(),
+  );
+  warn(
+    'дельту ведёт docs-keeper: собирает из намерений, сверяет с текущей документацией, применяет',
+    () => Check.deltaByKeeper(),
+  );
+  warn('add и refine не требуют внимания пользователя: строка в итоговом отчёте', () =>
+    Check.deltaByKeeper(),
+  );
+  warn(
+    'revise не блокирует работу: объявлен в дельте, попадает в отчёт и в тело сообщения коммита',
+    () => Check.reviseTrace(),
+  );
+  warn(
+    'приёмка: пункты дельты выполнены, прежние ожидания документации без revise не нарушены',
+    () => Check.deltaByKeeper(),
+  );
+  warn(
+    'утерянное знание восстанавливается из истории git через docs-keeper, причина потери записывается как rule',
+    () => Check.recover(),
+  );
+  warn(
+    'own-позиция записывается только в формулировке пользователя; вывод агента — разбор или tension',
+    () => Check.ownVoice(),
+  );
 });
 
 // ─────────────────────────────── проверки ───────────────────────────────
@@ -65,13 +104,17 @@ class Check {
     expect(bad).toEqual([]);
   }
 
-  static shortReport = (): Promise<void> => judged(['@docs-keeper-report', '@docs-intents-triggers', '@attention']);
+  static shortReport = (): Promise<void> =>
+    judged(['@docs-keeper-report', '@docs-intents-triggers', '@attention']);
 
   // delta
   static async deltaFormat(): Promise<void> {
     const block = codeBlock(await anchorEvidence('docs-delta'), 'yaml', 'summary:');
     expect(block).not.toBeNull();
-    await expectSchema([{ name: 'skill docs-keeper', data: parse(block ?? '') }], `${SCHEMAS}/docs-delta.schema.json`);
+    await expectSchema(
+      [{ name: 'skill docs-keeper', data: parse(block ?? '') }],
+      `${SCHEMAS}/docs-delta.schema.json`,
+    );
   }
 
   static async deltaLifecycle(): Promise<void> {
@@ -89,7 +132,8 @@ class Check {
   }
 
   static deltaByKeeper = (): Promise<void> => judged(['@docs-delta']);
-  static reviseTrace = (): Promise<void> => judged(['@docs-delta', '@docs-keeper-report', '@ticket-commits-revise']);
+  static reviseTrace = (): Promise<void> =>
+    judged(['@docs-delta', '@docs-keeper-report', '@ticket-commits-revise']);
   static recover = (): Promise<void> => judged(['@recover']);
   static ownVoice = (): Promise<void> => judged(['@own-voice']);
 }

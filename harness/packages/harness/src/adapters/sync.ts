@@ -2,7 +2,14 @@ import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { Diagnostic } from '../diagnostics.ts';
 import { claudeMemory, CODEX_CONFIG, codexMemory } from './memory.ts';
-import { claudeAgent, claudeMd, codexAgent, GENERATED_MARK, SKILL_MARKER_FILE, skillMarker } from './render.ts';
+import {
+  claudeAgent,
+  claudeMd,
+  codexAgent,
+  GENERATED_MARK,
+  SKILL_MARKER_FILE,
+  skillMarker,
+} from './render.ts';
 import { AGENTS_MD, readSources } from './source.ts';
 
 export const KNOWN_ADAPTERS = ['claude-code', 'codex'] as const;
@@ -76,7 +83,10 @@ async function listNames(abs: string): Promise<string[]> {
   }
 }
 
-async function plan(root: string, adapters: readonly AdapterName[]): Promise<{ units: Unit[]; diagnostics: Diagnostic[] }> {
+async function plan(
+  root: string,
+  adapters: readonly AdapterName[],
+): Promise<{ units: Unit[]; diagnostics: Diagnostic[] }> {
   const sources = await readSources(root);
   const diagnostics = [...sources.diagnostics];
   const units: Unit[] = [];
@@ -85,7 +95,10 @@ async function plan(root: string, adapters: readonly AdapterName[]): Promise<{ u
     if (sources.hasAgentsMd) {
       units.push({ kind: 'file', path: CLAUDE_MD, content: text(claudeMd()) });
     } else {
-      diagnostics.push({ file: AGENTS_MD, message: 'файл не найден: CLAUDE.md не из чего генерировать' });
+      diagnostics.push({
+        file: AGENTS_MD,
+        message: 'файл не найден: CLAUDE.md не из чего генерировать',
+      });
     }
     for (const skill of sources.skills) {
       const files = new Map(skill.files.map((f) => [f.rel, f.content]));
@@ -93,12 +106,20 @@ async function plan(root: string, adapters: readonly AdapterName[]): Promise<{ u
       units.push({ kind: 'dir', path: `${CLAUDE_SKILLS}/${skill.name}`, files });
     }
     for (const agent of sources.agents) {
-      units.push({ kind: 'file', path: `${CLAUDE_AGENTS}/${agent.name}.md`, content: text(claudeAgent(agent)) });
+      units.push({
+        kind: 'file',
+        path: `${CLAUDE_AGENTS}/${agent.name}.md`,
+        content: text(claudeAgent(agent)),
+      });
     }
   }
   if (adapters.includes('codex')) {
     for (const agent of sources.agents) {
-      units.push({ kind: 'file', path: `${CODEX_AGENTS}/${agent.name}.toml`, content: text(codexAgent(agent)) });
+      units.push({
+        kind: 'file',
+        path: `${CODEX_AGENTS}/${agent.name}.toml`,
+        content: text(codexAgent(agent)),
+      });
     }
   }
   return { units, diagnostics };
@@ -106,7 +127,8 @@ async function plan(root: string, adapters: readonly AdapterName[]): Promise<{ u
 
 const conflict = (file: string): Diagnostic => ({
   file,
-  message: 'существует и написан не harness — не трогаю; перенеси содержимое в источник (.agents/, AGENTS.md) и удали файл',
+  message:
+    'существует и написан не harness — не трогаю; перенеси содержимое в источник (.agents/, AGENTS.md) и удали файл',
 });
 
 /** Сгенерированные файлы и каталоги на диске, которые не входят в план. */
@@ -138,7 +160,10 @@ async function staleActions(root: string, planned: Set<string>): Promise<Action[
  * Сравнивает план с диском. Файлы без метки harness не трогаются никогда:
  * они попадают в нарушения, а не в действия.
  */
-export async function computeSync(root: string, adapters: readonly AdapterName[]): Promise<SyncResult> {
+export async function computeSync(
+  root: string,
+  adapters: readonly AdapterName[],
+): Promise<SyncResult> {
   const { units, diagnostics } = await plan(root, adapters);
   const actions: Action[] = [];
 
@@ -147,7 +172,8 @@ export async function computeSync(root: string, adapters: readonly AdapterName[]
       const current = await readOrNull(path.join(root, unit.path));
       if (current === null) actions.push({ op: 'write', path: unit.path, content: unit.content });
       else if (!isOurs(current)) diagnostics.push(conflict(unit.path));
-      else if (!current.equals(unit.content)) actions.push({ op: 'write', path: unit.path, content: unit.content });
+      else if (!current.equals(unit.content))
+        actions.push({ op: 'write', path: unit.path, content: unit.content });
       continue;
     }
     const existing = await listFiles(path.join(root, unit.path));
@@ -199,7 +225,10 @@ export async function applyActions(root: string, actions: Action[]): Promise<voi
 }
 
 /** Проверка для `harness check`: всё сгенерированное совпадает с источниками. */
-export async function checkAdapters(root: string, adapters: readonly AdapterName[]): Promise<Diagnostic[]> {
+export async function checkAdapters(
+  root: string,
+  adapters: readonly AdapterName[],
+): Promise<Diagnostic[]> {
   const { actions, diagnostics } = await computeSync(root, adapters);
   for (const action of actions) {
     const what = action.op === 'write' ? 'отсутствует или устарел' : 'лишний';

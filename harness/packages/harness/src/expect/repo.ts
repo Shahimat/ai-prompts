@@ -205,9 +205,15 @@ export async function presets(): Promise<PresetDoc[]> {
         modules: data.modules.map((m) => ({ key: m.key, answers: m.answers ?? {} })),
         agentsMd: async () => {
           const template = (await contract(data.contract)).agentsMdTemplate ?? '';
-          const blocks = await Promise.all(data.modules.map(async (m) => (await module(m.key)).agentsMdBlock ?? ''));
+          const blocks = await Promise.all(
+            data.modules.map(async (m) => (await module(m.key)).agentsMdBlock ?? ''),
+          );
           const text = `${[template.trimEnd(), ...blocks].join('\n\n')}\n`;
-          return { text, lines: text.replace(/\n$/, '').split('\n').length, bytes: Buffer.byteLength(text, 'utf8') };
+          return {
+            text,
+            lines: text.replace(/\n$/, '').split('\n').length,
+            bytes: Buffer.byteLength(text, 'utf8'),
+          };
         },
       };
     }),

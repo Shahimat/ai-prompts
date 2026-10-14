@@ -9,8 +9,14 @@
     "skills": { "type": "array", "items": { "type": "string" } },
     "agents_md_block": { "type": "boolean" },
     "harness_checks": { "type": "array", "items": { "type": "string" } },
-    "changelog_tags": { "type": "array", "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" } },
-    "extends": { "type": "object", "additionalProperties": { "type": "array", "items": { "type": "string" }, "minItems": 1 } },
+    "changelog_tags": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" }
+    },
+    "extends": {
+      "type": "object",
+      "additionalProperties": { "type": "array", "items": { "type": "string" }, "minItems": 1 }
+    },
     "index_layers": {
       "type": "array",
       "items": {
@@ -25,6 +31,10 @@
       }
     },
     "gitignore": { "type": "array", "items": { "type": "string" } },
-    "fields_in_index": { "type": "array", "items": { "type": "string" }, "description": "только v2: секции ручного context/index.yml" }
+    "fields_in_index": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "только v2: секции ручного context/index.yml"
+    }
   }
 }

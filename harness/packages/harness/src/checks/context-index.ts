@@ -136,14 +136,20 @@ class Collector {
     return value.trim();
   }
 
-  checkId(file: string, data: Record<string, unknown>, field: 'id' | 'key', ext: string): string | null {
+  checkId(
+    file: string,
+    data: Record<string, unknown>,
+    field: 'id' | 'key',
+    ext: string,
+  ): string | null {
     const expected = baseName(file, ext);
     const id = data[field];
     if (typeof id !== 'string' || id === '') {
       this.report(file, `нет поля ${field}`);
       return null;
     }
-    if (id !== expected) this.report(file, `${field} «${id}» не совпадает с именем файла «${expected}»`);
+    if (id !== expected)
+      this.report(file, `${field} «${id}» не совпадает с именем файла «${expected}»`);
     return id;
   }
 
@@ -176,7 +182,8 @@ class Collector {
     this.declared = new Set(Object.keys(namespaces));
     for (const [name, description] of Object.entries(namespaces)) {
       const ns = this.namespace(name);
-      if (typeof description === 'string' && description.trim() !== '') ns.description = description.trim();
+      if (typeof description === 'string' && description.trim() !== '')
+        ns.description = description.trim();
     }
   }
 
@@ -228,7 +235,10 @@ class Collector {
       if (title === null) this.report(file, 'нет заголовка «# …» (одна строка для индекса)');
       const owners = manualRefs.get(name);
       if (owners === undefined) {
-        this.report(file, 'manual не упомянут ни в одной entity (поле manuals) — namespace не определить');
+        this.report(
+          file,
+          'manual не упомянут ни в одной entity (поле manuals) — namespace не определить',
+        );
         continue;
       }
       for (const ns of owners) this.namespace(ns).manuals.set(name, title);
@@ -253,22 +263,40 @@ class Collector {
       for (const item of declared) {
         const section = isRecord(item) ? item['section'] : undefined;
         const dir = isRecord(item) ? item['dir'] : undefined;
-        if (typeof section !== 'string' || !/^[a-z][a-z0-9-]*$/.test(section) || RESERVED_SECTIONS.has(section)) {
-          this.report(manifest, `index_layers: section «${String(section)}» — нужен kebab-case, не ${[...RESERVED_SECTIONS].join('/')}`);
+        if (
+          typeof section !== 'string' ||
+          !/^[a-z][a-z0-9-]*$/.test(section) ||
+          RESERVED_SECTIONS.has(section)
+        ) {
+          this.report(
+            manifest,
+            `index_layers: section «${String(section)}» — нужен kebab-case, не ${[...RESERVED_SECTIONS].join('/')}`,
+          );
           continue;
         }
-        if (typeof dir !== 'string' || dir === '' || path.isAbsolute(dir) || dir.split('/').includes('..')) {
+        if (
+          typeof dir !== 'string' ||
+          dir === '' ||
+          path.isAbsolute(dir) ||
+          dir.split('/').includes('..')
+        ) {
           this.report(manifest, `index_layers: dir «${String(dir)}» — нужен путь внутри проекта`);
           continue;
         }
         const format = (isRecord(item) ? item['format'] : undefined) ?? 'md';
         if (format !== 'md' && format !== 'yml') {
-          this.report(manifest, `index_layers: format «${typeof format === 'string' ? format : JSON.stringify(format)}» — md или yml`);
+          this.report(
+            manifest,
+            `index_layers: format «${typeof format === 'string' ? format : JSON.stringify(format)}» — md или yml`,
+          );
           continue;
         }
         const taken = layers.find((l) => l.section === section);
         if (taken !== undefined) {
-          this.report(manifest, `index_layers: section «${section}» уже объявлена в ${taken.manifest}`);
+          this.report(
+            manifest,
+            `index_layers: section «${section}» уже объявлена в ${taken.manifest}`,
+          );
           continue;
         }
         layers.push({ section, dir: dir.replace(/\/+$/, ''), format, manifest });
@@ -306,7 +334,10 @@ class Collector {
         title = firstHeading(text);
         if (title === null) this.report(file, 'нет заголовка «# …» (одна строка для индекса)');
       }
-      const expected = file.slice(layer.dir.length + 1, -ext.length).split('/').join('-');
+      const expected = file
+        .slice(layer.dir.length + 1, -ext.length)
+        .split('/')
+        .join('-');
       const id = data['id'];
       if (typeof id !== 'string' || id === '') {
         this.report(file, 'нет поля id');
@@ -369,9 +400,15 @@ export async function checkContextIndex(root: string): Promise<Diagnostic[]> {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
   }
   if (actual === null) {
-    diagnostics.push({ file: CONTEXT_INDEX_PATH, message: 'файл не найден: запусти harness context index' });
+    diagnostics.push({
+      file: CONTEXT_INDEX_PATH,
+      message: 'файл не найден: запусти harness context index',
+    });
   } else if (normalizeEol(actual) !== text) {
-    diagnostics.push({ file: CONTEXT_INDEX_PATH, message: 'устарел: запусти harness context index' });
+    diagnostics.push({
+      file: CONTEXT_INDEX_PATH,
+      message: 'устарел: запусти harness context index',
+    });
   }
   return diagnostics;
 }

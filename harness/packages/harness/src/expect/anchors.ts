@@ -27,7 +27,8 @@ async function walk(dir: string, rel = ''): Promise<string[]> {
   const out: string[] = [];
   for (const entry of await readdir(dir, { withFileTypes: true })) {
     if (entry.isDirectory()) {
-      if (!SKIP_DIRS.has(entry.name)) out.push(...(await walk(path.join(dir, entry.name), `${rel}${entry.name}/`)));
+      if (!SKIP_DIRS.has(entry.name))
+        out.push(...(await walk(path.join(dir, entry.name), `${rel}${entry.name}/`)));
     } else if (MD.test(entry.name) || CONF.test(entry.name) || CODE.test(entry.name)) {
       out.push(`${rel}${entry.name}`);
     }
@@ -49,7 +50,14 @@ export function markdownRegions(text: string, file: string): AnchorRegion[] {
     if (start?.[1] !== undefined) open.set(start[1], i);
     if (end?.[1] !== undefined && open.has(end[1])) {
       const from = open.get(end[1]) ?? i;
-      regions.push({ key: end[1], path: file, text: lines.slice(from + 1, i).join('\n').trim() });
+      regions.push({
+        key: end[1],
+        path: file,
+        text: lines
+          .slice(from + 1, i)
+          .join('\n')
+          .trim(),
+      });
       open.delete(end[1]);
     }
   });
@@ -73,7 +81,9 @@ export function allAnchors(): Promise<AnchorRegion[]> {
     for (const file of (await walk(root)).sort()) {
       const text = normalizeEol(await readFile(path.join(root, file), 'utf8'));
       if (MD.test(file)) regions.push(...markdownRegions(text, file));
-      else for (const key of fileAnchorKeys(text, CODE.test(file) ? '//' : '#')) regions.push({ key, path: file, text: text.trim() });
+      else
+        for (const key of fileAnchorKeys(text, CODE.test(file) ? '//' : '#'))
+          regions.push({ key, path: file, text: text.trim() });
     }
     return regions;
   })();

@@ -37,79 +37,145 @@ describe('[harness] common', () => {
     'процессы harness: check, changelog, context, adapters, delta, outdated, expect, index; plan_iter — в разработке: его команд нет в CLI, ожидания — только todo',
     () => Check.processes(),
   );
-  crit('пакеты: @shahimat/harness — CLI и механизм ожиданий, @shahimat/expectations — наборы ожиданий; других нет', () => Check.packages());
-  crit('других команд, кроме перечисленных в разделах [harness] <процесс>, у harness нет', () => Check.noOtherCommands());
-  crit('в репозитории нет bash-скриптов: вся автоматизация на TS и Node ≥ 24', () => Check.noBash());
+  crit(
+    'пакеты: @shahimat/harness — CLI и механизм ожиданий, @shahimat/expectations — наборы ожиданий; других нет',
+    () => Check.packages(),
+  );
+  crit('других команд, кроме перечисленных в разделах [harness] <процесс>, у harness нет', () =>
+    Check.noOtherCommands(),
+  );
+  crit('в репозитории нет bash-скриптов: вся автоматизация на TS и Node ≥ 24', () =>
+    Check.noBash(),
+  );
   crit('CI прогоняет harness на ubuntu, macos и windows', () => Check.ciMatrix());
-  crit('TypeScript в режиме strict: strict, noUncheckedIndexedAccess, exactOptionalPropertyTypes', () => Check.tsStrict());
+  crit(
+    'TypeScript в режиме strict: strict, noUncheckedIndexedAccess, exactOptionalPropertyTypes',
+    () => Check.tsStrict(),
+  );
   crit('у каждой команды CLI из справки есть юнит-тест', () => Check.commandsTested());
-  crit('коды выхода CLI: 0 — ok, 1 — нарушения, 2 — ошибка вызова или конфигурации', () => Check.exitCodes());
-  crit('неизвестный ключ в context/harness.yml — ошибка конфига, а не молча выключенная проверка', () => Check.strictConfig());
+  crit('коды выхода CLI: 0 — ok, 1 — нарушения, 2 — ошибка вызова или конфигурации', () =>
+    Check.exitCodes(),
+  );
+  crit(
+    'неизвестный ключ в context/harness.yml — ошибка конфига, а не молча выключенная проверка',
+    () => Check.strictConfig(),
+  );
   crit('справка CLI строится из декларативного дерева команд', () => Check.commandTree());
   crit('ошибка конфига называет путь до поля', () => Check.configErrorPath());
   crit('слои пакета зависят в одну сторону: cli → commands → ядро', () => Check.layers());
-  crit('проверки ничего не пишут в проект: файлы пишут только генерация (adapters sync, context index, index build, expect init | judge, delta close) и session clone из plan_iter', () => Check.checksReadOnly());
-  warn('итог прогона считает код по бюджету и ответам модели, а не модель', () => Check.verdictByCode());
+  crit(
+    'проверки ничего не пишут в проект: файлы пишут только генерация (adapters sync, context index, index build, expect init | judge, delta close) и session clone из plan_iter',
+    () => Check.checksReadOnly(),
+  );
+  warn('итог прогона считает код по бюджету и ответам модели, а не модель', () =>
+    Check.verdictByCode(),
+  );
   crit('ответ модели вне схемы отклоняется', () => Check.answerSchema());
-  warn('задание проверяющей модели содержит только вопросы и доказательства, без контекста автора', () => Check.cleanContext());
-  crit('уровни замечаний общие для ожиданий и критериев плана: crit, warn, info', () => Check.sharedLevels());
-  it.todo('дополнения проекта и пользователя подключаются из конфига динамическим import, без форка пакета');
+  warn(
+    'задание проверяющей модели содержит только вопросы и доказательства, без контекста автора',
+    () => Check.cleanContext(),
+  );
+  crit('уровни замечаний общие для ожиданий и критериев плана: crit, warn, info', () =>
+    Check.sharedLevels(),
+  );
+  it.todo(
+    'дополнения проекта и пользователя подключаются из конфига динамическим import, без форка пакета',
+  );
 });
 
 describe('[harness] check', () => {
-  crit('команда harness check — все проверки из context/harness.yml разом', () => Check.commands(['check']));
-  crit('проверки harness check: changelog, context-index, adapters — других нет', () => Check.checks());
+  crit('команда harness check — все проверки из context/harness.yml разом', () =>
+    Check.commands(['check']),
+  );
+  crit('проверки harness check: changelog, context-index, adapters — других нет', () =>
+    Check.checks(),
+  );
 });
 
 describe('[harness] changelog', () => {
-  crit('команда harness changelog lint — формат CHANGELOG.md', () => Check.commands(['changelog lint']));
+  crit('команда harness changelog lint — формат CHANGELOG.md', () =>
+    Check.commands(['changelog lint']),
+  );
   crit('строка журнала — не длиннее 120 символов', () => Check.changelogLine());
   crit('теги ядра — ровно arch, stack, dep, milestone', () => Check.coreTags());
 });
 
 describe('[harness] context', () => {
-  crit('команда harness context index — генерация context/index.yml из слоёв документации', () => Check.commands(['context index']));
-  warn('context/index.yml генерируется harness context index и не содержит даты генерации', () => Check.contextIndexNoDate());
+  crit('команда harness context index — генерация context/index.yml из слоёв документации', () =>
+    Check.commands(['context index']),
+  );
+  warn('context/index.yml генерируется harness context index и не содержит даты генерации', () =>
+    Check.contextIndexNoDate(),
+  );
 });
 
 describe('[harness] adapters', () => {
-  crit('команда harness adapters sync — файлы под Claude Code и Codex из AGENTS.md и .agents/', () => Check.commands(['adapters sync']));
+  crit(
+    'команда harness adapters sync — файлы под Claude Code и Codex из AGENTS.md и .agents/',
+    () => Check.commands(['adapters sync']),
+  );
   crit('адаптеры под инструменты: claude-code и codex — других нет', () => Check.adapters());
   crit('adapters sync не меняет и не удаляет файлы без метки harness', () => Check.adaptersSafe());
-  warn('adapters sync выключает memory: autoMemoryEnabled false в Claude Code, memories false в Codex', () => Check.memoryOff());
+  warn(
+    'adapters sync выключает memory: autoMemoryEnabled false в Claude Code, memories false в Codex',
+    () => Check.memoryOff(),
+  );
 });
 
 describe('[harness] outdated', () => {
-  crit('команда harness outdated — версия проекта против npm и журнал изменений между ними', () => Check.commands(['outdated']));
-  crit('harness outdated сообщает текущую и последнюю версию и записи журнала между ними', () => Check.outdatedReport());
+  crit('команда harness outdated — версия проекта против npm и журнал изменений между ними', () =>
+    Check.commands(['outdated']),
+  );
+  crit('harness outdated сообщает текущую и последнюю версию и записи журнала между ними', () =>
+    Check.outdatedReport(),
+  );
 });
 
 describe('[harness] expect', () => {
   crit('команды harness expect init | report | lint | judge — ожидания проекта', () =>
-    Check.commands(['expect init', 'expect report', 'expect lint', 'expect judge']));
-  crit('смысловая проверка заголовков файла запускается только при изменении его заголовков', () => Check.lintOnTitleChange());
-  crit('судья вызывается только для вердиктов, у которых изменились заголовок или доказательства', () => Check.judgeOnlyStale());
+    Check.commands(['expect init', 'expect report', 'expect lint', 'expect judge']),
+  );
+  crit('смысловая проверка заголовков файла запускается только при изменении его заголовков', () =>
+    Check.lintOnTitleChange(),
+  );
+  crit(
+    'судья вызывается только для вердиктов, у которых изменились заголовок или доказательства',
+    () => Check.judgeOnlyStale(),
+  );
   crit('пакет судьи — не больше 25 вопросов и 80 KB доказательств', () => Check.batchLimits());
-  crit('ответ судьи без дословной цитаты из доказательства отклоняется', () => Check.quoteRequired());
+  crit('ответ судьи без дословной цитаты из доказательства отклоняется', () =>
+    Check.quoteRequired(),
+  );
   crit('в кэше вердиктов только вердикты живых ожиданий', () => Check.cachePruned());
   crit('CI проверяет ожидания без вызова LLM', () => Check.ciWithoutLlm());
-  crit('файлы ожиданий ссылаются на доказательства только якорями @KEY, без путей', () => Check.anchorsOnly());
+  crit('файлы ожиданий ссылаются на доказательства только якорями @KEY, без путей', () =>
+    Check.anchorsOnly(),
+  );
   crit('ожидание — не длиннее 200 символов', () => Check.titleLimit());
 });
 
 describe('[harness] delta', () => {
-  crit('команды harness delta check | close — дельта проектной документации в context/.delta/', () =>
-    Check.commands(['delta check', 'delta close']));
-  crit('delta check: удалённая или изменённая относительно HEAD сущность слоёв документации без пункта revise — нарушение', () =>
-    Check.deltaCheck());
-  crit('delta close удаляет дельту только при чистом delta check и выполненных пунктах', () => Check.deltaClose());
+  crit(
+    'команды harness delta check | close — дельта проектной документации в context/.delta/',
+    () => Check.commands(['delta check', 'delta close']),
+  );
+  crit(
+    'delta check: удалённая или изменённая относительно HEAD сущность слоёв документации без пункта revise — нарушение',
+    () => Check.deltaCheck(),
+  );
+  crit('delta close удаляет дельту только при чистом delta check и выполненных пунктах', () =>
+    Check.deltaClose(),
+  );
   crit('context index не включает context/.delta/', () => Check.deltaNotIndexed());
-  crit('схема дельты в пакете совпадает с expectations/schemas/docs-delta.schema.json', () => Check.deltaSchema());
+  crit('схема дельты в пакете совпадает с expectations/schemas/docs-delta.schema.json', () =>
+    Check.deltaSchema(),
+  );
 });
 
 describe('[harness] index', () => {
   crit('команды harness index build | check — индекс prompts/index.yml источника промптов', () =>
-    Check.commands(['index build', 'index check']));
+    Check.commands(['index build', 'index check']),
+  );
   crit('у skill в индексе sha256 каждого файла', () => Check.skillFileShas());
 });
 
@@ -127,7 +193,9 @@ async function tempDir(): Promise<string> {
 
 /** Содержимое всех файлов каталога: путь → текст. */
 async function snapshot(dir: string): Promise<Record<string, string>> {
-  const files = (await readdir(dir, { recursive: true, withFileTypes: true })).filter((e) => e.isFile());
+  const files = (await readdir(dir, { recursive: true, withFileTypes: true })).filter((e) =>
+    e.isFile(),
+  );
   return Object.fromEntries(
     await Promise.all(
       files.map(async (e) => {
@@ -149,8 +217,14 @@ async function withGitProject(fn: (dir: string) => Promise<void>): Promise<void>
     await mkdir(path.join(dir, 'context/conventions'), { recursive: true });
     await mkdir(path.join(dir, 'context/.delta'), { recursive: true });
     await mkdir(path.join(dir, 'context/modules'), { recursive: true });
-    await writeFile(path.join(dir, 'context/project.yml'), 'name: demo\nnamespaces:\n  core: ядро\n');
-    await writeFile(path.join(dir, 'context/conventions/naming.yml'), 'key: naming\nsummary: kebab-case\nrule: x\n');
+    await writeFile(
+      path.join(dir, 'context/project.yml'),
+      'name: demo\nnamespaces:\n  core: ядро\n',
+    );
+    await writeFile(
+      path.join(dir, 'context/conventions/naming.yml'),
+      'key: naming\nsummary: kebab-case\nrule: x\n',
+    );
     git('init', '-q');
     git('-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-qm', 'init', '--allow-empty');
     git('add', '.');
@@ -162,7 +236,8 @@ async function withGitProject(fn: (dir: string) => Promise<void>): Promise<void>
 }
 
 /** Слой файла пакета: 0 — cli, 1 — commands, 2 — ядро. */
-const layerOf = (file: string): number => (file === 'cli.ts' || file === 'bin.ts' ? 0 : file.startsWith('commands/') ? 1 : 2);
+const layerOf = (file: string): number =>
+  file === 'cli.ts' || file === 'bin.ts' ? 0 : file.startsWith('commands/') ? 1 : 2;
 
 /** Команды из дерева CLI: `check`, `adapters sync`, `expect init`, … */
 async function usageCommands(): Promise<string[]> {
@@ -189,7 +264,13 @@ class Check {
   // состав
   static async packages(): Promise<void> {
     const dirs = (await readdir(path.join(repoRoot(), 'harness/packages'))).sort();
-    const names = await Promise.all(dirs.map(async (d) => (JSON.parse(await readRepo(`harness/packages/${d}/package.json`)) as { name: string }).name));
+    const names = await Promise.all(
+      dirs.map(
+        async (d) =>
+          (JSON.parse(await readRepo(`harness/packages/${d}/package.json`)) as { name: string })
+            .name,
+      ),
+    );
     expect(names.sort()).toEqual(['@shahimat/expectations', '@shahimat/harness']);
   }
 
@@ -199,9 +280,16 @@ class Check {
   }
 
   static async processes(): Promise<void> {
-    expect([...new Set(COMMANDS.map((c) => c.path[0] ?? ''))].sort()).toEqual(
-      ['adapters', 'changelog', 'check', 'context', 'delta', 'expect', 'index', 'outdated'],
-    );
+    expect([...new Set(COMMANDS.map((c) => c.path[0] ?? ''))].sort()).toEqual([
+      'adapters',
+      'changelog',
+      'check',
+      'context',
+      'delta',
+      'expect',
+      'index',
+      'outdated',
+    ]);
     const planIter = await readRepo('expectations/harness-plan-iter.expect.ts');
     expect(planIter).toContain("describe('[harness] plan_iter'");
     expect(planIter).not.toMatch(/\b(crit|warn)\(/);
@@ -224,24 +312,40 @@ class Check {
     const pkg = JSON.parse(await readRepo(`${PKG}/package.json`)) as { engines: { node: string } };
     expect(pkg.engines.node).toBe('>=24');
     expect(await readRepo('.gitattributes')).toContain('eol=lf');
-    const out = spawnSync('git', ['ls-files', '*.sh'], { cwd: repoRoot(), encoding: 'utf8' }).stdout.trim();
+    const out = spawnSync('git', ['ls-files', '*.sh'], {
+      cwd: repoRoot(),
+      encoding: 'utf8',
+    }).stdout.trim();
     expect(out).toBe('');
   }
 
   static async ciMatrix(): Promise<void> {
-    expect(await readRepo('.github/workflows/check-index.yml')).toMatch(/os: \[ubuntu-latest, macos-latest, windows-latest\]/);
+    expect(await readRepo('.github/workflows/check-index.yml')).toMatch(
+      /os: \[ubuntu-latest, macos-latest, windows-latest\]/,
+    );
   }
 
   static async tsStrict(): Promise<void> {
     // Флаги с учётом цепочки extends: пакеты наследуют tsconfig.base.json.
     const compilerOptions = async (file: string): Promise<Record<string, unknown>> => {
-      const cfg = JSON.parse(await readRepo(file)) as { extends?: string; compilerOptions?: Record<string, unknown> };
-      const base = cfg.extends === undefined ? {} : await compilerOptions(path.posix.join(path.posix.dirname(file), cfg.extends));
+      const cfg = JSON.parse(await readRepo(file)) as {
+        extends?: string;
+        compilerOptions?: Record<string, unknown>;
+      };
+      const base =
+        cfg.extends === undefined
+          ? {}
+          : await compilerOptions(path.posix.join(path.posix.dirname(file), cfg.extends));
       return { ...base, ...cfg.compilerOptions };
     };
     for (const pkg of ['harness', 'expectations']) {
       const opts = await compilerOptions(`harness/packages/${pkg}/tsconfig.json`);
-      expect({ pkg, strict: opts['strict'], nui: opts['noUncheckedIndexedAccess'], eopt: opts['exactOptionalPropertyTypes'] }).toEqual({
+      expect({
+        pkg,
+        strict: opts['strict'],
+        nui: opts['noUncheckedIndexedAccess'],
+        eopt: opts['exactOptionalPropertyTypes'],
+      }).toEqual({
         pkg,
         strict: true,
         nui: true,
@@ -254,7 +358,9 @@ class Check {
     const commands = await usageCommands();
     const tests = (
       await Promise.all(
-        (await readdir(path.join(repoRoot(), PKG, 'test'))).filter((f) => f.endsWith('.test.ts')).map((f) => readRepo(`${PKG}/test/${f}`)),
+        (await readdir(path.join(repoRoot(), PKG, 'test')))
+          .filter((f) => f.endsWith('.test.ts'))
+          .map((f) => readRepo(`${PKG}/test/${f}`)),
       )
     ).join('\n');
     const untested = commands.filter((c) => {
@@ -290,12 +396,16 @@ class Check {
 
   static async commandTree(): Promise<void> {
     const usage = renderUsage();
-    expect(COMMANDS.map((c) => c.path.join(' ')).filter((c) => !usage.includes(`harness ${c}`))).toEqual([]);
+    expect(
+      COMMANDS.map((c) => c.path.join(' ')).filter((c) => !usage.includes(`harness ${c}`)),
+    ).toEqual([]);
     expect(await readRepo(`${PKG}/src/cli.ts`)).not.toMatch(/switch \(|Использование:/);
   }
 
   static configErrorPath(): void {
-    expect(() => parseConfig('checks:\n  changelog:\n    max_line: x\n')).toThrow('checks.changelog.max_line');
+    expect(() => parseConfig('checks:\n  changelog:\n    max_line: x\n')).toThrow(
+      'checks.changelog.max_line',
+    );
     expect(() => parseConfig('checks:\n  changelog:\n    bogus: 1\n')).toThrow('checks.changelog');
   }
 
@@ -342,7 +452,12 @@ class Check {
     const item = { id: 'a', question: 'q', evidence: [{ ref: 'x', sha: 's', bytes: 1 }] };
     const texts = new Map([['x', 'текст доказательства про memory']]);
     const notArray = applyAnswers([item], { id: 'a' }, texts, new Date());
-    const notBool = applyAnswers([item], [{ id: 'a', verdict: 'да', ref: 'x', quote: 'доказательства про memory' }], texts, new Date());
+    const notBool = applyAnswers(
+      [item],
+      [{ id: 'a', verdict: 'да', ref: 'x', quote: 'доказательства про memory' }],
+      texts,
+      new Date(),
+    );
     expect(Object.keys({ ...notArray.accepted, ...notBool.accepted })).toEqual([]);
     expect([...notArray.rejected, ...notBool.rejected].map((r) => r.id)).toEqual(['*', 'a']);
   }
@@ -353,7 +468,11 @@ class Check {
     const schema = JSON.parse(await readRepo(`${SCHEMAS}/plan-criteria.schema.json`)) as {
       properties: { criteria: { items: { properties: { level: { enum: string[] } } } } };
     };
-    expect(schema.properties.criteria.items.properties.level.enum).toEqual(['crit', 'warn', 'info']);
+    expect(schema.properties.criteria.items.properties.level.enum).toEqual([
+      'crit',
+      'warn',
+      'info',
+    ]);
   }
 
   // ожидания
@@ -367,8 +486,18 @@ class Check {
   static quoteRequired(): void {
     const item = { id: 'a', question: 'q', evidence: [{ ref: 'x', sha: 's', bytes: 1 }] };
     const texts = new Map([['x', 'текст доказательства про memory']]);
-    const ok = applyAnswers([item], [{ id: 'a', verdict: true, ref: 'x', quote: 'доказательства про memory' }], texts, new Date());
-    const bad = applyAnswers([item], [{ id: 'a', verdict: true, ref: 'x', quote: 'придуманная цитата судьи' }], texts, new Date());
+    const ok = applyAnswers(
+      [item],
+      [{ id: 'a', verdict: true, ref: 'x', quote: 'доказательства про memory' }],
+      texts,
+      new Date(),
+    );
+    const bad = applyAnswers(
+      [item],
+      [{ id: 'a', verdict: true, ref: 'x', quote: 'придуманная цитата судьи' }],
+      texts,
+      new Date(),
+    );
     expect(Object.keys(ok.accepted)).toEqual(['a']);
     expect(bad.rejected.map((r) => r.id)).toEqual(['a']);
   }
@@ -385,11 +514,15 @@ class Check {
     const files = (await readdir(path.join(repoRoot(), 'expectations'), { recursive: true }))
       .filter((f) => f.endsWith('.expect.ts'))
       .map((f) => `expectations/${f.split(path.sep).join('/')}`)
-      .concat('harness/packages/expectations/src/ticket-commits.ts', 'harness/packages/expectations/src/attention.ts');
+      .concat(
+        'harness/packages/expectations/src/ticket-commits.ts',
+        'harness/packages/expectations/src/attention.ts',
+      );
     const paths: string[] = [];
     for (const f of files) {
       for (const m of (await readRepo(f)).matchAll(/judged\(\[([^\]]*)\]\)/g)) {
-        for (const ref of (m[1] ?? '').matchAll(/'([^']*)'/g)) if (!(ref[1] ?? '').startsWith('@')) paths.push(`${f}: ${ref[1]}`);
+        for (const ref of (m[1] ?? '').matchAll(/'([^']*)'/g))
+          if (!(ref[1] ?? '').startsWith('@')) paths.push(`${f}: ${ref[1]}`);
       }
     }
     expect(paths).toEqual([]);
@@ -408,7 +541,9 @@ class Check {
       await mkdir(path.join(dir, '.claude/agents'), { recursive: true });
       await writeFile(path.join(dir, '.claude/agents/mine.md'), '---\nname: mine\n---\nсвой\n');
       const { actions, diagnostics } = await computeSync(dir, ['claude-code']);
-      expect(actions.filter((a) => a.path === 'CLAUDE.md' || a.path === '.claude/agents/mine.md')).toEqual([]);
+      expect(
+        actions.filter((a) => a.path === 'CLAUDE.md' || a.path === '.claude/agents/mine.md'),
+      ).toEqual([]);
       expect(diagnostics.some((d) => d.file === 'CLAUDE.md')).toBe(true);
     } finally {
       await rm(dir, { recursive: true, force: true });
@@ -420,7 +555,12 @@ class Check {
 
   static async skillFileShas(): Promise<void> {
     const bad = (await indexEntries()).filter(
-      (e) => e.kind === 'skill' && !((e.files?.length ?? 0) > 0 && (e.files ?? []).every((f) => /^[0-9a-f]{64}$/.test(f.sha256))),
+      (e) =>
+        e.kind === 'skill' &&
+        !(
+          (e.files?.length ?? 0) > 0 &&
+          (e.files ?? []).every((f) => /^[0-9a-f]{64}$/.test(f.sha256))
+        ),
     );
     expect(bad.map((e) => e.key)).toEqual([]);
   }
@@ -428,7 +568,10 @@ class Check {
   // delta
   static async deltaCheck(): Promise<void> {
     await withGitProject(async (dir) => {
-      await writeFile(path.join(dir, 'context/conventions/naming.yml'), 'key: naming\nsummary: snake_case\nrule: x\n');
+      await writeFile(
+        path.join(dir, 'context/conventions/naming.yml'),
+        'key: naming\nsummary: snake_case\nrule: x\n',
+      );
       expect(cli(['delta', 'check', '--root', dir])).toBe(1);
       await writeFile(path.join(dir, 'context/.delta/naming.yml'), REVISE_NAMING);
       expect(cli(['delta', 'check', '--root', dir])).toBe(0);
@@ -441,7 +584,10 @@ class Check {
       await writeFile(delta, REVISE_NAMING);
       expect(cli(['delta', 'close', '--root', dir])).toBe(1);
       expect(existsSync(delta)).toBe(true);
-      await writeFile(path.join(dir, 'context/conventions/naming.yml'), 'key: naming\nsummary: snake_case\nrule: x\n');
+      await writeFile(
+        path.join(dir, 'context/conventions/naming.yml'),
+        'key: naming\nsummary: snake_case\nrule: x\n',
+      );
       expect(cli(['delta', 'close', '--root', dir])).toBe(0);
       expect(existsSync(delta)).toBe(false);
     });
@@ -449,8 +595,14 @@ class Check {
 
   static async deltaNotIndexed(): Promise<void> {
     await withGitProject(async (dir) => {
-      await writeFile(path.join(dir, 'context/modules/m.yml'), 'provides:\n  index_layers:\n    - { section: drafts, dir: context, format: yml }\n');
-      await writeFile(path.join(dir, 'context/.delta/leak.yml'), 'id: leak\nnamespace: core\nsummary: утечка\n');
+      await writeFile(
+        path.join(dir, 'context/modules/m.yml'),
+        'provides:\n  index_layers:\n    - { section: drafts, dir: context, format: yml }\n',
+      );
+      await writeFile(
+        path.join(dir, 'context/.delta/leak.yml'),
+        'id: leak\nnamespace: core\nsummary: утечка\n',
+      );
       expect((await buildContextIndex(dir)).text).not.toContain('leak');
     });
   }
@@ -480,7 +632,10 @@ class Check {
       const code = await runOutdated({ root: dir, now: new Date() }, async (url) => ({
         ok: true,
         status: 200,
-        text: async () => (url.includes('registry') ? JSON.stringify({ 'dist-tags': { latest: '0.3.0' } }) : changelog),
+        text: async () =>
+          url.includes('registry')
+            ? JSON.stringify({ 'dist-tags': { latest: '0.3.0' } })
+            : changelog,
       }));
       expect(code).toBe(1);
       const text = logs.join('\n');

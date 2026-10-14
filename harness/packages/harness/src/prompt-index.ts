@@ -79,13 +79,15 @@ function oneLine(value: unknown, field: string, file: string): string | undefine
 function parseFeature(value: unknown, kind: string, file: string): FeatureInfo | undefined {
   if (value === undefined || value === null) return undefined;
   if (kind !== 'module') throw new Error(`${file}: feature допустим только у kind: module`);
-  if (typeof value !== 'object' || Array.isArray(value)) throw new Error(`${file}: feature должно быть объектом`);
+  if (typeof value !== 'object' || Array.isArray(value))
+    throw new Error(`${file}: feature должно быть объектом`);
   const feature = value as Record<string, unknown>;
   const extra = Object.keys(feature).filter((k) => !FEATURE_KEYS.includes(k));
   if (extra.length > 0) throw new Error(`${file}: неизвестные поля feature: ${extra.join(', ')}`);
   const summary = oneLine(feature['summary'], 'feature.summary', file);
   if (summary === undefined) throw new Error(`${file}: нет feature.summary`);
-  if (typeof feature['default'] !== 'boolean') throw new Error(`${file}: feature.default должно быть true или false`);
+  if (typeof feature['default'] !== 'boolean')
+    throw new Error(`${file}: feature.default должно быть true или false`);
   return {
     summary,
     default: feature['default'],
@@ -102,7 +104,8 @@ function checkFeatureRefs(entries: IndexEntry[]): void {
     for (const field of ['requires', 'conflicts'] as const) {
       for (const ref of e.feature[field]) {
         if (ref === e.key) throw new Error(`${e.path}: feature.${field} ссылается на сам модуль`);
-        if (!modules.has(ref)) throw new Error(`${e.path}: feature.${field}: модуля «${ref}» нет в индексе`);
+        if (!modules.has(ref))
+          throw new Error(`${e.path}: feature.${field}: модуля «${ref}» нет в индексе`);
       }
     }
   }
@@ -185,7 +188,8 @@ function nameAndTitle(content: string, expected: string, file: string): string {
   } catch (error) {
     throw new Error(`${file}: ${(error as Error).message}`, { cause: error });
   }
-  if (fm?.['name'] !== expected) throw new Error(`${file}: name должно совпадать с именем «${expected}»`);
+  if (fm?.['name'] !== expected)
+    throw new Error(`${file}: name должно совпадать с именем «${expected}»`);
   const title = oneLine(fm['description'], 'description', file);
   if (title === undefined) throw new Error(`${file}: нет description`);
   return title;
@@ -202,7 +206,12 @@ async function collectSkills(root: string): Promise<IndexEntry[]> {
     const dir = `${SKILLS_DIR}/${name}`;
     const rels = (await readdir(path.join(root, dir), { recursive: true, withFileTypes: true }))
       .filter((e) => e.isFile())
-      .map((e) => path.relative(path.join(root, dir), path.join(e.parentPath, e.name)).split(path.sep).join('/'))
+      .map((e) =>
+        path
+          .relative(path.join(root, dir), path.join(e.parentPath, e.name))
+          .split(path.sep)
+          .join('/'),
+      )
       .sort(compareBytes);
     if (!rels.includes('SKILL.md')) throw new Error(`${dir}: нет SKILL.md`);
     const files: { path: string; sha256: string }[] = [];
@@ -213,7 +222,16 @@ async function collectSkills(root: string): Promise<IndexEntry[]> {
       files.push({ path: `${dir}/${rel}`, sha256: sha256(content) });
     }
     const manifest = files.map((f, i) => `${f.sha256}  ${rels[i] ?? ''}\n`).join('');
-    entries.push({ kind: 'skill', key: name, path: dir, sha256: sha256(manifest), applicableTo: [], patterns: [], title, files });
+    entries.push({
+      kind: 'skill',
+      key: name,
+      path: dir,
+      sha256: sha256(manifest),
+      applicableTo: [],
+      patterns: [],
+      title,
+      files,
+    });
   }
   return entries;
 }
@@ -233,11 +251,15 @@ async function collectPresets(root: string, known: IndexEntry[]): Promise<IndexE
     try {
       data = parse(content);
     } catch (error) {
-      throw new Error(`${file}: невалидный YAML: ${(error as Error).message.split('\n')[0]}`, { cause: error });
+      throw new Error(`${file}: невалидный YAML: ${(error as Error).message.split('\n')[0]}`, {
+        cause: error,
+      });
     }
-    if (typeof data !== 'object' || data === null || Array.isArray(data)) throw new Error(`${file}: корень должен быть объектом`);
+    if (typeof data !== 'object' || data === null || Array.isArray(data))
+      throw new Error(`${file}: корень должен быть объектом`);
     const preset = data as Record<string, unknown>;
-    if (preset['key'] !== key) throw new Error(`${file}: key должно совпадать с именем файла «${key}»`);
+    if (preset['key'] !== key)
+      throw new Error(`${file}: key должно совпадать с именем файла «${key}»`);
     const title = oneLine(preset['title'], 'title', file);
     if (title === undefined) throw new Error(`${file}: нет title`);
     const contract = preset['contract'];
@@ -245,16 +267,29 @@ async function collectPresets(root: string, known: IndexEntry[]): Promise<IndexE
       throw new Error(`${file}: контракта «${String(contract)}» нет в индексе`);
     }
     const modules = preset['modules'];
-    if (!Array.isArray(modules) || modules.length === 0) throw new Error(`${file}: modules — непустой список`);
+    if (!Array.isArray(modules) || modules.length === 0)
+      throw new Error(`${file}: modules — непустой список`);
     for (const item of modules) {
-      const moduleKey = typeof item === 'object' && item !== null ? (item as Record<string, unknown>)['key'] : undefined;
+      const moduleKey =
+        typeof item === 'object' && item !== null
+          ? (item as Record<string, unknown>)['key']
+          : undefined;
       const module = known.find((e) => e.kind === 'module' && e.key === moduleKey);
-      if (module === undefined) throw new Error(`${file}: модуля «${String(moduleKey)}» нет в индексе`);
+      if (module === undefined)
+        throw new Error(`${file}: модуля «${String(moduleKey)}» нет в индексе`);
       if (!module.applicableTo.includes(String(contract))) {
         throw new Error(`${file}: модуль «${module.key}» не применим к «${String(contract)}»`);
       }
     }
-    entries.push({ kind: 'preset', key, path: file, sha256: sha256(content), applicableTo: [String(contract)], patterns: [], title });
+    entries.push({
+      kind: 'preset',
+      key,
+      path: file,
+      sha256: sha256(content),
+      applicableTo: [String(contract)],
+      patterns: [],
+      title,
+    });
   }
   return entries;
 }
@@ -267,7 +302,15 @@ async function collectAgents(root: string): Promise<IndexEntry[]> {
     const file = `${AGENTS_DIR}/${entry}`;
     const content = await readFile(path.join(root, file), 'utf8');
     const title = nameAndTitle(content, entry.slice(0, -3), file);
-    entries.push({ kind: 'agent', key: entry.slice(0, -3), path: file, sha256: sha256(content), applicableTo: [], patterns: [], title });
+    entries.push({
+      kind: 'agent',
+      key: entry.slice(0, -3),
+      path: file,
+      sha256: sha256(content),
+      applicableTo: [],
+      patterns: [],
+      title,
+    });
   }
   return entries;
 }
@@ -306,7 +349,11 @@ export function renderIndex(entries: IndexEntry[], options: RenderOptions): stri
       if (e.files !== undefined) {
         lines.push('    files:');
         for (const f of e.files) {
-          lines.push(`      - path: ${f.path}`, `        raw: ${options.rawBase}/${f.path}`, `        sha256: ${f.sha256}`);
+          lines.push(
+            `      - path: ${f.path}`,
+            `        raw: ${options.rawBase}/${f.path}`,
+            `        sha256: ${f.sha256}`,
+          );
         }
       }
       if (e.patterns.length > 0) lines.push(`    patterns: ${flowList(e.patterns)}`);

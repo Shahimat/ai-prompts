@@ -49,7 +49,10 @@ beforeEach(async () => {
   git('config', 'user.email', 't@t');
   git('config', 'user.name', 't');
   await put('context/project.yml', 'name: demo\nnamespaces:\n  core: ядро\n');
-  await put('context/conventions/naming.yml', 'key: naming\nsummary: kebab-case\nrule: имена в kebab-case\n');
+  await put(
+    'context/conventions/naming.yml',
+    'key: naming\nsummary: kebab-case\nrule: имена в kebab-case\n',
+  );
   await put('CHANGELOG.md', '- 2026-10-01 · [arch] монолит · проще\n');
   await put('context/modules/analysis.yml', 'provides:\n  layers: [analysis/claims/]\n');
   await put('analysis/claims/a.yml', 'id: a\nsummary: тезис\n');
@@ -65,14 +68,22 @@ afterEach(async () => {
 describe('harness delta check', () => {
   it('0 — только добавления, без дельты', async () => {
     await put('context/conventions/new.yml', 'key: new\nsummary: новое\nrule: x\n');
-    await put('context/conventions/naming.yml', 'key: naming\nsummary: kebab-case\nrule: имена в kebab-case\nreason: читаемость\n');
+    await put(
+      'context/conventions/naming.yml',
+      'key: naming\nsummary: kebab-case\nrule: имена в kebab-case\nreason: читаемость\n',
+    );
     expect(await main(['delta', 'check', '--root', root], NOW)).toBe(0);
   });
 
   it('1 — изменённое значение без revise', async () => {
-    await put('context/conventions/naming.yml', 'key: naming\nsummary: snake_case\nrule: имена в snake_case\n');
+    await put(
+      'context/conventions/naming.yml',
+      'key: naming\nsummary: snake_case\nrule: имена в snake_case\n',
+    );
     expect(await main(['delta', 'check', '--root', root], NOW)).toBe(1);
-    expect(stderr[0]).toMatch(/^context\/conventions\/naming\.yml: изменено существующее знание без пункта revise в дельте: summary; rule/);
+    expect(stderr[0]).toMatch(
+      /^context\/conventions\/naming\.yml: изменено существующее знание без пункта revise в дельте: summary; rule/,
+    );
   });
 
   it('1 — удалённый файл слоя модуля и строка журнала без revise', async () => {
@@ -86,16 +97,28 @@ describe('harness delta check', () => {
   });
 
   it('0 — изменение покрыто revise по id; строка пересмотра в выводе', async () => {
-    await put('context/conventions/naming.yml', 'key: naming\nsummary: snake_case\nrule: имена в snake_case\n');
+    await put(
+      'context/conventions/naming.yml',
+      'key: naming\nsummary: snake_case\nrule: имена в snake_case\n',
+    );
     await put('context/.delta/naming.yml', REVISE);
     expect(await main(['delta', 'check', '--root', root], NOW)).toBe(0);
-    expect(stdout[0]).toBe('revise naming: было «имена в kebab-case» → имена в snake_case; почему: совместимость с внешним API');
+    expect(stdout[0]).toBe(
+      'revise naming: было «имена в kebab-case» → имена в snake_case; почему: совместимость с внешним API',
+    );
   });
 
   it('1 — revise без was и why не проходит схему, путь до поля в сообщении', async () => {
-    await put('context/.delta/bad.yml', 'summary: s\nitems:\n  - op: revise\n    kind: rule\n    target: naming\n    summary: s\n    evidence: e\n');
+    await put(
+      'context/.delta/bad.yml',
+      'summary: s\nitems:\n  - op: revise\n    kind: rule\n    target: naming\n    summary: s\n    evidence: e\n',
+    );
     expect(await main(['delta', 'check', '--root', root], NOW)).toBe(1);
-    expect(stderr.some((l) => l.startsWith("context/.delta/bad.yml: /items/0 must have required property 'was'"))).toBe(true);
+    expect(
+      stderr.some((l) =>
+        l.startsWith("context/.delta/bad.yml: /items/0 must have required property 'was'"),
+      ),
+    ).toBe(true);
   });
 
   it('конфиг harness, manifest модулей и index.yml — не документация', async () => {
@@ -119,7 +142,10 @@ describe('harness delta close', () => {
   });
 
   it('0 — приёмка пройдена: дельта удалена, пересмотры в выводе', async () => {
-    await put('context/conventions/naming.yml', 'key: naming\nsummary: snake_case\nrule: имена в snake_case\n');
+    await put(
+      'context/conventions/naming.yml',
+      'key: naming\nsummary: snake_case\nrule: имена в snake_case\n',
+    );
     await put('context/.delta/naming.yml', REVISE);
     expect(await main(['delta', 'close', '--root', root], NOW)).toBe(0);
     expect(existsSync(path.join(root, 'context/.delta/naming.yml'))).toBe(false);
@@ -130,8 +156,14 @@ describe('harness delta close', () => {
 
 describe('context index и .delta', () => {
   it('файлы context/.delta/ не попадают в индекс', async () => {
-    await put('context/modules/analysis.yml', 'provides:\n  index_layers:\n    - { section: drafts, dir: context, format: yml }\n');
-    await put('context/.delta/naming.yml', 'id: leak\nnamespace: core\nsummary: не должно попасть\n');
+    await put(
+      'context/modules/analysis.yml',
+      'provides:\n  index_layers:\n    - { section: drafts, dir: context, format: yml }\n',
+    );
+    await put(
+      'context/.delta/naming.yml',
+      'id: leak\nnamespace: core\nsummary: не должно попасть\n',
+    );
     const { text } = await buildContextIndex(root);
     expect(text).not.toContain('leak');
   });

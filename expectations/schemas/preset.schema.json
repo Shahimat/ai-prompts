@@ -20,7 +20,10 @@
           "answers": {
             "type": "object",
             "additionalProperties": {
-              "oneOf": [{ "type": "string" }, { "type": "array", "items": { "type": "string" }, "minItems": 1 }]
+              "oneOf": [
+                { "type": "string" },
+                { "type": "array", "items": { "type": "string" }, "minItems": 1 }
+              ]
             }
           }
         }

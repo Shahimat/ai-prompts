@@ -54,8 +54,12 @@ describe('lintChangelog', () => {
     expect(lint('- 2026-10-13 · суть без тега · почему\n')).toEqual([
       '5: нет тега: суть начинается с [arch|stack|dep|milestone]',
     ]);
-    expect(lint('- 2026-10-13 · [fix] суть · почему\n')).toEqual(['5: тег [fix] не из списка [arch|stack|dep|milestone]']);
-    expect(lint('- 2026-10-13 · [arch] · почему\n')).toEqual(['5: нет тега: суть начинается с [arch|stack|dep|milestone]']);
+    expect(lint('- 2026-10-13 · [fix] суть · почему\n')).toEqual([
+      '5: тег [fix] не из списка [arch|stack|dep|milestone]',
+    ]);
+    expect(lint('- 2026-10-13 · [arch] · почему\n')).toEqual([
+      '5: нет тега: суть начинается с [arch|stack|dep|milestone]',
+    ]);
   });
 
   it('проверяет «почему»', () => {
@@ -63,7 +67,9 @@ describe('lintChangelog', () => {
   });
 
   it('проверяет дату', () => {
-    expect(lint('- 2026-02-30 · [arch] a · b\n')).toEqual(['5: дата «2026-02-30» — не YYYY-MM-DD или такого дня нет']);
+    expect(lint('- 2026-02-30 · [arch] a · b\n')).toEqual([
+      '5: дата «2026-02-30» — не YYYY-MM-DD или такого дня нет',
+    ]);
     expect(lint('- 13.10.2026 · [arch] a · b\n')).toHaveLength(1);
     expect(lint('- 2026-10-14 · [arch] a · b\n')).toEqual([]);
     expect(lint('- 2026-10-15 · [arch] a · b\n')).toEqual(['5: дата 2026-10-15 в будущем']);

@@ -24,23 +24,35 @@ export interface Batch {
 export function planBatches(items: PendingItem[], limits: BatchLimits = DEFAULT_LIMITS): Batch[] {
   const groups = new Map<string, PendingItem[]>();
   for (const item of [...items].sort((a, b) => (a.id < b.id ? -1 : 1))) {
-    const key = item.evidence.map((e) => e.ref).sort().join('\n');
+    const key = item.evidence
+      .map((e) => e.ref)
+      .sort()
+      .join('\n');
     groups.set(key, [...(groups.get(key) ?? []), item]);
   }
   const batches: Batch[] = [];
   const sizes = new Map<string, number>();
-  const bytesOf = (refs: Set<string>): number => [...refs].reduce((n, r) => n + (sizes.get(r) ?? 0), 0);
+  const bytesOf = (refs: Set<string>): number =>
+    [...refs].reduce((n, r) => n + (sizes.get(r) ?? 0), 0);
   let current: { items: PendingItem[]; refs: Set<string> } = { items: [], refs: new Set() };
   const flush = (): void => {
     if (current.items.length === 0) return;
-    batches.push({ items: current.items, refs: [...current.refs].sort(), bytes: bytesOf(current.refs) });
+    batches.push({
+      items: current.items,
+      refs: [...current.refs].sort(),
+      bytes: bytesOf(current.refs),
+    });
     current = { items: [], refs: new Set() };
   };
   for (const group of groups.values()) {
     for (const e of group[0]?.evidence ?? []) sizes.set(e.ref, e.bytes);
     for (const item of group) {
       const refs = new Set([...current.refs, ...item.evidence.map((e) => e.ref)]);
-      if (current.items.length >= limits.maxItems || (current.items.length > 0 && bytesOf(refs) > limits.maxBytes)) flush();
+      if (
+        current.items.length >= limits.maxItems ||
+        (current.items.length > 0 && bytesOf(refs) > limits.maxBytes)
+      )
+        flush();
       current.items.push(item);
       for (const e of item.evidence) current.refs.add(e.ref);
     }
@@ -50,7 +62,11 @@ export function planBatches(items: PendingItem[], limits: BatchLimits = DEFAULT_
 }
 
 /** `texts` — текст якорных доказательств `@KEY`: они вставляются в задание целиком. */
-export function renderBatch(batch: Batch, answerFile: string, texts: Map<string, string> = new Map()): string {
+export function renderBatch(
+  batch: Batch,
+  answerFile: string,
+  texts: Map<string, string> = new Map(),
+): string {
   const lines = [
     '# Пакет для судьи ожиданий',
     '',
@@ -155,7 +171,11 @@ export function applyAnswers(
 }
 
 /** Смысловая проверка заголовков одного файла ожиданий — один проход. */
-export function renderLintBatch(file: string, titles: { id: string; title: string }[], answerFile: string): string {
+export function renderLintBatch(
+  file: string,
+  titles: { id: string; title: string }[],
+  answerFile: string,
+): string {
   return [
     '# Проверка заголовков ожиданий',
     '',
@@ -189,13 +209,26 @@ export function applyLintAnswer(
   now: Date,
 ): { verdict: LintVerdict | null; error: string | null } {
   const a = answer as Partial<LintVerdict> | null;
-  if (a === null || typeof a !== 'object' || !Array.isArray(a.contradictions) || !Array.isArray(a.unmeasurable)) {
+  if (
+    a === null ||
+    typeof a !== 'object' ||
+    !Array.isArray(a.contradictions) ||
+    !Array.isArray(a.unmeasurable)
+  ) {
     return { verdict: null, error: 'ответ — не {contradictions: [], unmeasurable: []}' };
   }
-  const bad = [...a.contradictions.flatMap((c) => [c.a, c.b]), ...a.unmeasurable.map((u) => u.id)].filter((id) => !ids.has(id));
+  const bad = [
+    ...a.contradictions.flatMap((c) => [c.a, c.b]),
+    ...a.unmeasurable.map((u) => u.id),
+  ].filter((id) => !ids.has(id));
   if (bad.length > 0) return { verdict: null, error: `неизвестные id: ${bad.join(', ')}` };
   return {
-    verdict: { titles: titlesSha, contradictions: a.contradictions, unmeasurable: a.unmeasurable, at: now.toISOString().slice(0, 10) },
+    verdict: {
+      titles: titlesSha,
+      contradictions: a.contradictions,
+      unmeasurable: a.unmeasurable,
+      at: now.toISOString().slice(0, 10),
+    },
     error: null,
   };
 }

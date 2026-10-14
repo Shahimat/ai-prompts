@@ -14,7 +14,8 @@ function parseIsoDate(value: string): number | null {
   const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
   const time = Date.UTC(y, mo - 1, d);
   const date = new Date(time);
-  if (date.getUTCFullYear() !== y || date.getUTCMonth() !== mo - 1 || date.getUTCDate() !== d) return null;
+  if (date.getUTCFullYear() !== y || date.getUTCMonth() !== mo - 1 || date.getUTCDate() !== d)
+    return null;
   return time;
 }
 
@@ -54,7 +55,9 @@ export function lintChangelog(
 
       const parts = line.slice(2).split(SEPARATOR);
       if (parts.length !== 3) {
-        report(`ожидается «- YYYY-MM-DD · ${tagHint} суть · почему»: частей через « · » ${parts.length}, нужно 3`);
+        report(
+          `ожидается «- YYYY-MM-DD · ${tagHint} суть · почему»: частей через « · » ${parts.length}, нужно 3`,
+        );
         return;
       }
       const [date, what, why] = parts as [string, string, string];
@@ -64,7 +67,8 @@ export function lintChangelog(
         report(`дата «${date}» — не YYYY-MM-DD или такого дня нет`);
       } else {
         if (time > latest) report(`дата ${date} в будущем`);
-        if (prev !== null && time > prev.time) report(`порядок: ${date} новее предыдущей записи ${prev.date}`);
+        if (prev !== null && time > prev.time)
+          report(`порядок: ${date} новее предыдущей записи ${prev.date}`);
         prev = { time, date };
       }
 
@@ -79,7 +83,11 @@ export function lintChangelog(
   return diags;
 }
 
-export async function checkChangelog(root: string, options: ChangelogOptions, now: Date): Promise<Diagnostic[]> {
+export async function checkChangelog(
+  root: string,
+  options: ChangelogOptions,
+  now: Date,
+): Promise<Diagnostic[]> {
   let text: string;
   try {
     text = await readFile(path.join(root, CHANGELOG_PATH), 'utf8');

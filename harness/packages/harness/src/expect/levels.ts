@@ -55,6 +55,7 @@ export function budget(value: Budget): void {
  * info «близко к порогу».
  */
 export function expectAtMost(value: number, limit: number, label: string): void {
-  if (value > limit * NEAR_LIMIT && value <= limit) note(`${label}: ${value} из ${limit} — ${Math.round((value / limit) * 100)}% порога`);
+  if (value > limit * NEAR_LIMIT && value <= limit)
+    note(`${label}: ${value} из ${limit} — ${Math.round((value / limit) * 100)}% порога`);
   expect(value, label).toBeLessThanOrEqual(limit);
 }

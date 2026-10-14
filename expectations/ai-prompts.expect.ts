@@ -10,9 +10,13 @@ ticketCommits('ticket-commits', 'ticket-commits:repo');
 attention('attention:repo');
 
 describe('публичные npm-пакеты', () => {
-  crit('у каждого пакета не больше одной неопубликованной версии: версия в репозитории — опубликованная или следующая за последней опубликованной', () =>
-    Check.oneUnpublishedVersion());
-  crit('верхняя запись CHANGELOG.md пакета — его текущая версия из package.json', () => Check.changelogMatchesVersion());
+  crit(
+    'у каждого пакета не больше одной неопубликованной версии: версия в репозитории — опубликованная или следующая за последней опубликованной',
+    () => Check.oneUnpublishedVersion(),
+  );
+  crit('верхняя запись CHANGELOG.md пакета — его текущая версия из package.json', () =>
+    Check.changelogMatchesVersion(),
+  );
 });
 
 // ─────────────────────────────── проверки ───────────────────────────────
@@ -20,7 +24,8 @@ describe('публичные npm-пакеты', () => {
 const PACKAGES = ['harness', 'expectations'];
 
 const localVersion = async (pkg: string): Promise<string> =>
-  (JSON.parse(await readRepo(`harness/packages/${pkg}/package.json`)) as { version: string }).version;
+  (JSON.parse(await readRepo(`harness/packages/${pkg}/package.json`)) as { version: string })
+    .version;
 
 const parse = (v: string): number[] => v.split('.').map((x) => Number.parseInt(x, 10));
 
@@ -35,7 +40,10 @@ class Check {
     for (const pkg of PACKAGES) {
       const response = await fetch(`https://registry.npmjs.org/@shahimat%2f${pkg}`);
       expect(response.ok, `npm: @shahimat/${pkg}`).toBe(true);
-      const meta = (await response.json()) as { versions: Record<string, unknown>; 'dist-tags': { latest: string } };
+      const meta = (await response.json()) as {
+        versions: Record<string, unknown>;
+        'dist-tags': { latest: string };
+      };
       const local = await localVersion(pkg);
       const ok = local in meta.versions || isNextVersion(meta['dist-tags'].latest, local);
       expect({ pkg, local, latest: meta['dist-tags'].latest, ok }).toMatchObject({ ok: true });

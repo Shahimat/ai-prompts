@@ -4,7 +4,8 @@ import type { CommandArgs } from './types.ts';
 
 const PACKAGE = '@shahimat/harness';
 const REGISTRY = `https://registry.npmjs.org/${PACKAGE.replace('/', '%2f')}`;
-const CHANGELOG_URL = 'https://raw.githubusercontent.com/Shahimat/ai-prompts/main/harness/packages/harness/CHANGELOG.md';
+const CHANGELOG_URL =
+  'https://raw.githubusercontent.com/Shahimat/ai-prompts/main/harness/packages/harness/CHANGELOG.md';
 
 /** Сравнение semver без пре-релизов: -1, 0, 1. */
 export function compareVersions(a: string, b: string): number {
@@ -21,7 +22,10 @@ export function compareVersions(a: string, b: string): number {
 export function changelogBetween(changelog: string, from: string, to: string): string[] {
   const sections = changelog.replace(/\r\n?/g, '\n').split(/^## /m).slice(1);
   return sections
-    .map((s) => ({ version: s.split('\n')[0]?.trim() ?? '', body: s.split('\n').slice(1).join('\n').trim() }))
+    .map((s) => ({
+      version: s.split('\n')[0]?.trim() ?? '',
+      body: s.split('\n').slice(1).join('\n').trim(),
+    }))
     .filter((s) => compareVersions(s.version, from) > 0 && compareVersions(s.version, to) <= 0)
     .map((s) => `${s.version}\n${s.body}`);
 }
@@ -36,7 +40,9 @@ export async function runOutdated(args: CommandArgs, fetcher: Fetcher = fetch): 
   if (config?.version === undefined) throw new UsageError(`нет version в ${CONFIG_PATH}`);
   const meta = await fetcher(REGISTRY);
   if (!meta.ok) throw new Error(`npm: ${PACKAGE} — HTTP ${meta.status}`);
-  const latest = (JSON.parse(await meta.text()) as { 'dist-tags'?: { latest?: string } })['dist-tags']?.latest;
+  const latest = (JSON.parse(await meta.text()) as { 'dist-tags'?: { latest?: string } })[
+    'dist-tags'
+  ]?.latest;
   if (latest === undefined) throw new Error(`npm: у ${PACKAGE} нет dist-tag latest`);
 
   if (compareVersions(config.version, latest) >= 0) {
@@ -46,7 +52,8 @@ export async function runOutdated(args: CommandArgs, fetcher: Fetcher = fetch): 
   console.log(`harness: ${config.version} → ${latest}`);
   const log = await fetcher(CHANGELOG_URL);
   if (log.ok) {
-    for (const entry of changelogBetween(await log.text(), config.version, latest)) console.log(`\n${entry}`);
+    for (const entry of changelogBetween(await log.text(), config.version, latest))
+      console.log(`\n${entry}`);
   } else {
     console.log('журнал изменений недоступен');
   }

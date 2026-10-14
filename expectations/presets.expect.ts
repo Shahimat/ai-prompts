@@ -1,44 +1,85 @@
 import { describe, expect } from 'vitest';
-import { budget, contract, crit, judged, presets, warn, type PresetDoc } from '@shahimat/harness/expect';
+import {
+  budget,
+  contract,
+  crit,
+  judged,
+  presets,
+  warn,
+  type PresetDoc,
+} from '@shahimat/harness/expect';
 
 // Виды контракта v3: operational, external, private, analytical.
 // Каждый вид — пресет; ниже — что обязано быть у каждого.
 budget({ crit: 0, warn: 0 });
 
 describe('виды контракта', () => {
-  crit('контракт собирается под вид проекта пресетом: operational, external, private, analytical — для каждого есть пресет', () =>
-    Check.allKinds());
-  warn('ядро контракта перечисляет виды и что каждый включает; неподходящий вид — ручной выбор в том же чеклисте', () =>
-    Check.kindsDeclared());
-  crit('каждый пресет включает goals, harness и ticket-commits с mode on', () => Check.commonCore());
+  crit(
+    'контракт собирается под вид проекта пресетом: operational, external, private, analytical — для каждого есть пресет',
+    () => Check.allKinds(),
+  );
+  warn(
+    'ядро контракта перечисляет виды и что каждый включает; неподходящий вид — ручной выбор в том же чеклисте',
+    () => Check.kindsDeclared(),
+  );
+  crit('каждый пресет включает goals, harness и ticket-commits с mode on', () =>
+    Check.commonCore(),
+  );
 });
 
 describe('operational — операционный проект со своим кодом', () => {
-  crit('operational: пресет включает domain и manuals', () => Check.has('operational', ['domain', 'manuals']));
-  crit('operational: в пресете нет модулей других видов — external-context, life, analysis, app-loop', () =>
-    Check.hasNot('operational', ['external-context', 'life', 'analysis', 'app-loop']));
-  crit('operational: источник реальности по умолчанию — код этого репозитория (reality: this-repo)', () => Check.defaultReality());
+  crit('operational: пресет включает domain и manuals', () =>
+    Check.has('operational', ['domain', 'manuals']),
+  );
+  crit(
+    'operational: в пресете нет модулей других видов — external-context, life, analysis, app-loop',
+    () => Check.hasNot('operational', ['external-context', 'life', 'analysis', 'app-loop']),
+  );
+  crit(
+    'operational: источник реальности по умолчанию — код этого репозитория (reality: this-repo)',
+    () => Check.defaultReality(),
+  );
 });
 
 describe('external — внешний операционный контекст поверх чужого проекта', () => {
-  crit('external: пресет включает external-context и domain', () => Check.has('external', ['external-context', 'domain']));
+  crit('external: пресет включает external-context и domain', () =>
+    Check.has('external', ['external-context', 'domain']),
+  );
   crit('external: в пресете нет code-rules и worktrees — своего кода в репозитории нет', () =>
-    Check.hasNot('external', ['code-rules-fullstack-js-ts', 'worktrees']));
-  warn('external: источник реальности — целевые системы из external, а не this-repo', () => Check.externalReality());
+    Check.hasNot('external', ['code-rules-fullstack-js-ts', 'worktrees']),
+  );
+  warn('external: источник реальности — целевые системы из external, а не this-repo', () =>
+    Check.externalReality(),
+  );
 });
 
 describe('private — личный проект', () => {
-  crit('private: пресет включает life, privacy, safety-boundaries и app-loop с доменом life', () => Check.lifeModules());
-  crit('private: privacy по умолчанию — outbound none и приватный репозиторий', () => Check.privacyDefaults('private'));
-  crit('private: safety-boundaries покрывает и физическое, и психическое состояние', () => Check.safetyScope());
-  warn('private: решения о жизни — в общий журнал с тегом [life], без значений, диагнозов и персональных данных', () =>
-    Check.lifeJournal());
+  crit('private: пресет включает life, privacy, safety-boundaries и app-loop с доменом life', () =>
+    Check.lifeModules(),
+  );
+  crit('private: privacy по умолчанию — outbound none и приватный репозиторий', () =>
+    Check.privacyDefaults('private'),
+  );
+  crit('private: safety-boundaries покрывает и физическое, и психическое состояние', () =>
+    Check.safetyScope(),
+  );
+  warn(
+    'private: решения о жизни — в общий журнал с тегом [life], без значений, диагнозов и персональных данных',
+    () => Check.lifeJournal(),
+  );
 });
 
 describe('analytical — аналитический проект', () => {
-  crit('analytical: пресет включает analysis, book-corpus, data-access и app-loop с доменом analysis', () => Check.analyticalModules());
-  crit('analytical: privacy по умолчанию — outbound none и приватный репозиторий', () => Check.privacyDefaults('analytical'));
-  crit('analytical: в пресете нет life и safety-boundaries', () => Check.hasNot('analytical', ['life', 'safety-boundaries']));
+  crit(
+    'analytical: пресет включает analysis, book-corpus, data-access и app-loop с доменом analysis',
+    () => Check.analyticalModules(),
+  );
+  crit('analytical: privacy по умолчанию — outbound none и приватный репозиторий', () =>
+    Check.privacyDefaults('analytical'),
+  );
+  crit('analytical: в пресете нет life и safety-boundaries', () =>
+    Check.hasNot('analytical', ['life', 'safety-boundaries']),
+  );
 });
 
 // ─────────────────────────────── проверки ───────────────────────────────
@@ -52,7 +93,8 @@ async function preset(key: string): Promise<PresetDoc> {
 }
 
 const keysOf = (p: PresetDoc): string[] => p.modules.map((m) => m.key);
-const answer = (p: PresetDoc, module: string, ask: string): unknown => p.modules.find((m) => m.key === module)?.answers[ask];
+const answer = (p: PresetDoc, module: string, ask: string): unknown =>
+  p.modules.find((m) => m.key === module)?.answers[ask];
 
 class Check {
   static async allKinds(): Promise<void> {
@@ -65,11 +107,17 @@ class Check {
   static async commonCore(): Promise<void> {
     for (const p of await presets()) {
       const keys = keysOf(p);
-      expect({ preset: p.key, missing: ['goals', 'harness', 'ticket-commits'].filter((k) => !keys.includes(k)) }).toEqual({
+      expect({
+        preset: p.key,
+        missing: ['goals', 'harness', 'ticket-commits'].filter((k) => !keys.includes(k)),
+      }).toEqual({
         preset: p.key,
         missing: [],
       });
-      expect({ preset: p.key, mode: answer(p, 'ticket-commits', 'mode') }).toEqual({ preset: p.key, mode: 'on' });
+      expect({ preset: p.key, mode: answer(p, 'ticket-commits', 'mode') }).toEqual({
+        preset: p.key,
+        mode: 'on',
+      });
     }
   }
 
@@ -84,7 +132,9 @@ class Check {
   }
 
   static async defaultReality(): Promise<void> {
-    expect((await contract('agent-operational-contract-v3')).text).toMatch(/^reality: \[this-repo\]/m);
+    expect((await contract('agent-operational-contract-v3')).text).toMatch(
+      /^reality: \[this-repo\]/m,
+    );
   }
 
   static externalReality = (): Promise<void> => judged(['@external-reality']);
@@ -97,14 +147,21 @@ class Check {
 
   static async privacyDefaults(key: string): Promise<void> {
     const p = await preset(key);
-    expect({ outbound: answer(p, 'privacy', 'outbound'), visibility: answer(p, 'privacy', 'repo-visibility') }).toEqual({
+    expect({
+      outbound: answer(p, 'privacy', 'outbound'),
+      visibility: answer(p, 'privacy', 'repo-visibility'),
+    }).toEqual({
       outbound: 'none',
       visibility: 'private',
     });
   }
 
   static async safetyScope(): Promise<void> {
-    expect([...((answer(await preset('private'), 'safety-boundaries', 'scope') as string[]) ?? [])].sort()).toEqual(['physical', 'psyche']);
+    expect(
+      [
+        ...((answer(await preset('private'), 'safety-boundaries', 'scope') as string[]) ?? []),
+      ].sort(),
+    ).toEqual(['physical', 'psyche']);
   }
 
   static lifeJournal = (): Promise<void> => judged(['@life-journal']);

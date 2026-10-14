@@ -21,7 +21,9 @@ async function validator(schemaPath: string): Promise<ReturnType<Ajv2020['compil
   ajv ??= (async () => {
     const dir = path.posix.dirname(schemaPath);
     const instance = new Ajv2020({ allErrors: true, strict: false });
-    for (const name of (await readdir(path.join(repoRoot(), dir))).filter((n) => n.endsWith('.schema.json')).sort()) {
+    for (const name of (await readdir(path.join(repoRoot(), dir)))
+      .filter((n) => n.endsWith('.schema.json'))
+      .sort()) {
       instance.addSchema(JSON.parse(await readRepo(`${dir}/${name}`)) as object, name);
     }
     return instance;
@@ -33,13 +35,17 @@ async function validator(schemaPath: string): Promise<ReturnType<Ajv2020['compil
 
 const describeError = (e: ErrorObject): string =>
   `${e.instancePath === '' ? '(корень)' : e.instancePath} ${e.message ?? ''}${
-    e.keyword === 'additionalProperties' ? `: ${String((e.params as { additionalProperty?: string }).additionalProperty)}` : ''
+    e.keyword === 'additionalProperties'
+      ? `: ${String((e.params as { additionalProperty?: string }).additionalProperty)}`
+      : ''
   }`.trim();
 
 /** Ошибки валидации по JSON Schema; пустой массив — всё соответствует. */
 export async function schemaErrors(instances: Instance[], schemaPath: string): Promise<string[]> {
   const validate = await validator(schemaPath);
-  return instances.flatMap((i) => (validate(i.data) ? [] : (validate.errors ?? []).map((e) => `${i.name}: ${describeError(e)}`)));
+  return instances.flatMap((i) =>
+    validate(i.data) ? [] : (validate.errors ?? []).map((e) => `${i.name}: ${describeError(e)}`),
+  );
 }
 
 /** Утверждение для ожиданий: все экземпляры соответствуют схеме. */
@@ -51,10 +57,14 @@ export async function expectSchema(instances: Instance[], schemaPath: string): P
 
 /** YAML- или JSON-файлы репозитория как экземпляры. */
 export async function dataFiles(paths: string[]): Promise<Instance[]> {
-  return Promise.all(paths.map(async (p) => ({ name: p, data: parse(await readRepo(p)) as unknown })));
+  return Promise.all(
+    paths.map(async (p) => ({ name: p, data: parse(await readRepo(p)) as unknown })),
+  );
 }
 
 /** Frontmatter markdown-файлов как экземпляры. */
 export async function frontmatters(paths: string[]): Promise<Instance[]> {
-  return Promise.all(paths.map(async (p) => ({ name: p, data: parseFrontmatter(await readRepo(p)) ?? {} })));
+  return Promise.all(
+    paths.map(async (p) => ({ name: p, data: parseFrontmatter(await readRepo(p)) ?? {} })),
+  );
 }

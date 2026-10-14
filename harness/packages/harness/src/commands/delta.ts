@@ -6,7 +6,8 @@ import { report } from './report.ts';
 import type { CommandArgs } from './types.ts';
 
 export async function runDelta(command: string | undefined, args: CommandArgs): Promise<number> {
-  if (command !== 'check' && command !== 'close') throw new UsageError(`неизвестная команда: delta ${command ?? ''}`.trimEnd());
+  if (command !== 'check' && command !== 'close')
+    throw new UsageError(`неизвестная команда: delta ${command ?? ''}`.trimEnd());
   const result = await checkDelta(args.root);
   for (const line of revisionLines(result.deltas)) console.log(line);
   if (command === 'check') return report('delta check', result.diagnostics);

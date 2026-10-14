@@ -3,7 +3,11 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
-import { buildContextIndex, checkContextIndex, CONTEXT_INDEX_PATH } from '../src/checks/context-index.ts';
+import {
+  buildContextIndex,
+  checkContextIndex,
+  CONTEXT_INDEX_PATH,
+} from '../src/checks/context-index.ts';
 
 let root: string;
 
@@ -19,15 +23,30 @@ async function messages(): Promise<string[]> {
 
 /** Минимальный корректный проект: два namespace, по сущности каждого слоя. */
 async function seed(): Promise<void> {
-  await put('context/project.yml', 'name: demo\nnamespaces:\n  vpn: удалённый доступ\n  infra: инфраструктура\n');
+  await put(
+    'context/project.yml',
+    'name: demo\nnamespaces:\n  vpn: удалённый доступ\n  infra: инфраструктура\n',
+  );
   await put(
     'docs/entities/vpn-server.yml',
     'id: vpn-server\nkind: entity\nnamespace: vpn\nsummary: "сервер: AWG на 51820"\nmanuals: [first-run]\n',
   );
-  await put('docs/entities/ansible-layout.yml', 'id: ansible-layout\nnamespace: infra\nsummary: раскладка\nmanuals: [docs/manuals/first-run.md]\n');
-  await put('docs/behavior/handshake-ok.yml', 'id: handshake-ok\nnamespace: vpn\ntitle: handshake работает\n');
-  await put('context/conventions/naming.yml', 'key: naming\nsummary: kebab-case\nrule: |\n  длинный текст\n');
-  await put('context/conventions/code/strict-ts.yml', 'key: strict-ts\nsummary: strict везде\nrule: x\n');
+  await put(
+    'docs/entities/ansible-layout.yml',
+    'id: ansible-layout\nnamespace: infra\nsummary: раскладка\nmanuals: [docs/manuals/first-run.md]\n',
+  );
+  await put(
+    'docs/behavior/handshake-ok.yml',
+    'id: handshake-ok\nnamespace: vpn\ntitle: handshake работает\n',
+  );
+  await put(
+    'context/conventions/naming.yml',
+    'key: naming\nsummary: kebab-case\nrule: |\n  длинный текст\n',
+  );
+  await put(
+    'context/conventions/code/strict-ts.yml',
+    'key: strict-ts\nsummary: strict везде\nrule: x\n',
+  );
   await put('docs/manuals/first-run.md', '# Первый запуск\n\n## Шаги\n');
 }
 
@@ -85,11 +104,17 @@ describe('buildContextIndex', () => {
     await put('docs/entities/no-ns.yml', 'id: no-ns\nsummary: x\n');
     await put('docs/entities/alien.yml', 'id: alien\nnamespace: misc\nsummary: x\n');
     await put('docs/entities/no-summary.yml', 'id: no-summary\nnamespace: vpn\n');
-    await put('docs/entities/multi.yml', 'id: multi\nnamespace: vpn\nsummary: |\n  строка 1\n  строка 2\n');
+    await put(
+      'docs/entities/multi.yml',
+      'id: multi\nnamespace: vpn\nsummary: |\n  строка 1\n  строка 2\n',
+    );
     await put('docs/behavior/no-title.yml', 'id: no-title\nnamespace: vpn\n');
     await put('docs/manuals/orphan.md', '# Сирота\n');
     await put('docs/manuals/no-h1.md', 'текст\n');
-    await put('docs/entities/refs-no-h1.yml', 'id: refs-no-h1\nnamespace: vpn\nsummary: x\nmanuals: [no-h1]\n');
+    await put(
+      'docs/entities/refs-no-h1.yml',
+      'id: refs-no-h1\nnamespace: vpn\nsummary: x\nmanuals: [no-h1]\n',
+    );
     await put('context/conventions/dup.yml', 'key: naming\nsummary: x\n');
     await put('docs/entities/broken.yml', 'id: [\n');
 
@@ -111,7 +136,9 @@ describe('buildContextIndex', () => {
   it('необъявленный namespace всё равно попадает в индекс, после объявленных', async () => {
     await seed();
     await put('docs/entities/alien.yml', 'id: alien\nnamespace: misc\nsummary: x\n');
-    const index = parse((await buildContextIndex(root)).text) as { namespaces: Record<string, unknown> };
+    const index = parse((await buildContextIndex(root)).text) as {
+      namespaces: Record<string, unknown>;
+    };
     expect(Object.keys(index.namespaces)).toEqual(['vpn', 'infra', 'misc']);
   });
 });
@@ -135,12 +162,15 @@ describe('checkContextIndex', () => {
     await seed();
     await put(CONTEXT_INDEX_PATH, (await buildContextIndex(root)).text);
     await put('docs/entities/new.yml', 'id: new\nnamespace: vpn\nsummary: x\n');
-    expect((await checkContextIndex(root)).map((d) => d.message)).toEqual(['устарел: запусти harness context index']);
+    expect((await checkContextIndex(root)).map((d) => d.message)).toEqual([
+      'устарел: запусти harness context index',
+    ]);
   });
 });
 
 describe('слои модулей (provides.index_layers)', () => {
-  const MANIFEST = 'key: knowledge-external-gui\nprovides:\n  index_layers:\n    - section: knowledge\n      dir: docs/knowledge/\n';
+  const MANIFEST =
+    'key: knowledge-external-gui\nprovides:\n  index_layers:\n    - section: knowledge\n      dir: docs/knowledge/\n';
   const card = (id: string, ns = 'vpn', title = '# Provider: вебхуки'): string =>
     `---\n# комментарий YAML не заголовок\nid: ${id}\nkind: knowledge\nnamespace: ${ns}\n---\n\n${title}\n\n## Карта\n`;
 
@@ -152,14 +182,25 @@ describe('слои модулей (provides.index_layers)', () => {
     const { text, diagnostics } = await buildContextIndex(root);
     expect(diagnostics).toEqual([]);
     const index = parse(text) as { namespaces: Record<string, Record<string, unknown>> };
-    expect(index.namespaces['vpn']?.['knowledge']).toEqual({ 'provider-webhooks': 'Provider: вебхуки' });
+    expect(index.namespaces['vpn']?.['knowledge']).toEqual({
+      'provider-webhooks': 'Provider: вебхуки',
+    });
     expect(index.namespaces['infra']?.['knowledge']).toEqual({ 'other-login': 'Other: вход' });
-    expect(Object.keys(index.namespaces['vpn'] ?? {})).toEqual(['description', 'entities', 'behaviors', 'manuals', 'knowledge']);
+    expect(Object.keys(index.namespaces['vpn'] ?? {})).toEqual([
+      'description',
+      'entities',
+      'behaviors',
+      'manuals',
+      'knowledge',
+    ]);
   });
 
   it('модуль без index_layers и слой без файлов — ничего не добавляют', async () => {
     await seed();
-    await put('context/modules/code-rules.yml', 'key: code-rules\nprovides:\n  layers: [context/conventions/code/]\n');
+    await put(
+      'context/modules/code-rules.yml',
+      'key: code-rules\nprovides:\n  layers: [context/conventions/code/]\n',
+    );
     await put('context/modules/knowledge-external-gui.yml', MANIFEST);
     const before = await buildContextIndex(root);
     expect(before.diagnostics).toEqual([]);
@@ -169,7 +210,10 @@ describe('слои модулей (provides.index_layers)', () => {
   it('нарушения в манифесте и файлах слоя', async () => {
     await seed();
     await put('context/modules/a.yml', MANIFEST);
-    await put('context/modules/b.yml', 'provides:\n  index_layers:\n    - section: knowledge\n      dir: docs/k2\n    - section: entities\n      dir: x\n    - section: ok\n      dir: ../outside\n');
+    await put(
+      'context/modules/b.yml',
+      'provides:\n  index_layers:\n    - section: knowledge\n      dir: docs/k2\n    - section: entities\n      dir: x\n    - section: ok\n      dir: ../outside\n',
+    );
     await put('context/modules/c.yml', 'provides:\n  index_layers: knowledge\n');
     await put('docs/knowledge/p/wrong.md', card('other-id'));
     await put('docs/knowledge/p/no-fm.md', '# Без frontmatter\n');
@@ -191,12 +235,16 @@ describe('слои модулей (provides.index_layers)', () => {
 });
 
 describe('слои модулей в формате yml', () => {
-  const MANIFEST = 'provides:\n  index_layers:\n    - section: facts\n      dir: life/facts\n      format: yml\n';
+  const MANIFEST =
+    'provides:\n  index_layers:\n    - section: facts\n      dir: life/facts\n      format: yml\n';
 
   it('индексирует yml по summary', async () => {
     await seed();
     await put('context/modules/life.yml', MANIFEST);
-    await put('life/facts/sleep/baseline.yml', 'id: sleep-baseline\nnamespace: vpn\nsummary: сон — базовая линия\n');
+    await put(
+      'life/facts/sleep/baseline.yml',
+      'id: sleep-baseline\nnamespace: vpn\nsummary: сон — базовая линия\n',
+    );
     const { text, diagnostics } = await buildContextIndex(root);
     expect(diagnostics).toEqual([]);
     const index = parse(text) as { namespaces: Record<string, Record<string, unknown>> };
@@ -206,7 +254,10 @@ describe('слои модулей в формате yml', () => {
   it('нарушения: нет summary, id не по пути, неизвестный format', async () => {
     await seed();
     await put('context/modules/life.yml', MANIFEST);
-    await put('context/modules/bad.yml', 'provides:\n  index_layers:\n    - section: x\n      dir: x\n      format: json\n');
+    await put(
+      'context/modules/bad.yml',
+      'provides:\n  index_layers:\n    - section: x\n      dir: x\n      format: json\n',
+    );
     await put('life/facts/a.yml', 'id: b\nnamespace: vpn\n');
     expect(await messages()).toEqual([
       'context/modules/bad.yml: index_layers: format «json» — md или yml',

@@ -29,7 +29,11 @@ export const COMMANDS: readonly Command[] = [
   { path: ['expect', 'report'], run: (args) => runExpect('report', args) },
   { path: ['expect', 'lint'], run: (args) => runExpect('lint', args) },
   { path: ['expect', 'judge'], options: '[--apply]', run: (args) => runExpect('judge', args) },
-  { path: ['index', 'build'], options: '--raw-base <url> [--out <file>]', run: (args) => runIndex('build', args) },
+  {
+    path: ['index', 'build'],
+    options: '--raw-base <url> [--out <file>]',
+    run: (args) => runIndex('build', args),
+  },
   { path: ['index', 'check'], options: '--raw-base <url>', run: (args) => runIndex('check', args) },
 ];
 
@@ -39,7 +43,9 @@ export function findCommand(positionals: readonly string[]): Command | undefined
 }
 
 export function renderUsage(): string {
-  const lines = COMMANDS.map((c) => `  harness ${[...c.path, c.options, '[--root <dir>]'].filter(Boolean).join(' ')}`);
+  const lines = COMMANDS.map(
+    (c) => `  harness ${[...c.path, c.options, '[--root <dir>]'].filter(Boolean).join(' ')}`,
+  );
   return [
     'Использование:',
     ...lines,

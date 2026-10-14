@@ -53,7 +53,10 @@ async function readSkill(root: string, name: string): Promise<Skill> {
   for (const entry of entries) {
     if (!entry.isFile()) continue;
     const abs = path.join(entry.parentPath, entry.name);
-    files.push({ rel: path.relative(dir, abs).split(path.sep).join('/'), content: await readFile(abs) });
+    files.push({
+      rel: path.relative(dir, abs).split(path.sep).join('/'),
+      content: await readFile(abs),
+    });
   }
   files.sort((a, b) => (a.rel < b.rel ? -1 : a.rel > b.rel ? 1 : 0));
   return { name, files };
@@ -61,11 +64,16 @@ async function readSkill(root: string, name: string): Promise<Skill> {
 
 function stringList(value: unknown): string[] | null {
   if (value === undefined || value === null) return [];
-  if (!Array.isArray(value) || !value.every((v): v is string => typeof v === 'string' && v !== '')) return null;
+  if (!Array.isArray(value) || !value.every((v): v is string => typeof v === 'string' && v !== ''))
+    return null;
   return value;
 }
 
-function parseAgent(file: string, text: string, report: (message: string) => void): AgentDef | null {
+function parseAgent(
+  file: string,
+  text: string,
+  report: (message: string) => void,
+): AgentDef | null {
   let fm;
   try {
     fm = parseFrontmatter(text);
@@ -91,12 +99,23 @@ function parseAgent(file: string, text: string, report: (message: string) => voi
 
   const body = normalizeEol(text).split('\n');
   const end = body.indexOf('---', 1);
-  const instructions = body.slice(end + 1).join('\n').trim();
+  const instructions = body
+    .slice(end + 1)
+    .join('\n')
+    .trim();
   if (instructions === '') report('пустое тело: инструкции субагента');
 
-  if (name !== expected || typeof description !== 'string' || skills === null || tools === null) return null;
+  if (name !== expected || typeof description !== 'string' || skills === null || tools === null)
+    return null;
   if (description.trim() === '' || instructions === '') return null;
-  return { name: expected, source: file, description: description.trim(), skills, tools, instructions };
+  return {
+    name: expected,
+    source: file,
+    description: description.trim(),
+    skills,
+    tools,
+    instructions,
+  };
 }
 
 /** Читает канонические источники адаптеров. */
@@ -115,7 +134,10 @@ export async function readSources(root: string): Promise<Sources> {
     });
     if (skill === null) continue;
     if (!skill.files.some((f) => f.rel === 'SKILL.md')) {
-      diagnostics.push({ file: `${SKILLS_DIR}/${name}`, message: 'нет SKILL.md — не skill, пропущен' });
+      diagnostics.push({
+        file: `${SKILLS_DIR}/${name}`,
+        message: 'нет SKILL.md — не skill, пропущен',
+      });
       continue;
     }
     skills.push(skill);
@@ -131,7 +153,8 @@ export async function readSources(root: string): Promise<Sources> {
     const agent = parseAgent(file, await readFile(path.join(root, file), 'utf8'), report);
     if (agent === null) continue;
     for (const skill of agent.skills) {
-      if (!skills.some((s) => s.name === skill)) report(`skill «${skill}» не найден в ${SKILLS_DIR}`);
+      if (!skills.some((s) => s.name === skill))
+        report(`skill «${skill}» не найден в ${SKILLS_DIR}`);
     }
     agents.push(agent);
   }

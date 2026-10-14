@@ -6,7 +6,8 @@ import { report } from './report.ts';
 import type { CommandArgs } from './types.ts';
 
 export async function runContext(command: string | undefined, args: CommandArgs): Promise<number> {
-  if (command !== 'index') throw new UsageError(`неизвестная команда: context ${command ?? ''}`.trimEnd());
+  if (command !== 'index')
+    throw new UsageError(`неизвестная команда: context ${command ?? ''}`.trimEnd());
   const { text, diagnostics } = await buildContextIndex(args.root);
   // Пишем и при нарушениях: индекс с пробелами полезнее устаревшего.
   const file = path.join(args.root, CONTEXT_INDEX_PATH);

@@ -14,7 +14,11 @@ const item = (id: string, refs: [string, number][]): PendingItem => ({
 
 describe('planBatches', () => {
   it('ожидания с общими доказательствами — в одном пакете, доказательство читается раз', () => {
-    const batches = planBatches([item('a', [['x.md', 100]]), item('b', [['x.md', 100]]), item('c', [['y.md', 50]])]);
+    const batches = planBatches([
+      item('a', [['x.md', 100]]),
+      item('b', [['x.md', 100]]),
+      item('c', [['y.md', 50]]),
+    ]);
     expect(batches).toHaveLength(1);
     expect(batches[0]?.refs).toEqual(['x.md', 'y.md']);
     expect(batches[0]?.bytes).toBe(150);
@@ -22,13 +26,17 @@ describe('planBatches', () => {
 
   it('режет по числу вопросов и объёму доказательств', () => {
     const many = Array.from({ length: 5 }, (_, i) => item(`i${i}`, [['x.md', 10]]));
-    expect(planBatches(many, { maxItems: 2, maxBytes: 1000 }).map((b) => b.items.length)).toEqual([2, 2, 1]);
+    expect(planBatches(many, { maxItems: 2, maxBytes: 1000 }).map((b) => b.items.length)).toEqual([
+      2, 2, 1,
+    ]);
     const big = [item('a', [['x.md', 600]]), item('b', [['y.md', 600]])];
     expect(planBatches(big, { maxItems: 10, maxBytes: 1000 })).toHaveLength(2);
   });
 
   it('одно большое доказательство не делится и не теряется', () => {
-    expect(planBatches([item('a', [['huge.md', 10_000]])], { maxItems: 10, maxBytes: 1000 })).toHaveLength(1);
+    expect(
+      planBatches([item('a', [['huge.md', 10_000]])], { maxItems: 10, maxBytes: 1000 }),
+    ).toHaveLength(1);
   });
 
   it('пакет описывает вопросы, доказательства и файл ответа', () => {
@@ -42,7 +50,12 @@ describe('planBatches', () => {
 
 describe('containsQuote', () => {
   it('игнорирует пробелы, переносы, регистр и маркеры markdown', () => {
-    expect(containsQuote('Строка до **120 символов**,\n  включая дату', 'строка до 120 символов, включая дату')).toBe(true);
+    expect(
+      containsQuote(
+        'Строка до **120 символов**,\n  включая дату',
+        'строка до 120 символов, включая дату',
+      ),
+    ).toBe(true);
     expect(containsQuote('abc def ghi', 'xyz qwe rty')).toBe(false);
     expect(containsQuote('коротко', 'кор')).toBe(false);
   });
@@ -64,7 +77,11 @@ describe('applyAnswers', () => {
       NOW,
     );
     expect(Object.keys(result.accepted)).toEqual(['a']);
-    expect(result.accepted['a']).toMatchObject({ verdict: true, evidence: { 'x.md': 'sha-x.md' }, at: '2026-10-13' });
+    expect(result.accepted['a']).toMatchObject({
+      verdict: true,
+      evidence: { 'x.md': 'sha-x.md' },
+      at: '2026-10-13',
+    });
     expect(result.rejected).toEqual([
       { id: 'b', reason: 'цитата не найдена в доказательстве дословно' },
       { id: 'zzz', reason: 'неизвестный id' },
@@ -82,44 +99,72 @@ describe('applyAnswers', () => {
       texts,
       NOW,
     );
-    expect(r.rejected.map((x) => x.reason)).toEqual(['ref «other.md» не из доказательств вопроса', 'verdict — не true/false']);
+    expect(r.rejected.map((x) => x.reason)).toEqual([
+      'ref «other.md» не из доказательств вопроса',
+      'verdict — не true/false',
+    ]);
   });
 
   it('не массив — один отказ', () => {
-    expect(applyAnswers(items, { a: 1 }, texts, NOW).rejected).toEqual([{ id: '*', reason: 'ответ — не JSON-массив' }]);
+    expect(applyAnswers(items, { a: 1 }, texts, NOW).rejected).toEqual([
+      { id: '*', reason: 'ответ — не JSON-массив' },
+    ]);
   });
 });
 
 describe('applyLintAnswer', () => {
   it('проверяет формат и id', () => {
     const ids = new Set(['a', 'b']);
-    expect(applyLintAnswer('sha', ids, { contradictions: [], unmeasurable: [] }, NOW).verdict).toEqual({
+    expect(
+      applyLintAnswer('sha', ids, { contradictions: [], unmeasurable: [] }, NOW).verdict,
+    ).toEqual({
       titles: 'sha',
       contradictions: [],
       unmeasurable: [],
       at: '2026-10-13',
     });
-    expect(applyLintAnswer('sha', ids, { contradictions: [{ a: 'a', b: 'x', reason: '' }], unmeasurable: [] }, NOW).error).toBe(
-      'неизвестные id: x',
-    );
+    expect(
+      applyLintAnswer(
+        'sha',
+        ids,
+        { contradictions: [{ a: 'a', b: 'x', reason: '' }], unmeasurable: [] },
+        NOW,
+      ).error,
+    ).toBe('неизвестные id: x');
     expect(applyLintAnswer('sha', ids, [], NOW).error).toMatch(/не \{contradictions/);
   });
 });
 
 describe('lintTitles', () => {
-  const t = (title: string, path = ['g']): { file: string; path: string[]; title: string } => ({ file: 'f.expect.ts', path, title });
+  const t = (title: string, path = ['g']): { file: string; path: string[]; title: string } => ({
+    file: 'f.expect.ts',
+    path,
+    title,
+  });
 
   it('длина, размытые слова, дубли', () => {
     expect(
-      lintTitles([t('a'.repeat(201)), t('агент отвечает быстро и удобно'), t('строка ≤ 120 символов'), t('строка ≤ 120 символов')]).map(
-        (d) => d.message,
-      ),
-    ).toEqual(['длина 201 > 200 символов — раздели ожидание', 'размыто: удобно, быстро — нужен порог, число или да/нет', 'дубль']);
-    expect(lintTitles([t('a'.repeat(201)), t('быстро')]).map((d) => d.level)).toEqual(['crit', 'warn']);
+      lintTitles([
+        t('a'.repeat(201)),
+        t('агент отвечает быстро и удобно'),
+        t('строка ≤ 120 символов'),
+        t('строка ≤ 120 символов'),
+      ]).map((d) => d.message),
+    ).toEqual([
+      'длина 201 > 200 символов — раздели ожидание',
+      'размыто: удобно, быстро — нужен порог, число или да/нет',
+      'дубль',
+    ]);
+    expect(lintTitles([t('a'.repeat(201)), t('быстро')]).map((d) => d.level)).toEqual([
+      'crit',
+      'warn',
+    ]);
   });
 
   it('корректные ожидания проходят', () => {
-    expect(lintTitles([t('AGENTS.md — не больше 150 строк'), t('memory выключена', ['другая группа'])])).toEqual([]);
+    expect(
+      lintTitles([t('AGENTS.md — не больше 150 строк'), t('memory выключена', ['другая группа'])]),
+    ).toEqual([]);
   });
 
   it('слово внутри другого слова — не размытость', () => {
@@ -171,7 +216,9 @@ describe('якоря expect:KEY', async () => {
   });
 
   it('разметка внутри блоков кода — пример, не якорь', () => {
-    const md = ['```markdown', '<!-- expect:x -->', 'пример', '<!-- /expect:x -->', '```'].join('\n');
+    const md = ['```markdown', '<!-- expect:x -->', 'пример', '<!-- /expect:x -->', '```'].join(
+      '\n',
+    );
     expect(markdownRegions(md, 'a.md')).toEqual([]);
   });
 
@@ -180,15 +227,27 @@ describe('якоря expect:KEY', async () => {
   });
 
   it('файловый якорь в YAML — строка-комментарий', () => {
-    expect(fileAnchorKeys('key: a\n# expect:ticket-commits:project\nrule: |\n  x\n')).toEqual(['ticket-commits:project']);
+    expect(fileAnchorKeys('key: a\n# expect:ticket-commits:project\nrule: |\n  x\n')).toEqual([
+      'ticket-commits:project',
+    ]);
     expect(fileAnchorKeys('note: "# expect:x" в строке\n')).toEqual([]);
-    expect(fileAnchorKeys('// expect:memory-off\nexport const a = 1;\n', '//')).toEqual(['memory-off']);
+    expect(fileAnchorKeys('// expect:memory-off\nexport const a = 1;\n', '//')).toEqual([
+      'memory-off',
+    ]);
   });
 });
 
 describe('pruneStore', async () => {
   const { pruneStore } = await import('../src/expect/verdicts.ts');
-  const v = { question: 'q', evidence: {}, verdict: true, quote: 'x', ref: 'r', reason: '', at: '2026-10-13' };
+  const v = {
+    question: 'q',
+    evidence: {},
+    verdict: true,
+    quote: 'x',
+    ref: 'r',
+    reason: '',
+    at: '2026-10-13',
+  };
   const l = { titles: 'sha', contradictions: [], unmeasurable: [], at: '2026-10-13' };
 
   it('удаляет вердикты без живого ожидания и проверки удалённых файлов', () => {

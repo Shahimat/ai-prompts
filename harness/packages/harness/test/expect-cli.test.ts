@@ -54,7 +54,9 @@ describe('harness expect report | lint | judge', () => {
 
   it('judge: готовит проверку заголовков; --apply с ответом — report проходит', async () => {
     expect(await main(['expect', 'judge', '--root', ROOT], NOW)).toBe(1);
-    const plan = JSON.parse(await readFile(path.join(ROOT, 'expectations/.judge/plan.json'), 'utf8')) as {
+    const plan = JSON.parse(
+      await readFile(path.join(ROOT, 'expectations/.judge/plan.json'), 'utf8'),
+    ) as {
       lint: { answer: string }[];
     };
     expect(plan.lint).toHaveLength(1);

@@ -56,7 +56,8 @@ describe('collectEntries', () => {
   });
 
   it('читает списки applicable_to и patterns, хэширует содержимое', async () => {
-    const content = '---\nkey: m\nkind: module\napplicable_to: [base]\npatterns: [source-sync]\n---\nbody\n';
+    const content =
+      '---\nkey: m\nkind: module\napplicable_to: [base]\npatterns: [source-sync]\n---\nbody\n';
     await put('prompts/modules/m.md', content);
 
     const { entries } = await collectEntries(root);
@@ -114,14 +115,46 @@ describe('collectEntries: title и feature', () => {
   });
 
   it.each([
-    ['многострочный title', '---\nkey: m\nkind: module\ntitle: |\n  a\n  b\n---\n', /title должно быть непустой строкой/],
-    ['feature не у модуля', '---\nkey: m\nkind: contract\nfeature:\n  summary: s\n  default: true\n---\n', /только у kind: module/],
-    ['feature не объект', '---\nkey: m\nkind: module\nfeature: yes\n---\n', /feature должно быть объектом/],
-    ['неизвестное поле', '---\nkey: m\nkind: module\nfeature:\n  summary: s\n  default: true\n  dflt: 1\n---\n', /неизвестные поля feature: dflt/],
-    ['нет summary', '---\nkey: m\nkind: module\nfeature:\n  default: true\n---\n', /нет feature\.summary/],
-    ['default не boolean', '---\nkey: m\nkind: module\nfeature:\n  summary: s\n  default: "yes"\n---\n', /true или false/],
-    ['requires на себя', '---\nkey: m\nkind: module\nfeature:\n  summary: s\n  default: true\n  requires: [m]\n---\n', /ссылается на сам модуль/],
-    ['conflicts на чужое', '---\nkey: m\nkind: module\nfeature:\n  summary: s\n  default: true\n  conflicts: [nope]\n---\n', /модуля «nope» нет в индексе/],
+    [
+      'многострочный title',
+      '---\nkey: m\nkind: module\ntitle: |\n  a\n  b\n---\n',
+      /title должно быть непустой строкой/,
+    ],
+    [
+      'feature не у модуля',
+      '---\nkey: m\nkind: contract\nfeature:\n  summary: s\n  default: true\n---\n',
+      /только у kind: module/,
+    ],
+    [
+      'feature не объект',
+      '---\nkey: m\nkind: module\nfeature: yes\n---\n',
+      /feature должно быть объектом/,
+    ],
+    [
+      'неизвестное поле',
+      '---\nkey: m\nkind: module\nfeature:\n  summary: s\n  default: true\n  dflt: 1\n---\n',
+      /неизвестные поля feature: dflt/,
+    ],
+    [
+      'нет summary',
+      '---\nkey: m\nkind: module\nfeature:\n  default: true\n---\n',
+      /нет feature\.summary/,
+    ],
+    [
+      'default не boolean',
+      '---\nkey: m\nkind: module\nfeature:\n  summary: s\n  default: "yes"\n---\n',
+      /true или false/,
+    ],
+    [
+      'requires на себя',
+      '---\nkey: m\nkind: module\nfeature:\n  summary: s\n  default: true\n  requires: [m]\n---\n',
+      /ссылается на сам модуль/,
+    ],
+    [
+      'conflicts на чужое',
+      '---\nkey: m\nkind: module\nfeature:\n  summary: s\n  default: true\n  conflicts: [nope]\n---\n',
+      /модуля «nope» нет в индексе/,
+    ],
   ])('ошибка: %s', async (_name, content, message) => {
     await put('prompts/modules/m.md', content);
     await expect(collectEntries(root)).rejects.toThrow(message);
@@ -138,12 +171,17 @@ describe('collectEntries: skills и agents', () => {
         kind: 'skill',
         key: 'keeper',
         path: 'skills/keeper',
-        sha256: sha256(`${sha256('---\nname: keeper\ndescription: ведёт доку\n---\nтело\n')}  SKILL.md\n${sha256('a\n')}  ref/a.md\n`),
+        sha256: sha256(
+          `${sha256('---\nname: keeper\ndescription: ведёт доку\n---\nтело\n')}  SKILL.md\n${sha256('a\n')}  ref/a.md\n`,
+        ),
         applicableTo: [],
         patterns: [],
         title: 'ведёт доку',
         files: [
-          { path: 'skills/keeper/SKILL.md', sha256: sha256('---\nname: keeper\ndescription: ведёт доку\n---\nтело\n') },
+          {
+            path: 'skills/keeper/SKILL.md',
+            sha256: sha256('---\nname: keeper\ndescription: ведёт доку\n---\nтело\n'),
+          },
           { path: 'skills/keeper/ref/a.md', sha256: sha256('a\n') },
         ],
       },
@@ -157,15 +195,33 @@ describe('collectEntries: skills и agents', () => {
     await put('agents/keeper.md', content);
     await put('agents/notes.txt', 'не агент');
     expect((await collectEntries(root)).entries).toEqual([
-      { kind: 'agent', key: 'keeper', path: 'agents/keeper.md', sha256: sha256(content), applicableTo: [], patterns: [], title: 'субагент' },
+      {
+        kind: 'agent',
+        key: 'keeper',
+        path: 'agents/keeper.md',
+        sha256: sha256(content),
+        applicableTo: [],
+        patterns: [],
+        title: 'субагент',
+      },
     ]);
   });
 
   it.each([
     ['нет SKILL.md', 'skills/x/README.md', 'x\n', /skills\/x: нет SKILL\.md/],
-    ['name skill не совпадает', 'skills/x/SKILL.md', '---\nname: y\ndescription: d\n---\n', /name должно совпадать с именем «x»/],
+    [
+      'name skill не совпадает',
+      'skills/x/SKILL.md',
+      '---\nname: y\ndescription: d\n---\n',
+      /name должно совпадать с именем «x»/,
+    ],
     ['нет description', 'skills/x/SKILL.md', '---\nname: x\n---\n', /нет description/],
-    ['name агента не совпадает', 'agents/x.md', '---\nname: y\ndescription: d\n---\n', /agents\/x\.md: name/],
+    [
+      'name агента не совпадает',
+      'agents/x.md',
+      '---\nname: y\ndescription: d\n---\n',
+      /agents\/x\.md: name/,
+    ],
   ])('ошибка: %s', async (_name, file, content, message) => {
     await put(file, content);
     await expect(collectEntries(root)).rejects.toThrow(message);
@@ -174,7 +230,10 @@ describe('collectEntries: skills и agents', () => {
 
 describe('deprecated', () => {
   it('попадает в индекс строкой после sha256', async () => {
-    await put('prompts/old.md', '---\nkey: old\nkind: contract\ndeprecated: presets/personal.yml\n---\n');
+    await put(
+      'prompts/old.md',
+      '---\nkey: old\nkind: contract\ndeprecated: presets/personal.yml\n---\n',
+    );
     const { entries } = await collectEntries(root);
     expect(entries[0]?.deprecated).toBe('presets/personal.yml');
     const out = renderIndex(entries, { rawBase: RAW, generatedAt: AT });
@@ -191,7 +250,10 @@ describe('collectEntries: presets', () => {
   async function base(): Promise<void> {
     await put('prompts/c.md', '---\nkey: core\nkind: contract\n---\n');
     await put('prompts/modules/m.md', '---\nkey: m\nkind: module\napplicable_to: [core]\n---\n');
-    await put('prompts/modules/old.md', '---\nkey: old\nkind: module\napplicable_to: [other]\n---\n');
+    await put(
+      'prompts/modules/old.md',
+      '---\nkey: old\nkind: module\napplicable_to: [other]\n---\n',
+    );
   }
   const preset = (body: string): string => `key: p\ntitle: Пресет\ncontract: core\n${body}`;
 
@@ -212,12 +274,24 @@ describe('collectEntries: presets', () => {
   });
 
   it.each([
-    ['key не по имени файла', 'key: q\ntitle: t\ncontract: core\nmodules: [{key: m}]\n', /key должно совпадать/],
+    [
+      'key не по имени файла',
+      'key: q\ntitle: t\ncontract: core\nmodules: [{key: m}]\n',
+      /key должно совпадать/,
+    ],
     ['нет title', 'key: p\ncontract: core\nmodules: [{key: m}]\n', /нет title/],
-    ['нет контракта', 'key: p\ntitle: t\ncontract: nope\nmodules: [{key: m}]\n', /контракта «nope» нет/],
+    [
+      'нет контракта',
+      'key: p\ntitle: t\ncontract: nope\nmodules: [{key: m}]\n',
+      /контракта «nope» нет/,
+    ],
     ['пустые modules', 'key: p\ntitle: t\ncontract: core\nmodules: []\n', /непустой список/],
     ['нет модуля', 'key: p\ntitle: t\ncontract: core\nmodules: [{key: x}]\n', /модуля «x» нет/],
-    ['неприменимый модуль', 'key: p\ntitle: t\ncontract: core\nmodules: [{key: old}]\n', /не применим к «core»/],
+    [
+      'неприменимый модуль',
+      'key: p\ntitle: t\ncontract: core\nmodules: [{key: old}]\n',
+      /не применим к «core»/,
+    ],
   ])('ошибка: %s', async (_name, content, message) => {
     await base();
     await put('presets/p.yml', content);
@@ -314,7 +388,15 @@ describe('renderIndex', () => {
 
   it('у skill нет raw, у каждого файла — свой raw и sha256', () => {
     const out = renderIndex(
-      [entry({ kind: 'skill', key: 's', path: 'skills/s', title: 't', files: [{ path: 'skills/s/SKILL.md', sha256: 'f1' }] })],
+      [
+        entry({
+          kind: 'skill',
+          key: 's',
+          path: 'skills/s',
+          title: 't',
+          files: [{ path: 'skills/s/SKILL.md', sha256: 'f1' }],
+        }),
+      ],
       { rawBase: RAW, generatedAt: AT },
     );
     expect(out).toContain(

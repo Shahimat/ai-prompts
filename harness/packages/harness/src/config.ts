@@ -44,7 +44,10 @@ function unknownKeys(obj: Record<string, unknown>, known: readonly string[], whe
 }
 
 function stringList(value: unknown, where: string): string[] {
-  if (!Array.isArray(value) || !value.every((v): v is string => typeof v === 'string' && v !== '')) {
+  if (
+    !Array.isArray(value) ||
+    !value.every((v): v is string => typeof v === 'string' && v !== '')
+  ) {
     fail(`${where} должно быть списком непустых строк`);
   }
   return value;
@@ -58,7 +61,10 @@ function parseChangelog(value: unknown): ChangelogOptions {
   if (typeof maxLine !== 'number' || !Number.isInteger(maxLine) || maxLine <= 0) {
     fail('checks.changelog.max_line должно быть целым числом > 0');
   }
-  const tags = value['tags'] === undefined ? DEFAULT_CHANGELOG.tags : stringList(value['tags'], 'checks.changelog.tags');
+  const tags =
+    value['tags'] === undefined
+      ? DEFAULT_CHANGELOG.tags
+      : stringList(value['tags'], 'checks.changelog.tags');
   if (tags.length === 0) fail('checks.changelog.tags не может быть пустым');
   return { maxLine, tags: [...tags] };
 }
@@ -83,7 +89,8 @@ export function parseConfig(text: string): HarnessConfig {
   if (data['adapters'] !== undefined) {
     const adapters = stringList(data['adapters'], 'adapters');
     const unknown = adapters.filter((a) => !(KNOWN_ADAPTERS as readonly string[]).includes(a));
-    if (unknown.length > 0) fail(`неизвестные adapters: ${unknown.join(', ')} (есть: ${KNOWN_ADAPTERS.join(', ')})`);
+    if (unknown.length > 0)
+      fail(`неизвестные adapters: ${unknown.join(', ')} (есть: ${KNOWN_ADAPTERS.join(', ')})`);
     config.adapters = adapters as AdapterName[];
   }
 

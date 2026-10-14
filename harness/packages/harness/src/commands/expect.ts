@@ -8,7 +8,13 @@ import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { UsageError } from '../diagnostics.ts';
-import { applyAnswers, applyLintAnswer, planBatches, renderBatch, renderLintBatch } from '../expect/batch.ts';
+import {
+  applyAnswers,
+  applyLintAnswer,
+  planBatches,
+  renderBatch,
+  renderLintBatch,
+} from '../expect/batch.ts';
 import { readEvidence, shaOf } from '../expect/evidence.ts';
 import { COLLECT_ENV, idOf, SEEN_ENV, type PendingItem } from '../expect/judge.ts';
 import { BUDGET_TITLE, type Budget, type Level } from '../expect/levels.ts';
@@ -53,12 +59,28 @@ function runVitest(root: string, env: Record<string, string> = {}): TestResult[]
   } catch {
     throw new UsageError('vitest не установлен в проекте: npm i -D vitest');
   }
-  const bin = (JSON.parse(readFileSync(vitestPkg, 'utf8')) as { bin: Record<string, string> }).bin['vitest'] ?? '';
+  const bin =
+    (JSON.parse(readFileSync(vitestPkg, 'utf8')) as { bin: Record<string, string> }).bin[
+      'vitest'
+    ] ?? '';
   const out = path.join(tmpdir(), `harness-expect-${process.pid}-${Date.now()}.json`);
   spawnSync(
     process.execPath,
-    [path.join(path.dirname(vitestPkg), bin), 'run', '--root', root, '--config', EXPECT_CONFIG, '--reporter=json', `--outputFile=${out}`],
-    { cwd: root, env: { ...process.env, ...env, HARNESS_EXPECT_ROOT: root }, stdio: ['ignore', 'ignore', 'inherit'] },
+    [
+      path.join(path.dirname(vitestPkg), bin),
+      'run',
+      '--root',
+      root,
+      '--config',
+      EXPECT_CONFIG,
+      '--reporter=json',
+      `--outputFile=${out}`,
+    ],
+    {
+      cwd: root,
+      env: { ...process.env, ...env, HARNESS_EXPECT_ROOT: root },
+      stdio: ['ignore', 'ignore', 'inherit'],
+    },
   );
   if (!existsSync(out)) throw new Error('vitest не записал отчёт');
   const data = JSON.parse(readFileSync(out, 'utf8')) as VitestJson;
@@ -91,17 +113,25 @@ function byFile(results: TestResult[]): Map<string, TestResult[]> {
 
 const titlesSha = (tests: TestResult[]): string => shaOf(tests.map(fullName).sort().join('\n'));
 
-const isPending = (t: TestResult): boolean => t.status === 'failed' && t.message.includes('нет свежего вердикта');
+const isPending = (t: TestResult): boolean =>
+  t.status === 'failed' && t.message.includes('нет свежего вердикта');
 
 async function report(args: CommandArgs): Promise<number> {
   const all = runVitest(args.root);
   const store = await loadVerdicts();
-  const titleIssues = lintTitles(all.filter((r) => r.title !== BUDGET_TITLE).map((r) => ({ file: r.file, path: r.path, title: r.title })));
+  const titleIssues = lintTitles(
+    all
+      .filter((r) => r.title !== BUDGET_TITLE)
+      .map((r) => ({ file: r.file, path: r.path, title: r.title })),
+  );
   let blocked = false;
   let total = { tests: 0, crit: 0, warn: 0, info: 0, pending: 0 };
 
   for (const [file, tests] of byFile(all)) {
-    const budget: Budget = tests.find((t) => t.title === BUDGET_TITLE)?.budget ?? { crit: 0, warn: 0 };
+    const budget: Budget = tests.find((t) => t.title === BUDGET_TITLE)?.budget ?? {
+      crit: 0,
+      warn: 0,
+    };
     const items = tests.filter((t) => t.title !== BUDGET_TITLE);
     const count = { crit: 0, warn: 0, info: 0, pending: 0 };
     console.log(file);
@@ -119,7 +149,9 @@ async function report(args: CommandArgs): Promise<number> {
         count[t.level === 'warn' ? 'warn' : 'crit']++;
         console.log(`${pad}${t.level === 'warn' ? '⚠' : '✗'} ${t.title}  — ${t.message}`);
       } else {
-        console.log(`${pad}${t.status === 'todo' ? '○' : t.status === 'passed' ? '✓' : '-'} ${t.title}`);
+        console.log(
+          `${pad}${t.status === 'todo' ? '○' : t.status === 'passed' ? '✓' : '-'} ${t.title}`,
+        );
       }
       for (const n of t.notes) console.log(`${pad}  ℹ ${n}`);
       count.info += t.notes.length;
@@ -127,7 +159,9 @@ async function report(args: CommandArgs): Promise<number> {
 
     for (const d of titleIssues.filter((i) => i.title.file === file)) {
       count[d.level]++;
-      console.log(`  ${d.level === 'crit' ? '✗' : '⚠'} заголовок «${d.title.title}» — ${d.message}`);
+      console.log(
+        `  ${d.level === 'crit' ? '✗' : '⚠'} заголовок «${d.title.title}» — ${d.message}`,
+      );
     }
     const lint = store.lint[file];
     if (lint === undefined || lint.titles !== titlesSha(items)) {
@@ -135,8 +169,10 @@ async function report(args: CommandArgs): Promise<number> {
       console.log('  ? смысловая проверка заголовков устарела — harness expect judge');
     } else {
       const name = new Map(items.map((t) => [idOf(fullName(t)), t.title]));
-      for (const c of lint.contradictions) console.log(`  ⚠ противоречие: «${name.get(c.a)}» ↔ «${name.get(c.b)}» — ${c.reason}`);
-      for (const u of lint.unmeasurable) console.log(`  ⚠ неизмеримо: «${name.get(u.id)}» — ${u.reason}`);
+      for (const c of lint.contradictions)
+        console.log(`  ⚠ противоречие: «${name.get(c.a)}» ↔ «${name.get(c.b)}» — ${c.reason}`);
+      for (const u of lint.unmeasurable)
+        console.log(`  ⚠ неизмеримо: «${name.get(u.id)}» — ${u.reason}`);
       count.warn += lint.contradictions.length + lint.unmeasurable.length;
     }
 
@@ -165,8 +201,13 @@ async function lint(args: CommandArgs): Promise<number> {
     .filter((r) => r.title !== BUDGET_TITLE)
     .map((r) => ({ file: r.file, path: r.path, title: r.title }));
   const diags = lintTitles(titles);
-  for (const d of diags) console.error(`${d.level} ${d.title.file}: «${d.title.title}» — ${d.message}`);
-  console.log(diags.length === 0 ? `expect lint: ok (${titles.length})` : `expect lint: нарушений ${diags.length}`);
+  for (const d of diags)
+    console.error(`${d.level} ${d.title.file}: «${d.title.title}» — ${d.message}`);
+  console.log(
+    diags.length === 0
+      ? `expect lint: ok (${titles.length})`
+      : `expect lint: нарушений ${diags.length}`,
+  );
   return diags.length === 0 ? 0 : 1;
 }
 
@@ -185,7 +226,8 @@ async function judgePrepare(args: CommandArgs): Promise<number> {
   await rm(seenDir, { recursive: true, force: true });
   const items: PendingItem[] = [];
   if (existsSync(pendingDir)) {
-    for (const f of (await readdir(pendingDir)).sort()) items.push(JSON.parse(await readFile(path.join(pendingDir, f), 'utf8')) as PendingItem);
+    for (const f of (await readdir(pendingDir)).sort())
+      items.push(JSON.parse(await readFile(path.join(pendingDir, f), 'utf8')) as PendingItem);
     await rm(pendingDir, { recursive: true, force: true });
   }
   const plan: Plan = { batches: [], lint: [] };
@@ -194,7 +236,8 @@ async function judgePrepare(args: CommandArgs): Promise<number> {
     const answer = `${JUDGE_DIR}/batch-${i + 1}.answer.json`;
     await mkdir(dir, { recursive: true });
     const texts = new Map<string, string>();
-    for (const ref of batch.refs.filter((r) => r.startsWith('@'))) texts.set(ref, await readEvidence(ref));
+    for (const ref of batch.refs.filter((r) => r.startsWith('@')))
+      texts.set(ref, await readEvidence(ref));
     await writeFile(path.join(args.root, task), renderBatch(batch, answer, texts), 'utf8');
     plan.batches.push({ task, answer, items: batch.items });
   }
@@ -221,9 +264,13 @@ async function judgePrepare(args: CommandArgs): Promise<number> {
     return 0;
   }
   await writeFile(path.join(dir, 'plan.json'), JSON.stringify(plan, null, 2), 'utf8');
-  console.log(`expect judge: вопросов ${items.length} в пакетах ${plan.batches.length}, проверок заголовков ${plan.lint.length}`);
+  console.log(
+    `expect judge: вопросов ${items.length} в пакетах ${plan.batches.length}, проверок заголовков ${plan.lint.length}`,
+  );
   for (const t of [...plan.batches, ...plan.lint]) console.log(`  ${t.task} → ${t.answer}`);
-  console.log('Каждый файл — задание судье (субагенту), ответ — в указанный JSON. Затем: harness expect judge --apply');
+  console.log(
+    'Каждый файл — задание судье (субагенту), ответ — в указанный JSON. Затем: harness expect judge --apply',
+  );
   return 1;
 }
 
@@ -247,7 +294,8 @@ async function judgeApply(args: CommandArgs): Promise<number> {
       continue;
     }
     const texts = new Map<string, string>();
-    for (const ref of new Set(b.items.flatMap((i) => i.evidence.map((e) => e.ref)))) texts.set(ref, await readEvidence(ref));
+    for (const ref of new Set(b.items.flatMap((i) => i.evidence.map((e) => e.ref))))
+      texts.set(ref, await readEvidence(ref));
     const result = applyAnswers(b.items, answers, texts, args.now);
     Object.assign(store.verdicts, result.accepted);
     for (const r of result.rejected) rejected.push(`${b.answer}: ${r.id} — ${r.reason}`);
@@ -261,7 +309,9 @@ async function judgeApply(args: CommandArgs): Promise<number> {
   await saveVerdicts(store);
   for (const r of rejected) console.error(r);
   if (rejected.length > 0) {
-    console.error(`expect judge --apply: отклонено ${rejected.length}; принятое сохранено в ${VERDICTS_PATH}`);
+    console.error(
+      `expect judge --apply: отклонено ${rejected.length}; принятое сохранено в ${VERDICTS_PATH}`,
+    );
     return 1;
   }
   await rm(path.join(args.root, JUDGE_DIR), { recursive: true, force: true });
@@ -313,14 +363,22 @@ async function init(args: CommandArgs): Promise<number> {
   const gitignore = path.join(args.root, '.gitignore');
   const ignored = existsSync(gitignore) ? await readFile(gitignore, 'utf8') : '';
   if (!ignored.split('\n').includes(`${JUDGE_DIR}/`)) {
-    await writeFile(gitignore, `${ignored}${ignored === '' || ignored.endsWith('\n') ? '' : '\n'}${JUDGE_DIR}/\n`, 'utf8');
+    await writeFile(
+      gitignore,
+      `${ignored}${ignored === '' || ignored.endsWith('\n') ? '' : '\n'}${JUDGE_DIR}/\n`,
+      'utf8',
+    );
     done.push(`.gitignore: ${JUDGE_DIR}/`);
   }
 
   const pkgFile = path.join(args.root, 'package.json');
   if (existsSync(pkgFile)) {
     const pkg = JSON.parse(await readFile(pkgFile, 'utf8')) as { scripts?: Record<string, string> };
-    const scripts = { expect: 'harness expect report --root .', 'expect:judge': 'harness expect judge --root .', 'expect:apply': 'harness expect judge --apply --root .' };
+    const scripts = {
+      expect: 'harness expect report --root .',
+      'expect:judge': 'harness expect judge --root .',
+      'expect:apply': 'harness expect judge --apply --root .',
+    };
     const added = Object.entries(scripts).filter(([k]) => pkg.scripts?.[k] === undefined);
     if (added.length > 0) {
       pkg.scripts = { ...pkg.scripts, ...Object.fromEntries(added) };
