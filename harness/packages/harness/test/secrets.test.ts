@@ -18,10 +18,10 @@ describe('scanSecrets', () => {
     expect(kinds(`a\nkey = ${AWS}\n`)).toEqual(['2: секрет: ключ API AWS']);
     expect(kinds(`token: ${GITHUB}`)).toEqual(['1: секрет: токен GitHub']);
     expect(kinds(PRIVATE)).toEqual(['1: секрет: приватный ключ']);
-    expect(kinds('password: "Tr0ub4dor&3-horse"')).toEqual([
+    expect(kinds(`password: "${'Tr0ub4dor'}&3-horse"`)).toEqual([
       '1: секрет: пароль или секрет в присваивании',
     ]);
-    expect(kinds('DB_PASSWORD="s3cr3t-Pa55word"')).toEqual([
+    expect(kinds(`DB_PASSWORD="${'s3cr3t'}-Pa55word"`)).toEqual([
       '1: секрет: пароль или секрет в присваивании',
     ]);
   });
