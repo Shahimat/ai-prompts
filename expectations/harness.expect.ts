@@ -60,8 +60,9 @@ describe('[harness] common', () => {
     'пакеты: @shahimat/harness — CLI и механизм ожиданий, @shahimat/expectations — наборы ожиданий; других нет',
     () => Check.packages(),
   );
-  crit('других команд, кроме перечисленных в разделах [harness] <процесс>, у harness нет', () =>
-    Check.noOtherCommands(),
+  crit(
+    'других команд, кроме перечисленных в разделах [harness] <процесс> этого файла и harness-plan-iter.expect.ts, у harness нет',
+    () => Check.noOtherCommands(),
   );
   crit('в репозитории нет bash-скриптов: вся автоматизация на TS и Node ≥ 24', () =>
     Check.noBash(),
@@ -941,7 +942,13 @@ async function npmLeaves(runs: string[]): Promise<string[]> {
 /** Путь команды harness в строке вызова: `node …/bin.js index check --raw-base x`. */
 function harnessWords(line: string): string[] | undefined {
   const words = splitWords(line);
-  const start = words.findIndex((w) => /(^|\/)(bin\.js|harness)$/.test(w));
+  // Вызов harness: …/bin.js, `harness` первым словом или пакет после npx.
+  const start = words.findIndex(
+    (w, i) =>
+      /(^|\/)bin\.js$/.test(w) ||
+      (i === 0 && w === 'harness') ||
+      /^@shahimat\/harness(@|$)/.test(w),
+  );
   if (start < 0) return undefined;
   const rest = words.slice(start + 1);
   const end = rest.findIndex((w) => w.startsWith('--'));
