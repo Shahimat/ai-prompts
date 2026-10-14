@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { main } from '../src/cli.ts';
-import { io } from '../src/commands/plan.ts';
+import { io } from '../src/harness/plan-iter/cli.ts';
 import {
   headlessArgs,
   interactiveArgs,
@@ -13,9 +13,9 @@ import {
   type HeadlessRun,
   type InteractiveRun,
   type ModelRunner,
-} from '../src/runner/claude.ts';
-import type { Prompter } from '../src/runner/terminal.ts';
-import { openSession } from '../src/store/session.ts';
+} from '../src/harness/core/runner/claude.ts';
+import type { Prompter } from '../src/harness/core/runner/terminal.ts';
+import { openSession } from '../src/harness/core/store/session.ts';
 import { PLAN } from './plan-model.test.ts';
 
 const NOW = new Date('2026-10-14T12:00:00Z');

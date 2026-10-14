@@ -4,6 +4,13 @@
 
 ## 0.4.0
 
+- Слои пакета: `shared` → `lib` → `commands` → `scripts` → `harness`.
+  Узел дерева CLI объявляет вид (`command`, `script`, `harness`) и эффект
+  (`query` или `mutation`); эффект скрипта выводится из его шагов.
+  `harness check` — скрипт из `changelog lint`, `context check`,
+  `adapters check`, `secrets scan`: каждый шаг печатает свой итог, общий
+  итог — строкой `check (…): ok | есть нарушения`. Точка входа
+  `@shahimat/harness/expect` — `dist/lib/expect/`.
 - `harness context check` и `harness adapters check` — сверка
   `context/index.yml` и файлов адаптеров без записи: то же, что проверяет
   `harness check`, отдельной командой.

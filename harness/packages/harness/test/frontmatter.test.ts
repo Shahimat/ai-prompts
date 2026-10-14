@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeEol, parseFrontmatter } from '../src/frontmatter.ts';
+import { normalizeEol, parseFrontmatter } from '../src/shared/frontmatter.ts';
 
 describe('normalizeEol', () => {
   it('приводит CRLF и одиночный CR к LF', () => {

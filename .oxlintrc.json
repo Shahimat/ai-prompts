@@ -30,7 +30,7 @@
       }
     },
     {
-      "files": ["harness/packages/harness/src/expect/levels.ts"],
+      "files": ["harness/packages/harness/src/lib/expect/levels.ts"],
       "rules": {
         "vitest/valid-title": "off",
         "vitest/expect-expect": "off",

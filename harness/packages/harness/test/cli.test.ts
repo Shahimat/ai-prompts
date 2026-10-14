@@ -6,8 +6,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { main, run } from '../src/cli.ts';
-import { promptOf, shellStep, splitWords } from '../src/commands/shell.ts';
-import { childrenOf, COMMANDS, findCommand, renderUsage } from '../src/commands/tree.ts';
+import { promptOf, shellStep, splitWords } from '../src/shell.ts';
+import { childrenOf, COMMANDS, findCommand, renderUsage } from '../src/tree.ts';
 
 const NOW = new Date('2026-10-13T12:00:00Z');
 const GOOD = '# Журнал\n\n- 2026-10-13 · [arch] a · b\n';
@@ -74,7 +74,7 @@ describe('harness check', () => {
     await put('context/harness.yml', 'checks:\n  changelog: {}\n');
     await put('CHANGELOG.md', BAD);
     expect(await main(['check', '--root', root], NOW)).toBe(1);
-    expect(stderr.at(-1)).toBe('check (changelog, secrets): нарушений 1');
+    expect(stderr.at(-1)).toBe('check (changelog lint, secrets scan): есть нарушения');
   });
 
   it('2 — ошибка в harness.yml', async () => {
@@ -193,7 +193,7 @@ describe('harness expect init', () => {
 
 describe('harness outdated', async () => {
   const { changelogBetween, compareVersions, runOutdated } =
-    await import('../src/commands/outdated.ts');
+    await import('../src/commands/outdated/index.ts');
   const LOG = '# Журнал\n\n## 0.5.0\n\n- outdated\n\n## 0.4.0\n\n- якоря\n\n## 0.3.0\n\n- expect\n';
   const fetcher = (latest: string) => async (url: string) => ({
     ok: true,

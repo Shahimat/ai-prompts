@@ -2,8 +2,8 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { DEFAULT_CHANGELOG, loadConfig, parseConfig } from '../src/config.ts';
-import { UsageError } from '../src/diagnostics.ts';
+import { DEFAULT_CHANGELOG, loadConfig, parseConfig } from '../src/shared/config.ts';
+import { UsageError } from '../src/shared/diagnostics.ts';
 
 describe('parseConfig', () => {
   it('пустой файл — включена только secrets', () => {

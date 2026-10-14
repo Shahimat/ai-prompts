@@ -3,12 +3,9 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
-import {
-  buildContextIndex,
-  checkContextIndex,
-  CONTEXT_INDEX_PATH,
-} from '../src/checks/context-index.ts';
-import { isRecord } from '../src/guards.ts';
+import { buildContextIndex, checkContextIndex } from '../src/commands/context/context-index.ts';
+import { CONTEXT_INDEX_PATH } from '../src/shared/layout.ts';
+import { isRecord } from '../src/shared/guards.ts';
 
 let root: string;
 

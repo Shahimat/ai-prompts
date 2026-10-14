@@ -3,7 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { main } from '../src/cli.ts';
-import { isRecord } from '../src/guards.ts';
+import { isRecord } from '../src/shared/guards.ts';
 
 // Временный проект внутри пакета: vitest находится в node_modules репозитория.
 const ROOT = path.resolve(fileURLToPath(import.meta.url), '../.tmp/expect-cli');

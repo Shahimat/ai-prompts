@@ -4,8 +4,8 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { buildContextIndex } from '../src/checks/context-index.ts';
-import { checkDelta, revisionLines } from '../src/checks/delta.ts';
+import { buildContextIndex } from '../src/commands/context/context-index.ts';
+import { checkDelta, revisionLines } from '../src/commands/delta/delta.ts';
 import { main, run } from '../src/cli.ts';
 
 const NOW = new Date('2026-10-14T12:00:00Z');

@@ -1,10 +1,10 @@
 import path from 'node:path';
 import { parseArgs } from 'node:util';
-import { runShell } from './commands/shell.ts';
-import { childrenOf, findCommand, isNamespace, renderUsage } from './commands/tree.ts';
-import type { CommandArgs } from './commands/types.ts';
-import { UsageError } from './diagnostics.ts';
-import { errorCode, errorMessage } from './guards.ts';
+import { runShell } from './shell.ts';
+import { childrenOf, findCommand, isNamespace, renderUsage } from './tree.ts';
+import type { CommandArgs } from './shared/args.ts';
+import { UsageError } from './shared/diagnostics.ts';
+import { errorCode, errorMessage } from './shared/guards.ts';
 
 export async function main(argv: string[], now: Date = new Date()): Promise<number> {
   const { values, positionals } = parseArgs({

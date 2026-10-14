@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { lintChangelog } from '../src/checks/changelog.ts';
-import { DEFAULT_CHANGELOG } from '../src/config.ts';
+import { lintChangelog } from '../src/commands/changelog/lint.ts';
+import { DEFAULT_CHANGELOG } from '../src/shared/config.ts';
 
 const NOW = new Date('2026-10-13T12:00:00Z');
 const HEADER = '# Журнал решений\n\nФормат: «когда» и «почему».\n\n';

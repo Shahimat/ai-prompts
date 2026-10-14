@@ -12,10 +12,10 @@ import {
   type MachineDef,
   type MachineState,
   type Registry,
-} from '../src/fsm/machine.ts';
-import { loadHarness } from '../src/handlers/load.ts';
-import { loadPlugins } from '../src/handlers/registry.ts';
-import { BUILTIN_HARNESSES } from '../src/store/session.ts';
+} from '../src/harness/core/fsm/machine.ts';
+import { loadHarness } from '../src/harness/plan-iter/load.ts';
+import { loadPlugins } from '../src/harness/core/plugins.ts';
+import { BUILTIN_HARNESSES } from '../src/harness/core/store/session.ts';
 
 type Ctx = { calls: string[]; events: Record<string, string[]> };
 

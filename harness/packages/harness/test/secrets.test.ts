@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { checkSecrets, scanSecrets } from '../src/checks/secrets.ts';
+import { checkSecrets, scanSecrets } from '../src/commands/secrets/secrets.ts';
 import { main, run } from '../src/cli.ts';
 
 // Образцы собраны из частей: в репозитории нет литерала, на который сработает проверка.

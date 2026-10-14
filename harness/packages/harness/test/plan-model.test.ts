@@ -6,8 +6,8 @@ import {
   verdict,
   type Criterion,
   type Finding,
-} from '../src/plan/criteria.ts';
-import { formalCheck } from '../src/plan/formal.ts';
+} from '../src/harness/plan-iter/plan/criteria.ts';
+import { formalCheck } from '../src/harness/plan-iter/plan/formal.ts';
 import {
   changedParts,
   dependencyMermaid,
@@ -16,8 +16,8 @@ import {
   serializeBlocks,
   setFrontmatter,
   withDependents,
-} from '../src/plan/model.ts';
-import { dependencySvg, renderPlanHtml } from '../src/plan/render.ts';
+} from '../src/harness/plan-iter/plan/model.ts';
+import { dependencySvg, renderPlanHtml } from '../src/harness/plan-iter/plan/render.ts';
 
 export const PLAN = `---
 harness: plan/iter

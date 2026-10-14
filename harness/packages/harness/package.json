@@ -35,8 +35,8 @@
       "import": "./dist/index.js"
     },
     "./expect": {
-      "types": "./dist/expect/index.d.ts",
-      "import": "./dist/expect/index.js"
+      "types": "./dist/lib/expect/index.d.ts",
+      "import": "./dist/lib/expect/index.js"
     }
   },
   "files": [

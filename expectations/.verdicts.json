@@ -94,7 +94,7 @@
     "1db1d3ca45dd": {
       "question": "[harness] expect > смысловая проверка заголовков файла запускается только при изменении его заголовков",
       "evidence": {
-        "@expect-cycles": "3b03e4df515eb8f93503cd6c1a11d5667ece4fc13e13dcde1904cea116f29b82"
+        "@expect-cycles": "6f0dbdcf14f34dc115ff8735354e25ce16c5743b952308c0577437b376fad3f2"
       },
       "verdict": true,
       "quote": "if (store.lint[file]?.titles === sha) continue;",
@@ -218,12 +218,12 @@
     "386c4e8a4603": {
       "question": "[harness] common > задание проверяющей модели содержит только вопросы и доказательства, без контекста автора",
       "evidence": {
-        "@judge-clean-context": "f9bf3a029a134348b95c253e3d210590ab0dd77dce1aa951586090552098bd5b"
+        "@judge-clean-context": "e93ca17a00bbf44f116bc328873e5386bc314a9f3f9b66c0846c04ded29d8292"
       },
       "verdict": true,
       "quote": "Отвечай только по доказательствам, без догадок.",
       "ref": "@judge-clean-context",
-      "reason": "renderBatch формирует задание только из инструкции, доказательств и вопросов, без контекста автора правки.",
+      "reason": "renderBatch собирает задание из фиксированной инструкции, доказательств и вопросов, без контекста автора.",
       "at": "2026-10-14"
     },
     "3a42cc45ddae": {
@@ -262,12 +262,12 @@
     "42e6d377c595": {
       "question": "[harness] plan_iter > переходами управляет автомат из harness.yaml; модель работает только внутри состояний",
       "evidence": {
-        "@fsm-drive": "6b27af2ab204142c71bb662136cf99bcbb2f95113a0668f7214f5b4bf76b7fe8"
+        "@fsm-drive": "6048db475437de9741b1b80eb06e40df3f757b21c656858cf0dd00699a40813f"
       },
       "verdict": true,
       "quote": "Автомат процесса: топология и параметры — в harness.yaml",
       "ref": "@fsm-drive",
-      "reason": "drive() выполняет действие состояния, а переход выбирает resolve() по событию, guard и лимиту из MachineDef, загруженного из YAML; действия (в т.ч. модели) лишь возвращают событие",
+      "reason": "drive выполняет действие состояния и выбирает переход через resolve по автомату; действие лишь возвращает событие.",
       "at": "2026-10-14"
     },
     "44bbe7c51e80": {
@@ -328,12 +328,12 @@
     "694f0f4b5141": {
       "question": "[harness] expect > в кэше вердиктов только вердикты живых ожиданий",
       "evidence": {
-        "@verdict-prune": "6b65ed09cacdb586f96ac83d77c2eb05975306cacad91f9d3f2fc143682a633f"
+        "@verdict-prune": "530452477171b6893578caef56c81b706f04d1d104f8484b998668b7b08972fe"
       },
       "verdict": true,
-      "quote": "const removed = pruneStore(store, seen, new Set(byFile(results).keys()));",
+      "quote": "Убирает вердикты, которые не нужны ни одному текущему ожиданию",
       "ref": "@verdict-prune",
-      "reason": "При expect judge из кэша удаляются вердикты, id которых не встретились среди текущих смысловых ожиданий, и lint удалённых файлов.",
+      "reason": "pruneStore удаляет вердикты с id вне множества живых ожиданий, judgePrepare сохраняет очищенный кэш.",
       "at": "2026-10-14"
     },
     "6a7682557244": {
@@ -362,12 +362,12 @@
     "741df40f5b3c": {
       "question": "[harness] adapters > adapters sync выключает memory: autoMemoryEnabled false в Claude Code, memories false в Codex",
       "evidence": {
-        "@memory-off": "b72266a25bacab84c05b031d5a52bbb79b038abbf829383445c0f5669c61ed38"
+        "@memory-off": "eb4fa50eb14ddcc00a3f16bb1eafbc7736c90486e7e3bdba7bc730bb098c0775"
       },
       "verdict": true,
-      "quote": "if (current === null) return { actions: [write({ autoMemoryEnabled: false })], diagnostics: [] };",
+      "quote": "write({ ...data, autoMemoryEnabled: false })",
       "ref": "@memory-off",
-      "reason": "Claude: autoMemoryEnabled false в .claude/settings.json; Codex: генерируется config.toml с memories = false и use/generate_memories = false.",
+      "reason": "Claude Code получает autoMemoryEnabled: false, Codex — features.memories и memories.* = false.",
       "at": "2026-10-14"
     },
     "74750777cab1": {
@@ -530,12 +530,12 @@
     "9d95d48cd2c2": {
       "question": "[harness] common > итог прогона считает код по бюджету и ответам модели, а не модель",
       "evidence": {
-        "@verdict-by-code": "e85c28d37738df46faa7d65508e3e7bd7aebbad6cefa6cb9c73131687f8e53d4"
+        "@verdict-by-code": "dc531339d0c25348545d339e699b31913ee9a975ff642bc2145462cac58b6c7d"
       },
       "verdict": true,
       "quote": "const over = count.crit > budget.crit || count.warn > budget.warn || count.pending > 0;",
       "ref": "@verdict-by-code",
-      "reason": "Блокировку прогона вычисляет код report() из счётчиков crit/warn/pending (в т.ч. ответов судьи из store) и бюджета файла, модель итог не выносит",
+      "reason": "Блокировка прогона вычисляется кодом из счётчиков crit/warn/pending (включая ответы судьи по lint) против бюджета файла.",
       "at": "2026-10-14"
     },
     "a5651202c571": {
@@ -655,12 +655,12 @@
     "ced81edf1af7": {
       "question": "[harness] context > context/index.yml генерируется harness context index и не содержит даты генерации",
       "evidence": {
-        "@context-index-no-date": "5be13319c115a3137962b410d6a4ef1358bcbaa295d56eec527c9040f39256b6"
+        "@context-index-no-date": "76b471fb4478a636f517de42659dc638e4cfd82d6c5adf57a3d861c58b791ea0"
       },
       "verdict": true,
-      "quote": "const HEADER = '# generated by harness context index — do not edit manually\\n';",
+      "quote": "# generated by harness context index — do not edit manually",
       "ref": "@context-index-no-date",
-      "reason": "Индекс собирается buildContextIndex из заголовка без даты и данных слоёв; дата или время нигде не добавляются.",
+      "reason": "Индекс = HEADER + stringify(doc); ни в заголовке, ни в doc нет даты или времени генерации.",
       "at": "2026-10-14"
     },
     "d35fa739f017": {
@@ -723,12 +723,12 @@
     "de808fdc116f": {
       "question": "[harness] expect > судья вызывается только для вердиктов, у которых изменились заголовок или доказательства",
       "evidence": {
-        "@expect-cycles": "3b03e4df515eb8f93503cd6c1a11d5667ece4fc13e13dcde1904cea116f29b82"
+        "@expect-cycles": "6f0dbdcf14f34dc115ff8735354e25ce16c5743b952308c0577437b376fad3f2"
       },
       "verdict": true,
-      "quote": "refs.every((r) => cached.evidence[r.ref] === r.sha);",
+      "quote": "cached.question === question &&",
       "ref": "@expect-cycles",
-      "reason": "Вердикт свежий при совпадении вопроса и SHA всех доказательств; в пакет судье попадают только несвежие.",
+      "reason": "Вердикт считается свежим, если совпадают заголовок и SHA всех доказательств; в задания судье попадают только несвежие.",
       "at": "2026-10-14"
     },
     "dfed5ff72504": {
@@ -745,12 +745,12 @@
     "e89a3d7bf546": {
       "question": "AGENTS.md > CLAUDE.md для Claude Code — импорт @AGENTS.md, генерирует harness adapters sync",
       "evidence": {
-        "@claude-md-import": "668349d38e4e1cf1eb1b13746dbcf95442314eccd73498e8f338d9c44bfa53fd"
+        "@claude-md-import": "ca1f6855d54aa6a32d2828fec789f771c811d9a84e7caa9c4c5a6a8473f7cfeb"
       },
       "verdict": true,
-      "quote": "- **Claude Code** — `CLAUDE.md` (`@AGENTS.md`), копии skills в",
+      "quote": "**Claude Code** — `CLAUDE.md` (`@AGENTS.md`), копии skills в",
       "ref": "@claude-md-import",
-      "reason": "Контракт задаёт CLAUDE.md как импорт @AGENTS.md, производные генерирует harness adapters sync; claudeMd() в render.ts выдаёт метку и строку @AGENTS.md",
+      "reason": "Контракт и claudeMd() задают CLAUDE.md как импорт @AGENTS.md, производные генерирует harness adapters sync.",
       "at": "2026-10-14"
     },
     "f43bd63c8e4c": {

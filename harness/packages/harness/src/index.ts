@@ -1,4 +1,4 @@
-export { normalizeEol, parseFrontmatter, type Frontmatter } from './frontmatter.ts';
+export { normalizeEol, parseFrontmatter, type Frontmatter } from './shared/frontmatter.ts';
 export {
   collectEntries,
   diffIndex,
@@ -11,42 +11,41 @@ export {
   type IndexDiff,
   type IndexEntry,
   type RenderOptions,
-} from './prompt-index.ts';
-export { checkChangelog, lintChangelog, CHANGELOG_PATH } from './checks/changelog.ts';
-export { checkSecrets, scanSecrets, scanSecretsFile } from './checks/secrets.ts';
+} from './lib/prompt-index.ts';
+export { checkChangelog, lintChangelog, CHANGELOG_PATH } from './commands/changelog/index.ts';
+export { checkSecrets, scanSecrets, scanSecretsFile } from './commands/secrets/index.ts';
 export {
   CONFIG_PATH,
   DEFAULT_CHANGELOG,
+  KNOWN_ADAPTERS,
   KNOWN_CHECKS,
   loadConfig,
+  type AdapterName,
   parseConfig,
   type ChangelogOptions,
   type HarnessConfig,
   type SecretsAllow,
   type SecretsOptions,
-} from './config.ts';
-export { formatDiagnostic, UsageError, type Diagnostic } from './diagnostics.ts';
+} from './shared/config.ts';
+export { formatDiagnostic, UsageError, type Diagnostic } from './shared/diagnostics.ts';
 export {
   buildContextIndex,
   checkContextIndex,
-  CONTEXT_INDEX_PATH,
   type ContextIndexResult,
-} from './checks/context-index.ts';
+} from './commands/context/index.ts';
 export {
   applyActions,
   checkAdapters,
   computeSync,
-  KNOWN_ADAPTERS,
   type Action,
-  type AdapterName,
   type SyncResult,
-} from './adapters/sync.ts';
+} from './commands/adapters/index.ts';
 export {
   changelogBetween,
   compareVersions,
   runOutdated,
   type Fetcher,
-} from './commands/outdated.ts';
+} from './commands/outdated/index.ts';
 export {
   childrenOf,
   COMMANDS,
@@ -55,9 +54,9 @@ export {
   renderUsage,
   type Command,
   type Match,
-} from './commands/tree.ts';
-export { shellStep, splitWords } from './commands/shell.ts';
-export { io as planIo, selfCommand } from './commands/plan.ts';
+} from './tree.ts';
+export { shellStep, splitWords } from './shell.ts';
+export { io as planIo, selfCommand } from './harness/index.ts';
 export {
   drive,
   machineMermaid,
@@ -68,9 +67,9 @@ export {
   type Guard,
   type MachineDef,
   type Registry,
-} from './fsm/machine.ts';
-export { FSM_SCHEMA } from './fsm/schema.ts';
-export { loadHarness, type LoadedHarness } from './handlers/load.ts';
+} from './harness/index.ts';
+export { FSM_SCHEMA } from './harness/index.ts';
+export { loadHarness, type LoadedHarness } from './harness/index.ts';
 export {
   failureReport,
   hookSettings,
@@ -78,7 +77,7 @@ export {
   planIterRegistry,
   REVIEW_TOOLS,
   type PlanContext,
-} from './handlers/plan-iter.ts';
+} from './harness/index.ts';
 export {
   acceptFindings,
   CRITERIA_SCHEMA,
@@ -87,8 +86,8 @@ export {
   verdict,
   type Criterion,
   type Finding,
-} from './plan/criteria.ts';
-export { FORMAL_CRITERIA, formalCheck } from './plan/formal.ts';
+} from './harness/index.ts';
+export { FORMAL_CRITERIA, formalCheck } from './harness/index.ts';
 export {
   changedParts,
   parsePlan,
@@ -98,14 +97,13 @@ export {
   withDependents,
   type PlanItem,
   type PlanModel,
-} from './plan/model.ts';
-export { renderPlanHtml } from './plan/render.ts';
-export { headlessArgs, interactiveArgs, type ModelRunner } from './runner/claude.ts';
-export { type Prompter } from './runner/terminal.ts';
-export { BUILTIN_HARNESSES, createSession, harnessHome, openSession } from './store/session.ts';
+} from './harness/index.ts';
+export { renderPlanHtml } from './harness/index.ts';
+export { headlessArgs, interactiveArgs, type ModelRunner } from './harness/index.ts';
+export { type Prompter } from './harness/index.ts';
+export { BUILTIN_HARNESSES, createSession, harnessHome, openSession } from './harness/index.ts';
 export {
   checkDelta,
-  DELTA_DIR,
   DELTA_SCHEMA,
   matchesTarget,
   revisionLines,
@@ -114,4 +112,13 @@ export {
   type DeltaItem,
   type DeltaResult,
   type Revision,
-} from './checks/delta.ts';
+} from './commands/delta/index.ts';
+export { CONTEXT_INDEX_PATH, DELTA_DIR } from './shared/layout.ts';
+export {
+  compileSchema,
+  schemaErrors,
+  schemaSet,
+  type SchemaIssue,
+  type Validate,
+} from './shared/schema.ts';
+export type { CommandNode, Effect, ScriptDef, ScriptNode, ScriptStep } from './shared/node.ts';
