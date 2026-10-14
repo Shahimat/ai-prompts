@@ -1,5 +1,4 @@
-import { describe } from 'vitest';
-import { crit, judged } from '@shahimat/harness/expect';
+import { crit, describe, judged } from '@shahimat/harness/expect';
 
 export function attention(...keys: string[]): void {
   if (keys.length === 0) throw new Error('attention: нужен хотя бы один ключ якоря');

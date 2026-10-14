@@ -4,6 +4,14 @@
 
 ## 0.4.0
 
+- Одна точка входа ожиданий: `harness expect report | lint | judge |
+  serve <file>` прогоняют ровно переданный файл, остальные ожидания
+  попадают в прогон только через `import` в нём. Конфиг vitest — из
+  пакета: проекту не нужен свой `expectations/vitest.config.ts`.
+  Отчёт, бюджет и проверка заголовков судьёй — по модулю, где объявлено
+  ожидание. Вердикты и задания судьи — рядом с точкой входа
+  (`<каталог>/.verdicts.json`, `<каталог>/.judge/`). `expect init`
+  создаёт `expectations/index.expect.ts`, скрипты передают его.
 - План в форме ожиданий (`@shahimat/harness/expect`): `step(id, { title,
   status, after, why }, body)` — шаг плана, его ожидания — DoD; `todo` не
   запускается, `active` запускается без блокировки, `done` блокирует;
@@ -14,11 +22,11 @@
   узлу, переходу и автомату, опечатка — ошибка typecheck. Зонды
   `Graph.sameAs` (сверка с `harness.yaml`), `Graph.canReach`,
   `Graph.onlyVia`.
-- `harness expect report --html <out> [--file <path>]` — HTML без сети и
+- `harness expect report <file> --html <out>` — HTML без сети и
   без JS: схемы шагов и автоматов — SVG Graphviz (`@hpcc-js/wasm-graphviz`),
   узел и переход ведут к карточке, цвет — статус ожиданий; новые,
   изменённые и удалённые относительно HEAD ожидания отмечены.
-- `harness expect serve [--file <path>] [--port <n>]` — тот же HTML с
+- `harness expect serve <file> [--port <n>]` — тот же HTML с
   локального сервера на `127.0.0.1`: страница собирается при каждом
   запросе, файлов не пишет; артефакт плана — только файл ожиданий.
 - CLI harness — под его именем: `harness <имя> start | open <id> | list

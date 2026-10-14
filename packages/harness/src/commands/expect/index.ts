@@ -19,7 +19,13 @@ import { readEvidence, shaOf } from '#lib/expect/evidence';
 import { COLLECT_ENV, idOf, isPendingItem, SEEN_ENV, type PendingItem } from '#lib/expect/judge';
 import { isRecord, isStringArray } from '#shared/guards';
 import { lintTitles, type Title } from '#lib/expect/lint';
-import { loadVerdicts, pruneStore, saveVerdicts, VERDICTS_PATH } from '#lib/expect/verdicts';
+import {
+  ENTRY_ENV,
+  loadVerdicts,
+  pruneStore,
+  saveVerdicts,
+  verdictsPath,
+} from '#lib/expect/verdicts';
 import type { CommandArgs } from '#shared/args';
 import { headTitles } from './head.ts';
 import { portOf, serveHtml } from './serve.ts';
@@ -38,8 +44,29 @@ import {
   type TestResult,
 } from './results.ts';
 
-export const EXPECT_CONFIG = 'expectations/vitest.config.ts';
-const JUDGE_DIR = 'expectations/.judge';
+export const INDEX_ENTRY = 'expectations/index.expect.ts';
+
+const BUILTIN_CONFIG = path.join(
+  import.meta.dirname,
+  existsSync(path.join(import.meta.dirname, 'vitest.config.js'))
+    ? 'vitest.config.js'
+    : 'vitest.config.ts',
+);
+
+const posix = (p: string): string => p.split(path.sep).join('/');
+
+const judgeDir = (entry: string): string => path.posix.join(path.posix.dirname(entry), '.judge');
+
+function entryOf(args: CommandArgs): string {
+  const file = args.params?.['file'];
+  if (file === undefined) throw new UsageError('нужен путь к файлу ожиданий: <file>');
+  const rel = posix(path.relative(args.root, path.resolve(args.root, file)));
+  if (rel.startsWith('../') || !existsSync(path.join(args.root, rel)))
+    throw new UsageError(`нет файла ожиданий ${file} в ${args.root}`);
+  if (!rel.endsWith('.expect.ts')) throw new UsageError(`файл ожиданий — *.expect.ts: ${file}`);
+  process.env[ENTRY_ENV] = rel;
+  return rel;
+}
 
 function vitestBin(root: string): string {
   const require = createRequire(path.join(root, 'package.json'));
@@ -58,10 +85,10 @@ function vitestBin(root: string): string {
 
 function runVitest(
   root: string,
+  entry: string,
   env: Record<string, string> = {},
   extra: string[] = [],
 ): TestResult[] {
-  if (!existsSync(path.join(root, EXPECT_CONFIG))) throw new UsageError(`нет ${EXPECT_CONFIG}`);
   const out = path.join(tmpdir(), `harness-expect-${process.pid}-${Date.now()}.json`);
   spawnSync(
     process.execPath,
@@ -71,14 +98,14 @@ function runVitest(
       '--root',
       root,
       '--config',
-      EXPECT_CONFIG,
+      BUILTIN_CONFIG,
       '--reporter=json',
       `--outputFile=${out}`,
       ...extra,
     ],
     {
       cwd: root,
-      env: { ...process.env, ...env, HARNESS_EXPECT_ROOT: root },
+      env: { ...process.env, ...env, HARNESS_EXPECT_ROOT: root, [ENTRY_ENV]: entry },
       stdio: ['ignore', 'ignore', 'inherit'],
     },
   );
@@ -95,13 +122,6 @@ const titlesSha = (tests: TestResult[]): string => shaOf(tests.map(fullName).sor
 const isPending = (t: TestResult): boolean =>
   t.status === 'failed' && t.message.includes('нет свежего вердикта');
 
-function fileFilter(args: CommandArgs): string[] {
-  if (args.file === undefined) return [];
-  const rel = path.relative(args.root, path.resolve(args.root, args.file));
-  if (!existsSync(path.join(args.root, rel))) throw new UsageError(`нет файла ${args.file}`);
-  return [rel.split(path.sep).join('/')];
-}
-
 function stepLabels(tests: TestResult[]): Map<string, string> {
   const labels = new Map<string, string>();
   for (const t of tests)
@@ -113,8 +133,7 @@ async function collect(
   args: CommandArgs,
   log: (line: string) => void,
 ): Promise<{ reports: FileReport[]; blocked: boolean }> {
-  const files = fileFilter(args);
-  const all = runVitest(args.root, {}, files);
+  const all = runVitest(args.root, entryOf(args));
   const store = await loadVerdicts();
   const titleIssues = lintTitles(
     visible(all).map((r) => ({ file: r.file, path: r.path, title: r.title })),
@@ -210,7 +229,7 @@ async function collect(
 async function pageHtml(args: CommandArgs, reports: FileReport[]): Promise<string> {
   for (const r of reports) {
     const head = headTitles(args.root, r.file, (rel) =>
-      visible(runVitest(args.root, {}, [rel, '-t', NOTHING])),
+      visible(runVitest(args.root, rel, {}, ['-t', NOTHING])).filter((t) => t.file === rel),
     );
     if (head !== undefined) r.head = head;
   }
@@ -231,9 +250,7 @@ async function report(args: CommandArgs): Promise<number> {
 }
 
 async function serve(args: CommandArgs): Promise<number> {
-  if (!existsSync(path.join(args.root, EXPECT_CONFIG)))
-    throw new UsageError(`нет ${EXPECT_CONFIG}`);
-  fileFilter(args);
+  entryOf(args);
   const render = async (): Promise<string> => {
     const { reports } = await collect(args, () => undefined);
     return pageHtml(args, reports);
@@ -242,7 +259,7 @@ async function serve(args: CommandArgs): Promise<number> {
 }
 
 async function lint(args: CommandArgs): Promise<number> {
-  const titles: Title[] = visible(runVitest(args.root)).map((r) => ({
+  const titles: Title[] = visible(runVitest(args.root, entryOf(args))).map((r) => ({
     file: r.file,
     path: r.path,
     title: r.title,
@@ -284,11 +301,13 @@ function isPlan(v: unknown): v is Plan {
 }
 
 async function judgePrepare(args: CommandArgs): Promise<number> {
+  const entry = entryOf(args);
+  const JUDGE_DIR = judgeDir(entry);
   const dir = path.join(args.root, JUDGE_DIR);
   await rm(dir, { recursive: true, force: true });
   const pendingDir = path.join(dir, 'pending');
   const seenDir = path.join(dir, 'seen');
-  const results = runVitest(args.root, { [COLLECT_ENV]: pendingDir, [SEEN_ENV]: seenDir });
+  const results = runVitest(args.root, entry, { [COLLECT_ENV]: pendingDir, [SEEN_ENV]: seenDir });
   const seen = new Set(existsSync(seenDir) ? await readdir(seenDir) : []);
   await rm(seenDir, { recursive: true, force: true });
   const items: PendingItem[] = [];
@@ -346,6 +365,7 @@ async function judgePrepare(args: CommandArgs): Promise<number> {
 }
 
 async function judgeApply(args: CommandArgs): Promise<number> {
+  const JUDGE_DIR = judgeDir(entryOf(args));
   const planFile = path.join(args.root, JUDGE_DIR, 'plan.json');
   if (!existsSync(planFile)) throw new UsageError('нет плана: сначала harness expect judge');
   const plan: unknown = JSON.parse(await readFile(planFile, 'utf8'));
@@ -383,25 +403,16 @@ async function judgeApply(args: CommandArgs): Promise<number> {
   for (const r of rejected) console.error(r);
   if (rejected.length > 0) {
     console.error(
-      `expect judge --apply: отклонено ${rejected.length}; принятое сохранено в ${VERDICTS_PATH}`,
+      `expect judge --apply: отклонено ${rejected.length}; принятое сохранено в ${verdictsPath()}`,
     );
     return 1;
   }
   await rm(path.join(args.root, JUDGE_DIR), { recursive: true, force: true });
-  console.log(`expect judge --apply: вердикты сохранены в ${VERDICTS_PATH}`);
+  console.log(`expect judge --apply: вердикты сохранены в ${verdictsPath()}`);
   return 0;
 }
 
-const INIT_CONFIG = `import { defineConfig } from 'vitest/config';
-
-// Ожидания: заголовки crit/warn — для человека, проверки — класс Check ниже в файле.
-// Отчёт: npm run expect. Вердикты судьи: npm run expect:judge → expect:apply.
-export default defineConfig({
-  test: {
-    include: ['expectations/**/*.expect.ts'],
-    testTimeout: 30_000,
-  },
-});
+const initIndex = (name: string): string => `import './${name}.expect.ts';
 `;
 
 const initExample = (name: string): string => `import { describe, it } from 'vitest';
@@ -429,8 +440,9 @@ async function init(args: CommandArgs): Promise<number> {
     done.push(`создан ${rel}`);
   };
   const name = path.basename(args.root);
-  await put(EXPECT_CONFIG, INIT_CONFIG);
+  await put(INDEX_ENTRY, initIndex(name));
   await put(`expectations/${name}.expect.ts`, initExample(name));
+  const JUDGE_DIR = judgeDir(INDEX_ENTRY);
 
   const gitignore = path.join(args.root, '.gitignore');
   const ignored = existsSync(gitignore) ? await readFile(gitignore, 'utf8') : '';
@@ -450,9 +462,9 @@ async function init(args: CommandArgs): Promise<number> {
     const current = pkg['scripts'] ?? {};
     if (!isRecord(current)) throw new UsageError('package.json: scripts должно быть объектом');
     const scripts = {
-      expect: 'harness expect report --root .',
-      'expect:judge': 'harness expect judge --root .',
-      'expect:apply': 'harness expect judge --apply --root .',
+      expect: `harness expect report ${INDEX_ENTRY} --root .`,
+      'expect:judge': `harness expect judge ${INDEX_ENTRY} --root .`,
+      'expect:apply': `harness expect judge ${INDEX_ENTRY} --apply --root .`,
     };
     const added = Object.entries(scripts).filter(([k]) => current[k] === undefined);
     if (added.length > 0) {

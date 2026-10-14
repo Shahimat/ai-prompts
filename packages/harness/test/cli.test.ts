@@ -172,8 +172,12 @@ describe('harness expect init', () => {
     const { readFile } = await import('node:fs/promises');
     const pkg: unknown = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'));
     expect(pkg).toMatchObject({
-      scripts: { test: 'x', expect: 'harness expect report --root .' },
+      scripts: { test: 'x', expect: 'harness expect report expectations/index.expect.ts --root .' },
     });
+    expect(await readFile(path.join(root, 'expectations/index.expect.ts'), 'utf8')).toBe(
+      `import './${path.basename(root)}.expect.ts';\n`,
+    );
+    expect(existsSync(path.join(root, 'expectations/vitest.config.ts'))).toBe(false);
     expect(await readFile(path.join(root, '.gitignore'), 'utf8')).toBe(
       'node_modules/\nexpectations/.judge/\n',
     );

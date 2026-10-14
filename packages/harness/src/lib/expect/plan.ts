@@ -1,6 +1,7 @@
-import { describe, it } from 'vitest';
+import { it } from 'vitest';
+import { describe } from './levels.ts';
 import type { StepDef } from './levels.ts';
-import { registerScope, type Scope, type StepStatus } from './scope.ts';
+import { registerScope, sourceNow, type Scope, type StepStatus } from './scope.ts';
 
 function scopedDescribe(title: string, scope: Scope, body: () => void): void {
   registerScope(title, scope);
@@ -27,9 +28,11 @@ export function step(id: string, options: StepOptions, body: () => void): void {
     after: [...(options.after ?? [])],
   };
   if (options.why !== undefined) def.why = options.why;
+  const source = sourceNow();
   scopedDescribe(`${id}. ${options.title}`, { step: { id, status: options.status } }, () => {
     it(STEP_TITLE, (ctx) => {
       ctx.task.meta.stepDef = def;
+      if (source !== undefined) ctx.task.meta.source = source;
     });
     body();
   });
@@ -87,8 +90,10 @@ export function machine<const D extends MachineSpec<StatesOf<D>, LimitsOf<D>>>(
   name: string,
   def: D,
 ): Machine<D> {
+  const source = sourceNow();
   it(`${MACHINE_TITLE}${name}`, (ctx) => {
     ctx.task.meta.machine = { name, def };
+    if (source !== undefined) ctx.task.meta.source = source;
   });
   const scoped = (title: string, node: string, body: () => void) =>
     scopedDescribe(`${name} › ${title}`, { node: { machine: name, node } }, body);

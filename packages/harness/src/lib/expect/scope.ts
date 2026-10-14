@@ -35,6 +35,30 @@ export function scopeOf(task: { suite?: SuiteLike | undefined }): Scope {
   return scope;
 }
 
+const EXPECT_FRAME = /(?:file:\/\/)?((?:[A-Za-z]:)?[^\s()]*?\.expect\.ts)(?::\d+)*/;
+
+export function callerModule(): string | undefined {
+  for (const line of (new Error().stack ?? '').split('\n').slice(1)) {
+    const found = EXPECT_FRAME.exec(line)?.[1];
+    if (found !== undefined) return decodeURIComponent(found.replace(/^\/([A-Za-z]:)/, '$1'));
+  }
+  return undefined;
+}
+
+let currentSource: string | undefined;
+
+export const sourceNow = (): string | undefined => currentSource ?? callerModule();
+
+export function withSource(source: string | undefined, body: () => void): void {
+  const saved = currentSource;
+  currentSource = source;
+  try {
+    body();
+  } finally {
+    currentSource = saved;
+  }
+}
+
 export const SERVICE_PREFIX = '__';
 
 export const isServiceTitle = (title: string): boolean => title.startsWith(SERVICE_PREFIX);

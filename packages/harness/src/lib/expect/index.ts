@@ -23,6 +23,7 @@ export { dataFiles, expectSchema, frontmatters, schemaErrors, type Instance } fr
 export {
   budget,
   crit,
+  describe,
   expectAtMost,
   note,
   warn,

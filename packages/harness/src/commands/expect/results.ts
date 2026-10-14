@@ -61,16 +61,16 @@ export function parseVitestReport(data: unknown, root: string): TestResult[] {
     if (!isRecord(file) || typeof file['name'] !== 'string') return fail('файл без name');
     const name = file['name'];
     if (!Array.isArray(file['assertionResults'])) return fail(`${name}: нет assertionResults`);
-    return file['assertionResults'].map((a: unknown) => {
+    const tests = file['assertionResults'].map((a: unknown) => {
       if (!isRecord(a) || typeof a['title'] !== 'string') return fail(`${name}: тест без title`);
       const { ancestorTitles, status, failureMessages } = a;
       if (!isStringArray(ancestorTitles)) return fail(`${name}: ancestorTitles — не строки`);
       if (!isOneOf(STATUSES, status)) return fail(`${name}: неизвестный статус ${String(status)}`);
       if (!isStringArray(failureMessages)) return fail(`${name}: failureMessages — не строки`);
       const meta = isRecord(a['meta']) ? a['meta'] : {};
-      const { level, notes, budget, planned, step, stepStatus } = meta;
+      const { level, notes, budget, planned, step, stepStatus, source } = meta;
       const result: TestResult = {
-        file: path.relative(root, name).split(path.sep).join('/'),
+        file: relative(root, typeof source === 'string' ? source : name),
         path: ancestorTitles,
         title: a['title'],
         status,
@@ -88,10 +88,22 @@ export function parseVitestReport(data: unknown, root: string): TestResult[] {
       if (stepDef !== undefined) result.stepDef = stepDef;
       const machine = machineOf(meta['machine']);
       if (machine !== undefined) result.machine = machine;
-      return result;
+      return { result, own: typeof source === 'string' };
+    });
+    const byTop = new Map<string, string>();
+    for (const t of tests)
+      if (t.own && t.result.path[0] !== undefined) byTop.set(t.result.path[0], t.result.file);
+    return tests.map(({ result, own }) => {
+      if (own) return result;
+      const top = result.path[0];
+      const file = top === undefined ? undefined : byTop.get(top);
+      return file === undefined ? result : { ...result, file };
     });
   });
 }
+
+const relative = (root: string, file: string): string =>
+  path.relative(root, file).split(path.sep).join('/');
 
 export const fullName = (t: { path: string[]; title: string }): string =>
   [...t.path, t.title].join(' > ');

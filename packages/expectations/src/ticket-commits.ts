@@ -1,5 +1,4 @@
-import { describe } from 'vitest';
-import { crit, judged, warn } from '@shahimat/harness/expect';
+import { crit, describe, judged, warn } from '@shahimat/harness/expect';
 
 export function ticketCommits(...keys: string[]): void {
   if (keys.length === 0) throw new Error('ticketCommits: нужен хотя бы один ключ якоря');

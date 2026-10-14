@@ -8,6 +8,7 @@ const TMP = path.join(import.meta.dirname, '.tmp');
 const ROOT = path.join(TMP, 'expect-cli');
 const NOW = new Date('2026-10-13T12:00:00Z');
 const out: string[] = [];
+const ENTRY = 'expectations/demo.expect.ts';
 
 async function put(rel: string, content: string): Promise<void> {
   await mkdir(path.dirname(path.join(ROOT, rel)), { recursive: true });
@@ -17,10 +18,6 @@ async function put(rel: string, content: string): Promise<void> {
 beforeAll(async () => {
   await rm(ROOT, { recursive: true, force: true });
   await put('package.json', '{"name":"fixture","private":true,"type":"module"}');
-  await put(
-    'expectations/vitest.config.ts',
-    "import { defineConfig } from 'vitest/config';\nexport default defineConfig({ test: { include: ['expectations/**/*.expect.ts'] } });\n",
-  );
   await put(
     'expectations/demo.expect.ts',
     "import { describe, it, expect } from 'vitest';\ndescribe('демо', () => {\n  it('два плюс два — четыре', () => expect(2 + 2).toBe(4));\n  it.todo('будущее ожидание');\n});\n",
@@ -40,12 +37,12 @@ afterAll(async () => {
 
 describe('harness expect report | lint | judge', () => {
   it('lint: 0 — заголовки в порядке', async () => {
-    expect(await main(['expect', 'lint', '--root', ROOT], NOW)).toBe(0);
+    expect(await main(['expect', 'lint', ENTRY, '--root', ROOT], NOW)).toBe(0);
   }, 60_000);
 
   it('report: 1 — нет свежей проверки заголовков; дерево со статусами', async () => {
     out.length = 0;
-    expect(await main(['expect', 'report', '--root', ROOT], NOW)).toBe(1);
+    expect(await main(['expect', 'report', ENTRY, '--root', ROOT], NOW)).toBe(1);
     const text = out.join('\n');
     expect(text).toContain('✓ два плюс два — четыре');
     expect(text).toContain('○ будущее ожидание');
@@ -54,7 +51,7 @@ describe('harness expect report | lint | judge', () => {
 
   it('serve: страница отчёта с 127.0.0.1; SIGINT — код 0', async () => {
     out.length = 0;
-    const running = main(['expect', 'serve', '--root', ROOT, '--port', '0'], NOW);
+    const running = main(['expect', 'serve', ENTRY, '--root', ROOT, '--port', '0'], NOW);
     let url: string | undefined;
     for (let i = 0; i < 200 && url === undefined; i++) {
       url = /http:\/\/127\.0\.0\.1:\d+\//.exec(out.join('\n'))?.[0];
@@ -70,7 +67,7 @@ describe('harness expect report | lint | judge', () => {
   }, 60_000);
 
   it('judge: готовит проверку заголовков; --apply с ответом — report проходит', async () => {
-    expect(await main(['expect', 'judge', '--root', ROOT], NOW)).toBe(1);
+    expect(await main(['expect', 'judge', ENTRY, '--root', ROOT], NOW)).toBe(1);
     const plan: unknown = JSON.parse(
       await readFile(path.join(ROOT, 'expectations/.judge/plan.json'), 'utf8'),
     );
@@ -79,8 +76,8 @@ describe('harness expect report | lint | judge', () => {
     const answer: unknown = isRecord(lint[0]) ? lint[0]['answer'] : undefined;
     if (typeof answer !== 'string') throw new Error('в плане нет файла ответа');
     await put(answer, '{"contradictions": [], "unmeasurable": []}');
-    expect(await main(['expect', 'judge', '--apply', '--root', ROOT], NOW)).toBe(0);
-    expect(await main(['expect', 'report', '--root', ROOT], NOW)).toBe(0);
-    expect(await main(['expect', 'judge', '--root', ROOT], NOW)).toBe(0);
+    expect(await main(['expect', 'judge', ENTRY, '--apply', '--root', ROOT], NOW)).toBe(0);
+    expect(await main(['expect', 'report', ENTRY, '--root', ROOT], NOW)).toBe(0);
+    expect(await main(['expect', 'judge', ENTRY, '--root', ROOT], NOW)).toBe(0);
   }, 120_000);
 });

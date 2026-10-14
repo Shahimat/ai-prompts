@@ -4,7 +4,14 @@ import path from 'node:path';
 import { errorCode, isRecord } from '#shared/guards';
 import { repoRoot } from './repo.ts';
 
-export const VERDICTS_PATH = 'expectations/.verdicts.json';
+export const ENTRY_ENV = 'HARNESS_EXPECT_ENTRY';
+
+const DEFAULT_ENTRY = 'expectations/index.expect.ts';
+
+export const entryOf = (): string => process.env[ENTRY_ENV] ?? DEFAULT_ENTRY;
+
+export const verdictsPath = (entry: string = entryOf()): string =>
+  path.posix.join(path.posix.dirname(entry.split(path.sep).join('/')), '.verdicts.json');
 
 export interface Verdict {
   question: string;
@@ -76,10 +83,10 @@ function isLintVerdict(v: unknown): v is LintVerdict {
 
 function section<T>(value: unknown, name: string, is: (v: unknown) => v is T): Record<string, T> {
   if (value === undefined) return {};
-  if (!isRecord(value)) throw new Error(`${VERDICTS_PATH}: ${name} должно быть объектом`);
+  if (!isRecord(value)) throw new Error(`${verdictsPath()}: ${name} должно быть объектом`);
   const out: Record<string, T> = {};
   for (const [key, item] of Object.entries(value)) {
-    if (!is(item)) throw new Error(`${VERDICTS_PATH}: ${name}.${key} — неверная форма записи`);
+    if (!is(item)) throw new Error(`${verdictsPath()}: ${name}.${key} — неверная форма записи`);
     out[key] = item;
   }
   return out;
@@ -88,12 +95,12 @@ function section<T>(value: unknown, name: string, is: (v: unknown) => v is T): R
 export async function loadVerdicts(): Promise<VerdictStore> {
   let data: unknown;
   try {
-    data = JSON.parse(await readFile(path.join(repoRoot(), VERDICTS_PATH), 'utf8'));
+    data = JSON.parse(await readFile(path.join(repoRoot(), verdictsPath()), 'utf8'));
   } catch (error) {
     if (errorCode(error) === 'ENOENT') return { verdicts: {}, lint: {} };
     throw error;
   }
-  if (!isRecord(data)) throw new Error(`${VERDICTS_PATH}: корень должен быть объектом`);
+  if (!isRecord(data)) throw new Error(`${verdictsPath()}: корень должен быть объектом`);
   return {
     verdicts: section(data['verdicts'], 'verdicts', isVerdict),
     lint: section(data['lint'], 'lint', isLintVerdict),
@@ -125,7 +132,7 @@ const sortKeys = <T>(obj: Record<string, T>): Record<string, T> =>
   Object.fromEntries(Object.entries(obj).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)));
 
 export async function saveVerdicts(store: VerdictStore): Promise<void> {
-  const file = path.join(repoRoot(), VERDICTS_PATH);
+  const file = path.join(repoRoot(), verdictsPath());
   await mkdir(path.dirname(file), { recursive: true });
   const data = { verdicts: sortKeys(store.verdicts), lint: sortKeys(store.lint) };
   await writeFile(file, `${JSON.stringify(data, null, 2)}\n`, 'utf8');

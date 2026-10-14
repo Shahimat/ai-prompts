@@ -1,5 +1,5 @@
-import { expect, it } from 'vitest';
-import { scopeOf, type NodeScope, type StepStatus } from './scope.ts';
+import { describe as vitestDescribe, expect, it } from 'vitest';
+import { scopeOf, sourceNow, withSource, type NodeScope, type StepStatus } from './scope.ts';
 
 export const LEVELS = ['crit', 'warn', 'info'] as const;
 export type Level = (typeof LEVELS)[number];
@@ -37,6 +37,7 @@ declare module 'vitest' {
     node?: NodeScope;
     stepDef?: StepDef;
     machine?: MachineMeta;
+    source?: string;
   }
 }
 
@@ -45,10 +46,12 @@ let notes: string[] = [];
 type Body = () => unknown;
 
 function levelled(level: Level, title: string, fn: Body | undefined): void {
+  const source = sourceNow();
   it(title, async (ctx) => {
     const scope = scopeOf(ctx.task);
     const meta = ctx.task.meta;
     meta.level = level;
+    if (source !== undefined) meta.source = source;
     if (scope.step !== undefined) {
       meta.step = scope.step.id;
       meta.stepStatus = scope.step.status;
@@ -83,13 +86,22 @@ export const crit: LevelFn = levelFn('crit');
 
 export const warn: LevelFn = levelFn('warn');
 
+export function describe(title: string, body: () => void): void {
+  const source = sourceNow();
+  vitestDescribe(title, () => {
+    withSource(source, body);
+  });
+}
+
 export function note(text: string): void {
   notes.push(text);
 }
 
 export function budget(value: Budget): void {
+  const source = sourceNow();
   it(BUDGET_TITLE, (ctx) => {
     ctx.task.meta.budget = value;
+    if (source !== undefined) ctx.task.meta.source = source;
   });
 }
 
