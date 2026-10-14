@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect } from 'vitest';
@@ -30,11 +30,29 @@ import {
   expectSchema,
   judged,
   readRepo,
+  repoRoot,
   warn,
 } from '@shahimat/harness/expect';
 import { parseJson } from './shared/guards.ts';
 
 budget({ crit: 0, warn: 0 });
+
+describe('[harness] plan-review start', () => {
+  crit(
+    'harness plan-review start --name <имя> создаёт план .claude/artifacts/plan-review/<slug>.expect.ts; без --name имя спрашивается в терминале, без терминала — ошибка',
+    () => Start.artifact(),
+  );
+  crit('после создания плана start спрашивает запрос в терминале, если не передан --request', () =>
+    Start.request(),
+  );
+  crit('slug плана — имя в нижнем регистре, пробелы и знаки — дефис; кириллица сохраняется', () =>
+    Start.slug(),
+  );
+  crit(
+    'файл плана объявляет plan({ name, kind }); в HTML шапка по виду — «План FSM» для fsm — и имя плана вместо пути к файлу',
+    () => Start.htmlHeader(),
+  );
+});
 
 describe('[harness] plan-review', () => {
   crit(
@@ -43,9 +61,6 @@ describe('[harness] plan-review', () => {
   );
   crit('результат планера — plan.md; HTML для просмотра собирает отдельная команда render', () =>
     Check.planIsSource(),
-  );
-  crit('clone md --out <path> кладёт план в проект; без clone проект не меняется', () =>
-    Check.cloneOnly(),
   );
   crit('сессии лежат в ~/.config/harness; каталог переопределяется параметром', () => Check.home());
   warn(
@@ -129,6 +144,7 @@ interface Script {
   review?: (stage: '1b' | '2') => unknown;
   fix?: (text: string, n: number) => string;
   draft?: (session: string) => string;
+  start?: { name?: string; request?: string };
 }
 
 interface Flow {
@@ -165,8 +181,7 @@ async function withFlow(script: Script, fn: (flow: Flow) => Promise<void>): Prom
         now: NOW,
         home,
         params: match.params,
-        name: 'Демо',
-        request: 'спланируй',
+        ...(script.start ?? { name: 'Демо', request: 'спланируй' }),
         ...(outAt >= 0 ? { out: words[outAt + 1] ?? '' } : {}),
       });
     },
@@ -264,18 +279,6 @@ class Check {
       expect(existsSync(path.join(flow.dir, 'plan.html'))).toBe(false);
       expect(await flow.run('plan-review', 'render', flow.id)).toBe(0);
       expect(await readFile(path.join(flow.dir, 'plan.html'), 'utf8')).toContain('<svg');
-    });
-  }
-
-  static async cloneOnly(): Promise<void> {
-    await withFlow({ answers: ['approve'] }, async (flow) => {
-      expect(await readdir(flow.project)).toEqual(['.git', 'README.md']);
-      expect(await flow.run('plan-review', 'clone', flow.id, 'md', '--out', 'docs/plan.md')).toBe(
-        0,
-      );
-      expect(await readFile(path.join(flow.project, 'docs/plan.md'), 'utf8')).toContain(
-        'status: approved',
-      );
     });
   }
 
@@ -466,5 +469,109 @@ class Check {
     expect(flag('--tools')).toBe('Read');
     expect(flag('--output-format')).toBe('json');
     expect(args).toContain('--no-session-persistence');
+  }
+}
+
+const ARTIFACTS = '.claude/artifacts/plan-review';
+
+const artifactsOf = async (project: string): Promise<string[]> =>
+  existsSync(path.join(project, ARTIFACTS))
+    ? (await readdir(path.join(project, ARTIFACTS))).sort()
+    : [];
+
+class Start {
+  static async artifact(): Promise<void> {
+    await withFlow({ answers: ['approve'] }, async (flow) => {
+      expect(await artifactsOf(flow.project)).toEqual(['демо.expect.ts']);
+      expect(
+        await readFile(path.join(flow.project, ARTIFACTS, 'демо.expect.ts'), 'utf8'),
+      ).toContain("plan({ name: 'Демо', kind: 'fsm' })");
+    });
+    await withFlow({ answers: ['Из терминала', 'запрос', 'approve'], start: {} }, async (flow) => {
+      expect(await artifactsOf(flow.project)).toEqual(['из-терминала.expect.ts']);
+    });
+    const project = await mkdtemp(path.join(tmpdir(), 'plan-review-noname-'));
+    const home = await mkdtemp(path.join(tmpdir(), 'plan-review-noname-home-'));
+    try {
+      const r = spawnSync(
+        process.execPath,
+        [
+          path.join(repoRoot(), 'packages/harness/dist/bin.js'),
+          'plan-review',
+          'start',
+          '--root',
+          project,
+          '--home',
+          home,
+        ],
+        { cwd: project, encoding: 'utf8' },
+      );
+      expect({ status: r.status, name: `${r.stdout}${r.stderr}`.includes('--name') }).toEqual({
+        status: 2,
+        name: true,
+      });
+      expect(await artifactsOf(project)).toEqual([]);
+    } finally {
+      await rm(project, { recursive: true, force: true });
+      await rm(home, { recursive: true, force: true });
+    }
+  }
+
+  static async request(): Promise<void> {
+    await withFlow(
+      { answers: ['запрос из терминала', 'approve'], start: { name: 'С запросом' } },
+      async (flow) => {
+        expect((await openSession(flow.home, flow.id)).data.request).toBe('запрос из терминала');
+        expect(await artifactsOf(flow.project)).toEqual(['с-запросом.expect.ts']);
+      },
+    );
+  }
+
+  static async slug(): Promise<void> {
+    await withFlow(
+      { answers: ['approve'], start: { name: 'План  стола: FSM!', request: 'r' } },
+      async (flow) => {
+        expect(await artifactsOf(flow.project)).toEqual(['план-стола-fsm.expect.ts']);
+      },
+    );
+  }
+
+  static async htmlHeader(): Promise<void> {
+    const base = path.join(repoRoot(), 'packages/harness/test/.tmp');
+    await mkdir(base, { recursive: true });
+    const dir = await mkdtemp(path.join(base, 'plan-header-'));
+    try {
+      const file = `${ARTIFACTS}/demo-plan.expect.ts`;
+      await mkdir(path.join(dir, ARTIFACTS), { recursive: true });
+      await writeFile(
+        path.join(dir, 'package.json'),
+        '{"name":"fixture","private":true,"type":"module"}',
+      );
+      await writeFile(
+        path.join(dir, file),
+        "import { describe } from 'vitest';\nimport { budget, crit, plan } from '@shahimat/harness/expect';\nbudget({ crit: 0, warn: 0 });\nplan({ name: 'Демо-план', kind: 'fsm' });\ndescribe('раздел', () => { crit('ожидание плана', () => {}); });\n",
+      );
+      const out = path.join(dir, 'page.html');
+      spawnSync(
+        process.execPath,
+        [
+          path.join(repoRoot(), 'packages/harness/dist/bin.js'),
+          'expect',
+          'report',
+          file,
+          '--root',
+          dir,
+          '--html',
+          out,
+        ],
+        { cwd: dir, encoding: 'utf8' },
+      );
+      const html = existsSync(out) ? await readFile(out, 'utf8') : '';
+      expect(html).toMatch(/<h1>План FSM<\/h1>/);
+      expect(html).toMatch(/<h2>Демо-план<\/h2>/);
+      expect(html).not.toContain(`<h2>${file}</h2>`);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   }
 }
