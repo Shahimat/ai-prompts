@@ -263,7 +263,7 @@ class Collector {
         }
         const format = (isRecord(item) ? item['format'] : undefined) ?? 'md';
         if (format !== 'md' && format !== 'yml') {
-          this.report(manifest, `index_layers: format «${String(format)}» — md или yml`);
+          this.report(manifest, `index_layers: format «${typeof format === 'string' ? format : JSON.stringify(format)}» — md или yml`);
           continue;
         }
         const taken = layers.find((l) => l.section === section);

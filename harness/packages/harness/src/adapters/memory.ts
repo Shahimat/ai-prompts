@@ -74,7 +74,7 @@ function scanToml(text: string): Map<string, string> {
   for (const raw of text.replace(/\r\n?/g, '\n').split('\n')) {
     const line = raw.replace(/\s+#.*$/, '').trim();
     if (line === '' || line.startsWith('#')) continue;
-    const header = /^\[([^\[\]]+)\]$/.exec(line);
+    const header = /^\[([^[\]]+)\]$/.exec(line);
     if (header !== null) {
       table = (header[1] ?? '').trim();
       continue;

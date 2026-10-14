@@ -6,7 +6,6 @@ import {
   expectAtMost,
   contract,
   dataFiles,
-  doc,
   expectSchema,
   frontmatters,
   indexEntries,
@@ -16,7 +15,6 @@ import {
   presets,
   readRepo,
   skill,
-  skills,
   warn,
 } from '@shahimat/harness/expect';
 import { attention, ticketCommits } from '@shahimat/expectations';
@@ -283,7 +281,7 @@ class Check {
 
   static async redFlagsListed(): Promise<void> {
     const section = (await skill('safety-boundaries')).section('Red-flag категории') ?? '';
-    expect(section.split('\n').filter((l) => /^- /.test(l)).length).toBeGreaterThan(0);
+    expect(section.split('\n').filter((l) => l.startsWith('- ')).length).toBeGreaterThan(0);
   }
   static attributionRule = (): Promise<void> => judged(['@attribution-rule']);
   static privacyRule = (): Promise<void> => judged(['@privacy-rule']);

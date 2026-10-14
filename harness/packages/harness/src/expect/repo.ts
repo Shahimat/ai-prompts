@@ -170,7 +170,8 @@ export interface SkillDoc extends Doc {
 export async function skill(name: string): Promise<SkillDoc> {
   await entry('skill', name);
   const d = await doc(`skills/${name}/SKILL.md`);
-  return { ...d, name, description: String(d.frontmatter?.['description'] ?? '') };
+  const description = d.frontmatter?.['description'];
+  return { ...d, name, description: typeof description === 'string' ? description : '' };
 }
 
 export async function skills(): Promise<SkillDoc[]> {

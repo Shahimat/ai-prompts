@@ -199,7 +199,7 @@ class Check {
   }
 
   static async processes(): Promise<void> {
-    expect([...new Set(COMMANDS.map((c) => c.path[0]))].sort()).toEqual(
+    expect([...new Set(COMMANDS.map((c) => c.path[0] ?? ''))].sort()).toEqual(
       ['adapters', 'changelog', 'check', 'context', 'delta', 'expect', 'index', 'outdated'],
     );
     const planIter = await readRepo('expectations/harness-plan-iter.expect.ts');
@@ -253,7 +253,7 @@ class Check {
       )
     ).join('\n');
     const untested = commands.filter((c) => {
-      const [group, sub] = c.split(' ');
+      const [group = '', sub] = c.split(' ');
       return sub === undefined
         ? !new RegExp(`\\['${group}'|run${group[0]?.toUpperCase()}${group.slice(1)}\\(`).test(tests)
         : !tests.includes(`'${group}', '${sub}'`);

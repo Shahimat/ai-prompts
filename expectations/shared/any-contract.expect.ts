@@ -17,14 +17,18 @@ export function anyContract(key: string): void {
 // ─────────────────────────────── проверки ───────────────────────────────
 
 class AnyContractCheck {
-  constructor(private readonly key: string) {}
+  private readonly key: string;
+
+  constructor(key: string) {
+    this.key = key;
+  }
 
   async frontmatter(): Promise<void> {
     const fm = (await contract(this.key)).frontmatter ?? {};
     expect(fm['key']).toBe(this.key);
     expect(fm['kind']).toBe('contract');
-    expect(String(fm['title'] ?? '')).not.toBe('');
-    expect(String(fm['use_case'] ?? '')).not.toBe('');
+    expect(fm['title']).toEqual(expect.stringMatching(/\S/));
+    expect(fm['use_case']).toEqual(expect.stringMatching(/\S/));
   }
 
   async patternsExist(): Promise<void> {
