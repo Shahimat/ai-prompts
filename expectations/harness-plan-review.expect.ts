@@ -42,8 +42,9 @@ describe('[harness] plan-review start', () => {
     'harness plan-review start --name <имя> создаёт план .claude/artifacts/plan-review/<slug>.expect.ts; без --name имя спрашивается в терминале, без терминала — ошибка',
     () => Start.artifact(),
   );
-  crit('после создания плана start спрашивает запрос в терминале, если не передан --request', () =>
-    Start.request(),
+  crit(
+    'без --request запрос пишется в интерактивной сессии планера: текст, файлы, картинки; start его не спрашивает',
+    () => Start.request(),
   );
   crit('slug плана — имя в нижнем регистре, пробелы и знаки — дефис; кириллица сохраняется', () =>
     Start.slug(),
@@ -488,7 +489,7 @@ class Start {
         await readFile(path.join(flow.project, ARTIFACTS, 'демо.expect.ts'), 'utf8'),
       ).toContain("plan({ name: 'Демо', kind: 'fsm' })");
     });
-    await withFlow({ answers: ['Из терминала', 'запрос', 'approve'], start: {} }, async (flow) => {
+    await withFlow({ answers: ['Из терминала', 'approve'], start: {} }, async (flow) => {
       expect(await artifactsOf(flow.project)).toEqual(['из-терминала.expect.ts']);
     });
     const project = await mkdtemp(path.join(tmpdir(), 'plan-review-noname-'));
@@ -520,11 +521,16 @@ class Start {
   }
 
   static async request(): Promise<void> {
+    await withFlow({ answers: ['approve'], start: { name: 'Без запроса' } }, async (flow) => {
+      expect((await openSession(flow.home, flow.id)).data.request).toBe('');
+      expect(await artifactsOf(flow.project)).toEqual(['без-запроса.expect.ts']);
+      expect(flow.interactive.map((r) => r.prompt)).toEqual(['']);
+      expect(flow.interactive[0]?.systemPrompt).toContain('дождись запроса');
+    });
     await withFlow(
-      { answers: ['запрос из терминала', 'approve'], start: { name: 'С запросом' } },
+      { answers: ['approve'], start: { name: 'С запросом', request: 'одной строкой' } },
       async (flow) => {
-        expect((await openSession(flow.home, flow.id)).data.request).toBe('запрос из терминала');
-        expect(await artifactsOf(flow.project)).toEqual(['с-запросом.expect.ts']);
+        expect(flow.interactive.map((r) => r.prompt)).toEqual(['одной строкой']);
       },
     );
   }
