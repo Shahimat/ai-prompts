@@ -64,9 +64,9 @@ patterns: [source-sync, ...]
 Индекс собирает harness (`harness/packages/harness`, TS). Нужен
 Node ≥ 24; перед первым запуском — `npm ci && npm run build`.
 
-После правки TS-кода (`harness/`, `expectations/`) — `npm run
-typecheck`, `npm run lint`, `npm test` и `npm run format:check`; CI
-валит билд на любом из них. Строгость TS — в общем
+После правки TS-кода (`harness/`, `expectations/`) — `npm run ci`:
+format, сборка, typecheck, lint, тесты, индекс и ожидания одной
+командой; CI запускает ровно её. Строгость TS — в общем
 `tsconfig.base.json`; линтер — oxlint с type-aware правилами
 (`.oxlintrc.json`); формат — prettier (`npm run format`), только TS,
 JSON и YAML: markdown промптов он не трогает (`.prettierignore`).
@@ -74,10 +74,33 @@ JSON и YAML: markdown промптов он не трогает (`.prettierigno
 **Неявные преобразования запрещены — как принцип.** Никаких `as T`
 (кроме `as const`), `!`, `any`, приведения к boolean / строке / числу
 и `==`. Данные извне (JSON, YAML, frontmatter, ошибки в `catch`)
-сужаются проверками — `guards.ts` в harness и в `expectations/shared/`;
+сужаются проверками — `shared/guards.ts` в harness и
+`expectations/shared/guards.ts`;
 неверная форма — ошибка с путём к полю. Линтер это проверяет, но
 принцип шире линтера: обходы (`as unknown as T`, отключение правила)
 — только по согласованию.
+
+**Слои harness** (`harness/packages/harness/src`), импорт только вниз:
+`shared` → `lib` → `commands` → `scripts` → `harness`.
+
+- Команда — атомарная операция; другие команды, скрипты и harness не
+  вызывает.
+- Скрипт — только последовательность команд (данные `ScriptDef`, их
+  исполняет `scripts/run.ts`).
+- Harness — автомат: ядро `harness/core` не зависит ни от одного
+  конкретного harness, harness не импортируют друг друга.
+- Снаружи слайс `commands/<x>` или `harness/<x>` виден только через
+  свой `index.ts`. Модуль `shared` нужен хотя бы двум слайсам, иначе
+  он переезжает в скоуп единственного.
+- Узел дерева CLI объявляет вид (`command` / `script` / `harness`) и
+  эффект: `query` не меняет файлов, кроме кэша по содержимому вне git,
+  `mutation` пишет. CI и модель внутри состояния harness получают только
+  query; skills в состояниях недоступны.
+- Плагины пользователя (`~/.config/harness/.../handlers/`) линтер не
+  видит: их границы — ответственность автора.
+
+Грубые запреты — `no-restricted-imports` в `.oxlintrc.json`, полные —
+ожидания `[harness] layers`.
 
 ## При добавлении или правке промпта
 
