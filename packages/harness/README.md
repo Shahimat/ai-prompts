@@ -62,18 +62,26 @@ Mutation — `context index`, `adapters sync`, `delta close`,
   выключенная memory агента.
 - `harness adapters check` — сверка файлов адаптеров с `AGENTS.md` и
   `.agents/` без записи.
-- `harness expect init` — каркас ожиданий в проекте: конфиг vitest,
-  пример файла с бюджетом, npm-скрипты, `.gitignore`.
-- `harness expect report | lint | judge [--apply]` — ожидания в форме
-  vitest (`expectations/*.expect.ts`): дерево со статусами, проверка
-  заголовков, пакетная смысловая проверка судьёй-агентом с кэшем
-  вердиктов. Помощники для проверок — `@shahimat/harness/expect`
-  (нужен vitest в проекте): `crit` / `warn` / `note` / `budget`,
-  `expectAtMost` (info при > 90% порога), зонды по репозиторию,
-  `judged`, проверка JSON Schema (`expectSchema`, `dataFiles`,
-  `frontmatters`). `report --html <out> [--file <path>]` — тот же отчёт
-  HTML-файлом, `serve [--file <path>] [--port <n>]` — с локального
-  сервера (см. «План в форме ожиданий»).
+- `harness expect init` — каркас ожиданий в проекте: точка входа
+  `expectations/index.expect.ts`, пример файла с бюджетом, npm-скрипты,
+  `.gitignore`.
+- `harness expect report | lint | judge [--apply] <file>` — ожидания в
+  форме vitest: дерево со статусами, проверка заголовков, пакетная
+  смысловая проверка судьёй-агентом с кэшем вердиктов. `<file>` — одна
+  точка входа `*.expect.ts`; остальные файлы ожиданий попадают в прогон
+  только через `import` в ней. Конфиг vitest — из пакета, проекту свой
+  не нужен. Отчёт, бюджет и проверка заголовков — по модулю, где
+  объявлено ожидание; вердикты и задания судьи — рядом с точкой входа
+  (`<каталог>/.verdicts.json`, `<каталог>/.judge/`). Помощники для
+  проверок — `@shahimat/harness/expect` (нужен vitest в проекте):
+  `crit` / `warn` / `note` / `budget`, `describe`, `expectAtMost` (info
+  при > 90% порога), зонды по репозиторию, `judged`, проверка JSON
+  Schema (`expectSchema`, `dataFiles`, `frontmatters`). Общий блок
+  ожиданий вне `*.expect.ts` объявляет разделы через `describe` из
+  `@shahimat/harness/expect`: так ожидания приписываются файлу, который
+  блок применил. `report <file> --html <out>` — тот же отчёт HTML-файлом,
+  `serve <file> [--port <n>]` — с локального сервера (см. «План в форме
+  ожиданий»).
 - `harness delta check | close` — дельта проектной документации в
   `context/.delta/*.yml` (пункты `add` / `refine` / `revise`). `check`
   сверяет слои документации с `HEAD`: удалённое или изменённое знание
@@ -134,12 +142,12 @@ PR.whole(() => {
   (`def` — результат `parseMachine`); `Graph.canReach(m, targets)` — из
   каждого состояния достижима цель; `Graph.onlyVia(m, target, via)` — в
   `target` из `initial` не попасть в обход `via`.
-- `harness expect report --html <out> [--file <path>]` — HTML без сети
+- `harness expect report <file> --html <out>` — HTML без сети
   и без JS: схемы шагов и автоматов — SVG Graphviz (wasm, при
   генерации); узел и переход ведут к карточке, цвет — статус ожиданий;
   новые, изменённые и удалённые относительно HEAD ожидания отмечены.
   Файл — производный вид, источник — файл ожиданий.
-- `harness expect serve [--file <path>] [--port <n>]` — та же страница
+- `harness expect serve <file> [--port <n>]` — та же страница
   с `http://127.0.0.1:<port>/` (по умолчанию 4173): собирается при
   каждом запросе, правка файла ожиданий видна после перезагрузки, на
   диск ничего не пишется. Так артефакт плана — только файл ожиданий.
