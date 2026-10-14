@@ -19,13 +19,14 @@ import {
   skills,
   warn,
 } from '@shahimat/harness/expect';
-import { ticketCommits } from '@shahimat/expectations';
+import { attention, ticketCommits } from '@shahimat/expectations';
 import { parse } from 'yaml';
 import { anyContract } from './shared/any-contract.expect.ts';
 
 budget({ crit: 0, warn: 5 });
 
 anyContract('agent-operational-contract-v3');
+attention('attention');
 
 describe('AGENTS.md', () => {
   crit('шаблон AGENTS.md в ядре — не больше 80 строк', () => Check.templateLength());
@@ -63,7 +64,7 @@ describe('документация проекта', () => {
     Check.generatedByHarness());
   warn('docs-keeper меняет только слои документации проекта и не трогает код', () => Check.docsKeeperScope());
   warn('правила контракта не копируются в context/conventions', () => Check.noRuleCopies());
-  crit('шаблон AGENTS.md и блоки модулей не содержат словесных указаний изменить проектную документацию — только ссылки на skills и команды harness', () =>
+  crit('шаблон AGENTS.md и блоки модулей не содержат указаний основной сессии самой править документацию — только ссылки на skills и harness; guardrail о достоверности знания допустим', () =>
     Check.noWriteCommands());
 });
 

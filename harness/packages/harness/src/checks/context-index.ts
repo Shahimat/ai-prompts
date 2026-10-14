@@ -3,6 +3,7 @@ import { access, readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { parse, stringify } from 'yaml';
 import type { Diagnostic } from '../diagnostics.ts';
+import { DELTA_DIR } from './delta.ts';
 import { normalizeEol, parseFrontmatter } from '../frontmatter.ts';
 
 export const CONTEXT_INDEX_PATH = 'context/index.yml';
@@ -71,6 +72,7 @@ async function listFiles(root: string, dir: string, ext: string): Promise<string
   return names
     .filter((name) => name.endsWith(ext))
     .map((name) => `${dir}/${name.split(path.sep).join('/')}`)
+    .filter((file) => !file.startsWith(`${DELTA_DIR}/`))
     .sort();
 }
 

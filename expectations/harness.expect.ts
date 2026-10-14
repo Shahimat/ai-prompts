@@ -1,11 +1,14 @@
 import { spawnSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { mkdtemp, readdir, readFile, rm, writeFile, mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
+  buildContextIndex,
   COMMANDS,
   computeSync,
+  DELTA_SCHEMA,
   DEFAULT_CHANGELOG,
   KNOWN_ADAPTERS,
   KNOWN_CHECKS,
@@ -31,7 +34,7 @@ budget({ crit: 0, warn: 0 });
 
 describe('[harness] common', () => {
   crit(
-    'процессы harness: check, changelog, context, adapters, outdated, expect, index; plan_iter — в разработке: его команд нет в CLI, ожидания — todo в harness-plan-iter.expect.ts',
+    'процессы harness: check, changelog, context, adapters, delta, outdated, expect, index; plan_iter — в разработке: его команд нет в CLI, ожидания — только todo',
     () => Check.processes(),
   );
   crit('пакеты: @shahimat/harness — CLI и механизм ожиданий, @shahimat/expectations — наборы ожиданий; других нет', () => Check.packages());
@@ -45,7 +48,7 @@ describe('[harness] common', () => {
   crit('справка CLI строится из декларативного дерева команд', () => Check.commandTree());
   crit('ошибка конфига называет путь до поля', () => Check.configErrorPath());
   crit('слои пакета зависят в одну сторону: cli → commands → ядро', () => Check.layers());
-  crit('проверки ничего не пишут в проект: файлы пишут только генерация (adapters sync, context index, index build, expect init | judge) и session clone из plan_iter', () => Check.checksReadOnly());
+  crit('проверки ничего не пишут в проект: файлы пишут только генерация (adapters sync, context index, index build, expect init | judge, delta close) и session clone из plan_iter', () => Check.checksReadOnly());
   warn('итог прогона считает код по бюджету и ответам модели, а не модель', () => Check.verdictByCode());
   crit('ответ модели вне схемы отклоняется', () => Check.answerSchema());
   warn('задание проверяющей модели содержит только вопросы и доказательства, без контекста автора', () => Check.cleanContext());
@@ -94,6 +97,16 @@ describe('[harness] expect', () => {
   crit('ожидание — не длиннее 200 символов', () => Check.titleLimit());
 });
 
+describe('[harness] delta', () => {
+  crit('команды harness delta check | close — дельта проектной документации в context/.delta/', () =>
+    Check.commands(['delta check', 'delta close']));
+  crit('delta check: удалённая или изменённая относительно HEAD сущность слоёв документации без пункта revise — нарушение', () =>
+    Check.deltaCheck());
+  crit('delta close удаляет дельту только при чистом delta check и выполненных пунктах', () => Check.deltaClose());
+  crit('context index не включает context/.delta/', () => Check.deltaNotIndexed());
+  crit('схема дельты в пакете совпадает с expectations/schemas/docs-delta.schema.json', () => Check.deltaSchema());
+});
+
 describe('[harness] index', () => {
   crit('команды harness index build | check — индекс prompts/index.yml источника промптов', () =>
     Check.commands(['index build', 'index check']));
@@ -125,6 +138,29 @@ async function snapshot(dir: string): Promise<Record<string, string>> {
   );
 }
 
+const REVISE_NAMING =
+  'summary: s\nitems:\n  - op: revise\n    kind: rule\n    target: naming\n    summary: snake_case\n    evidence: e\n    was: kebab-case\n    why: w\n';
+
+/** Временный git-проект с одной convention и пустой context/.delta/. */
+async function withGitProject(fn: (dir: string) => Promise<void>): Promise<void> {
+  const dir = await tempDir();
+  const git = (...args: string[]) => spawnSync('git', args, { cwd: dir, encoding: 'utf8' });
+  try {
+    await mkdir(path.join(dir, 'context/conventions'), { recursive: true });
+    await mkdir(path.join(dir, 'context/.delta'), { recursive: true });
+    await mkdir(path.join(dir, 'context/modules'), { recursive: true });
+    await writeFile(path.join(dir, 'context/project.yml'), 'name: demo\nnamespaces:\n  core: ядро\n');
+    await writeFile(path.join(dir, 'context/conventions/naming.yml'), 'key: naming\nsummary: kebab-case\nrule: x\n');
+    git('init', '-q');
+    git('-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-qm', 'init', '--allow-empty');
+    git('add', '.');
+    git('-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-qm', 'docs');
+    await fn(dir);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+}
+
 /** Слой файла пакета: 0 — cli, 1 — commands, 2 — ядро. */
 const layerOf = (file: string): number => (file === 'cli.ts' || file === 'bin.ts' ? 0 : file.startsWith('commands/') ? 1 : 2);
 
@@ -142,6 +178,8 @@ const DECLARED_COMMANDS = [
   'expect report',
   'expect lint',
   'expect judge',
+  'delta check',
+  'delta close',
   'outdated',
   'index build',
   'index check',
@@ -162,7 +200,7 @@ class Check {
 
   static async processes(): Promise<void> {
     expect([...new Set(COMMANDS.map((c) => c.path[0]))].sort()).toEqual(
-      ['adapters', 'changelog', 'check', 'context', 'expect', 'index', 'outdated'],
+      ['adapters', 'changelog', 'check', 'context', 'delta', 'expect', 'index', 'outdated'],
     );
     const planIter = await readRepo('expectations/harness-plan-iter.expect.ts');
     expect(planIter).toContain("describe('[harness] plan_iter'");
@@ -342,7 +380,7 @@ class Check {
     const files = (await readdir(path.join(repoRoot(), 'expectations'), { recursive: true }))
       .filter((f) => f.endsWith('.expect.ts'))
       .map((f) => `expectations/${f.split(path.sep).join('/')}`)
-      .concat('harness/packages/expectations/src/ticket-commits.ts');
+      .concat('harness/packages/expectations/src/ticket-commits.ts', 'harness/packages/expectations/src/attention.ts');
     const paths: string[] = [];
     for (const f of files) {
       for (const m of (await readRepo(f)).matchAll(/judged\(\[([^\]]*)\]\)/g)) {
@@ -380,6 +418,40 @@ class Check {
       (e) => e.kind === 'skill' && !((e.files?.length ?? 0) > 0 && (e.files ?? []).every((f) => /^[0-9a-f]{64}$/.test(f.sha256))),
     );
     expect(bad.map((e) => e.key)).toEqual([]);
+  }
+
+  // delta
+  static async deltaCheck(): Promise<void> {
+    await withGitProject(async (dir) => {
+      await writeFile(path.join(dir, 'context/conventions/naming.yml'), 'key: naming\nsummary: snake_case\nrule: x\n');
+      expect(cli(['delta', 'check', '--root', dir])).toBe(1);
+      await writeFile(path.join(dir, 'context/.delta/naming.yml'), REVISE_NAMING);
+      expect(cli(['delta', 'check', '--root', dir])).toBe(0);
+    });
+  }
+
+  static async deltaClose(): Promise<void> {
+    await withGitProject(async (dir) => {
+      const delta = path.join(dir, 'context/.delta/naming.yml');
+      await writeFile(delta, REVISE_NAMING);
+      expect(cli(['delta', 'close', '--root', dir])).toBe(1);
+      expect(existsSync(delta)).toBe(true);
+      await writeFile(path.join(dir, 'context/conventions/naming.yml'), 'key: naming\nsummary: snake_case\nrule: x\n');
+      expect(cli(['delta', 'close', '--root', dir])).toBe(0);
+      expect(existsSync(delta)).toBe(false);
+    });
+  }
+
+  static async deltaNotIndexed(): Promise<void> {
+    await withGitProject(async (dir) => {
+      await writeFile(path.join(dir, 'context/modules/m.yml'), 'provides:\n  index_layers:\n    - { section: drafts, dir: context, format: yml }\n');
+      await writeFile(path.join(dir, 'context/.delta/leak.yml'), 'id: leak\nnamespace: core\nsummary: утечка\n');
+      expect((await buildContextIndex(dir)).text).not.toContain('leak');
+    });
+  }
+
+  static async deltaSchema(): Promise<void> {
+    expect(DELTA_SCHEMA).toEqual(JSON.parse(await readRepo(`${SCHEMAS}/docs-delta.schema.json`)));
   }
 
   // журнал и версии

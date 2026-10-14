@@ -1,12 +1,13 @@
 import { describe, expect } from 'vitest';
 import { budget, crit, readRepo } from '@shahimat/harness/expect';
-import { ticketCommits } from '@shahimat/expectations';
+import { attention, ticketCommits } from '@shahimat/expectations';
 
 // Правила работы агента в самом репозитории: skill ticket-commits и
 // особенности репозитория в CLAUDE.md (якоря expect:ticket-commits*).
 budget({ crit: 0, warn: 0 });
 
 ticketCommits('ticket-commits', 'ticket-commits:repo');
+attention('attention:repo');
 
 describe('публичные npm-пакеты', () => {
   crit('у каждого пакета не больше одной неопубликованной версии: версия в репозитории — опубликованная или следующая за последней опубликованной', () =>

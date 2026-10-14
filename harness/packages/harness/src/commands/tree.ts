@@ -2,6 +2,7 @@ import { runAdapters } from './adapters.ts';
 import { runChangelog } from './changelog.ts';
 import { runCheck } from './check.ts';
 import { runContext } from './context.ts';
+import { runDelta } from './delta.ts';
 import { runExpect } from './expect.ts';
 import { runOutdated } from './outdated.ts';
 import { runIndex } from './prompt-index.ts';
@@ -21,6 +22,8 @@ export const COMMANDS: readonly Command[] = [
   { path: ['adapters', 'sync'], run: (args) => runAdapters('sync', args) },
   { path: ['changelog', 'lint'], run: (args) => runChangelog('lint', args) },
   { path: ['context', 'index'], run: (args) => runContext('index', args) },
+  { path: ['delta', 'check'], run: (args) => runDelta('check', args) },
+  { path: ['delta', 'close'], run: (args) => runDelta('close', args) },
   { path: ['outdated'], run: (args) => runOutdated(args) },
   { path: ['expect', 'init'], run: (args) => runExpect('init', args) },
   { path: ['expect', 'report'], run: (args) => runExpect('report', args) },

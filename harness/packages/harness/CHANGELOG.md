@@ -4,6 +4,10 @@
 
 ## 0.4.0
 
+- `harness delta check | close` — дельта документации `context/.delta/`:
+  удаление или изменение знания без пункта `revise` — нарушение; `close`
+  удаляет принятую дельту. `context index` не читает `context/.delta/`.
+- Справка и разбор команд — из декларативного дерева `COMMANDS`.
 - `harness outdated` — версия из `context/harness.yml` против последней в
   npm и записи этого журнала между ними.
 - Якоря доказательств `@KEY`: `<!-- expect:KEY -->` (markdown),
