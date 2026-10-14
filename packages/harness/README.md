@@ -43,7 +43,8 @@ npx -y @shahimat/harness@<version> <команда> --root .
 ## Команды
 
 Mutation — `context index`, `adapters sync`, `delta close`,
-`expect init`, `expect judge`, `index build`; остальные — query.
+`expect init`, `expect judge`, `expect report --html`, `index build`;
+остальные — query.
 
 - `harness secrets scan [--file <path>]` — секреты (ключи API, токены,
   пароли, приватные ключи) в отслеживаемых git файлах проекта или в
@@ -70,7 +71,8 @@ Mutation — `context index`, `adapters sync`, `delta close`,
   (нужен vitest в проекте): `crit` / `warn` / `note` / `budget`,
   `expectAtMost` (info при > 90% порога), зонды по репозиторию,
   `judged`, проверка JSON Schema (`expectSchema`, `dataFiles`,
-  `frontmatters`).
+  `frontmatters`). `report --html <out> [--file <path>]` — тот же отчёт
+  HTML-файлом (см. «План в форме ожиданий»).
 - `harness delta check | close` — дельта проектной документации в
   `context/.delta/*.yml` (пункты `add` / `refine` / `revise`). `check`
   сверяет слои документации с `HEAD`: удалённое или изменённое знание
@@ -81,6 +83,61 @@ Mutation — `context index`, `adapters sync`, `delta close`,
   в npm и записи `CHANGELOG.md` пакета между ними (код 1 — есть новее).
 - `harness index build | check --raw-base <url>` — индекс
   `prompts/index.yml` репозитория промптов.
+
+## План в форме ожиданий
+
+План — файл ожиданий, а не отдельный документ: шаги плана — разделы с
+DoD, который сразу проверяется, автомат — данные, которые потом
+сверяются с реализацией.
+
+```ts
+const PR = machine('plan-review', {
+  initial: 'draft',
+  limits: { fix: 3 },
+  states: {
+    draft: { actor: 'model', on: { questions: 'clarify', plan: 'review' } },
+    clarify: { actor: 'user', on: { answered: 'draft' } },
+    review: { actor: 'model', on: { pass: 'approved', fail: [{ to: 'draft', count: 'fix' }, 'approved'] } },
+    approved: { final: true },
+  },
+});
+
+step('T1', { title: 'Headless draft', status: 'active', why: 'нет TTY' }, () => {
+  PR.state('draft', () => {
+    crit('ответ планера — план или вопросы по схеме', () => Check.draftAnswer());
+  });
+});
+step('T2', { title: 'Вопросы', status: 'todo', after: ['T1'] }, () => {
+  PR.transition('draft', 'questions', () => {
+    crit.todo('вопросы нумерованы, у каждого дефолт с обоснованием');
+  });
+});
+PR.whole(() => {
+  crit('из любого состояния достижимо approved', () => Graph.canReach(PR, ['approved']));
+});
+```
+
+- `step(id, { title, status, after, why }, body)` — шаг; его ожидания —
+  DoD. `todo` — тела ожиданий не исполняются; `active` — исполняются,
+  провал виден (`◐`), но прогон не блокирует; `done` — блокирует.
+  Нарушение плана (crit): `done` раньше шагов из `after`, неизвестный
+  шаг в `after`, цикл, повтор id, `crit.todo` в шаге `done`.
+- `crit.todo(title)` / `warn.todo(title)` — ожидание с уровнем без
+  проверки: согласовано, проверка появится при реализации.
+- `machine(name, { initial, limits, states })` — автомат данными. Имена
+  состояний и событий выводятся из литерала: опечатка в `state`,
+  `transition`, переходе или `initial` — ошибка typecheck. `state`,
+  `transition` и `whole` привязывают ожидания к узлу, переходу и
+  автомату целиком.
+- Зонды: `Graph.sameAs(m, def)` — граф совпадает с `harness.yaml`
+  (`def` — результат `parseMachine`); `Graph.canReach(m, targets)` — из
+  каждого состояния достижима цель; `Graph.onlyVia(m, target, via)` — в
+  `target` из `initial` не попасть в обход `via`.
+- `harness expect report --html <out> [--file <path>]` — HTML без сети
+  и без JS: схемы шагов и автоматов — SVG Graphviz (wasm, при
+  генерации); узел и переход ведут к карточке, цвет — статус ожиданий;
+  новые, изменённые и удалённые относительно HEAD ожидания отмечены.
+  Файл — производный вид, источник — файл ожиданий.
 
 ## Harness
 
