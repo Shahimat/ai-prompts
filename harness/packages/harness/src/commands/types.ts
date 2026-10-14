@@ -2,6 +2,8 @@ export interface CommandArgs {
   /** Абсолютный путь к корню проекта. */
   root: string;
   out?: string;
+  /** `secrets scan --file`: файл по пути, в том числе вне проекта. */
+  file?: string;
   rawBase?: string;
   /** `expect judge --apply`: применить ответы судьи. */
   apply?: boolean;

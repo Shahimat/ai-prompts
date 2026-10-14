@@ -13,6 +13,7 @@ export async function main(argv: string[], now: Date = new Date()): Promise<numb
     options: {
       root: { type: 'string', default: '.' },
       out: { type: 'string' },
+      file: { type: 'string' },
       'raw-base': { type: 'string' },
       apply: { type: 'boolean' },
       home: { type: 'string' },
@@ -28,6 +29,7 @@ export async function main(argv: string[], now: Date = new Date()): Promise<numb
   }
   const args: CommandArgs = { root: path.resolve(values.root), now };
   if (values.out !== undefined) args.out = values.out;
+  if (values.file !== undefined) args.file = values.file;
   if (values['raw-base'] !== undefined) args.rawBase = values['raw-base'];
   if (values.apply === true) args.apply = true;
   if (values.home !== undefined) args.home = values.home;

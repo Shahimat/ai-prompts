@@ -17,6 +17,10 @@ npx -y @shahimat/harness@<version> <команда> --root .
 ## Команды
 
 - `harness check` — все проверки, включённые в `context/harness.yml`.
+- `harness secrets scan [--file <path>]` — секреты (ключи API, токены,
+  пароли, приватные ключи) в отслеживаемых git файлах проекта или в
+  одном файле по пути; в выводе — путь, строка и тип, без значения. В
+  `harness check` включена по умолчанию.
 - `harness changelog lint` — `CHANGELOG.md`: строка
   `- YYYY-MM-DD · [tag] суть · почему` до 120 символов, тег из списка,
   порядок дат.
@@ -86,7 +90,15 @@ checks:
     tags: [arch, stack, dep, milestone]
   context-index: {}
   adapters: {}
+  secrets:
+    allow:
+      - path: docs/aws.md
+        line: 12
+        reason: пример ключа из документации AWS
 ```
+
+`secrets` включена, даже если ключа нет; `secrets: false` — выключить.
+Исключение без `reason` — ошибка конфига.
 
 ## Лицензия
 

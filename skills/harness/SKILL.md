@@ -1,6 +1,6 @@
 ---
 name: harness
-description: Как пользоваться @shahimat/harness в проекте — команды check, changelog lint, context index, adapters sync, конфиг context/harness.yml. Загружай перед завершением задачи, при правке сгенерированных файлов и при ошибках harness check.
+description: Как пользоваться @shahimat/harness в проекте — команды check, changelog lint, secrets scan, context index, adapters sync, конфиг context/harness.yml. Загружай перед завершением задачи, при правке сгенерированных файлов и при ошибках harness check.
 ---
 
 # harness
@@ -25,6 +25,11 @@ npx -y @shahimat/harness@<version> <команда> --root .
 
 - `harness check` — все проверки из `checks` в `context/harness.yml`.
   Запускай в конце каждой задачи и после записи docs-keeper.
+- `harness secrets scan` — секреты (ключи API, токены, пароли,
+  приватные ключи) в отслеживаемых файлах; в `harness check` включена
+  по умолчанию. `--file <path>` — один файл, в том числе вне проекта:
+  запускай перед тем, как артефакт уходит наружу. В выводе — путь,
+  строка и тип, без значения.
 - `harness changelog lint` — формат `CHANGELOG.md`: строка до
   `max_line`, три части через ` · `, тег из списка, дата, порядок.
 - `harness context index` — пересобрать `context/index.yml` из слоёв,
@@ -77,6 +82,11 @@ checks:
     tags: [arch, stack, dep, milestone]
   context-index: {}
   adapters: {}
+  secrets:                         # есть всегда; false — выключить
+    allow:
+      - path: docs/manuals/aws.md
+        line: 12
+        reason: пример ключа из документации AWS
 ```
 
 Неизвестный ключ — ошибка конфига: опечатка не выключает проверку
@@ -89,5 +99,9 @@ checks:
 - `docs/entities/x.yml: нет поля summary` — добавить однострочный
   `summary`, пересобрать индекс.
 - `context/index.yml: устарел` — `harness context index`.
+- `notes.md:3: секрет: токен GitHub` — значение убрать, вместо него
+  указатель на хранилище; секрет уже в истории git — сказать
+  пользователю: его нужно отозвать. Ложное срабатывание — исключение в
+  `checks.secrets.allow` с `reason`, только после «да».
 - `… отсутствует или устарел: запусти harness adapters sync` — так и
   сделать; если копию правили руками — правку перенести в источник.

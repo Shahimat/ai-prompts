@@ -4,6 +4,10 @@
 
 ## 0.4.0
 
+- Проверка `secrets` и команда `harness secrets scan [--file <path>]`:
+  ключи API, токены, пароли, приватные ключи в отслеживаемых файлах или
+  в файле по пути. В `harness check` включена по умолчанию, выключается
+  `secrets: false`; исключения — `checks.secrets.allow` с `reason`.
 - Планер `plan/iter`: `harness plan list | <harness> start | validate |
   graph`, `harness session list | <сессия> status | resume | retry |
   check [--hook] | render | read | clone * | clone md`. Автомат из

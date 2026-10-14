@@ -17,6 +17,17 @@ export const DEFAULT_CHANGELOG: ChangelogOptions = {
   tags: ['arch', 'stack', 'dep', 'milestone'],
 };
 
+export interface SecretsAllow {
+  path: string;
+  /** Нет — исключение на весь файл. */
+  line?: number;
+  reason: string;
+}
+
+export interface SecretsOptions {
+  allow: SecretsAllow[];
+}
+
 export interface HarnessConfig {
   version?: string;
   adapters: AdapterName[];
@@ -25,11 +36,13 @@ export interface HarnessConfig {
     changelog?: ChangelogOptions;
     'context-index'?: Record<string, never>;
     adapters?: Record<string, never>;
+    /** Включена по умолчанию; `secrets: false` — выключена явно. */
+    secrets?: SecretsOptions;
   };
 }
 
 const TOP_LEVEL_KEYS = ['version', 'adapters', 'checks', 'worktrees', 'rules'];
-export const KNOWN_CHECKS = ['changelog', 'context-index', 'adapters'] as const;
+export const KNOWN_CHECKS = ['changelog', 'context-index', 'adapters', 'secrets'] as const;
 
 function fail(message: string): never {
   throw new UsageError(`${CONFIG_PATH}: ${message}`);
@@ -64,6 +77,31 @@ function parseChangelog(value: unknown): ChangelogOptions {
       : stringList(value['tags'], 'checks.changelog.tags');
   if (tags.length === 0) fail('checks.changelog.tags не может быть пустым');
   return { maxLine, tags: [...tags] };
+}
+
+function parseSecretsAllow(value: unknown, i: number): SecretsAllow {
+  const where = `checks.secrets.allow[${i}]`;
+  if (!isRecord(value)) fail(`${where} должно быть объектом`);
+  unknownKeys(value, ['path', 'line', 'reason'], where);
+  const { path: file, line, reason } = value;
+  if (typeof file !== 'string' || file === '') fail(`${where}.path должно быть непустой строкой`);
+  if (typeof reason !== 'string' || reason.trim() === '')
+    fail(`${where}.reason обязателен: почему это не секрет`);
+  if (line === undefined) return { path: file, reason };
+  if (typeof line !== 'number' || !Number.isInteger(line) || line <= 0)
+    fail(`${where}.line должно быть целым числом > 0`);
+  return { path: file, line, reason };
+}
+
+/** `secrets: false` — выключена (`null`); нет ключа, `null` или `{}` — включена. */
+function parseSecrets(value: unknown): SecretsOptions | null {
+  if (value === false) return null;
+  if (value === null || value === undefined) return { allow: [] };
+  if (!isRecord(value)) fail('checks.secrets должно быть объектом или false');
+  unknownKeys(value, ['allow'], 'checks.secrets');
+  const allow = value['allow'] ?? [];
+  if (!Array.isArray(allow)) fail('checks.secrets.allow должно быть списком');
+  return { allow: allow.map(parseSecretsAllow) };
 }
 
 export function parseConfig(text: string): HarnessConfig {
@@ -103,6 +141,8 @@ export function parseConfig(text: string): HarnessConfig {
     unknownKeys(options, [], `checks.${name}`);
     config.checks[name] = {};
   }
+  const secrets = parseSecrets(checks['secrets']);
+  if (secrets !== null) config.checks.secrets = secrets;
   return config;
 }
 

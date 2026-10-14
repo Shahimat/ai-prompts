@@ -20,6 +20,7 @@ import {
   runSessionStatus,
 } from './plan.ts';
 import { runIndex } from './prompt-index.ts';
+import { runSecretsScan } from './secrets.ts';
 import type { CommandArgs } from './types.ts';
 
 export interface Command {
@@ -55,6 +56,7 @@ export const COMMANDS: readonly Command[] = [
     run: (args) => runIndex('build', args),
   },
   { path: ['index', 'check'], options: '--raw-base <url>', run: (args) => runIndex('check', args) },
+  { path: ['secrets', 'scan'], options: '[--file <path>]', run: runSecretsScan },
   { path: ['plan', 'list'], options: HOME, run: runPlanList },
   {
     path: ['plan', '<harness>', 'start'],

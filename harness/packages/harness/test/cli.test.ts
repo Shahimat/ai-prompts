@@ -65,7 +65,7 @@ describe('harness check', () => {
   });
 
   it('0 — ни одной проверки не включено', async () => {
-    await put('context/harness.yml', 'version: 0.2.0\n');
+    await put('context/harness.yml', 'version: 0.2.0\nchecks:\n  secrets: false\n');
     expect(await main(['check', '--root', root], NOW)).toBe(0);
   });
 
@@ -73,7 +73,7 @@ describe('harness check', () => {
     await put('context/harness.yml', 'checks:\n  changelog: {}\n');
     await put('CHANGELOG.md', BAD);
     expect(await main(['check', '--root', root], NOW)).toBe(1);
-    expect(stderr.at(-1)).toBe('check (changelog): нарушений 1');
+    expect(stderr.at(-1)).toBe('check (changelog, secrets): нарушений 1');
   });
 
   it('2 — ошибка в harness.yml', async () => {

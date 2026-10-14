@@ -4,7 +4,7 @@ kind: module
 applicable_to: [agent-operational-contract-v3]
 patterns: [source-sync]
 title: Модуль harness — проверки и генерация через @shahimat/harness
-use_case: Возможность ядра v3. Подключает CLI @shahimat/harness (Node ≥ 24) — проверка CHANGELOG, генерация context/index.yml, генерация адаптеров под Claude Code и Codex, общий harness check. Конфиг — context/harness.yml.
+use_case: Возможность ядра v3. Подключает CLI @shahimat/harness (Node ≥ 24) — проверка CHANGELOG, поиск секретов, генерация context/index.yml, генерация адаптеров под Claude Code и Codex, общий harness check. Конфиг — context/harness.yml.
 tags: [harness, automation, agent-contract, module]
 feature:
   summary: "@shahimat/harness — проверки CHANGELOG, генерация индекса и адаптеров (нужен Node ≥ 24)"
@@ -39,6 +39,10 @@ feature:
   - `context-index` — `context/index.yml` актуален, у слоёв есть `id`,
     `namespace`, `summary` / `title`;
   - `adapters` — сгенерированные файлы совпадают с источниками.
+
+  `secrets` — поиск ключей, токенов, паролей и приватных ключей в
+  отслеживаемых файлах — в вопрос не входит: включена всегда.
+  Выключается только явно, `secrets: false` в `context/harness.yml`.
 - `adapters` — инструменты, под которые генерировать файлы. По
   умолчанию — те, что назвал пользователь при установке ядра.
 

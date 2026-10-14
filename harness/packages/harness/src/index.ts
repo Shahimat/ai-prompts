@@ -13,6 +13,7 @@ export {
   type RenderOptions,
 } from './prompt-index.ts';
 export { checkChangelog, lintChangelog, CHANGELOG_PATH } from './checks/changelog.ts';
+export { checkSecrets, scanSecrets, scanSecretsFile } from './checks/secrets.ts';
 export {
   CONFIG_PATH,
   DEFAULT_CHANGELOG,
@@ -21,6 +22,8 @@ export {
   parseConfig,
   type ChangelogOptions,
   type HarnessConfig,
+  type SecretsAllow,
+  type SecretsOptions,
 } from './config.ts';
 export { formatDiagnostic, UsageError, type Diagnostic } from './diagnostics.ts';
 export {

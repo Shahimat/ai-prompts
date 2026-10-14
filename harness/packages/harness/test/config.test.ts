@@ -6,8 +6,23 @@ import { DEFAULT_CHANGELOG, loadConfig, parseConfig } from '../src/config.ts';
 import { UsageError } from '../src/diagnostics.ts';
 
 describe('parseConfig', () => {
-  it('пустой файл — ничего не включено', () => {
-    expect(parseConfig('')).toEqual({ adapters: [], checks: {} });
+  it('пустой файл — включена только secrets', () => {
+    expect(parseConfig('')).toEqual({ adapters: [], checks: { secrets: { allow: [] } } });
+  });
+
+  it('secrets: false выключает проверку, allow читается с причиной', () => {
+    expect(parseConfig('checks:\n  secrets: false\n').checks.secrets).toBeUndefined();
+    expect(parseConfig('checks:\n  secrets:\n').checks.secrets).toEqual({ allow: [] });
+    expect(
+      parseConfig(
+        'checks:\n  secrets:\n    allow:\n      - path: a.md\n        line: 3\n        reason: пример\n      - path: b.md\n        reason: фикстура\n',
+      ).checks.secrets,
+    ).toEqual({
+      allow: [
+        { path: 'a.md', line: 3, reason: 'пример' },
+        { path: 'b.md', reason: 'фикстура' },
+      ],
+    });
   });
 
   it('changelog без параметров — значения по умолчанию', () => {
@@ -22,7 +37,7 @@ describe('parseConfig', () => {
     expect(config).toEqual({
       version: '0.2.0',
       adapters: ['claude-code', 'codex'],
-      checks: { changelog: { maxLine: 100, tags: ['arch'] } },
+      checks: { changelog: { maxLine: 100, tags: ['arch'] }, secrets: { allow: [] } },
     });
   });
 
@@ -46,6 +61,21 @@ describe('parseConfig', () => {
     ['adapters не список', 'adapters: codex\n', /adapters должно быть списком/],
     ['неизвестный adapter', 'adapters: [cursor]\n', /неизвестные adapters: cursor/],
     ['параметры у adapters', 'checks:\n  adapters:\n    x: 1\n', /checks\.adapters: x/],
+    [
+      'secrets: true',
+      'checks:\n  secrets: true\n',
+      /checks\.secrets должно быть объектом или false/,
+    ],
+    [
+      'исключение без причины',
+      'checks:\n  secrets:\n    allow:\n      - path: a.md\n',
+      /checks\.secrets\.allow\[0\]\.reason обязателен/,
+    ],
+    [
+      'неизвестный ключ исключения',
+      'checks:\n  secrets:\n    allow:\n      - path: a.md\n        reason: r\n        why: x\n',
+      /checks\.secrets\.allow\[0\]: why/,
+    ],
     ['корень — список', '- a\n', /корень должен быть объектом/],
     ['невалидный YAML', 'a: b: c\n', /невалидный YAML/],
   ])('ошибка: %s', (_name, text, message) => {
