@@ -1,6 +1,6 @@
-import { crit, describe, judged } from '@shahimat/harness/expect';
+import { crit, describe, judged, pattern } from '@shahimat/harness/expect';
 
-export function attention(...keys: string[]): void {
+const attentionPattern = pattern('attention', (keys: readonly string[]) => {
   if (keys.length === 0) throw new Error('attention: нужен хотя бы один ключ якоря');
   const check = (): Promise<void> => judged(keys.map((k) => `@${k}`));
 
@@ -14,4 +14,8 @@ export function attention(...keys: string[]): void {
       check,
     );
   });
+});
+
+export function attention(...keys: string[]): void {
+  attentionPattern(keys);
 }

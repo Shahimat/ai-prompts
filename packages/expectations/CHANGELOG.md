@@ -4,6 +4,12 @@
 
 ## 0.2.0
 
+- Паттерны harness: `harnessCommands({ harness })` — общие команды
+  harness `start | open | list | status | validate | graph`;
+  `harnessChain({ harness, chain, fails, back, limit })` — автомат-цепочка
+  с возвратом при провале и лимитом. Определения автоматов — встроенные в
+  `@shahimat/harness`. `ticketCommits` и `attention` — паттерны
+  (`pattern()`), заголовки прежние.
 - Наборы объявляют разделы через `describe` из `@shahimat/harness/expect`:
   ожидания приписываются файлу, который применил набор, — при одной точке
   входа отчёт и проверка заголовков идут по этому файлу.

@@ -45,17 +45,29 @@ export function callerModule(): string | undefined {
   return undefined;
 }
 
-let currentSource: string | undefined;
+export interface Origin {
+  source?: string;
+  pattern?: string;
+}
 
-export const sourceNow = (): string | undefined => currentSource ?? callerModule();
+let current: Origin = {};
 
-export function withSource(source: string | undefined, body: () => void): void {
-  const saved = currentSource;
-  currentSource = source;
+export function originNow(): Origin {
+  const origin: Origin = { ...current };
+  const source = current.source ?? callerModule();
+  if (source !== undefined) origin.source = source;
+  return origin;
+}
+
+export const sourceNow = (): string | undefined => originNow().source;
+
+export function withOrigin(origin: Origin, body: () => void): void {
+  const saved = current;
+  current = origin;
   try {
     body();
   } finally {
-    currentSource = saved;
+    current = saved;
   }
 }
 

@@ -19,7 +19,6 @@ import {
   loadHarness,
   parseConfig,
   parseFrontmatter,
-  parseMachine,
   planIo,
   plannerTools,
   renderUsage,
@@ -28,7 +27,6 @@ import {
   selfCommand,
   splitWords,
   UsageError,
-  type MachineDef,
   type PlanContext,
 } from '@shahimat/harness';
 import * as harnessPkg from '@shahimat/harness';
@@ -45,6 +43,7 @@ import {
   repoRoot,
   warn,
 } from '@shahimat/harness/expect';
+import { harnessChain, harnessCommands } from '@shahimat/expectations';
 import {
   at,
   parseJson,
@@ -188,26 +187,36 @@ describe('[harness] refresh', () => {
 });
 
 describe('[harness] docs-delta', () => {
-  crit('команды harness docs-delta start | open | list | status | validate | graph', () =>
-    Processes.resolve('docs-delta'),
-  );
-  crit(
-    'автомат docs-delta: apply → verify → close; провал verify или close возвращает в apply не больше 3 раз, затем failed',
-    () => Processes.docsDelta(),
-  );
+  harnessCommands({ harness: 'docs-delta' });
+  harnessChain({
+    harness: 'docs-delta',
+    chain: [
+      { state: 'apply', event: 'done' },
+      { state: 'verify', event: 'ok' },
+      { state: 'close', event: 'ok' },
+    ],
+    fails: ['verify', 'close'],
+    back: 'apply',
+    limit: 3,
+  });
   crit('verify в docs-delta — context index, adapters sync, delta check и шаги check', () =>
     Processes.docsVerify(),
   );
 });
 
 describe('[harness] source-sync', () => {
-  crit('команды harness source-sync start | open | list | status | validate | graph', () =>
-    Processes.resolve('source-sync'),
-  );
-  crit(
-    'автомат source-sync: outdated → update → refresh; провал refresh возвращает в update не больше 3 раз, затем failed',
-    () => Processes.sourceSync(),
-  );
+  harnessCommands({ harness: 'source-sync' });
+  harnessChain({
+    harness: 'source-sync',
+    chain: [
+      { state: 'outdated', event: 'done' },
+      { state: 'update', event: 'done' },
+      { state: 'refresh', event: 'ok' },
+    ],
+    fails: ['refresh'],
+    back: 'update',
+    limit: 3,
+  });
   crit('skill docs-keeper объявляет runs: docs-delta, skill source-sync — runs: source-sync', () =>
     Skills.processSkills(),
   );
@@ -1468,21 +1477,6 @@ class Skills {
   }
 }
 
-async function machine(name: string): Promise<MachineDef> {
-  const file = `${HARNESSES}/${name}/harness.yaml`;
-  const { def, errors } = parseMachine(await readRepo(file), file);
-  if (def === undefined) throw new Error(errors.join('\n'));
-  return def;
-}
-
-const edges = (def: MachineDef, state: string, event: string): { to: string; count?: string }[] =>
-  (def.states.find((s) => s.name === state)?.on[event] ?? []).map((t) =>
-    t.count === undefined ? { to: t.to } : { to: t.to, count: t.count },
-  );
-
-const resets = (def: MachineDef, state: string, event: string): string[] =>
-  def.states.find((s) => s.name === state)?.on[event]?.[0]?.reset ?? [];
-
 const stepCommands = (steps: unknown): string[] =>
   unknownList(steps, 'steps').map((s) => stringList(at(s, 'command'), 'command').join(' '));
 
@@ -1511,11 +1505,6 @@ async function withProcessSession(
 }
 
 class Processes {
-  static resolve(harness: string): void {
-    const ops = ['start', 'open x', 'list', 'status x', 'validate', 'graph'];
-    expect(ops.filter((op) => node([harness, ...op.split(' ')]) === undefined)).toEqual([]);
-  }
-
   static refresh(): void {
     const refresh = node(['refresh']);
     expect(kindOf(refresh)).toBe('script');
@@ -1524,58 +1513,6 @@ class Processes {
       'adapters sync',
       ...stepCommands(at(node(['check']), 'steps')),
     ]);
-  }
-
-  static async docsDelta(): Promise<void> {
-    const def = await machine('docs-delta');
-    const counter = edges(def, 'verify', 'fail')[0]?.count ?? '';
-    expect(def.initial).toBe('apply');
-    expect({
-      apply: edges(def, 'apply', 'done'),
-      verifyOk: edges(def, 'verify', 'ok'),
-      verifyFail: edges(def, 'verify', 'fail'),
-      closeOk: edges(def, 'close', 'ok'),
-      closeFail: edges(def, 'close', 'fail'),
-      limit: def.limits[counter],
-      retry: edges(def, 'failed', 'retry'),
-      retryReset: resets(def, 'failed', 'retry'),
-      done: def.states.find((s) => s.name === 'done')?.final,
-    }).toEqual({
-      apply: [{ to: 'verify' }],
-      verifyOk: [{ to: 'close' }],
-      verifyFail: [{ to: 'apply', count: counter }, { to: 'failed' }],
-      closeOk: [{ to: 'done' }],
-      closeFail: [{ to: 'apply', count: counter }, { to: 'failed' }],
-      limit: 3,
-      retry: [{ to: 'apply' }],
-      retryReset: [counter],
-      done: true,
-    });
-  }
-
-  static async sourceSync(): Promise<void> {
-    const def = await machine('source-sync');
-    const counter = edges(def, 'refresh', 'fail')[0]?.count ?? '';
-    expect(def.initial).toBe('outdated');
-    expect({
-      outdated: edges(def, 'outdated', 'done'),
-      update: edges(def, 'update', 'done'),
-      refreshOk: edges(def, 'refresh', 'ok'),
-      refreshFail: edges(def, 'refresh', 'fail'),
-      limit: def.limits[counter],
-      retry: edges(def, 'failed', 'retry'),
-      retryReset: resets(def, 'failed', 'retry'),
-      done: def.states.find((s) => s.name === 'done')?.final,
-    }).toEqual({
-      outdated: [{ to: 'update' }],
-      update: [{ to: 'refresh' }],
-      refreshOk: [{ to: 'done' }],
-      refreshFail: [{ to: 'update', count: counter }, { to: 'failed' }],
-      limit: 3,
-      retry: [{ to: 'update' }],
-      retryReset: [counter],
-      done: true,
-    });
   }
 
   static docsVerify(): void {

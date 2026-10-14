@@ -26,6 +26,7 @@ export {
   describe,
   expectAtMost,
   note,
+  pattern,
   warn,
   type Budget,
   type Level,

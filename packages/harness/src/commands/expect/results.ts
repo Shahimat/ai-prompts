@@ -20,6 +20,7 @@ export interface TestResult {
   level: Level;
   notes: string[];
   planned: boolean;
+  pattern?: string;
   budget?: Budget;
   step?: string;
   stepStatus?: StepStatus;
@@ -68,7 +69,7 @@ export function parseVitestReport(data: unknown, root: string): TestResult[] {
       if (!isOneOf(STATUSES, status)) return fail(`${name}: неизвестный статус ${String(status)}`);
       if (!isStringArray(failureMessages)) return fail(`${name}: failureMessages — не строки`);
       const meta = isRecord(a['meta']) ? a['meta'] : {};
-      const { level, notes, budget, planned, step, stepStatus, source } = meta;
+      const { level, notes, budget, planned, step, stepStatus, source, pattern } = meta;
       const result: TestResult = {
         file: relative(root, typeof source === 'string' ? source : name),
         path: ancestorTitles,
@@ -81,6 +82,7 @@ export function parseVitestReport(data: unknown, root: string): TestResult[] {
       };
       if (isBudget(budget)) result.budget = budget;
       if (typeof step === 'string') result.step = step;
+      if (typeof pattern === 'string') result.pattern = pattern;
       if (isOneOf(STEP_STATUSES, stepStatus)) result.stepStatus = stepStatus;
       const node = nodeOf(meta['node']);
       if (node !== undefined) result.node = node;

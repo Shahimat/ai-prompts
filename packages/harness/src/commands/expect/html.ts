@@ -126,7 +126,9 @@ function item(t: TestResult, mark: DiffMark | undefined): string {
   const msg =
     outcome === 'fail' && t.message !== '' ? `<div class="msg">${esc(t.message)}</div>` : '';
   const notes = t.notes.map((n) => `<div class="note">ℹ ${esc(n)}</div>`).join('');
-  return `<li class="${cls.join(' ')}"><span class="mark">${MARK[outcome]}</span> <span class="lvl">${t.level}</span> <span class="title">${esc(t.title)}</span>${was}${msg}${notes}</li>`;
+  const from =
+    t.pattern === undefined ? '' : ` <span class="pattern">паттерн ${esc(t.pattern)}</span>`;
+  return `<li class="${cls.join(' ')}"><span class="mark">${MARK[outcome]}</span> <span class="lvl">${t.level}</span> <span class="title">${esc(t.title)}</span>${from}${was}${msg}${notes}</li>`;
 }
 
 const list = (tests: TestResult[], marks: Map<Titled, DiffMark>): string =>
@@ -268,6 +270,7 @@ ul { padding-left: 1.2rem; } li.exp { list-style: none; margin: .25rem 0 .25rem 
 .lvl { font-size: .75rem; color: var(--muted); text-transform: uppercase; }
 .diff-added { background: var(--added); } .diff-changed { background: var(--changed); } .diff-removed { background: var(--removed); }
 .was { color: var(--muted); margin-left: .5rem; }
+.pattern { font-size: .75rem; color: var(--muted); border: 1px dashed var(--line); border-radius: 4px; padding: 0 .3rem; margin-left: .4rem; }
 .msg, .note { margin-left: 1.4rem; font-size: .85rem; color: var(--muted); }
 .issues .issue { color: var(--fail); }
 table { border-collapse: collapse; font-size: .85rem; margin: .3rem 0; }

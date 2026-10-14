@@ -1,5 +1,12 @@
 import { describe as vitestDescribe, expect, it } from 'vitest';
-import { scopeOf, sourceNow, withSource, type NodeScope, type StepStatus } from './scope.ts';
+import {
+  originNow,
+  scopeOf,
+  sourceNow,
+  withOrigin,
+  type NodeScope,
+  type StepStatus,
+} from './scope.ts';
 
 export const LEVELS = ['crit', 'warn', 'info'] as const;
 export type Level = (typeof LEVELS)[number];
@@ -38,6 +45,7 @@ declare module 'vitest' {
     stepDef?: StepDef;
     machine?: MachineMeta;
     source?: string;
+    pattern?: string;
   }
 }
 
@@ -46,12 +54,13 @@ let notes: string[] = [];
 type Body = () => unknown;
 
 function levelled(level: Level, title: string, fn: Body | undefined): void {
-  const source = sourceNow();
+  const origin = originNow();
   it(title, async (ctx) => {
     const scope = scopeOf(ctx.task);
     const meta = ctx.task.meta;
     meta.level = level;
-    if (source !== undefined) meta.source = source;
+    if (origin.source !== undefined) meta.source = origin.source;
+    if (origin.pattern !== undefined) meta.pattern = origin.pattern;
     if (scope.step !== undefined) {
       meta.step = scope.step.id;
       meta.stepStatus = scope.step.status;
@@ -87,10 +96,18 @@ export const crit: LevelFn = levelFn('crit');
 export const warn: LevelFn = levelFn('warn');
 
 export function describe(title: string, body: () => void): void {
-  const source = sourceNow();
+  const origin = originNow();
   vitestDescribe(title, () => {
-    withSource(source, body);
+    withOrigin(origin, body);
   });
+}
+
+export function pattern<P>(key: string, apply: (params: P) => void): (params: P) => void {
+  return (params) => {
+    withOrigin({ ...originNow(), pattern: key }, () => {
+      apply(params);
+    });
+  };
 }
 
 export function note(text: string): void {
