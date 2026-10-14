@@ -3,7 +3,7 @@ import { mkdtemp, readdir, rm, writeFile, mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect } from 'vitest';
-import { computeSync, DEFAULT_CHANGELOG, KNOWN_ADAPTERS, KNOWN_CHECKS, parseConfig, runOutdated, UsageError } from '@shahimat/harness';
+import { COMMANDS, computeSync, DEFAULT_CHANGELOG, KNOWN_ADAPTERS, KNOWN_CHECKS, parseConfig, runOutdated, UsageError } from '@shahimat/harness';
 import {
   applyAnswers,
   budget,
@@ -79,12 +79,9 @@ async function tempDir(): Promise<string> {
   return mkdtemp(path.join(tmpdir(), 'harness-expect-'));
 }
 
-/** Команды из справки CLI: `check`, `adapters sync`, `expect init`, … */
+/** Команды из дерева CLI: `check`, `adapters sync`, `expect init`, … */
 async function usageCommands(): Promise<string[]> {
-  const usage = (await readRepo(`${PKG}/src/cli.ts`)).split('`')[1] ?? '';
-  return [...usage.matchAll(/^\s+harness ([a-z]+)(?: ([a-z|]+(?: \| [a-z]+)*))?/gm)].flatMap((m) =>
-    m[2] ? (m[2] ?? '').split(/\s*\|\s*/).filter(Boolean).map((c) => `${m[1]} ${c}`) : [m[1] ?? ''],
-  );
+  return COMMANDS.map((c) => c.path.join(' '));
 }
 
 const DECLARED_COMMANDS = [

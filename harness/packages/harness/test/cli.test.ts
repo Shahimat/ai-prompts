@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { main, run } from '../src/cli.ts';
+import { COMMANDS, renderUsage } from '../src/commands/tree.ts';
 
 const NOW = new Date('2026-10-13T12:00:00Z');
 const GOOD = '# Журнал\n\n- 2026-10-13 · [arch] a · b\n';
@@ -85,6 +86,19 @@ describe('ошибки вызова', () => {
       expect(await run(argv)).toBe(2);
     },
   );
+});
+
+describe('справка', () => {
+  it('строится из дерева команд: строка на каждую команду', async () => {
+    const out: string[] = [];
+    vi.spyOn(console, 'log').mockImplementation((...args: unknown[]) => {
+      out.push(args.join(' '));
+    });
+    expect(await main(['--help'], NOW)).toBe(0);
+    const usage = out.join('\n');
+    for (const c of COMMANDS) expect(usage).toContain(`harness ${c.path.join(' ')}`);
+    expect(renderUsage()).toBe(usage);
+  });
 });
 
 describe('harness context index', () => {

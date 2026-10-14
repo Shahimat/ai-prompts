@@ -1,26 +1,8 @@
 import path from 'node:path';
 import { parseArgs } from 'node:util';
-import { runAdapters } from './commands/adapters.ts';
-import { runChangelog } from './commands/changelog.ts';
-import { runCheck } from './commands/check.ts';
-import { runContext } from './commands/context.ts';
-import { runExpect } from './commands/expect.ts';
-import { runOutdated } from './commands/outdated.ts';
-import { runIndex } from './commands/prompt-index.ts';
+import { findCommand, renderUsage } from './commands/tree.ts';
 import type { CommandArgs } from './commands/types.ts';
 import { UsageError } from './diagnostics.ts';
-
-const USAGE = `Использование:
-  harness check [--root <dir>]
-  harness adapters sync [--root <dir>]
-  harness changelog lint [--root <dir>]
-  harness context index [--root <dir>]
-  harness outdated [--root <dir>]
-  harness expect init | report | lint | judge [--apply] [--root <dir>]
-  harness index build --raw-base <url> [--root <dir>] [--out <file>]
-  harness index check --raw-base <url> [--root <dir>]
-
-Коды выхода: 0 — ok, 1 — найдены нарушения, 2 — ошибка вызова или конфигурации.`;
 
 export async function main(argv: string[], now: Date = new Date()): Promise<number> {
   const { values, positionals } = parseArgs({
@@ -35,7 +17,7 @@ export async function main(argv: string[], now: Date = new Date()): Promise<numb
     },
   });
   if (values.help) {
-    console.log(USAGE);
+    console.log(renderUsage());
     return 0;
   }
   const args: CommandArgs = { root: path.resolve(values.root), now };
@@ -43,25 +25,9 @@ export async function main(argv: string[], now: Date = new Date()): Promise<numb
   if (values['raw-base'] !== undefined) args.rawBase = values['raw-base'];
   if (values.apply === true) args.apply = true;
 
-  const [group, command] = positionals;
-  switch (group) {
-    case 'adapters':
-      return runAdapters(command, args);
-    case 'check':
-      return runCheck(args);
-    case 'changelog':
-      return runChangelog(command, args);
-    case 'context':
-      return runContext(command, args);
-    case 'expect':
-      return runExpect(command, args);
-    case 'index':
-      return runIndex(command, args);
-    case 'outdated':
-      return runOutdated(args);
-    default:
-      throw new UsageError(`неизвестная команда: ${positionals.join(' ') || '<пусто>'}`);
-  }
+  const command = findCommand(positionals);
+  if (command === undefined) throw new UsageError(`неизвестная команда: ${positionals.join(' ') || '<пусто>'}`);
+  return command.run(args);
 }
 
 export async function run(argv: string[]): Promise<number> {
@@ -70,7 +36,7 @@ export async function run(argv: string[]): Promise<number> {
   } catch (error) {
     console.error(`ERROR: ${error instanceof Error ? error.message : String(error)}`);
     if (error instanceof UsageError) {
-      console.error(USAGE);
+      console.error(renderUsage());
       return 2;
     }
     // parseArgs бросает TypeError с code ERR_PARSE_ARGS_* на неизвестных опциях.

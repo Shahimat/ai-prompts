@@ -34,3 +34,4 @@ export {
   type SyncResult,
 } from './adapters/sync.ts';
 export { changelogBetween, compareVersions, runOutdated, type Fetcher } from './commands/outdated.ts';
+export { COMMANDS, findCommand, renderUsage, type Command } from './commands/tree.ts';
