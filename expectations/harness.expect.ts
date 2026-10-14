@@ -1,4 +1,4 @@
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { mkdtemp, readdir, readFile, rm, writeFile, mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -267,8 +267,8 @@ describe('[harness] outdated', () => {
 });
 
 describe('[harness] expect', () => {
-  crit('команды harness expect init | report | lint | judge — ожидания проекта', () =>
-    Check.commands(['expect init', 'expect report', 'expect lint', 'expect judge']),
+  crit('команды harness expect init | report | lint | judge | serve — ожидания проекта', () =>
+    Check.commands(['expect init', 'expect report', 'expect lint', 'expect judge', 'expect serve']),
   );
   crit('смысловая проверка заголовков файла запускается только при изменении его заголовков', () =>
     Check.lintOnTitleChange(),
@@ -287,6 +287,17 @@ describe('[harness] expect', () => {
     Check.anchorsOnly(),
   );
   crit('ожидание — не длиннее 200 символов', () => Check.titleLimit());
+  crit(
+    'harness expect serve [--file <path>] [--port <n>] — HTML-отчёт ожиданий с локального сервера на 127.0.0.1; файлов не пишет',
+    () => Serve.readOnly(),
+  );
+  crit(
+    'страница собирается из файла ожиданий при запросе: правка файла видна после перезагрузки, без перезапуска сервера',
+    () => Serve.live(),
+  );
+  crit('страница сервера побайтно совпадает с тем, что пишет report --html для того же входа', () =>
+    Serve.sameAsHtml(),
+  );
 });
 
 describe('[harness] expect plan', () => {
@@ -482,6 +493,7 @@ const DECLARED_COMMANDS = [
   'expect report',
   'expect lint',
   'expect judge',
+  'expect serve',
   'delta check',
   'delta close',
   'outdated',
@@ -1966,6 +1978,116 @@ M.state('c', () => { crit.todo('c впереди'); });
       expect(find('новое один')?.cls).toMatch(/diff-changed/);
       expect(find('новое один')?.text).toContain('старое один');
       expect(find('остаётся')?.cls).not.toMatch(/diff-/);
+    });
+  }
+}
+
+interface Served {
+  url: string;
+  output: () => string;
+  stop: () => Promise<void>;
+}
+
+async function startServe(dir: string, extra: string[] = []): Promise<Served> {
+  const child = spawn(
+    process.execPath,
+    [BIN(), 'expect', 'serve', '--root', dir, '--port', '0', ...extra],
+    { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'] },
+  );
+  let out = '';
+  const url = await new Promise<string>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`serve не напечатал адрес:\n${out}`)), 20_000);
+    const onData = (d: Buffer) => {
+      out += d.toString('utf8');
+      const m = /http:\/\/127\.0\.0\.1:\d+\/?/.exec(out);
+      if (m !== null) {
+        clearTimeout(timer);
+        resolve(m[0]);
+      }
+    };
+    child.stdout.on('data', onData);
+    child.stderr.on('data', onData);
+    child.on('exit', (code) => {
+      clearTimeout(timer);
+      reject(new Error(`serve завершился с кодом ${String(code)}:\n${out}`));
+    });
+  });
+  return {
+    url,
+    output: () => out,
+    stop: async () => {
+      const exited = new Promise<void>((resolve) => child.once('exit', () => resolve()));
+      child.kill();
+      await exited;
+    },
+  };
+}
+
+async function page(url: string): Promise<{ status: number; type: string; body: string }> {
+  const r = await fetch(url);
+  return { status: r.status, type: r.headers.get('content-type') ?? '', body: await r.text() };
+}
+
+const SERVE_BODY = `describe('страница', () => {\n  crit('первый заголовок', () => {});\n});\n`;
+
+const skipRuntime = (rel: string): boolean =>
+  rel === 'report.html' || rel.startsWith('node_modules/');
+
+class Serve {
+  static async readOnly(): Promise<void> {
+    await withPlanFixture(planFile(SERVE_BODY), async (dir) => {
+      const before = await snapshot(dir, skipRuntime);
+      const served = await startServe(dir);
+      try {
+        expect(new URL(served.url).hostname).toBe('127.0.0.1');
+        const r = await page(served.url);
+        expect({ status: r.status, html: r.type.startsWith('text/html') }).toEqual({
+          status: 200,
+          html: true,
+        });
+        expect(r.body).toContain('первый заголовок');
+      } finally {
+        await served.stop();
+      }
+      expect(await snapshot(dir, skipRuntime)).toEqual(before);
+    });
+  }
+
+  static async live(): Promise<void> {
+    await withPlanFixture(planFile(SERVE_BODY), async (dir) => {
+      const served = await startServe(dir, ['--file', 'expectations/plan.expect.ts']);
+      try {
+        expect((await page(served.url)).body).toContain('первый заголовок');
+        const file = path.join(dir, 'expectations/plan.expect.ts');
+        await writeFile(
+          file,
+          (await readFile(file, 'utf8')).replace('первый заголовок', 'второй заголовок'),
+        );
+        const after = (await page(served.url)).body;
+        expect(after).toContain('второй заголовок');
+        expect(after).not.toContain('первый заголовок');
+      } finally {
+        await served.stop();
+      }
+    });
+  }
+
+  static async sameAsHtml(): Promise<void> {
+    const files = {
+      ...planFile(
+        `${DEMO_MACHINE}${STEPS('active')}M.state('a', () => { crit('карточка a', () => {}); });\n`,
+      ),
+      'expectations/other.expect.ts': `${PLAN_IMPORTS}describe('другой файл', () => { crit('чужое ожидание', () => {}); });\n`,
+    };
+    await withPlanFixture(files, async (dir, run) => {
+      const file = ['--file', 'expectations/plan.expect.ts'];
+      const { html } = await run(file);
+      const served = await startServe(dir, file);
+      try {
+        expect((await page(served.url)).body).toBe(html);
+      } finally {
+        await served.stop();
+      }
     });
   }
 }
