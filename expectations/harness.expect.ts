@@ -1,9 +1,19 @@
 import { spawnSync } from 'node:child_process';
-import { mkdtemp, readdir, rm, writeFile, mkdir } from 'node:fs/promises';
+import { mkdtemp, readdir, readFile, rm, writeFile, mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { describe, expect } from 'vitest';
-import { COMMANDS, computeSync, DEFAULT_CHANGELOG, KNOWN_ADAPTERS, KNOWN_CHECKS, parseConfig, runOutdated, UsageError } from '@shahimat/harness';
+import { describe, expect, it } from 'vitest';
+import {
+  COMMANDS,
+  computeSync,
+  DEFAULT_CHANGELOG,
+  KNOWN_ADAPTERS,
+  KNOWN_CHECKS,
+  parseConfig,
+  renderUsage,
+  runOutdated,
+  UsageError,
+} from '@shahimat/harness';
 import {
   applyAnswers,
   budget,
@@ -19,32 +29,61 @@ import {
 
 budget({ crit: 0, warn: 0 });
 
-describe('состав harness', () => {
+describe('[harness] common', () => {
+  crit(
+    'процессы harness: check, changelog, context, adapters, outdated, expect, index; plan_iter — в разработке: его команд нет в CLI, ожидания — todo в harness-plan-iter.expect.ts',
+    () => Check.processes(),
+  );
   crit('пакеты: @shahimat/harness — CLI и механизм ожиданий, @shahimat/expectations — наборы ожиданий; других нет', () => Check.packages());
-  crit('команда harness check — все проверки из context/harness.yml разом', () => Check.commands(['check']));
-  crit('команда harness changelog lint — формат CHANGELOG.md', () => Check.commands(['changelog lint']));
-  crit('команда harness context index — генерация context/index.yml из слоёв документации', () => Check.commands(['context index']));
-  crit('команда harness adapters sync — файлы под Claude Code и Codex из AGENTS.md и .agents/', () => Check.commands(['adapters sync']));
-  crit('команды harness expect init | report | lint | judge — ожидания проекта', () =>
-    Check.commands(['expect init', 'expect report', 'expect lint', 'expect judge']));
-  crit('команда harness outdated — версия проекта против npm и журнал изменений между ними', () => Check.commands(['outdated']));
-  crit('команды harness index build | check — индекс prompts/index.yml источника промптов', () =>
-    Check.commands(['index build', 'index check']));
-  crit('других команд у harness нет', () => Check.noOtherCommands());
-  crit('проверки harness check: changelog, context-index, adapters — других нет', () => Check.checks());
-  crit('адаптеры под инструменты: claude-code и codex — других нет', () => Check.adapters());
-});
-
-describe('harness — основа', () => {
+  crit('других команд, кроме перечисленных в разделах [harness] <процесс>, у harness нет', () => Check.noOtherCommands());
   crit('в репозитории нет bash-скриптов: вся автоматизация на TS и Node ≥ 24', () => Check.noBash());
   crit('CI прогоняет harness на ubuntu, macos и windows', () => Check.ciMatrix());
   crit('TypeScript в режиме strict: strict, noUncheckedIndexedAccess, exactOptionalPropertyTypes', () => Check.tsStrict());
   crit('у каждой команды CLI из справки есть юнит-тест', () => Check.commandsTested());
   crit('коды выхода CLI: 0 — ok, 1 — нарушения, 2 — ошибка вызова или конфигурации', () => Check.exitCodes());
   crit('неизвестный ключ в context/harness.yml — ошибка конфига, а не молча выключенная проверка', () => Check.strictConfig());
+  crit('справка CLI строится из декларативного дерева команд', () => Check.commandTree());
+  crit('ошибка конфига называет путь до поля', () => Check.configErrorPath());
+  crit('слои пакета зависят в одну сторону: cli → commands → ядро', () => Check.layers());
+  crit('проверки ничего не пишут в проект: файлы пишут только генерация (adapters sync, context index, index build, expect init | judge) и session clone из plan_iter', () => Check.checksReadOnly());
+  warn('итог прогона считает код по бюджету и ответам модели, а не модель', () => Check.verdictByCode());
+  crit('ответ модели вне схемы отклоняется', () => Check.answerSchema());
+  warn('задание проверяющей модели содержит только вопросы и доказательства, без контекста автора', () => Check.cleanContext());
+  crit('уровни замечаний общие для ожиданий и критериев плана: crit, warn, info', () => Check.sharedLevels());
+  it.todo('дополнения проекта и пользователя подключаются из конфига динамическим import, без форка пакета');
 });
 
-describe('ожидания (expect)', () => {
+describe('[harness] check', () => {
+  crit('команда harness check — все проверки из context/harness.yml разом', () => Check.commands(['check']));
+  crit('проверки harness check: changelog, context-index, adapters — других нет', () => Check.checks());
+});
+
+describe('[harness] changelog', () => {
+  crit('команда harness changelog lint — формат CHANGELOG.md', () => Check.commands(['changelog lint']));
+  crit('строка журнала — не длиннее 120 символов', () => Check.changelogLine());
+  crit('теги ядра — ровно arch, stack, dep, milestone', () => Check.coreTags());
+});
+
+describe('[harness] context', () => {
+  crit('команда harness context index — генерация context/index.yml из слоёв документации', () => Check.commands(['context index']));
+  warn('context/index.yml генерируется harness context index и не содержит даты генерации', () => Check.contextIndexNoDate());
+});
+
+describe('[harness] adapters', () => {
+  crit('команда harness adapters sync — файлы под Claude Code и Codex из AGENTS.md и .agents/', () => Check.commands(['adapters sync']));
+  crit('адаптеры под инструменты: claude-code и codex — других нет', () => Check.adapters());
+  crit('adapters sync не меняет и не удаляет файлы без метки harness', () => Check.adaptersSafe());
+  warn('adapters sync выключает memory: autoMemoryEnabled false в Claude Code, memories false в Codex', () => Check.memoryOff());
+});
+
+describe('[harness] outdated', () => {
+  crit('команда harness outdated — версия проекта против npm и журнал изменений между ними', () => Check.commands(['outdated']));
+  crit('harness outdated сообщает текущую и последнюю версию и записи журнала между ними', () => Check.outdatedReport());
+});
+
+describe('[harness] expect', () => {
+  crit('команды harness expect init | report | lint | judge — ожидания проекта', () =>
+    Check.commands(['expect init', 'expect report', 'expect lint', 'expect judge']));
   crit('смысловая проверка заголовков файла запускается только при изменении его заголовков', () => Check.lintOnTitleChange());
   crit('судья вызывается только для вердиктов, у которых изменились заголовок или доказательства', () => Check.judgeOnlyStale());
   crit('пакет судьи — не больше 25 вопросов и 80 KB доказательств', () => Check.batchLimits());
@@ -55,22 +94,16 @@ describe('ожидания (expect)', () => {
   crit('ожидание — не длиннее 200 символов', () => Check.titleLimit());
 });
 
-describe('генерация', () => {
-  crit('adapters sync не меняет и не удаляет файлы без метки harness', () => Check.adaptersSafe());
-  warn('context/index.yml генерируется harness context index и не содержит даты генерации', () => Check.contextIndexNoDate());
-  warn('adapters sync выключает memory: autoMemoryEnabled false в Claude Code, memories false в Codex', () => Check.memoryOff());
+describe('[harness] index', () => {
+  crit('команды harness index build | check — индекс prompts/index.yml источника промптов', () =>
+    Check.commands(['index build', 'index check']));
   crit('у skill в индексе sha256 каждого файла', () => Check.skillFileShas());
-});
-
-describe('журнал и версии', () => {
-  crit('строка журнала — не длиннее 120 символов', () => Check.changelogLine());
-  crit('теги ядра — ровно arch, stack, dep, milestone', () => Check.coreTags());
-  crit('harness outdated сообщает текущую и последнюю версию и записи журнала между ними', () => Check.outdatedReport());
 });
 
 // ─────────────────────────────── проверки ───────────────────────────────
 
 const PKG = 'harness/packages/harness';
+const SCHEMAS = 'expectations/schemas';
 const BIN = () => path.join(repoRoot(), PKG, 'dist/bin.js');
 const cli = (args: string[], cwd = repoRoot()) =>
   spawnSync(process.execPath, [BIN(), ...args], { cwd, encoding: 'utf8' }).status;
@@ -78,6 +111,22 @@ const cli = (args: string[], cwd = repoRoot()) =>
 async function tempDir(): Promise<string> {
   return mkdtemp(path.join(tmpdir(), 'harness-expect-'));
 }
+
+/** Содержимое всех файлов каталога: путь → текст. */
+async function snapshot(dir: string): Promise<Record<string, string>> {
+  const files = (await readdir(dir, { recursive: true, withFileTypes: true })).filter((e) => e.isFile());
+  return Object.fromEntries(
+    await Promise.all(
+      files.map(async (e) => {
+        const file = path.join(e.parentPath, e.name);
+        return [path.relative(dir, file), await readFile(file, 'utf8')] as const;
+      }),
+    ),
+  );
+}
+
+/** Слой файла пакета: 0 — cli, 1 — commands, 2 — ядро. */
+const layerOf = (file: string): number => (file === 'cli.ts' || file === 'bin.ts' ? 0 : file.startsWith('commands/') ? 1 : 2);
 
 /** Команды из дерева CLI: `check`, `adapters sync`, `expect init`, … */
 async function usageCommands(): Promise<string[]> {
@@ -109,6 +158,15 @@ class Check {
   static async commands(list: string[]): Promise<void> {
     const usage = await usageCommands();
     expect(list.filter((c) => !usage.includes(c))).toEqual([]);
+  }
+
+  static async processes(): Promise<void> {
+    expect([...new Set(COMMANDS.map((c) => c.path[0]))].sort()).toEqual(
+      ['adapters', 'changelog', 'check', 'context', 'expect', 'index', 'outdated'],
+    );
+    const planIter = await readRepo('expectations/harness-plan-iter.expect.ts');
+    expect(planIter).toContain("describe('[harness] plan_iter'");
+    expect(planIter).not.toMatch(/\b(crit|warn)\(/);
   }
 
   static async noOtherCommands(): Promise<void> {
@@ -185,6 +243,74 @@ class Check {
   static strictConfig(): void {
     expect(() => parseConfig('checks:\n  changelg: {}\n')).toThrow(UsageError);
     expect(() => parseConfig('chekcs: {}\n')).toThrow(UsageError);
+  }
+
+  static async commandTree(): Promise<void> {
+    const usage = renderUsage();
+    expect(COMMANDS.map((c) => c.path.join(' ')).filter((c) => !usage.includes(`harness ${c}`))).toEqual([]);
+    expect(await readRepo(`${PKG}/src/cli.ts`)).not.toMatch(/switch \(|Использование:/);
+  }
+
+  static configErrorPath(): void {
+    expect(() => parseConfig('checks:\n  changelog:\n    max_line: x\n')).toThrow('checks.changelog.max_line');
+    expect(() => parseConfig('checks:\n  changelog:\n    bogus: 1\n')).toThrow('checks.changelog');
+  }
+
+  static async layers(): Promise<void> {
+    const src = path.join(repoRoot(), PKG, 'src');
+    // index.ts — фасад пакета: экспортирует все слои.
+    const files = (await readdir(src, { recursive: true }))
+      .map((f) => f.split(path.sep).join('/'))
+      .filter((f) => f.endsWith('.ts') && f !== 'index.ts');
+    const upward: string[] = [];
+    for (const file of files) {
+      for (const m of (await readRepo(`${PKG}/src/${file}`)).matchAll(/from '(\.[^']+)'/g)) {
+        const target = path.posix.normalize(path.posix.join(path.posix.dirname(file), m[1] ?? ''));
+        if (layerOf(target) < layerOf(file)) upward.push(`${file} → ${target}`);
+      }
+    }
+    expect(files.length).toBeGreaterThan(10);
+    expect(upward).toEqual([]);
+  }
+
+  static async checksReadOnly(): Promise<void> {
+    const dir = await tempDir();
+    try {
+      await writeFile(path.join(dir, 'AGENTS.md'), '# x\n');
+      await writeFile(path.join(dir, 'CHANGELOG.md'), '- 2026-10-14 · без тега · b\n');
+      await mkdir(path.join(dir, 'context'));
+      await writeFile(
+        path.join(dir, 'context/harness.yml'),
+        'adapters: [claude-code, codex]\nchecks:\n  changelog: {}\n  context-index: {}\n  adapters: {}\n',
+      );
+      const before = await snapshot(dir);
+      expect(cli(['check', '--root', dir])).toBe(1);
+      expect(cli(['changelog', 'lint', '--root', dir])).toBe(1);
+      expect(await snapshot(dir)).toEqual(before);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  }
+
+  // модели
+  static verdictByCode = (): Promise<void> => judged(['@verdict-by-code']);
+
+  static answerSchema(): void {
+    const item = { id: 'a', question: 'q', evidence: [{ ref: 'x', sha: 's', bytes: 1 }] };
+    const texts = new Map([['x', 'текст доказательства про memory']]);
+    const notArray = applyAnswers([item], { id: 'a' }, texts, new Date());
+    const notBool = applyAnswers([item], [{ id: 'a', verdict: 'да', ref: 'x', quote: 'доказательства про memory' }], texts, new Date());
+    expect(Object.keys({ ...notArray.accepted, ...notBool.accepted })).toEqual([]);
+    expect([...notArray.rejected, ...notBool.rejected].map((r) => r.id)).toEqual(['*', 'a']);
+  }
+
+  static cleanContext = (): Promise<void> => judged(['@judge-clean-context']);
+
+  static async sharedLevels(): Promise<void> {
+    const schema = JSON.parse(await readRepo(`${SCHEMAS}/plan-criteria.schema.json`)) as {
+      properties: { criteria: { items: { properties: { level: { enum: string[] } } } } };
+    };
+    expect(schema.properties.criteria.items.properties.level.enum).toEqual(['crit', 'warn', 'info']);
   }
 
   // ожидания

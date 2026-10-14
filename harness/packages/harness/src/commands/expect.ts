@@ -1,5 +1,6 @@
 // expect:expect-cycles
 // expect:verdict-prune
+// expect:verdict-by-code
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, rmSync } from 'node:fs';
 import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';

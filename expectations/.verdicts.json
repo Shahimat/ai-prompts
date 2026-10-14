@@ -80,6 +80,17 @@
       "reason": "Тикет — задача/техзадача/бага из шагов (один тип — один коммит), после шага — сообщение `type(scope): subject`, коммиты делает пользователь, сам агент выполняет только по явной просьбе.",
       "at": "2026-10-13"
     },
+    "1db1d3ca45dd": {
+      "question": "[harness] expect > смысловая проверка заголовков файла запускается только при изменении его заголовков",
+      "evidence": {
+        "@expect-cycles": "20a34ae98a46b66942faf1870385fdc43a99a68566d263854963dd9fa876003e"
+      },
+      "verdict": true,
+      "quote": "if (store.lint[file]?.titles === sha) continue;",
+      "ref": "@expect-cycles",
+      "reason": "задание lint создаётся только если SHA заголовков файла отличается от сохранённого",
+      "at": "2026-10-14"
+    },
     "1e94c71faacc": {
       "question": "поведение ключевых skills > workflow: блокирующий вопрос — нумерованные варианты, дефолт с обоснованием, стоп до ответа",
       "evidence": {
@@ -125,17 +136,6 @@
       "reason": "Генерируемые файлы идут в коммит изменившей их правки",
       "at": "2026-10-13"
     },
-    "2e54b66ef220": {
-      "question": "ожидания (expect) > судья вызывается только для вердиктов, у которых изменились заголовок или доказательства",
-      "evidence": {
-        "@expect-cycles": "9e62d49a234be4c744b9376871db604368c81842129e4bad98f589eb21700967"
-      },
-      "verdict": true,
-      "quote": "cached.question === question &&",
-      "ref": "@expect-cycles",
-      "reason": "В пакет судье попадает только ожидание, у которого вердикт не свежий: вопрос или SHA доказательств не совпадают с кэшем; свежие пропускаются.",
-      "at": "2026-10-13"
-    },
     "2e60332c167a": {
       "question": "тикет — задача, техзадача или бага: последовательность шагов-коммитов > шаг тикета — один тип karma (feat, fix, refactor, docs, test, perf, chore, style) и один коммит; исключение — режим «пройти тикет целиком»",
       "evidence": {
@@ -145,17 +145,6 @@
       "quote": "Шаг — один тип karma commit-msg (`feat`, `fix`, `refactor`, `docs`,",
       "ref": "@ticket-commits",
       "reason": "Шаг — один тип karma и один коммит, исключение — режим «пройти тикет целиком»",
-      "at": "2026-10-13"
-    },
-    "30a11b9afb8a": {
-      "question": "ожидания (expect) > смысловая проверка заголовков файла запускается только при изменении его заголовков",
-      "evidence": {
-        "@expect-cycles": "9e62d49a234be4c744b9376871db604368c81842129e4bad98f589eb21700967"
-      },
-      "verdict": true,
-      "quote": "if (store.lint[file]?.titles === sha) continue;",
-      "ref": "@expect-cycles",
-      "reason": "Задание lint создаётся только если SHA заголовков файла отличается от сохранённого.",
       "at": "2026-10-13"
     },
     "35bb6f85181b": {
@@ -179,6 +168,17 @@
       "ref": "@ticket-commits",
       "reason": "Подряд одного типа — один коммит, в сообщении указывается git commit --amend",
       "at": "2026-10-13"
+    },
+    "386c4e8a4603": {
+      "question": "[harness] common > задание проверяющей модели содержит только вопросы и доказательства, без контекста автора",
+      "evidence": {
+        "@judge-clean-context": "a60f0a4ade6bd4cf76950171d18c6b5c8bf1db7df6c822cd762ebb0d22d7e728"
+      },
+      "verdict": true,
+      "quote": "Отвечай только по доказательствам, без догадок.",
+      "ref": "@judge-clean-context",
+      "reason": "renderBatch собирает задание только из фиксированной инструкции, списка и текста доказательств и вопросов; контекста автора правки в нём нет",
+      "at": "2026-10-14"
     },
     "3a42cc45ddae": {
       "question": "возможности и пресеты > модуль добавляет поля в чужие слои только через provides.extends",
@@ -224,17 +224,6 @@
       "reason": "Git-запись не выполняет, вне сообщения коммита не предлагает, только по явной просьбе после списка команд",
       "at": "2026-10-13"
     },
-    "49fb340a9661": {
-      "question": "ожидания (expect) > в кэше вердиктов только вердикты живых ожиданий",
-      "evidence": {
-        "@verdict-prune": "678e88040a99d84817e3f71430a569986763e874ac714a2fca3b1338f9d8a019"
-      },
-      "verdict": true,
-      "quote": "const removed = pruneStore(store, seen, new Set(byFile(results).keys()));",
-      "ref": "@verdict-prune",
-      "reason": "pruneStore удаляет вердикты с id не из seen (живые judged) и lint удалённых файлов; apply добавляет только живые pending.",
-      "at": "2026-10-13"
-    },
     "59df1d74a41f": {
       "question": "журнал решений > свой тег журнала модуль добавляет только через provides.changelog_tags",
       "evidence": {
@@ -257,6 +246,17 @@
       "reason": "Источник реальности ядра — ключи external целевых систем, а не this-repo.",
       "at": "2026-10-13"
     },
+    "694f0f4b5141": {
+      "question": "[harness] expect > в кэше вердиктов только вердикты живых ожиданий",
+      "evidence": {
+        "@verdict-prune": "01041b7774be1123c19cad16eeb766bb06decf9911e8c59a8d277cfbcfe77c49"
+      },
+      "verdict": true,
+      "quote": "Убирает вердикты, которые не нужны ни одному текущему ожиданию, и\n * проверки заголовков удалённых файлов: кэш не растёт с историей правок.",
+      "ref": "@verdict-prune",
+      "reason": "pruneStore удаляет вердикты с id вне множества seen живых ожиданий при expect judge",
+      "at": "2026-10-14"
+    },
     "6a7682557244": {
       "question": "тикет — задача, техзадача или бага: последовательность шагов-коммитов > вклинившийся refactor доводится до конца отдельным шагом, затем работа возвращается к прерванному типу",
       "evidence": {
@@ -269,16 +269,16 @@
       "reason": "Skill говорит прямо; CLAUDE.md репозитория не противоречит",
       "at": "2026-10-13"
     },
-    "6da14c422a10": {
-      "question": "генерация > context/index.yml генерируется harness context index и не содержит даты генерации",
+    "741df40f5b3c": {
+      "question": "[harness] adapters > adapters sync выключает memory: autoMemoryEnabled false в Claude Code, memories false в Codex",
       "evidence": {
-        "@context-index-no-date": "1f45b36fdf1d8025b13bbde313a430e458d05cc19eb2b80660e61d92f3538dba"
+        "@memory-off": "10b578d3efad1a85071fbcb6d89ad7acfa9ce204ff134e33212b158df61cbbc5"
       },
       "verdict": true,
-      "quote": "const HEADER = '# generated by harness context index — do not edit manually\\n';",
-      "ref": "@context-index-no-date",
-      "reason": "Заголовок и render собирают только conventions и namespaces, дата/время не пишутся.",
-      "at": "2026-10-13"
+      "quote": "'[features]',\n    'memories = false',",
+      "ref": "@memory-off",
+      "reason": "Claude: write({ autoMemoryEnabled: false }); Codex: генерируется config.toml с memories = false (для ручного файла — диагностика)",
+      "at": "2026-10-14"
     },
     "7ba751f6d1ea": {
       "question": "документация проекта > docs-keeper меняет только слои документации проекта и не трогает код",
@@ -370,6 +370,17 @@
       "reason": "Сказано прямо: без evidence факт помечается unknown или задаётся вопрос",
       "at": "2026-10-13"
     },
+    "9d95d48cd2c2": {
+      "question": "[harness] common > итог прогона считает код по бюджету и ответам модели, а не модель",
+      "evidence": {
+        "@verdict-by-code": "498518ff98cd4e8fe29ff4d1a7d4991c2c388358e70f8dc3281a4bf9d52f4fe4"
+      },
+      "verdict": true,
+      "quote": "const over = count.crit > budget.crit || count.warn > budget.warn || count.pending > 0;",
+      "ref": "@verdict-by-code",
+      "reason": "итог вычисляет код report() сравнением счётчиков с бюджетом; модель даёт только булевы вердикты",
+      "at": "2026-10-14"
+    },
     "9e5b4e778fd6": {
       "question": "документация проекта > шаблон AGENTS.md и блоки модулей не содержат словесных указаний изменить проектную документацию — только ссылки на skills и команды harness",
       "evidence": {
@@ -449,6 +460,17 @@
       "reason": "Skill перечисляет типы и исключение; репо: один коммит на шаг",
       "at": "2026-10-13"
     },
+    "ced81edf1af7": {
+      "question": "[harness] context > context/index.yml генерируется harness context index и не содержит даты генерации",
+      "evidence": {
+        "@context-index-no-date": "1f45b36fdf1d8025b13bbde313a430e458d05cc19eb2b80660e61d92f3538dba"
+      },
+      "verdict": true,
+      "quote": "return HEADER + stringify(doc, { lineWidth: 0 });",
+      "ref": "@context-index-no-date",
+      "reason": "текст индекса — константный заголовок и данные слоёв, без даты/времени",
+      "at": "2026-10-14"
+    },
     "d35fa739f017": {
       "question": "документация проекта > правила контракта не копируются в context/conventions",
       "evidence": {
@@ -495,6 +517,17 @@
       "reason": "Правило целостности атрибуции записано в блоке AGENTS.md модуля analysis вместе с его пунктами.",
       "at": "2026-10-13"
     },
+    "de808fdc116f": {
+      "question": "[harness] expect > судья вызывается только для вердиктов, у которых изменились заголовок или доказательства",
+      "evidence": {
+        "@expect-cycles": "20a34ae98a46b66942faf1870385fdc43a99a68566d263854963dd9fa876003e"
+      },
+      "verdict": true,
+      "quote": "cached.question === question &&\n    Object.keys(cached.evidence).length === refs.length &&\n    refs.every((r) => cached.evidence[r.ref] === r.sha);",
+      "ref": "@expect-cycles",
+      "reason": "в пакет судье попадают только ожидания без свежего вердикта: изменён заголовок, набор или SHA доказательств (или вердикта нет)",
+      "at": "2026-10-14"
+    },
     "dfed5ff72504": {
       "question": "приоритетные правила модулей > privacy: в документации, коммитах и журнале нет реальных персональных данных",
       "evidence": {
@@ -504,17 +537,6 @@
       "quote": "реальных значений, диагнозов, персональных данных нет в документации, примерах, логах, коммитах и CHANGELOG — только синтетика",
       "ref": "@privacy-rule",
       "reason": "Блок privacy прямо запрещает реальные персональные данные в документации, коммитах и CHANGELOG (журнале).",
-      "at": "2026-10-13"
-    },
-    "e2e31ca27294": {
-      "question": "генерация > adapters sync выключает memory: autoMemoryEnabled false в Claude Code, memories false в Codex",
-      "evidence": {
-        "@memory-off": "10b578d3efad1a85071fbcb6d89ad7acfa9ce204ff134e33212b158df61cbbc5"
-      },
-      "verdict": true,
-      "quote": "write({ autoMemoryEnabled: false })",
-      "ref": "@memory-off",
-      "reason": "claudeMemory пишет autoMemoryEnabled: false; codexConfig генерирует memories = false (вручную написанный config — диагностика).",
       "at": "2026-10-13"
     },
     "e89a3d7bf546": {
@@ -553,11 +575,17 @@
       "unmeasurable": [],
       "at": "2026-10-13"
     },
-    "expectations/harness.expect.ts": {
-      "titles": "cbd4453064ff842e08ed5e6af6a2179fe1e5ac6968237cc5841ff8b00edab71f",
+    "expectations/harness-plan-iter.expect.ts": {
+      "titles": "93024153fa58be6cc21aa46eeeb0d1d1ef937ec7630ac3b85c0a50e7bf2a71c0",
       "contradictions": [],
       "unmeasurable": [],
-      "at": "2026-10-13"
+      "at": "2026-10-14"
+    },
+    "expectations/harness.expect.ts": {
+      "titles": "b5505abb7a18260a5869dea40e56127e9f483e063858d60e5fcc87f00951f5b2",
+      "contradictions": [],
+      "unmeasurable": [],
+      "at": "2026-10-14"
     },
     "expectations/presets.expect.ts": {
       "titles": "64e4a5400f6cc17662aa0803796de07cadca271bf818427f0f174fc3e38deb9e",

@@ -1,3 +1,4 @@
+// expect:judge-clean-context
 import { containsQuote } from './evidence.ts';
 import type { PendingItem } from './judge.ts';
 import type { LintVerdict, Verdict } from './verdicts.ts';
