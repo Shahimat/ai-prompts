@@ -149,7 +149,7 @@ npm run index:build
 тот же коммит, что и правку. CI (`npm run index:check`) сверяет
 консистентность и валит билд при рассинхроне.
 
-Индекс собирает harness (`harness/packages/harness`, TS). Нужен
+Индекс собирает harness (`packages/harness`, TS). Нужен
 Node ≥ 24; перед первым запуском — `npm ci && npm run build`.
 
 ## Pull request

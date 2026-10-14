@@ -61,10 +61,10 @@ patterns: [source-sync, ...]
 тот же коммит. CI проверяет консистентность через `npm run index:check`
 и валит билд при рассинхроне.
 
-Индекс собирает harness (`harness/packages/harness`, TS). Нужен
+Индекс собирает harness (`packages/harness`, TS). Нужен
 Node ≥ 24; перед первым запуском — `npm ci && npm run build`.
 
-После правки TS-кода (`harness/`, `expectations/`) — `npm run ci`:
+После правки TS-кода (`packages/`, `expectations/`) — `npm run ci`:
 format, сборка, typecheck, lint, тесты, индекс и ожидания одной
 командой; CI запускает ровно её. Строгость TS — в общем
 `tsconfig.base.json`; линтер — oxlint с type-aware правилами
@@ -80,26 +80,34 @@ JSON и YAML: markdown промптов он не трогает (`.prettierigno
 принцип шире линтера: обходы (`as unknown as T`, отключение правила)
 — только по согласованию.
 
-**Слои harness** (`harness/packages/harness/src`), импорт только вниз:
-`shared` → `lib` → `commands` → `scripts` → `harness`.
+**Слои harness** (`packages/harness/src`), импорт только вниз:
+`shared` → `lib` → `commands` → `scripts` → `harnesses`.
 
 - Команда — атомарная операция; другие команды, скрипты и harness не
   вызывает.
 - Скрипт — только последовательность команд (данные `ScriptDef`, их
   исполняет `scripts/run.ts` по реестру `scripts/commands.ts`).
-- Harness — автомат: ядро `harness/core` не зависит ни от одного
-  конкретного harness, harness не импортируют друг друга. Каталог
-  `harness/index.ts` регистрирует модули (`HarnessModule`), операции
-  `session` общие. В состоянии агента (`handoff`) процесс
-  останавливается с заданием, `session <s> resume` продолжает.
+- Harness — автомат с плоским именем `категория-вид` (`plan-review`,
+  `docs-delta`, `source-sync`). Живёт в одном каталоге
+  `harnesses/<имя>/`: `harness.yaml`, критерии и промпты рядом с кодом.
+  Ядро `harnesses/core` не зависит ни от одного конкретного harness,
+  harness не импортируют друг друга; каталог `harnesses/index.ts`
+  регистрирует модули (`HarnessModule`).
+- CLI harness — под его именем: `harness <имя> start | open <id> | list
+  | status <id> | validate | graph`. id сессии — sha256, в выводе 7
+  символов, команды принимают префикс от 4. Пауза — выход: `open` заново
+  выполняет действие текущего состояния; в состоянии агента (`handoff`)
+  это приём задания, из `failed` — повтор со сбросом счётчиков.
+- Harness не использует контекст вызывающей сессии: входы — аргументы
+  `start`, файлы проекта и ответы, записанные в сессию.
 - Skill запускает не больше одного: скрипт, команду или harness —
   `metadata.runs` во frontmatter. Каждое упоминание команды harness в
   skill — в регионе `<!-- expect:skill-runs -->`, первый регион несёт
   `<!-- metadata.runs: … -->`: судья сверяет текст с объявлением.
-  Несколько команд — через скрипт (`refresh`) или процесс
-  (`docs/delta`, `source/sync`). Субагент команд не запускает — только
+  Несколько команд — через скрипт (`refresh`) или harness
+  (`docs-delta`, `source-sync`). Субагент команд не запускает — только
   его skill.
-- Снаружи слайс `commands/<x>` или `harness/<x>` виден только через
+- Снаружи слайс `commands/<x>` или `harnesses/<x>` виден только через
   свой `index.ts`. Модуль `shared` нужен хотя бы двум слайсам, иначе
   он переезжает в скоуп единственного.
 - Узел дерева CLI объявляет вид (`command` / `script` / `harness`) и
@@ -147,7 +155,7 @@ worktree — одна задача, одна ветка, один worktree.
 
 ## Публичные npm-пакеты
 
-`harness/packages/*` публикуются в npm (`@shahimat/harness`,
+`packages/*` публикуются в npm (`@shahimat/harness`,
 `@shahimat/expectations`); публикует пользователь, когда сам решит.
 Неопубликованная версия — не блокер и не повод для напоминания: о
 публикации не напоминаешь и работу ею не обусловливаешь.
@@ -167,7 +175,7 @@ vitest: заголовок `it` (≤ 200 символов, проверяемо 
 ожидание, тело — проверка. Общие ожидания этого репозитория —
 `expectations/shared/`; общие для всех проектов (правила работы агента,
 например `ticketCommits`) — пакет `@shahimat/expectations`
-(`harness/packages/expectations`): единый текст, каждый проект проверяет
+(`packages/expectations`): единый текст, каждый проект проверяет
 им свои файлы. Каркас в другом проекте — `harness expect init`.
 
 - Форма файла: сверху `budget({ crit, warn })` и `describe` с

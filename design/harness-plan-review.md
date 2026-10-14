@@ -1,12 +1,17 @@
-# План построения harness-планера `plan/iter`
+# План построения harness-планера `plan-review`
 
 Дата: 2026-10-06, сверено с репозиторием 2026-10-14.
 
 Статус на 2026-10-14: S1–S3 закрыты, T1–T8 реализованы в
-`@shahimat/harness` (`src/plan`, `src/fsm`, `src/handlers`, `src/runner`,
-`src/store`, определение — `harnesses/plan/iter/`). Открыт T9 — сквозной
+`@shahimat/harness` (`packages/harness/src/harnesses/plan-review/`,
+ядро — `src/harnesses/core/`). Открыт T9 — сквозной
 прогон на реальной задаче: нужен человек в терминале. Ответы spike и
 отклонения от плана — в разделе «Итоги spike и отклонения».
+
+Переименование после плана: `plan/iter` → `plan-review` (плоские имена
+harness `категория-вид`), CLI — под именем harness, без неймспейсов
+`plan` и `session` (разделы «Архитектура» и «CLI» ниже — актуальные).
+Пункты плана и DoD сохранены в исходных формулировках.
 
 Добавляем в `@shahimat/harness` категорию `plan`, которая ведёт планирование задачи как конечный автомат поверх Claude Code. Построение идёт тем же способом, каким harness будет планировать: три spike снимают неизвестные, девять задач доведены до DoD, остальное вынесено за горизонт. Пункты ниже оформлены в формате будущего плана.
 
@@ -71,38 +76,39 @@ stateDiagram-v2
 
 ## Архитектура и размещение
 
-Пакет `@shahimat/harness` делится на слои с импортом только вниз: `shared` → `lib` → `commands` → `scripts` → `harness`. Команда — атомарная операция, скрипт — последовательность команд, harness — автомат. Узел дерева CLI объявляет вид и эффект (`query` / `mutation`); модель внутри состояния получает только query и не получает skills. Категория живёт в слое `harness`: общее ядро `src/harness/core/` и скоуп `src/harness/plan-iter/`, они видны друг другу и снаружи только через свои `index.ts`.
+Пакет `@shahimat/harness` делится на слои с импортом только вниз: `shared` → `lib` → `commands` → `scripts` → `harnesses`. Команда — атомарная операция, скрипт — последовательность команд, harness — автомат. Узел дерева CLI объявляет вид и эффект (`query` / `mutation`); модель внутри состояния получает только query и не получает skills. Harness живёт в одном каталоге `src/harnesses/<имя>/`: определение рядом с кодом. Общее ядро `src/harnesses/core/` и скоупы harness видны друг другу и снаружи только через свои `index.ts`.
 
 | Модуль | Отвечает за |
 | --- | --- |
 | `tree.ts` (корень `src/`) | Общее дерево команд `COMMANDS` с видом и эффектом узлов; оболочка и help строятся из него |
-| `harness/core/fsm` | Загрузка и проверка `harness.yaml`, исполнение переходов, возобновление |
-| `harness/core/plugins` | Загрузка пользовательских действий и guards |
-| `harness/core/runner` | Запуск интерактивного `claude` и headless-прогонов |
-| `harness/core/store` | Сессии, артефакты, журнал |
-| `harness/plan-iter` | Действия и guards `plan/iter`, операции CLI `plan` и `session`, разбор `plan.md`, формальные проверки, рендер HTML |
+| `harnesses/core/catalog` | Общие команды каждого harness: `start`, `open`, `list`, `status`, `validate`, `graph` |
+| `harnesses/core/fsm` | Загрузка и проверка `harness.yaml`, исполнение переходов, возобновление |
+| `harnesses/core/plugins` | Загрузка пользовательских действий и guards |
+| `harnesses/core/runner` | Запуск интерактивного `claude` и headless-прогонов |
+| `harnesses/core/store` | Сессии (id — sha256), артефакты, журнал |
+| `harnesses/plan-review` | `harness.yaml`, `criteria.yaml`, `prompts/`; действия и guards, свои команды `check`, `render`, `read`, `clone`, разбор `plan.md`, формальные проверки, рендер HTML |
 
-Сделано после плана: каталог модулей harness с общими операциями `session` и процессы агента `docs/delta` (дельта документации: `apply` → `verify` → `close`) и `source/sync` (`outdated` → `update` → `refresh`) — в состоянии агента процесс останавливается с заданием, `session resume` продолжает. За горизонтом — цикл судьи ожиданий (`expect judge` → судья → `--apply`) как процесс и вынос план-специфичных данных (`DEFAULT_MODELS`, поля плана в `SessionData`) из ядра.
+Сделано после плана: каталог модулей harness с общими командами и harness агента `docs-delta` (дельта документации: `apply` → `verify` → `close`) и `source-sync` (`outdated` → `update` → `refresh`) — в состоянии агента harness останавливается с заданием, `open` продолжает. За горизонтом — цикл судьи ожиданий (`expect judge` → судья → `--apply`) как harness, вынос план-специфичных данных (`DEFAULT_MODELS`, поля плана в `SessionData`) из ядра и режимы планера для человека и агента (хендофф `~/ai-gen/harness-plan-review.md`).
 
 ```text
 ~/.config/harness/
   config.yaml                  # модели, бюджеты
-  harnesses/plan/iter/         # ваши варианты и переопределения встроенных
+  harnesses/plan-review/       # ваши варианты и переопределения встроенных
     harness.yaml               # автомат: состояния, переходы, лимиты
     criteria.yaml              # единая точка ожиданий от плана
     prompts/*.md
     handlers/*                 # плагины
-  sessions/<название>-<timestamp>/
+  sessions/<sha256>/           # в выводе — первые 7 символов
     session.json               # состояние автомата, каталог проекта, счётчики
     plan.md                    # источник истины
     context.md                 # решения, отвергнутые варианты, факты, ответы на «уточнить»
-    plan.html                    # производное, пишет render
+    plan.html                  # производное, пишет render
     review/<n>/findings.json
     failure-report.md
     log.jsonl
 ```
 
-Встроенные определения лежат в репозитории в `harness/packages/harness/harnesses/plan/iter/` и поставляются в `files` пакета. В `prompts/index.yml` они не входят: версионируются вместе с пакетом. Каталог `~/.config/harness/harnesses/` их дополняет и переопределяет.
+Встроенные определения лежат рядом с кодом в `packages/harness/src/harnesses/plan-review/` и при сборке копируются в `dist/harnesses/plan-review/`. В `prompts/index.yml` они не входят: версионируются вместе с пакетом. Каталог `~/.config/harness/harnesses/` их дополняет и переопределяет.
 
 ## Контракт плана
 
@@ -164,21 +170,20 @@ revision: 4
 
 ## CLI
 
-Каждая команда работает и внутри оболочки, и одной строкой из шелла: `harness plan iter start`. Проектные команды (`check`, `changelog lint`, `expect …` и др.) остаются на верхнем уровне.
+Каждая команда работает и внутри оболочки, и одной строкой из шелла: `harness plan-review start`. Проектные команды (`check`, `changelog lint`, `expect …` и др.) остаются на верхнем уровне.
 
 ```text
-/harness                      list · help · <категория> · session
-/harness/plan                 list · help · <harness> · ..
-/harness/plan/iter            start · validate · graph · help · ..
-/harness/session              list · help · <сессия> · ..
-/harness/session/<сессия>     status · resume · retry · check · render · read · clone * | md · help · ..
+/harness                  list · help · <команды> · <harness>
+/harness/plan-review      start · open <id> · list · status <id> · validate · graph
+                          check <id> · render <id> · read <id> · clone <id> [md] · help · ..
 ```
 
-- `start` спрашивает название плана и запрос, создаёт сессию `<название>-<timestamp>` и запоминает каталог проекта.
+- `start` спрашивает название плана и запрос, создаёт сессию (id — sha256, в выводе 7 символов) и запоминает каталог проекта.
+- `open <id>` заново выполняет действие текущего состояния: пауза — это выход, каждый переход уже на диске. Из `failed` — новый цикл со сбросом счётчиков. Префикс id — от 4 символов.
 - `check` прогоняет проверку 1a и печатает нарушения; код 1 при `crit`. Её вызывают планер, Stop-hook и вы.
 - `render [--out <file>]` собирает HTML из `plan.md`: по умолчанию `plan.html` в каталоге сессии.
 - `read` собирает HTML, если он устарел, и открывает его в браузере.
-- `clone *` копирует в текущий каталог все экспортируемые артефакты сессии, `clone md` только Markdown. `--out <path>` задаёт место в проекте.
+- `clone <id>` копирует в текущий каталог все экспортируемые артефакты сессии, `clone <id> md` только Markdown. `--out <path>` задаёт место в проекте.
 - `validate` проверяет `harness.yaml`, `graph` печатает Mermaid самого автомата.
 - Дерево команд описано декларативно (`src/tree.ts`, общее с проектными командами), `help` и `list` строятся из него.
 
@@ -427,9 +432,9 @@ flowchart LR
 ## Встраивание в репозиторий
 
 - Версия: планер идёт в текущую неопубликованную версию `@shahimat/harness` (правило — `CLAUDE.md`, «Публичные npm-пакеты»).
-- Ожидания: принятые решения плана — раздел `[harness] plan_iter` в `expectations/harness-plan-iter.expect.ts`. DoD пунктов остаётся здесь.
+- Ожидания: принятые решения плана — раздел `[harness] plan-review` в `expectations/harness-plan-review.expect.ts`. DoD пунктов остаётся здесь.
 - Общие для всего harness решения (дерево команд, путь до поля в ошибке конфига, односторонние слои, проверки не пишут в проект, правила работы с моделями, плагины из конфига) — общие разделы того же файла.
-- Контракт v3: в проект ничего не ставится; в skill `harness` — строка про `harness plan iter start` для больших задач.
+- Контракт v3: в проект ничего не ставится; в skill `harness` — строка про `harness plan-review start` для больших задач.
 
 ## Источники
 
