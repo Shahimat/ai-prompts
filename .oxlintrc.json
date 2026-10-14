@@ -1,6 +1,7 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
   "plugins": ["eslint", "typescript", "unicorn", "oxc", "import", "node", "vitest"],
+  "jsPlugins": ["./packages/oxlint-plugin.ts"],
   "categories": {
     "correctness": "error"
   },
@@ -20,7 +21,9 @@
     "no-implicit-coercion": "error",
     "typescript/no-misused-spread": "off",
     "vitest/warn-todo": "off",
-    "vitest/require-to-throw-message": "off"
+    "vitest/require-to-throw-message": "off",
+    "import/no-relative-parent-imports": "error",
+    "local/no-comments": "error"
   },
   "overrides": [
     {
