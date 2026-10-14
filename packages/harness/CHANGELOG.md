@@ -4,6 +4,12 @@
 
 ## 0.4.0
 
+- CLI harness — под его именем: `harness <имя> start | open <id> | list
+  | status <id> | validate | graph`; неймспейсы `plan` и `session`, а с
+  ними `resume` и `retry`, убраны. id сессии — sha256, в выводе 7
+  символов, команды принимают уникальный префикс от 4. Пауза — выход:
+  `open` заново выполняет действие текущего состояния, в состоянии агента
+  это приём задания, из `failed` — повтор со сбросом счётчиков.
 - Плоские имена harness `категория-вид`: `plan-review` (бывший
   `plan/iter`), `docs-delta`, `source-sync`. Harness живёт в одном
   каталоге `src/harnesses/<имя>/`: `harness.yaml`, критерии и промпты
@@ -11,12 +17,9 @@
   `~/.config/harness/harnesses/<имя>/`. Код пакета — в `packages/`.
 - Скрипт `harness refresh`: `context index`, `adapters sync`, затем
   шаги `check`.
-- Процессы агента `docs/delta` (`harness docs delta start --name
-  <дельта> | validate | graph`) и `source/sync` (`harness source sync
-  start | validate | graph`): в состоянии агента процесс
-  останавливается с заданием, `session <сессия> resume` продолжает.
-  Операции `session list | status | resume | retry` общие для всех
-  harness.
+- Harness агента `docs-delta` (`harness docs-delta start --name
+  <дельта>`) и `source-sync` (`harness source-sync start`): в состоянии
+  агента harness останавливается с заданием, `open` продолжает.
 - Слои пакета: `shared` → `lib` → `commands` → `scripts` → `harness`.
   Узел дерева CLI объявляет вид (`command`, `script`, `harness`) и эффект
   (`query` или `mutation`); эффект скрипта выводится из его шагов.
@@ -31,9 +34,9 @@
   ключи API, токены, пароли, приватные ключи в отслеживаемых файлах или
   в файле по пути. В `harness check` включена по умолчанию, выключается
   `secrets: false`; исключения — `checks.secrets.allow` с `reason`.
-- Планер `plan/iter`: `harness plan list | <harness> start | validate |
-  graph`, `harness session list | <сессия> status | resume | retry |
-  check [--hook] | render | read | clone * | clone md`. Автомат из
+- Планер `plan-review`: `harness plan-review start` и общие команды
+  harness, свои — `check <id> [--hook] | render <id> | read <id> |
+  clone <id> [md]`. Автомат из
   `harness.yaml` (схема `harness-fsm`), критерии `criteria.yaml`,
   плагины `handlers/`, сессии в `~/.config/harness`. Модель в любом
   состоянии, включая интерактивного планера, — без skills

@@ -6,7 +6,7 @@ import type { CommandArgs } from '../../shared/args.ts';
 import { UsageError } from '../../shared/diagnostics.ts';
 import { errorMessage } from '../../shared/guards.ts';
 import type { ScriptDef } from '../../shared/node.ts';
-import { driveSession, homeOf, report, type HarnessModule } from './catalog.ts';
+import { driveSession, homeOf, type HarnessModule } from './catalog.ts';
 import type { ActionDef, Registry } from './fsm/machine.ts';
 import { loadMachine } from './load.ts';
 import { createSession, type Session } from './store/session.ts';
@@ -22,7 +22,7 @@ const argsOf = (ctx: ProcessContext): CommandArgs => ({
   now: new Date(),
 });
 
-const resume = (s: Session): string => `harness session ${s.id} resume`;
+const resume = (s: Session): string => `harness ${s.data.harness} open ${s.short}`;
 
 /**
  * Состояние агента: при входе — пауза с заданием, после `session resume` —
@@ -84,15 +84,16 @@ export const reportAction = <C extends ProcessContext>(path: readonly string[]):
 export const failureAction = <C extends ProcessContext>(): ActionDef<C> => ({
   events: ['retry'],
   run: async (ctx) => ({
-    pause: `попытки исчерпаны — исправь причину и запусти harness session ${ctx.session.id} retry`,
+    pause: `попытки исчерпаны — исправь причину и запусти harness ${ctx.session.data.harness} open ${ctx.session.short}`,
   }),
 });
 
-/** Модуль каталога для процесса без своих моделей и операция start к нему. */
+/** Модуль каталога для процесса без своих моделей: имя сессии берётся из аргументов start. */
 export function processModule(
   name: string,
   registry: () => Registry<ProcessContext>,
-): HarnessModule & { start: (args: CommandArgs, title: string) => Promise<number> } {
+  start: { options?: string; title: (args: CommandArgs) => string },
+): HarnessModule {
   const load = async (home: string) => {
     const { machine, errors } = await loadMachine(home, name, registry());
     if (machine === undefined) throw new UsageError(errors.join('\n'));
@@ -102,7 +103,7 @@ export function processModule(
     const machine = await load(home);
     return driveSession(machine.def, machine.registry, session, { session, home }, event);
   };
-  return {
+  const module: HarnessModule = {
     name,
     validate: async (home) => {
       const { machine, errors } = await loadMachine(home, name, registry());
@@ -111,19 +112,19 @@ export function processModule(
         : { errors: [], plugins: machine.plugins, def: machine.def };
     },
     drive,
-    start: async (args, title) => {
+    start: async (args) => {
       const home = homeOf(args);
       const machine = await load(home);
-      const session = await createSession(home, {
+      return createSession(home, {
         harness: name,
-        title,
+        title: start.title(args),
         request: '',
         project: args.root,
         initial: machine.def.initial,
         now: args.now,
       });
-      console.log(`сессия ${session.id}: ${session.dir}`);
-      return report(session, await drive(session, home));
     },
   };
+  if (start.options !== undefined) module.startOptions = start.options;
+  return module;
 }

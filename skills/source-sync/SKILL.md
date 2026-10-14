@@ -1,7 +1,7 @@
 ---
 name: source-sync
 metadata:
-  runs: source/sync
+  runs: source-sync
 description: Обновление проекта из источника ai-prompts — что изменилось в контракте, модулях, skills и субагентах (индекс и SHA-256), новые модули и пресеты, версия harness; отчёт «Что нового» и план. Загружай на «проверь обновления», «что нового в источнике», «обнови контракт».
 ---
 
@@ -61,12 +61,12 @@ Manifest каждого модуля — `context/modules/<key>.yml` со сво
    ссылку», дальше не идёшь. Получил ссылку — сохрани.
 2. Процесс harness:
    <!-- expect:skill-runs -->
-   <!-- metadata.runs: source/sync -->
-   Если подключён harness — сценарий ведёт процесс `harness source sync
+   <!-- metadata.runs: source-sync -->
+   Если подключён harness — сценарий ведёт `harness source-sync
    start`. Он печатает текущую версию из `context/harness.yml`, последнюю
    в npm и записи журнала пакета между ними (всегда, даже если индекс не
    менялся), и останавливается с заданием: шаги 3–8. После них —
-   `harness session <сессия> resume`: процесс пересоберёт адаптеры и
+   `harness source-sync open <id>`: harness пересоберёт адаптеры и
    `context/index.yml` и проверит проект; провал вернёт задание.
    <!-- /expect:skill-runs -->
 3. `curl` тянет `index.yml`, считай SHA-256. Совпал с `sync.index_sha` и

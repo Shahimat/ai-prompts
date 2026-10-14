@@ -3,7 +3,7 @@
 // уровень выше, `list` и `help` — о текущем уровне.
 
 import { createInterface } from 'node:readline/promises';
-import { childrenOf, isNamespace, renderUsage } from './tree.ts';
+import { childrenOf, findCommand, isNamespace, renderUsage } from './tree.ts';
 
 /** Разбор строки на слова: кавычки группируют. */
 export function splitWords(line: string): string[] {
@@ -33,7 +33,9 @@ export function shellStep(cwd: readonly string[], line: string): ShellStep {
   if (words.length === 1 && first === '..') return { cwd: here.slice(0, -1) };
   if (words.length === 1 && first === 'help') return { cwd: here, output: renderUsage(here) };
   const full = [...here, ...words];
-  if (first === 'list' && words.length === 1 && !isNamespace([...here, 'list'])) {
+  // Своя команда list уровня (harness <имя> list) важнее встроенного списка.
+  const own = isNamespace([...here, 'list']) || findCommand([...here, 'list']) !== undefined;
+  if (first === 'list' && words.length === 1 && !own) {
     return { cwd: here, output: childrenOf(here).join('\n') };
   }
   if (isNamespace(full) && words.every((w) => w !== 'list' && w !== 'help')) return { cwd: full };

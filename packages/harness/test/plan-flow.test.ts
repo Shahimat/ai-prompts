@@ -19,7 +19,6 @@ import { openSession } from '../src/harnesses/core/store/session.ts';
 import { PLAN } from './plan-model.test.ts';
 
 const NOW = new Date('2026-10-14T12:00:00Z');
-const ID = 'демо-'; // префикс id сессии: slug названия, время — локальное
 
 let home: string;
 let project: string;
@@ -131,11 +130,11 @@ afterEach(async () => {
 const cli = (...args: string[]) => main([...args, '--home', home, '--root', project], NOW);
 
 async function start(): Promise<string> {
-  expect(
-    await cli('plan', 'review', 'start', '--name', 'Демо', '--request', 'спланируй демо'),
-  ).toBe(0);
+  expect(await cli('plan-review', 'start', '--name', 'Демо', '--request', 'спланируй демо')).toBe(
+    0,
+  );
   const [id = ''] = await readdir(path.join(home, 'sessions'));
-  expect(id.startsWith(ID)).toBe(true);
+  expect(id).toMatch(/^[0-9a-f]{64}$/);
   return id;
 }
 
@@ -183,7 +182,7 @@ describe('plan iter: сквозной прогон', () => {
     expect(run?.addDirs).toEqual([path.join(home, 'sessions', id)]);
     expect(run?.systemPrompt).toContain('Горизонт');
     expect(run?.prompt).toBe('спланируй демо');
-    expect(JSON.stringify(run?.settings)).toContain('check --hook');
+    expect(JSON.stringify(run?.settings)).toMatch(/plan-review check \S+ --hook/);
     expect(run?.allowedTools.some((t) => t.startsWith('Bash(') && t.includes('check'))).toBe(true);
     const args = interactiveArgs(run);
     expect(args.slice(0, 3)).toEqual(['--setting-sources', '', '--disable-slash-commands']);
@@ -242,7 +241,7 @@ describe('plan iter: сквозной прогон', () => {
 
     fake.review = () => clean;
     answers = ['approve'];
-    expect(await cli('session', id, 'retry')).toBe(0);
+    expect(await cli('plan-review', 'open', id)).toBe(0);
     s = await openSession(home, id);
     expect(s.data.state).toBe('approved');
     expect(s.data.cycleStart).toBe(5);
@@ -338,16 +337,15 @@ describe('plan iter: сквозной прогон', () => {
     expect(fake.interactive).toHaveLength(0);
     interactive = true;
     answers = ['approve'];
-    expect(await cli('session', id, 'resume')).toBe(0);
+    expect(await cli('plan-review', 'open', id)).toBe(0);
     expect((await openSession(home, id)).data.state).toBe('approved');
   });
 
-  it('согласованный план не правится: retry запрещён, повторный resume ничего не меняет', async () => {
+  it('согласованный план не правится: повторный open ничего не меняет', async () => {
     answers = ['approve'];
     const id = await start();
     const plan = await readFile(path.join(home, 'sessions', id, 'plan.md'), 'utf8');
-    expect(await cli('session', id, 'retry').catch((e: unknown) => e)).toBeInstanceOf(Error);
-    expect(await cli('session', id, 'resume')).toBe(0);
+    expect(await cli('plan-review', 'open', id)).toBe(0);
     expect(await readFile(path.join(home, 'sessions', id, 'plan.md'), 'utf8')).toBe(plan);
     expect(fake.headless.filter((r) => r.schema === undefined)).toHaveLength(0);
   });
@@ -357,10 +355,10 @@ describe('harness session: команды', () => {
   it('check: 1a, коды 0 и 1', async () => {
     answers = ['approve'];
     const id = await start();
-    expect(await cli('session', id, 'check')).toBe(0);
+    expect(await cli('plan-review', 'check', id)).toBe(0);
     const planPath = path.join(home, 'sessions', id, 'plan.md');
     await writeFile(planPath, (await readFile(planPath, 'utf8')).replace('## Цель', '## Задача'));
-    expect(await cli('session', id, 'check')).toBe(1);
+    expect(await cli('plan-review', 'check', id)).toBe(1);
     expect(err.join('\n')).toContain('нет раздела «## Цель»');
   });
 
@@ -368,32 +366,32 @@ describe('harness session: команды', () => {
     interactive = false;
     const id = await start();
     const planPath = path.join(home, 'sessions', id, 'plan.md');
-    expect(await cli('session', id, 'check', '--hook')).toBe(0);
+    expect(await cli('plan-review', 'check', id, '--hook')).toBe(0);
     await writeFile(planPath, planFor(id).replace('## Цель', '## Задача'));
-    expect(await cli('session', id, 'check', '--hook')).toBe(2);
-    expect(await cli('session', id, 'check', '--hook')).toBe(2);
-    expect(await cli('session', id, 'check', '--hook')).toBe(2);
-    expect(await cli('session', id, 'check', '--hook')).toBe(0);
+    expect(await cli('plan-review', 'check', id, '--hook')).toBe(2);
+    expect(await cli('plan-review', 'check', id, '--hook')).toBe(2);
+    expect(await cli('plan-review', 'check', id, '--hook')).toBe(2);
+    expect(await cli('plan-review', 'check', id, '--hook')).toBe(0);
     expect((await openSession(home, id)).data.formalExhausted).toBe(true);
     await writeFile(planPath, planFor(id));
-    expect(await cli('session', id, 'check', '--hook')).toBe(0);
-    expect(await cli('session', id, 'check', '--hook')).toBe(0);
+    expect(await cli('plan-review', 'check', id, '--hook')).toBe(0);
+    expect(await cli('plan-review', 'check', id, '--hook')).toBe(0);
   });
 
   it('list, status, render, read', async () => {
     answers = ['approve'];
     const id = await start();
     out = [];
-    expect(await cli('session', 'list')).toBe(0);
-    expect(out.join('\n')).toContain(`${id}\tplan-review\tapproved\tДемо`);
+    expect(await cli('plan-review', 'list')).toBe(0);
+    expect(out.join('\n')).toContain(`${id.slice(0, 7)}\tapproved\tДемо`);
     out = [];
-    expect(await cli('session', id, 'status')).toBe(0);
+    expect(await cli('plan-review', 'status', id)).toBe(0);
     expect(out.join('\n')).toContain('состояние: approved');
     const html = path.join(project, 'out/plan.html');
-    expect(await cli('session', id, 'render', '--out', html)).toBe(0);
+    expect(await cli('plan-review', 'render', id, '--out', html)).toBe(0);
     expect(await readFile(html, 'utf8')).toContain('<svg');
     vi.stubEnv('BROWSER', process.execPath);
-    expect(await cli('session', id, 'read')).toBe(0);
+    expect(await cli('plan-review', 'read', id)).toBe(0);
     vi.unstubAllEnvs();
     expect(existsSync(path.join(home, 'sessions', id, 'plan.html'))).toBe(true);
   });
@@ -401,11 +399,11 @@ describe('harness session: команды', () => {
   it('clone md --out кладёт план в проект; clone * — все артефакты в каталог', async () => {
     answers = ['approve'];
     const id = await start();
-    expect(await cli('session', id, 'clone', 'md', '--out', 'docs/plan.md')).toBe(0);
+    expect(await cli('plan-review', 'clone', id, 'md', '--out', 'docs/plan.md')).toBe(0);
     expect(await readFile(path.join(project, 'docs/plan.md'), 'utf8')).toContain(
       'status: approved',
     );
-    expect(await cli('session', id, 'clone', '*', '--out', 'all')).toBe(0);
+    expect(await cli('plan-review', 'clone', id, '--out', 'all')).toBe(0);
     expect((await readdir(path.join(project, 'all'))).sort()).toEqual(['context.md', 'plan.md']);
   });
 
@@ -415,20 +413,18 @@ describe('harness session: команды', () => {
     expect(existsSync(path.join(home, 'sessions'))).toBe(true);
     vi.stubEnv('HARNESS_HOME', home);
     out = [];
-    expect(await main(['session', 'list'], NOW)).toBe(0);
+    expect(await main(['plan-review', 'list'], NOW)).toBe(0);
     vi.unstubAllEnvs();
-    expect(out.join('\n')).toContain('plan-review');
+    expect(out.join('\n')).toContain('Демо');
   });
 });
 
 describe('harness plan: команды', () => {
-  it('plan list, plan iter validate, plan iter graph', async () => {
-    expect(await cli('plan', 'list')).toBe(0);
-    expect(out).toContain('plan-review');
-    expect(await cli('plan', 'review', 'validate')).toBe(0);
+  it('plan-review validate, plan-review graph', async () => {
+    expect(await cli('plan-review', 'validate')).toBe(0);
     expect(out.join('\n')).toContain('plan-review: ok');
     out = [];
-    expect(await cli('plan', 'review', 'graph')).toBe(0);
+    expect(await cli('plan-review', 'graph')).toBe(0);
     expect(out.join('\n')).toContain('review --> fix: fail fix++');
   });
 
@@ -439,12 +435,12 @@ describe('harness plan: команды', () => {
       path.join(own, 'criteria.yaml'),
       'criteria:\n  - { id: x, stage: 1a, level: crit, text: t }\n',
     );
-    expect(await cli('plan', 'review', 'validate')).toBe(1);
+    expect(await cli('plan-review', 'validate')).toBe(1);
     expect(err.join('\n')).toContain('критерий 1a x не реализован скриптом');
   });
 
   it('start без --name и без терминала — ошибка вызова', async () => {
     interactive = false;
-    await expect(cli('plan', 'review', 'start')).rejects.toThrow('--name');
+    await expect(cli('plan-review', 'start')).rejects.toThrow('--name');
   });
 });

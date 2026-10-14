@@ -3,7 +3,6 @@
 // проверяет проект.
 
 import { REFRESH } from '../../scripts/index.ts';
-import type { CommandArgs } from '../../shared/args.ts';
 import {
   failureAction,
   handoff,
@@ -32,7 +31,4 @@ function registry(): Registry<ProcessContext> {
   };
 }
 
-export const SOURCE_SYNC = processModule('source-sync', registry);
-
-export const runSourceStart = (args: CommandArgs): Promise<number> =>
-  SOURCE_SYNC.start(args, 'sync');
+export const SOURCE_SYNC = processModule('source-sync', registry, { title: () => 'sync' });

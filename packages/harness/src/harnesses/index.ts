@@ -1,25 +1,17 @@
 // Каталог встроенных harness и общее ядро слоя.
 
-import { catalog } from './core/index.ts';
+import type { CommandNode } from '../shared/node.ts';
+import { harnessNodes } from './core/index.ts';
 import { DOCS_DELTA } from './docs-delta/index.ts';
 import { PLAN_REVIEW } from './plan-review/index.ts';
 import { SOURCE_SYNC } from './source-sync/index.ts';
 
 export * from './core/index.ts';
 export * from './plan-review/index.ts';
-export { DOCS_DELTA, runDocsStart } from './docs-delta/index.ts';
-export { runSourceStart, SOURCE_SYNC } from './source-sync/index.ts';
+export { DOCS_DELTA } from './docs-delta/index.ts';
+export { SOURCE_SYNC } from './source-sync/index.ts';
 
-const CATALOG = catalog([PLAN_REVIEW, DOCS_DELTA, SOURCE_SYNC]);
-
-export const runPlanList = CATALOG.list('plan');
-export const runPlanValidate = CATALOG.validate('plan');
-export const runPlanGraph = CATALOG.graph('plan');
-export const runDocsValidate = CATALOG.validate('docs');
-export const runDocsGraph = CATALOG.graph('docs');
-export const runSourceValidate = CATALOG.validate('source');
-export const runSourceGraph = CATALOG.graph('source');
-export const runSessionList = CATALOG.sessionList;
-export const runSessionStatus = CATALOG.sessionStatus;
-export const runSessionResume = CATALOG.sessionResume;
-export const runSessionRetry = CATALOG.sessionRetry;
+/** Узлы CLI всех встроенных harness: `harness <имя> start | open | …`. */
+export const HARNESS_NODES: readonly CommandNode[] = [PLAN_REVIEW, DOCS_DELTA, SOURCE_SYNC].flatMap(
+  harnessNodes,
+);

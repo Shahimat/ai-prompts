@@ -54,9 +54,9 @@ const quote = (s: string): string =>
 export function checkCommand(ctx: PlanContext, hook = false): string {
   return [
     ...ctx.self,
-    'session',
-    ctx.session.id,
+    'plan-review',
     'check',
+    ctx.session.short,
     ...(hook ? ['--hook'] : []),
     '--home',
     ctx.home,
@@ -186,7 +186,7 @@ const draft: ActionDef<PlanContext> = {
   run: async (ctx) => {
     if (!ctx.prompter.interactive)
       return {
-        pause: `первичный диалог идёт в терминале: harness session ${ctx.session.id} resume`,
+        pause: `первичный диалог идёт в терминале: harness plan-review open ${ctx.session.short}`,
       };
     const sessionId = randomUUID();
     ctx.session.data.plannerSession = sessionId;
@@ -496,11 +496,11 @@ const userMenu: ActionDef<PlanContext> = {
   run: async (ctx) => {
     await setStatus(ctx, 'awaiting-user');
     if (!ctx.prompter.interactive)
-      return { pause: `план ждёт решения: harness session ${ctx.session.id} resume` };
+      return { pause: `план ждёт решения: harness plan-review open ${ctx.session.short}` };
     const text = await readPlanOrFail(ctx);
     const p = ctx.prompter;
     p.say(`План: ${ctx.session.planPath}`);
-    p.say(`HTML: harness session ${ctx.session.id} read`);
+    p.say(`HTML: harness plan-review read ${ctx.session.short}`);
     for (;;) {
       const choice = await p.choose('Решение по плану:', [
         { key: 'approve', label: 'Согласовать всё' },
@@ -642,7 +642,7 @@ const reportFailure: ActionDef<PlanContext> = {
       'utf8',
     );
     return {
-      pause: `справка о провале: ${ctx.session.file('failure-report.md')}; заново — harness session ${ctx.session.id} retry`,
+      pause: `справка о провале: ${ctx.session.file('failure-report.md')}; заново — harness plan-review open ${ctx.session.short}`,
     };
   },
 };

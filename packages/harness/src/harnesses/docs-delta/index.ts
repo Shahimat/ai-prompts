@@ -31,8 +31,8 @@ function registry(): Registry<ProcessContext> {
   };
 }
 
-export const DOCS_DELTA = processModule('docs-delta', registry);
-
-/** `harness docs delta start --name <дельта>`: имя файла дельты без расширения. */
-export const runDocsStart = (args: CommandArgs): Promise<number> =>
-  DOCS_DELTA.start(args, args.name ?? 'delta');
+/** `harness docs-delta start --name <дельта>`: имя файла дельты без расширения. */
+export const DOCS_DELTA = processModule('docs-delta', registry, {
+  options: '[--name <дельта>]',
+  title: (args: CommandArgs) => args.name ?? 'delta',
+});

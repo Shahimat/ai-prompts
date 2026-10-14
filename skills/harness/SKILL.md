@@ -54,18 +54,18 @@ npx -y @shahimat/harness@<version> <команда> --root .
   хватает. Шаг `harness refresh`.
 - `harness outdated` — версия из `context/harness.yml` против последней
   в npm и записи журнала пакета между ними (код 1 — есть новее); первый
-  шаг процесса `harness source sync`.
+  шаг `harness source-sync`.
 - `harness delta check` и `harness delta close` — сверка слоёв
   документации с `HEAD` (знание без пункта `revise` — нарушение) и
-  удаление принятой дельты; шаги процесса `harness docs delta`.
-- `harness docs delta start` и `harness source sync start` — процессы
-  skills `docs-keeper` и `source-sync`: в состоянии агента процесс
-  останавливается с заданием, `harness session <сессия> resume`
+  удаление принятой дельты; шаги `harness docs-delta`.
+- `harness docs-delta start` и `harness source-sync start` — harness
+  skills `docs-keeper` и `source-sync`: в состоянии агента harness
+  останавливается с заданием, `harness <имя> open <id>`
   продолжает.
-- `harness plan iter start` — план большой задачи: диалог с планером,
+- `harness plan-review start` — план большой задачи: диалог с планером,
   ревью в два уровня, правки, решение пользователя в терминале. Сессия
   живёт в `~/.config/harness`, проект не меняется; план в проект —
-  `harness session <сессия> clone md --out <path>`. Команда user scope:
+  `harness plan-review clone <id> md --out <path>`. Команда user scope:
   запускает пользователь из глобальной установки
   (`npm i -g @shahimat/harness`), не агент из задачи.
 <!-- /expect:skill-runs -->

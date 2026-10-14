@@ -250,23 +250,22 @@ describe('дерево команд: уровни, list, help, оболочка'
   });
 
   it('параметры пути и приоритет литералов', () => {
-    expect(findCommand(['session', 'list'])?.params).toEqual({});
-    expect(findCommand(['session', 'x-1', 'status'])?.params).toEqual({ session: 'x-1' });
-    expect(findCommand(['plan', 'review', 'start'])?.params).toEqual({ harness: 'review' });
-    expect(findCommand(['session', 'x', 'clone', '*'])?.command.path.at(-1)).toBe('*');
+    expect(findCommand(['plan-review', 'list'])?.params).toEqual({});
+    expect(findCommand(['plan-review', 'status', '0d57'])?.params).toEqual({ id: '0d57' });
+    // Литерал важнее параметра: clone <id> md — не clone <id> с лишним словом.
+    expect(findCommand(['plan-review', 'clone', '0d57', 'md'])?.command.path.at(-1)).toBe('md');
     expect(findCommand(['check', 'extra'])).toBeUndefined();
   });
 
   it('list и help на каждом уровне', async () => {
     expect(await main(['list'], NOW)).toBe(0);
-    expect(out.at(-1)).toContain('plan');
-    expect(await main(['plan', 'review', 'list'], NOW)).toBe(0);
-    expect(out.at(-1)?.split('\n')).toEqual(['start', 'validate', 'graph']);
-    expect(await main(['session', 'x', 'help'], NOW)).toBe(0);
-    expect(out.at(-1)).toContain('harness session <session> status');
+    expect(out.at(-1)).toContain('plan-review');
+    expect(await main(['docs-delta', 'list'], NOW)).toBe(0);
+    expect(await main(['docs-delta', 'help'], NOW)).toBe(0);
+    expect(out.at(-1)).toContain('harness docs-delta open <id>');
     expect(out.at(-1)).not.toContain('harness check');
-    expect(childrenOf(['session', 'x', 'clone'])).toEqual(['*', 'md']);
-    expect(await run(['plan'])).toBe(2);
+    expect(childrenOf(['plan-review', 'clone', 'x'])).toEqual(['md']);
+    expect(await run(['plan-review'])).toBe(2);
   });
 
   it('оболочка: вход в уровень, .., list, help, запуск команды относительно уровня', () => {
@@ -276,19 +275,22 @@ describe('дерево команд: уровни, list, help, оболочка'
       'два слова',
       '*',
     ]);
-    expect(shellStep([], 'plan')).toEqual({ cwd: ['plan'] });
-    expect(shellStep(['plan'], 'review')).toEqual({ cwd: ['plan', 'review'] });
-    expect(shellStep(['plan', 'review'], '..')).toEqual({ cwd: ['plan'] });
-    expect(shellStep(['plan', 'review'], 'list').output).toBe('start\nvalidate\ngraph');
-    expect(shellStep(['plan', 'review'], 'help').output).toContain('harness plan <harness> start');
-    expect(shellStep(['plan', 'review'], 'start --name x')).toEqual({
-      cwd: ['plan', 'review'],
-      run: ['plan', 'review', 'start', '--name', 'x'],
+    expect(shellStep([], 'plan-review')).toEqual({ cwd: ['plan-review'] });
+    expect(shellStep(['plan-review'], '..')).toEqual({ cwd: [] });
+    expect(shellStep(['plan-review'], 'help').output).toContain('harness plan-review start');
+    expect(shellStep(['plan-review'], 'start --name x')).toEqual({
+      cwd: ['plan-review'],
+      run: ['plan-review', 'start', '--name', 'x'],
     });
-    expect(shellStep(['plan'], 'list')).toEqual({ cwd: ['plan'], run: ['plan', 'list'] });
-    expect(shellStep(['session'], 'demo-1')).toEqual({ cwd: ['session', 'demo-1'] });
+    expect(shellStep(['plan-review'], 'list')).toEqual({
+      cwd: ['plan-review'],
+      run: ['plan-review', 'list'],
+    });
+    expect(shellStep(['plan-review', 'clone'], '0d57')).toEqual({
+      cwd: ['plan-review', 'clone', '0d57'],
+    });
     expect(shellStep([], 'exit').exit).toBe(true);
-    expect(promptOf(['plan', 'review'])).toBe('/harness/plan/review> ');
+    expect(promptOf(['plan-review'])).toBe('/harness/plan-review> ');
   });
 
   it('любая команда — одной строкой из шелла; .ts-плагин грузится голым Node без сборки', async () => {
@@ -298,7 +300,7 @@ describe('дерево команд: уровни, list, help, оболочка'
       'const yes = (_c: unknown): boolean => true;\nexport default { guards: { yes } };\n',
     );
     const bin = fileURLToPath(new URL('../src/bin.ts', import.meta.url));
-    const r = spawnSync(process.execPath, [bin, 'plan', 'review', 'validate', '--home', home], {
+    const r = spawnSync(process.execPath, [bin, 'plan-review', 'validate', '--home', home], {
       encoding: 'utf8',
     });
     expect(r.stderr).toBe('');

@@ -82,51 +82,65 @@ Mutation — `context index`, `adapters sync`, `delta close`,
 - `harness index build | check --raw-base <url>` — индекс
   `prompts/index.yml` репозитория промптов.
 
-## Процессы агента: `docs/delta` и `source/sync`
+## Harness
 
-Работу в них делает агент, вызвавший harness: в его состоянии процесс
-останавливается с заданием, `harness session <сессия> resume`
-продолжает со следующего состояния. Сессии — как у `plan/iter`, в
-`~/.config/harness/`.
+Harness — автомат с сессией; его команды — под его именем:
 
-- `harness docs delta start --name <дельта> | validate | graph` —
-  запись в документацию (skill docs-keeper): `apply` (агент собирает и
-  применяет `context/.delta/<дельта>.yml`) → `verify` (`context index`,
+```
+harness <имя> start [опции]     # новая сессия, печатает короткий id
+harness <имя> open <id>         # продолжить: заново выполнить действие текущего состояния
+harness <имя> list              # сессии этого harness
+harness <имя> status <id>
+harness <имя> validate | graph  # определение и Mermaid автомата
+```
+
+- id сессии — sha256, в выводе 7 символов; `open` и `status`
+  принимают уникальный префикс от 4 символов.
+- Пауза — выход: каждый переход сразу на диске
+  (`~/.config/harness/sessions/<id>/`, `--home <dir>` или
+  `HARNESS_HOME`). В состоянии агента `open` — приём задания, из `failed`
+  — повтор со сбросом счётчиков.
+- Определение — `src/harnesses/<имя>/harness.yaml` пакета рядом с кодом
+  (в сборке — `dist/harnesses/<имя>/`). Файлы
+  `~/.config/harness/harnesses/<имя>/` перекрывают встроенные;
+  `handlers/*.{js,mjs,ts}` — свои действия и guards
+  (`export default { actions, guards }`).
+- Модели запускаются с `--setting-sources ""` и
+  `--disable-slash-commands`: settings, hooks, `CLAUDE.md` и skills
+  пользователя и проекта в прогоны не попадают.
+- Без аргументов в терминале `harness` открывает оболочку: вход в
+  уровень по имени, `..`, `list` и `help` на каждом уровне.
+
+### `docs-delta` и `source-sync`
+
+Работу в них делает агент, вызвавший harness: в его состоянии harness
+останавливается с заданием, `harness <имя> open <id>` продолжает.
+
+- `harness docs-delta start --name <дельта>` — запись в документацию
+  (skill docs-keeper): `apply` (агент собирает и применяет
+  `context/.delta/<дельта>.yml`) → `verify` (`context index`,
   `adapters sync`, `delta check`, шаги `check`) → `close`
   (`delta close`). Провал `verify` или `close` возвращает в `apply` не
-  больше 3 раз, затем `failed`; `session <сессия> retry` — снова `apply`.
-- `harness source sync start | validate | graph` — синхронизация с
-  источниками (skill source-sync): `outdated` (версия harness и журнал,
-  без `version` в конфиге — пропуск) → `update` (агент обновляет файлы)
-  → `refresh`. Провал `refresh` возвращает в `update` не больше 3 раз.
+  больше 3 раз, затем `failed`.
+- `harness source-sync start` — синхронизация с источниками (skill
+  source-sync): `outdated` (версия harness и журнал, без `version` в
+  конфиге — пропуск) → `update` (агент обновляет файлы) → `refresh`.
+  Провал `refresh` возвращает в `update` не больше 3 раз.
 
-## Процесс `plan/iter`
+### `plan-review`
 
-Команды user scope: ставятся глобально (`npm i -g @shahimat/harness`),
-сессии — в `~/.config/harness/` (`--home <dir>` или `HARNESS_HOME`).
+Команда user scope: ставится глобально (`npm i -g @shahimat/harness`).
 
-- `harness plan iter start [--name <название>] [--request <запрос>]` —
+- `harness plan-review start [--name <название>] [--request <запрос>]` —
   интерактивный `claude` с ролью планера в каталоге проекта → проверка
   структуры (1a) → ревью: дешёвая модель без сети (1b) и сильная с
   проектом и сетью (2) → правки до 3 на цикл → меню: согласовать,
   вернуть всё или по пунктам, переработать, уточнить.
-- `harness plan list`, `harness plan iter validate | graph` — определения,
-  проверка `harness.yaml` и Mermaid автомата.
-- `harness session list`, `harness session <сессия> status | resume |
-  retry | check [--hook] | render [--out] | read | clone * | clone md
-  [--out]`. Query — `list`, `validate`, `graph`, `status`, `check`,
-  `read`; `check --hook` (Stop-hook ведёт счётчик блокировок) и
-  остальные — mutation.
-- Без аргументов в терминале `harness` открывает оболочку: вход в
-  уровень по имени, `..`, `list` и `help` на каждом уровне.
-
-Определение — `harnesses/plan/iter/` пакета: `harness.yaml` (автомат,
-лимиты, бюджет, модели), `criteria.yaml` (критерии ревью), `prompts/`.
-Файлы `~/.config/harness/harnesses/plan/<имя>/` перекрывают встроенные;
-`handlers/*.{js,mjs,ts}` — свои действия и guards
-(`export default { actions, guards }`). Модели запускаются с
-`--setting-sources ""`: settings, hooks и `CLAUDE.md` пользователя и
-проекта в прогоны не попадают.
+- Свои команды: `check <id> [--hook]` (1a; `--hook` — Stop-hook планера,
+  ведёт счётчик блокировок), `render <id> [--out]`, `read <id>`,
+  `clone <id> [md] [--out]`.
+- Определение: `harness.yaml` (автомат, лимиты, бюджет, модели),
+  `criteria.yaml` (критерии ревью), `prompts/`.
 
 Коды выхода: `0` — ok, `1` — нарушения, `2` — ошибка вызова или
 конфигурации.

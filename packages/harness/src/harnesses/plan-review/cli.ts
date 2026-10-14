@@ -14,10 +14,9 @@ import {
   ClaudeRunner,
   createSession,
   driveSession,
+  HOME,
   homeOf,
-  openSession,
-  param,
-  report,
+  sessionOf as sessionOfHarness,
   terminalPrompter,
   type HarnessModule,
   type ModelRunner,
@@ -56,6 +55,8 @@ function context(session: Session, home: string, harness: LoadedHarness): PlanCo
 /** plan-review в каталоге harness. */
 export const PLAN_REVIEW: HarnessModule = {
   name: 'plan-review',
+  startOptions: '[--name <название>] [--request <запрос>]',
+  start: (args) => start(args),
   validate: async (home) => {
     const result = await loadHarness(home, 'plan-review');
     if (result.harness === undefined) return { errors: result.errors, plugins: [] };
@@ -83,13 +84,51 @@ export const PLAN_REVIEW: HarnessModule = {
     return lines;
   },
   beforeRetry: startCycle,
+  nodes: [
+    {
+      // --hook ведёт счётчик блокировок Stop-hook в каталоге сессии.
+      path: ['plan-review', 'check', '<id>'],
+      kind: 'harness',
+      effect: 'query',
+      effects: { hook: 'mutation' },
+      options: `[--hook] ${HOME}`,
+      run: (args) => runCheck(args),
+    },
+    {
+      path: ['plan-review', 'render', '<id>'],
+      kind: 'harness',
+      effect: 'mutation',
+      options: `[--out <file>] ${HOME}`,
+      run: (args) => runRender(args),
+    },
+    {
+      // plan.html пересобирается, только если устарел: производный файл сессии.
+      path: ['plan-review', 'read', '<id>'],
+      kind: 'harness',
+      effect: 'query',
+      options: HOME,
+      run: (args) => runRead(args),
+    },
+    {
+      path: ['plan-review', 'clone', '<id>'],
+      kind: 'harness',
+      effect: 'mutation',
+      options: `[--out <dir>] ${HOME}`,
+      run: (args) => runClone('all', args),
+    },
+    {
+      path: ['plan-review', 'clone', '<id>', 'md'],
+      kind: 'harness',
+      effect: 'mutation',
+      options: `[--out <path>] ${HOME}`,
+      run: (args) => runClone('md', args),
+    },
+  ],
 };
 
-// ─────────────────────────────── plan ───────────────────────────────
-
-export async function runPlanStart(args: CommandArgs): Promise<number> {
+async function start(args: CommandArgs): Promise<Session> {
   const home = homeOf(args);
-  const harness = await loadHarnessOrFail(home, `plan-${param(args, 'harness')}`);
+  const harness = await loadHarnessOrFail(home, 'plan-review');
   const prompter = io.prompter();
   const ask = async (value: string | undefined, question: string, flag: string) => {
     if (value !== undefined && value.trim() !== '') return value.trim();
@@ -100,7 +139,7 @@ export async function runPlanStart(args: CommandArgs): Promise<number> {
   };
   const title = await ask(args.name, 'Название плана: ', '--name');
   const request = await ask(args.request, 'Запрос: ', '--request');
-  const session = await createSession(home, {
+  return createSession(home, {
     harness: harness.name,
     title,
     request,
@@ -108,14 +147,9 @@ export async function runPlanStart(args: CommandArgs): Promise<number> {
     initial: harness.def.initial,
     now: args.now,
   });
-  console.log(`сессия ${session.id}: ${session.dir}`);
-  return report(session, await PLAN_REVIEW.drive(session, home));
 }
 
-// ─────────────────────────────── session ───────────────────────────────
-
-const sessionOf = async (args: CommandArgs): Promise<Session> =>
-  openSession(homeOf(args), param(args, 'session'));
+const sessionOf = (args: CommandArgs): Promise<Session> => sessionOfHarness(args, 'plan-review');
 
 interface HookState {
   hash: string;
@@ -139,7 +173,7 @@ async function readHookState(file: string): Promise<HookState> {
  * (код 2) при нарушениях; после предела блокировок подряд отпускает и
  * отмечает сессию — автомат уйдёт в failed.
  */
-export async function runSessionCheck(args: CommandArgs): Promise<number> {
+async function runCheck(args: CommandArgs): Promise<number> {
   const s = await sessionOf(args);
   const text = await s.readPlan();
   if (args.hook !== true) {
@@ -188,7 +222,7 @@ async function render(s: Session, out?: string): Promise<string> {
   return file;
 }
 
-export async function runSessionRender(args: CommandArgs): Promise<number> {
+async function runRender(args: CommandArgs): Promise<number> {
   console.log(await render(await sessionOf(args), args.out));
   return 0;
 }
@@ -201,7 +235,7 @@ function openerFor(file: string): string[] {
   return ['xdg-open', file];
 }
 
-export async function runSessionRead(args: CommandArgs): Promise<number> {
+async function runRead(args: CommandArgs): Promise<number> {
   const s = await sessionOf(args);
   const html = s.file('plan.html');
   const stale = !existsSync(html) || statSync(html).mtimeMs < statSync(s.planPath).mtimeMs;
@@ -222,7 +256,7 @@ export async function runSessionRead(args: CommandArgs): Promise<number> {
 /** Экспортируемые артефакты сессии. */
 const EXPORTS = ['plan.md', 'context.md', 'plan.html', 'failure-report.md'];
 
-export async function runSessionClone(what: 'all' | 'md', args: CommandArgs): Promise<number> {
+async function runClone(what: 'all' | 'md', args: CommandArgs): Promise<number> {
   const s = await sessionOf(args);
   if (!existsSync(s.planPath)) throw new UsageError(`нет ${s.planPath}`);
   if (what === 'md') {

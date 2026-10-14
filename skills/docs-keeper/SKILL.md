@@ -1,7 +1,7 @@
 ---
 name: docs-keeper
 metadata:
-  runs: docs/delta
+  runs: docs-delta
 description: Правила записи в проектную документацию — раскладка фактов по слоям, conventions, project.yml, CHANGELOG, проверки. Его загружает субагент docs-keeper; основной агент только передаёт ему намерения.
 ---
 
@@ -51,9 +51,9 @@ description: Правила записи в проектную документ�
 | `CHANGELOG.md` | docs-keeper |
 | слои ядра в `docs/` и слои модулей (`provides.layers`) | docs-keeper |
 | `context/.delta/` — создание и правка | docs-keeper |
-| `context/.delta/` — удаление после приёмки | `harness delta close`; шаг `close` процесса `docs/delta`, без harness — docs-keeper |
-| `context/index.yml` | `harness context index`; шаг `verify` процесса `docs/delta` |
-| адаптеры (`CLAUDE.md`, `.claude/`, `.codex/`) | `harness adapters sync`; шаг `verify` процесса `docs/delta` |
+| `context/.delta/` — удаление после приёмки | `harness delta close`; шаг `close` harness `docs-delta`, без harness — docs-keeper |
+| `context/index.yml` | `harness context index`; шаг `verify` harness `docs-delta` |
+| адаптеры (`CLAUDE.md`, `.claude/`, `.codex/`) | `harness adapters sync`; шаг `verify` harness `docs-delta` |
 <!-- /expect:skill-runs -->
 
 Основная сессия в документацию не пишет.
@@ -87,10 +87,10 @@ items:
 ```
 
 <!-- expect:skill-runs -->
-<!-- metadata.runs: docs/delta -->
-С harness запись ведёт процесс `harness docs delta start --name <имя>`:
-он выдаёт задание — шаги 1–4 ниже, — после них `harness session
-<сессия> resume` проверяет и закрывает дельту (шаги 5–6). Провал
+<!-- metadata.runs: docs-delta -->
+С harness запись ведёт `harness docs-delta start --name <имя>`: он
+выдаёт задание — шаги 1–4 ниже — и короткий id сессии; после них
+`harness docs-delta open <id>` проверяет и закрывает дельту (шаги 5–6). Провал
 проверки возвращает задание с нарушениями, после трёх провалов процесс
 останавливается — это «не прошло» в отчёте.
 <!-- /expect:skill-runs -->

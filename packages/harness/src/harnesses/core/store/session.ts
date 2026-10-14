@@ -2,6 +2,7 @@
 // (переопределяется `--home` или HARNESS_HOME). В проект попадает только
 // то, что выгрузили командой clone.
 
+import { createHash, randomBytes } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { appendFile, mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
@@ -139,6 +140,11 @@ export class Session {
     return this.data.id;
   }
 
+  /** Короткий id для вывода и команд, как у коммитов git. */
+  get short(): string {
+    return this.data.id.slice(0, SHORT_ID);
+  }
+
   file(rel: string): string {
     return path.join(this.dir, rel);
   }
@@ -175,19 +181,9 @@ export class Session {
 
 export const sessionsDir = (home: string): string => path.join(home, 'sessions');
 
-function slug(title: string): string {
-  const s = title
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}]+/gu, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 40);
-  return s === '' ? 'plan' : s;
-}
-
-function stamp(now: Date): string {
-  const p = (n: number) => String(n).padStart(2, '0');
-  return `${now.getFullYear()}${p(now.getMonth() + 1)}${p(now.getDate())}-${p(now.getHours())}${p(now.getMinutes())}${p(now.getSeconds())}`;
-}
+/** Длина короткого id в выводе и минимальный префикс в командах. */
+export const SHORT_ID = 7;
+const MIN_PREFIX = 4;
 
 export interface NewSession {
   harness: string;
@@ -199,9 +195,11 @@ export interface NewSession {
 }
 
 export async function createSession(home: string, opts: NewSession): Promise<Session> {
-  const base = `${slug(opts.title)}-${stamp(opts.now)}`;
-  let id = base;
-  for (let n = 2; existsSync(path.join(sessionsDir(home), id)); n++) id = `${base}-${n}`;
+  // id — sha256: уникален без знания других сессий, короткий префикс читается как у git.
+  const salt = randomBytes(16).toString('hex');
+  const id = createHash('sha256')
+    .update(`${opts.harness}\n${opts.now.toISOString()}\n${salt}`)
+    .digest('hex');
   const dir = path.join(sessionsDir(home), id);
   await mkdir(dir, { recursive: true });
   const session = new Session(dir, {
@@ -237,6 +235,36 @@ export async function openSession(home: string, id: string): Promise<Session> {
     throw error;
   }
   return new Session(dir, parseSession(text, `${id}/session.json`));
+}
+
+/**
+ * Сессия по префиксу id (от 4 символов): ни одной или несколько — ошибка
+ * вызова; `harness` — сессия должна принадлежать этому harness.
+ */
+export async function resolveSession(
+  home: string,
+  prefix: string,
+  harness?: string,
+): Promise<Session> {
+  if (!new RegExp(`^[0-9a-f]{${MIN_PREFIX},64}$`).test(prefix))
+    throw new UsageError(`id сессии — hex от ${MIN_PREFIX} символов: ${prefix}`);
+  let names: string[] = [];
+  try {
+    names = (await readdir(sessionsDir(home))).filter((n) => n.startsWith(prefix));
+  } catch (error) {
+    if (errorCode(error) !== 'ENOENT') throw error;
+  }
+  if (names.length === 0) throw new UsageError(`нет сессии ${prefix} в ${sessionsDir(home)}`);
+  if (names.length > 1)
+    throw new UsageError(
+      `id ${prefix} неоднозначен: ${names.map((n) => n.slice(0, SHORT_ID + 2)).join(', ')}`,
+    );
+  const session = await openSession(home, names[0] ?? '');
+  if (harness !== undefined && session.data.harness !== harness)
+    throw new UsageError(
+      `сессия ${session.short} принадлежит ${session.data.harness}, не ${harness}`,
+    );
+  return session;
 }
 
 export async function listSessions(home: string): Promise<Session[]> {
