@@ -41,8 +41,10 @@ const HOME = '[--home <dir>]';
 export const COMMANDS: readonly Command[] = [
   { path: ['check'], run: runCheck },
   { path: ['adapters', 'sync'], run: (args) => runAdapters('sync', args) },
+  { path: ['adapters', 'check'], run: (args) => runAdapters('check', args) },
   { path: ['changelog', 'lint'], run: (args) => runChangelog('lint', args) },
   { path: ['context', 'index'], run: (args) => runContext('index', args) },
+  { path: ['context', 'check'], run: (args) => runContext('check', args) },
   { path: ['delta', 'check'], run: (args) => runDelta('check', args) },
   { path: ['delta', 'close'], run: (args) => runDelta('close', args) },
   { path: ['outdated'], run: (args) => runOutdated(args) },

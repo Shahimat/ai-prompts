@@ -4,6 +4,9 @@
 
 ## 0.4.0
 
+- `harness context check` и `harness adapters check` — сверка
+  `context/index.yml` и файлов адаптеров без записи: то же, что проверяет
+  `harness check`, отдельной командой.
 - Проверка `secrets` и команда `harness secrets scan [--file <path>]`:
   ключи API, токены, пароли, приватные ключи в отслеживаемых файлах или
   в файле по пути. В `harness check` включена по умолчанию, выключается

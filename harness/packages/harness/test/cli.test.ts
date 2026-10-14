@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -120,6 +121,17 @@ describe('harness context index', () => {
   });
 });
 
+describe('harness context check', () => {
+  it('сверяет индекс без записи: нет индекса — 1, после context index — 0', async () => {
+    await put('context/project.yml', 'namespaces:\n  vpn: доступ\n');
+    await put('docs/entities/srv.yml', 'id: srv\nnamespace: vpn\nsummary: сервер\n');
+    expect(await main(['context', 'check', '--root', root], NOW)).toBe(1);
+    expect(existsSync(path.join(root, 'context/index.yml'))).toBe(false);
+    expect(await main(['context', 'index', '--root', root], NOW)).toBe(0);
+    expect(await main(['context', 'check', '--root', root], NOW)).toBe(0);
+  });
+});
+
 describe('harness adapters sync', () => {
   it('2 — нет harness.yml', async () => {
     expect(await run(['adapters', 'sync', '--root', root])).toBe(2);
@@ -134,6 +146,21 @@ describe('harness adapters sync', () => {
     await put('CLAUDE.md', 'ручной\n');
     expect(await main(['adapters', 'sync', '--root', root], NOW)).toBe(1);
     expect(await main(['check', '--root', root], NOW)).toBe(1);
+  });
+});
+
+describe('harness adapters check', () => {
+  it('2 — нет harness.yml', async () => {
+    expect(await run(['adapters', 'check', '--root', root])).toBe(2);
+  });
+
+  it('сверяет адаптеры без записи: до sync — 1, после — 0', async () => {
+    await put('AGENTS.md', '# x\n');
+    await put('context/harness.yml', 'adapters: [claude-code]\n');
+    expect(await main(['adapters', 'check', '--root', root], NOW)).toBe(1);
+    expect(existsSync(path.join(root, 'CLAUDE.md'))).toBe(false);
+    expect(await main(['adapters', 'sync', '--root', root], NOW)).toBe(0);
+    expect(await main(['adapters', 'check', '--root', root], NOW)).toBe(0);
   });
 });
 
