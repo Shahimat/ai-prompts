@@ -1,5 +1,7 @@
 ---
 name: life
+metadata:
+  runs: check
 description: Правила домена жизни — факты, сигналы и протоколы в life/, провенанс (self-report, external, app-telemetry), verified, тег журнала [life], тон. Загружай, когда читаешь или пишешь life/ или говоришь с человеком о его здоровье, привычках, самочувствии.
 ---
 
@@ -166,5 +168,8 @@ automated_by: [entity:<id>, behavior:<id>]  # только при app-loop
 - в сигналах нет точек данных, в журнале — значений и диагнозов;
   что допустимо хранить в фактах — правила `privacy`.
 
+<!-- expect:skill-runs -->
+<!-- metadata.runs: check -->
 С harness `id`, `namespace` и `summary` проверяет `harness check`
-(`context-index`).
+(`context-index`): запусти его после записи.
+<!-- /expect:skill-runs -->

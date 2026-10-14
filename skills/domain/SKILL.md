@@ -1,5 +1,7 @@
 ---
 name: domain
+metadata:
+  runs: check
 description: Правила слоя domain — entities (что есть) и behavior (как должно работать и проверено ли, verified). Загружай, когда читаешь или пишешь docs/entities/ и docs/behavior/, ставишь verified или делаешь audit.
 ---
 
@@ -14,8 +16,7 @@ description: Правила слоя domain — entities (что есть) и be
 ## Маршруты
 
 - как сейчас устроено X → `docs/entities/<id>.yml`, затем код;
-- какие документы касаются файла F → `harness context for F` (когда
-  появится), иначе поиск `paths` в entities;
+- какие документы касаются файла F → поиск `paths` в entities;
 - как X должно себя вести и проверено ли → `docs/behavior/<id>.yml`;
 - список id по namespace → `context/index.yml`.
 
@@ -71,8 +72,7 @@ verified_note: <чем проверено или что мешает>
    данных, зависимость, то, что записано в `scenarios`) — `verified:
    false` на затронутых behavior. Рефакторинг без изменения поведения,
    переименования, форматирование `verified` не сбрасывают.
-2. Есть `check` — выполни его (`harness verify`, когда появится, или
-   вручную). Прошёл — `verified: true`, `verified_at` — сегодня,
+2. Есть `check` — выполни его. Прошёл — `verified: true`, `verified_at` — сегодня,
    `verified_note` — чем проверено.
 3. `check` нет, но проверить можно (`curl`, `grep`, тест, чтение кода) —
    проверь и проставь так же. Можно автоматизировать — предложи `check`.
@@ -102,5 +102,8 @@ verified_note: <чем проверено или что мешает>
 - `features_enabled` отражён хотя бы в одной behavior;
 - manual из `manuals` существует.
 
+<!-- expect:skill-runs -->
+<!-- metadata.runs: check -->
 С harness часть проверяет `harness check` (`context-index`): `id`,
-namespace, `summary` / `title`.
+namespace, `summary` / `title` — запусти его после правки.
+<!-- /expect:skill-runs -->

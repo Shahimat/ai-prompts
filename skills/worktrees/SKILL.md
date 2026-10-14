@@ -1,5 +1,7 @@
 ---
 name: worktrees
+metadata:
+  runs: refresh
 description: Параллельная работа в git worktree — где живут worktrees, что копируется, горячие файлы (CHANGELOG, индексы, goals) и как сливать. Загружай, когда работаешь не в основном checkout или готовишь слияние ветки.
 ---
 
@@ -27,15 +29,19 @@ description: Параллельная работа в git worktree — где ж
 Их правят параллельные ветки — правила, чтобы слияние не было болью:
 
 - `CHANGELOG.md` — `merge=union` в `.gitattributes`: обе строки
-  сохраняются. После слияния проверь порядок дат (`harness changelog
-  lint`).
+  сохраняются. После слияния проверь порядок дат.
 - `context/index.yml`, `prompts/index.yml` и другие генерируемые — при
   конфликте не правь руками: возьми любую сторону и пересобери
   генератором.
 - `context/views/goals.yaml` — union для YAML опасен: конфликт решай
   руками, затем `goal-consistency` (skill `goals`).
-- Адаптеры (`CLAUDE.md`, `.claude/`, `.codex/`) — пересобрать
-  `harness adapters sync`.
+- Адаптеры (`CLAUDE.md`, `.claude/`, `.codex/`) — пересобрать.
+
+<!-- expect:skill-runs -->
+<!-- metadata.runs: refresh -->
+С harness после слияния — `harness refresh`: пересоберёт адаптеры и
+`context/index.yml` и проверит проект, в том числе порядок дат журнала.
+<!-- /expect:skill-runs -->
 
 ## Чего не делать
 

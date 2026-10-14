@@ -4,6 +4,14 @@
 
 ## 0.4.0
 
+- Скрипт `harness refresh`: `context index`, `adapters sync`, затем
+  шаги `check`.
+- Процессы агента `docs/delta` (`harness docs delta start --name
+  <дельта> | validate | graph`) и `source/sync` (`harness source sync
+  start | validate | graph`): в состоянии агента процесс
+  останавливается с заданием, `session <сессия> resume` продолжает.
+  Операции `session list | status | resume | retry` общие для всех
+  harness.
 - Слои пакета: `shared` → `lib` → `commands` → `scripts` → `harness`.
   Узел дерева CLI объявляет вид (`command`, `script`, `harness`) и эффект
   (`query` или `mutation`); эффект скрипта выводится из его шагов.

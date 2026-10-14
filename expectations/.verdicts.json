@@ -26,36 +26,36 @@
     "067b5f1341aa": {
       "question": "обновление > есть skill обновления: сверяет источник, показывает новые и устаревшие модули, пресеты, версию harness и предлагает включить или отключить возможности",
       "evidence": {
-        "@update-report": "607c934a33f7431f6869e79562665f36464156720c0b9101de1da3b02ab33661",
-        "@sync-warns-deprecated": "50aa92a6dab83e5d408d0f1c3e14cdc5daeb6f63ef57172aefdd196479e22578"
+        "@update-report": "d10cc0171aedf7ec103b10797e79cf0039496f05e3f598aa66114dc72dc34a28",
+        "@sync-warns-deprecated": "29e801473699f9dc8249fec04e8b7a8d63e50fabfe6f020db55ce05133575813"
       },
       "verdict": true,
-      "quote": "открыть чеклист `contract-setup` — включить новые или отключить",
+      "quote": "2. открыть чеклист `contract-setup` — включить новые или отключить",
       "ref": "@update-report",
-      "reason": "Отчёт skill source-sync содержит разделы новых модулей, устаревших (deprecated), новых пресетов и версии harness, а вопрос в конце предлагает чеклист для включения или отключения возможностей.",
-      "at": "2026-10-13"
+      "reason": "Отчёт «Что нового» показывает новые и устаревшие модули, пресеты, версию harness и предлагает открыть contract-setup для включения/отключения возможностей.",
+      "at": "2026-10-14"
     },
     "0e48c53bde80": {
       "question": "[harness] secrets > docs-keeper не записывает секрет в документацию: вместо значения — указатель на хранилище",
       "evidence": {
-        "@docs-secrets": "1a62fdab49758e008e2893413e294cd9dcce13da6049530c9af49950509b187a"
+        "@docs-secrets": "46eed2a8609d0e5f9568595d48b9d5bc4b5886ea6c6d293754c39b84b65ec0b6"
       },
       "verdict": true,
-      "quote": "документации — указатель на хранилище (`vault:…`, переменная",
+      "quote": "- не записывать секреты — ключи, токены, пароли, приватные ключи: в",
       "ref": "@docs-secrets",
-      "reason": "Skill docs-keeper запрещает записывать секреты и требует в документации указатель на хранилище, а не значение.",
+      "reason": "Секреты не записываются, в документации — указатель на хранилище, не значение.",
       "at": "2026-10-14"
     },
     "135dc96a2bfc": {
       "question": "источник > обновление из источника предупреждает о deprecated-контракте и называет замену",
       "evidence": {
-        "@sync-warns-deprecated": "50aa92a6dab83e5d408d0f1c3e14cdc5daeb6f63ef57172aefdd196479e22578"
+        "@sync-warns-deprecated": "29e801473699f9dc8249fec04e8b7a8d63e50fabfe6f020db55ce05133575813"
       },
       "verdict": true,
-      "quote": "помечен в индексе `deprecated` — предупреди и",
+      "quote": "контракт или модуль помечен в индексе `deprecated` — предупреди и",
       "ref": "@sync-warns-deprecated",
-      "reason": "Шаг 6: deprecated контракт или модуль — предупредить и назвать замену (ключ или путь из поля).",
-      "at": "2026-10-13"
+      "reason": "При deprecated контракте или модуле — предупреждение и названная замена.",
+      "at": "2026-10-14"
     },
     "1458ad2553ec": {
       "question": "приоритетные правила модулей > safety-boundaries: при признаке из списка red-flag агент прекращает сценарий и даёт контакт помощи",
@@ -174,12 +174,12 @@
     "2f6f86544a76": {
       "question": "предложения в источник > перед передачей файл предложения проходит harness secrets scan --file; без harness агент проверяет по тем же правилам сам",
       "evidence": {
-        "@feedback-sanitized": "e0be118dfb24cab1c0b31b479d4ed3d43450252d70d61807aff9d6579e218aaf"
+        "@feedback-sanitized": "0b6f27ce9579c4229dc410e95e3d8561f03c889be0a30e8a0d9a34838d2acc43"
       },
       "verdict": true,
       "quote": "подключён harness — `harness secrets scan --file <путь>`;",
       "ref": "@feedback-sanitized",
-      "reason": "После записи файла — harness secrets scan --file, без harness — проверка сам по тем же типам секретов.",
+      "reason": "С harness — secrets scan --file, без harness — проверка вручную по тем же типам.",
       "at": "2026-10-14"
     },
     "35bb6f85181b": {
@@ -207,12 +207,12 @@
     "37f837d16e74": {
       "question": "[flow] delta > дельту ведёт docs-keeper: собирает из намерений, сверяет с текущей документацией, применяет",
       "evidence": {
-        "@docs-delta": "552b96ad75fc3c76bfb7810c2e276291fb7d988c3ba21282e4521bf3898dadd1"
+        "@docs-delta": "544da0db3102f474626f7dbad942f9fb26ef19ade0e35c7b24a55b58b68c7eea"
       },
       "verdict": true,
-      "quote": "удаляет docs-keeper. Дельта — рабочий файл docs-keeper: в маршруты и",
+      "quote": "1. Собери дельту из намерений. Сверь каждый пункт с текущей",
       "ref": "@docs-delta",
-      "reason": "Дельта — рабочий файл docs-keeper; шаги 1 и 4: собрать из намерений, сверить с документацией, применить.",
+      "reason": "Дельта — рабочий файл docs-keeper; он собирает её из намерений, сверяет с документацией (шаг 1) и применяет пункты (шаг 4).",
       "at": "2026-10-14"
     },
     "386c4e8a4603": {
@@ -240,12 +240,12 @@
     "3c87c225937f": {
       "question": "документация проекта > в основной сессии файлы проектной документации только читаются; правки — только через docs-keeper, генерируемые файлы — через harness",
       "evidence": {
-        "@docs-readonly": "9195329d7a5227f3f8d003664c0c8cf5c5395067963027719001d343cc37721b"
+        "@docs-readonly": "ba929b99a1c0d1998506848d8aefa4c1f9da79dbb1ebea0e8690742f57a678e3"
       },
       "verdict": true,
       "quote": "В основной сессии файлы проектной документации только читаются. Правки",
       "ref": "@docs-readonly",
-      "reason": "Контракт: основная сессия только читает документацию, правки делает docs-keeper, генерируемые файлы меняет только harness.",
+      "reason": "Основная сессия только читает, правки — docs-keeper, генерируемые — harness.",
       "at": "2026-10-14"
     },
     "429c9f105c0b": {
@@ -295,24 +295,24 @@
     "533e8f9c8ae5": {
       "question": "предложения в источник > в предложении нет персональных данных и ссылок из external — только обезличенные выдержки",
       "evidence": {
-        "@feedback-sanitized": "e0be118dfb24cab1c0b31b479d4ed3d43450252d70d61807aff9d6579e218aaf"
+        "@feedback-sanitized": "0b6f27ce9579c4229dc410e95e3d8561f03c889be0a30e8a0d9a34838d2acc43"
       },
       "verdict": true,
       "quote": "нет персональных данных, имён людей, почты, телефонов;",
       "ref": "@feedback-sanitized",
-      "reason": "Требует отсутствия персональных данных и ссылок из external (замена на <url>), термины проекта обезличиваются.",
+      "reason": "Нет персональных данных и ссылок из external, термины обезличены.",
       "at": "2026-10-14"
     },
     "59df1d74a41f": {
       "question": "журнал решений > свой тег журнала модуль добавляет только через provides.changelog_tags",
       "evidence": {
-        "@module-tags": "7e5007b85a54482f254274e61636d0c7e1454724812a8fc0e6bd317aaa9397d5"
+        "@module-tags": "29929ea46f7f1ba51df73610a3cdcf8238ac72195f765558a6bfa476029e5075"
       },
       "verdict": true,
       "quote": "теги из `provides.changelog_tags` подключённых модулей, со смыслом",
       "ref": "@module-tags",
-      "reason": "Допустимые теги — теги ядра плюс provides.changelog_tags модулей; иной тег не подбирается",
-      "at": "2026-10-13"
+      "reason": "Допустимые теги — ядро плюс provides.changelog_tags модулей; в harness.yml теги дописываются из changelog_tags manifest'а.",
+      "at": "2026-10-14"
     },
     "5def1c64ae06": {
       "question": "external — внешний операционный контекст поверх чужого проекта > external: источник реальности — целевые системы из external, а не this-repo",
@@ -324,6 +324,17 @@
       "ref": "@external-reality",
       "reason": "Источник реальности ядра — ключи external целевых систем, а не this-repo.",
       "at": "2026-10-13"
+    },
+    "63aaccc6f834": {
+      "question": "[harness] layers > skill запускает только то, что объявлено в metadata.runs; остальные команды harness лишь упоминает",
+      "evidence": {
+        "@skill-runs": "ec0cd97aee9ee7d40c37ff6ed3990230e5db3824b435101acc96a9e5059d8d4a"
+      },
+      "verdict": true,
+      "quote": "Сам skill запускает одно: `harness refresh` в конце каждой задачи и",
+      "ref": "@skill-runs",
+      "reason": "Каждый skill запускает только команду из своего metadata.runs, прочие команды harness даны как справка или шаги процесса.",
+      "at": "2026-10-14"
     },
     "694f0f4b5141": {
       "question": "[harness] expect > в кэше вердиктов только вердикты живых ожиданий",
@@ -351,12 +362,12 @@
     "6c3d6298ef3f": {
       "question": "[flow] delta > приёмка: пункты дельты выполнены, прежние ожидания документации без revise не нарушены",
       "evidence": {
-        "@docs-delta": "552b96ad75fc3c76bfb7810c2e276291fb7d988c3ba21282e4521bf3898dadd1"
+        "@docs-delta": "544da0db3102f474626f7dbad942f9fb26ef19ade0e35c7b24a55b58b68c7eea"
       },
       "verdict": true,
       "quote": "5. Приёмка: пункты дельты выполнены, прежнее знание без `revise` не",
       "ref": "@docs-delta",
-      "reason": "Приёмка прямо сформулирована: пункты выполнены, прежнее знание без revise не нарушено.",
+      "reason": "Шаг приёмки прямо требует выполненных пунктов и ненарушенного прежнего знания без revise.",
       "at": "2026-10-14"
     },
     "741df40f5b3c": {
@@ -396,12 +407,12 @@
     "7ba751f6d1ea": {
       "question": "документация проекта > docs-keeper меняет только слои документации проекта и не трогает код",
       "evidence": {
-        "@docs-readonly": "9195329d7a5227f3f8d003664c0c8cf5c5395067963027719001d343cc37721b"
+        "@docs-readonly": "ba929b99a1c0d1998506848d8aefa4c1f9da79dbb1ebea0e8690742f57a678e3"
       },
       "verdict": true,
-      "quote": "- docs-keeper меняет только слои документации проекта — код, тесты,",
+      "quote": "docs-keeper меняет только слои документации проекта — код, тесты,",
       "ref": "@docs-readonly",
-      "reason": "Skill docs-keeper прямо ограничивает его слоями документации и запрещает трогать код, тесты и конфиги сборки.",
+      "reason": "docs-keeper меняет только слои документации, код/тесты/конфиги сборки не трогает.",
       "at": "2026-10-14"
     },
     "814595867eb8": {
@@ -475,12 +486,12 @@
     "936b8919a329": {
       "question": "[flow] delta > add и refine не требуют внимания пользователя: строка в итоговом отчёте",
       "evidence": {
-        "@docs-delta": "552b96ad75fc3c76bfb7810c2e276291fb7d988c3ba21282e4521bf3898dadd1"
+        "@docs-delta": "544da0db3102f474626f7dbad942f9fb26ef19ade0e35c7b24a55b58b68c7eea"
       },
       "verdict": true,
       "quote": "2. `add` и `refine` вниманием пользователя не требуют — строка в отчёте.",
       "ref": "@docs-delta",
-      "reason": "Прямо подтверждено.",
+      "reason": "Прямо сказано: add и refine не требуют внимания пользователя, идут строкой в отчёт.",
       "at": "2026-10-14"
     },
     "93fa98f600b1": {
@@ -574,12 +585,12 @@
     "b067fbbab481": {
       "question": "документация проекта > при подключённом harness генерируемые файлы (context/index.yml, адаптеры под инструменты) меняет только harness, не агент и не docs-keeper",
       "evidence": {
-        "@docs-readonly": "9195329d7a5227f3f8d003664c0c8cf5c5395067963027719001d343cc37721b"
+        "@docs-readonly": "ba929b99a1c0d1998506848d8aefa4c1f9da79dbb1ebea0e8690742f57a678e3"
       },
       "verdict": true,
       "quote": "harness — не основной агент и не docs-keeper. Инструмент без субагентов —",
       "ref": "@docs-readonly",
-      "reason": "Генерируемые файлы (context/index.yml, адаптеры) при подключённом harness меняет только harness, не основной агент и не docs-keeper.",
+      "reason": "Генерируемые файлы при подключённом harness меняет только harness.",
       "at": "2026-10-14"
     },
     "b1ddc9dc94e8": {
@@ -608,14 +619,14 @@
     "c6b9e7459e9b": {
       "question": "[flow] delta > revise не блокирует работу: объявлен в дельте, попадает в отчёт и в тело сообщения коммита",
       "evidence": {
-        "@docs-delta": "552b96ad75fc3c76bfb7810c2e276291fb7d988c3ba21282e4521bf3898dadd1",
+        "@docs-delta": "544da0db3102f474626f7dbad942f9fb26ef19ade0e35c7b24a55b58b68c7eea",
         "@docs-keeper-report": "f30a5351e552880d82de59fd015119f07dceb20c9e2fc6ec079f4be9ba6be412",
         "@ticket-commits-revise": "00289bd8bfb6dc354f38d40bda680da38a87e87fb6176e4f6b68dd9556123dcb"
       },
       "verdict": true,
       "quote": "3. `revise` работу не блокирует: он объявлен в дельте, попадает в отчёт",
       "ref": "@docs-delta",
-      "reason": "Не блокирует, объявлен в дельте, в отчёте и в теле коммита; подтверждено также в @ticket-commits-revise.",
+      "reason": "revise не блокирует, объявлен в дельте, идёт в отчёт и в тело коммита; это подтверждают и отчёт docs-keeper, и ticket-commits.",
       "at": "2026-10-14"
     },
     "ca5c9cebb854": {
@@ -767,12 +778,12 @@
     "f586544d451f": {
       "question": "документация проекта > шаблон AGENTS.md и блоки модулей не содержат указаний основной сессии самой править документацию — только ссылки на skills и harness; guardrail о достоверности знания допустим",
       "evidence": {
-        "@agents-md-readonly": "17901a111d0321b870336073641566a3dce4ae69ce226bfc5966400c3538c420"
+        "@agents-md-readonly": "8c756cce27cd5b0519e8a10179ed544f8c72306f19cbee14509262a9cdc82188"
       },
       "verdict": true,
-      "quote": "читается, правки — намерениями субагенту `docs-keeper`, генерируемые",
+      "quote": "4. Контекст сессии — на доменную область: документация здесь только",
       "ref": "@agents-md-readonly",
-      "reason": "Шаблон запрещает основной сессии править документацию; блоки модулей — маршруты и ссылки на skills/harness плюс guardrails (атрибуция, privacy, safety), прямых указаний править документацию нет.",
+      "reason": "Шаблон и блоки модулей дают маршруты и ссылки на skills/harness; указаний самой править документацию нет, остальное — guardrails о достоверности.",
       "at": "2026-10-14"
     },
     "fe1171fee6d4": {
@@ -789,13 +800,13 @@
     "fea56d1882e8": {
       "question": "поведение ключевых skills > contract-setup: модули подключаются по одному, каждый — с manifest и отчётом",
       "evidence": {
-        "@module-install": "ba5f38ecae94ad4e32c0064b5b86d2e43d0a5d0d292d24bdfd6fb17e7a643569"
+        "@module-install": "3a3e72c642e0d7f13d1c57b5e18b64b792426e7b3d9314af54c2158664746693"
       },
       "verdict": true,
       "quote": "По одному модулю; модуль — отдельный шаг с отчётом (skill `workflow`).",
       "ref": "@module-install",
-      "reason": "Модули ставятся по одному, у каждого отдельный шаг с отчётом, а шаг 4 обязывает завести manifest context/modules/<key>.yml",
-      "at": "2026-10-13"
+      "reason": "Модули по одному, отдельный шаг с отчётом, manifest context/modules/<key>.yml.",
+      "at": "2026-10-14"
     }
   },
   "lint": {

@@ -122,3 +122,4 @@ export {
   type Validate,
 } from './shared/schema.ts';
 export type { CommandNode, Effect, ScriptDef, ScriptNode, ScriptStep } from './shared/node.ts';
+export { CHECK, DOCS_VERIFY, REFRESH } from './scripts/index.ts';

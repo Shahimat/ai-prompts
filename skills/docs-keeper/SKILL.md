@@ -1,5 +1,7 @@
 ---
 name: docs-keeper
+metadata:
+  runs: docs/delta
 description: Правила записи в проектную документацию — раскладка фактов по слоям, conventions, project.yml, CHANGELOG, проверки. Его загружает субагент docs-keeper; основной агент только передаёт ему намерения.
 ---
 
@@ -41,6 +43,7 @@ description: Правила записи в проектную документ�
 <!-- expect:docs-owners -->
 У каждой записи в проектную документацию один ответственный.
 
+<!-- expect:skill-runs -->
 | Что | Кто пишет |
 | --- | --- |
 | `context/project.yml` | docs-keeper |
@@ -48,9 +51,10 @@ description: Правила записи в проектную документ�
 | `CHANGELOG.md` | docs-keeper |
 | слои ядра в `docs/` и слои модулей (`provides.layers`) | docs-keeper |
 | `context/.delta/` — создание и правка | docs-keeper |
-| `context/.delta/` — удаление после приёмки | `harness delta close`; без harness — docs-keeper |
-| `context/index.yml` | `harness context index` |
-| адаптеры (`CLAUDE.md`, `.claude/`, `.codex/`) | `harness adapters sync` |
+| `context/.delta/` — удаление после приёмки | `harness delta close`; шаг `close` процесса `docs/delta`, без harness — docs-keeper |
+| `context/index.yml` | `harness context index`; шаг `verify` процесса `docs/delta` |
+| адаптеры (`CLAUDE.md`, `.claude/`, `.codex/`) | `harness adapters sync`; шаг `verify` процесса `docs/delta` |
+<!-- /expect:skill-runs -->
 
 Основная сессия в документацию не пишет.
 <!-- /expect:docs-owners -->
@@ -82,6 +86,15 @@ items:
     why: <почему пересмотрено>
 ```
 
+<!-- expect:skill-runs -->
+<!-- metadata.runs: docs/delta -->
+С harness запись ведёт процесс `harness docs delta start --name <имя>`:
+он выдаёт задание — шаги 1–4 ниже, — после них `harness session
+<сессия> resume` проверяет и закрывает дельту (шаги 5–6). Провал
+проверки возвращает задание с нарушениями, после трёх провалов процесс
+останавливается — это «не прошло» в отчёте.
+<!-- /expect:skill-runs -->
+
 1. Собери дельту из намерений. Сверь каждый пункт с текущей
    документацией: новое знание — `add`, совместимое уточнение —
    `refine`, удаление или изменение существующего — `revise` с `was` и
@@ -92,9 +105,12 @@ items:
    пересмотр откатывается сценарием `recover` (skill `workflow`).
 4. Примени пункты по правилам слоёв.
 5. Приёмка: пункты дельты выполнены, прежнее знание без `revise` не
-   нарушено, `harness delta check` и `harness check` чисты.
-6. После приёмки — `harness delta close`: дельта удаляется, строки
-   `revise` — в отчёт.
+   нарушено, производные файлы пересобраны, проверки чисты — с harness
+   это шаг `verify` процесса.
+6. После приёмки дельта удаляется, строки `revise` — в отчёт:
+   <!-- expect:skill-runs -->
+   с harness — шаг `close` процесса, `harness delta close`.
+   <!-- /expect:skill-runs -->
 
 Без harness — та же сверка вручную по `git diff HEAD` слоёв, дельту
 удаляет docs-keeper. Дельта — рабочий файл docs-keeper: в маршруты и
@@ -162,8 +178,8 @@ convention.
   требует);
 - выполнены правила слоёв подключённых возможностей;
 - решение, проходящее критерий, записано в CHANGELOG;
-- `harness check` чист, если подключён harness (иначе — ручная сверка
-  по тем же правилам);
+- проверки чисты: с harness — `verify` процесса, иначе — ручная сверка
+  по тем же правилам;
 - неочевидные изменения существующих правил подтверждены пользователем.
 
 Частичная запись и молча сохранённое противоречие — ошибка.
@@ -190,7 +206,8 @@ convention.
 - не записывать секреты — ключи, токены, пароли, приватные ключи: в
   документации — указатель на хранилище (`vault:…`, переменная
   окружения, секрет CI), не значение; намерение с секретом — отказ и
-  вопрос. При подключённом harness это ловит `harness check` (`secrets`);
+  вопрос. При подключённом harness это ловит проверка `secrets` в
+  `verify` процесса;
 <!-- /expect:docs-secrets -->
 - не писать в memory агента и в файлы вне репозитория;
 - не дублировать факт в двух слоях: уместен в двух — границы проведены

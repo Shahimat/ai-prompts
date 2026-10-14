@@ -1,5 +1,7 @@
 ---
 name: analysis
+metadata:
+  runs: refresh
 description: Правила слоя analysis — источники, тезисы, позиции, посты, разборы, противоречия; целостность атрибуции, провенанс, verified и reconciled, диалектика, сценарий inquiry. Загружай, когда читаешь или пишешь analysis/, отвечаешь на вопрос по существу или сверяешь взгляды.
 ---
 
@@ -259,8 +261,12 @@ synthesis: null                    # как система развилась, �
    глава книги (skill `book-corpus`, если подключён); новые `sources` /
    `claims` — намерения `source` / `claim` субагенту docs-keeper,
    `evidence` — провенанс и локатор.
-3. Индекс обновлён (`harness context index`; без harness — у новых
-   сущностей есть `summary`): следующий виток видит добавленное.
+3. Индекс обновлён и проект проверен:
+   <!-- expect:skill-runs -->
+   <!-- metadata.runs: refresh -->
+   `harness refresh`; без harness — у новых сущностей есть `summary`.
+   <!-- /expect:skill-runs -->
+   Следующий виток видит добавленное.
 4. Новая фактура касается моих взглядов — `reconciled` и диалектика.
 
 В ответах — выводы и агрегаты; сырьё — по прямому запросу.
@@ -287,5 +293,5 @@ synthesis: null                    # как система развилась, �
   диалектики;
 - `app-telemetry` и `automated_by` — только при подключённом `app-loop`.
 
-`id`, namespace, `summary` / заголовок проверяет `harness check`
-(`context-index`), если подключён harness.
+`id`, namespace, `summary` / заголовок проверяет шаг `context-index`
+того же запуска, если подключён harness.

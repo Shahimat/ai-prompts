@@ -1,5 +1,7 @@
 ---
 name: contract-setup
+metadata:
+  runs: refresh
 description: Чеклист возможностей контракта v3 — выбрать, подключить и отключить модули (domain, manuals, goals, harness, worktrees и др.). Загружай при установке контракта и на «что добавить / убрать в проекте».
 ---
 
@@ -109,9 +111,12 @@ skill — протокол их выбора, подключения и откл
 5. `changelog_tags` модуля — допиши в `context/harness.yml` →
    `checks.changelog.tags`, если подключён harness (список ядра плюс
    теги модулей).
-6. Адаптеры: `harness adapters sync`, если подключён harness; иначе
-   обнови производные файлы сам (`AGENTS.md` → «Адаптеры» ядра).
-7. Если harness подключён — `harness check`.
+6. Адаптеры, индекс и проверки:
+   <!-- expect:skill-runs -->
+   <!-- metadata.runs: refresh -->
+   `harness refresh`, если подключён harness; иначе обнови производные
+   файлы сам (`AGENTS.md` → «Адаптеры» ядра).
+   <!-- /expect:skill-runs -->
 <!-- /expect:module-tags -->
 <!-- /expect:module-install -->
 

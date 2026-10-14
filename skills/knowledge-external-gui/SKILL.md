@@ -1,5 +1,7 @@
 ---
 name: knowledge-external-gui
+metadata:
+  runs: context index
 description: Карты GUI внешних систем без API в docs/knowledge/ — формат, когда заводить, как извлекать из скриншотов, свежесть, что делать при расхождении. Загружай, когда задача идёт через web-GUI провайдера или пользователь присылает скриншот.
 ---
 
@@ -183,8 +185,11 @@ knowledge и в текущем скрине.
 3. По итогам работы: если задача попала под триггер заведения knowledge
    — спрашиваешь одной строкой «сохранить как knowledge? да/нет».
 4. При «да» — заводишь файл, обновляешь manifest модуля, обновляешь
-   `context/index.yml` (в v3 — пересборкой `harness context index`,
-   если подключён harness).
+   `context/index.yml`:
+   <!-- expect:skill-runs -->
+   <!-- metadata.runs: context index -->
+   в v3 — пересборкой `harness context index`, если подключён harness.
+   <!-- /expect:skill-runs -->
 
 ## Проверки внутренней непротиворечивости
 

@@ -1,5 +1,7 @@
 ---
 name: source-feedback
+metadata:
+  runs: secrets scan
 description: Предложения проекта в источник ai-prompts — дрейф поставленных skills и блоков, локальные обобщения схемы, пробелы и обходы правил; файл JSON по схеме source-proposal. Загружай на «предложи улучшения в источник», «что из проекта стоит обобщить», «собери фидбек по контракту».
 ---
 
@@ -179,7 +181,10 @@ description: Предложения проекта в источник ai-prompt
 
 После записи файла — проверка секретов:
 
+<!-- expect:skill-runs -->
+<!-- metadata.runs: secrets scan -->
 - подключён harness — `harness secrets scan --file <путь>`;
+<!-- /expect:skill-runs -->
 - без harness — сам, по тем же типам: ключи API, токены, пароли и
   секреты в присваиваниях, приватные ключи.
 

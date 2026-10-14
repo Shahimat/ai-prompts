@@ -37,6 +37,8 @@ npx -y @shahimat/harness@<version> <команда> --root .
 - `harness check` — все проверки, включённые в `context/harness.yml`:
   `changelog lint`, `context check`, `adapters check`, `secrets scan`.
   Каждая печатает свой итог; код выхода — худший из кодов шагов.
+- `harness refresh` — пересобрать производные файлы (`context index`,
+  `adapters sync` — если включены в `checks`) и затем шаги `check`.
 
 ## Команды
 
@@ -79,6 +81,24 @@ Mutation — `context index`, `adapters sync`, `delta close`,
   в npm и записи `CHANGELOG.md` пакета между ними (код 1 — есть новее).
 - `harness index build | check --raw-base <url>` — индекс
   `prompts/index.yml` репозитория промптов.
+
+## Процессы агента: `docs/delta` и `source/sync`
+
+Работу в них делает агент, вызвавший harness: в его состоянии процесс
+останавливается с заданием, `harness session <сессия> resume`
+продолжает со следующего состояния. Сессии — как у `plan/iter`, в
+`~/.config/harness/`.
+
+- `harness docs delta start --name <дельта> | validate | graph` —
+  запись в документацию (skill docs-keeper): `apply` (агент собирает и
+  применяет `context/.delta/<дельта>.yml`) → `verify` (`context index`,
+  `adapters sync`, `delta check`, шаги `check`) → `close`
+  (`delta close`). Провал `verify` или `close` возвращает в `apply` не
+  больше 3 раз, затем `failed`; `session <сессия> retry` — снова `apply`.
+- `harness source sync start | validate | graph` — синхронизация с
+  источниками (skill source-sync): `outdated` (версия harness и журнал,
+  без `version` в конфиге — пропуск) → `update` (агент обновляет файлы)
+  → `refresh`. Провал `refresh` возвращает в `update` не больше 3 раз.
 
 ## Процесс `plan/iter`
 

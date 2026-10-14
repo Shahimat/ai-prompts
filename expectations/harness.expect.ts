@@ -1362,6 +1362,15 @@ class Skills {
         bad.push(`${s.name}: команда harness вне expect:${RUNS_ANCHOR}`);
       if (typeof s.runs === 'string' && !s.text.includes(runsCall(s.runs)))
         bad.push(`${s.name}: в тексте нет запуска ${runsCall(s.runs)}`);
+      // Объявление — в регионе строкой-комментарием: судья сверяет с ним текст.
+      const declared = markdownRegions(s.text, s.path)
+        .filter((r) => r.key === RUNS_ANCHOR)
+        .flatMap((r) => [...r.text.matchAll(/<!-- metadata\.runs: (.+?) -->/g)].map((m) => m[1]));
+      const expected = typeof s.runs === 'string' ? [s.runs] : [];
+      if (JSON.stringify(declared) !== JSON.stringify(expected))
+        bad.push(
+          `${s.name}: в регионах metadata.runs ${declared.join(', ')} ≠ ${expected.join(', ')}`,
+        );
     }
     expect(bad).toEqual([]);
     await judged([`@${RUNS_ANCHOR}`]);

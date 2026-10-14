@@ -1,4 +1,7 @@
 import {
+  runDocsGraph,
+  runDocsStart,
+  runDocsValidate,
   runPlanGraph,
   runPlanList,
   runPlanStart,
@@ -11,8 +14,11 @@ import {
   runSessionResume,
   runSessionRetry,
   runSessionStatus,
+  runSourceGraph,
+  runSourceStart,
+  runSourceValidate,
 } from './harness/index.ts';
-import { CHECK, COMMAND_NODES, runScript } from './scripts/index.ts';
+import { CHECK, COMMAND_NODES, REFRESH, runScript } from './scripts/index.ts';
 import type { Command, ScriptDef } from './shared/node.ts';
 
 export type { Command } from './shared/node.ts';
@@ -29,6 +35,7 @@ const script = (def: ScriptDef): Command => ({
 /** Дерево команд CLI: из него строятся разбор аргументов, справка и оболочка. */
 export const COMMANDS: readonly Command[] = [
   script(CHECK),
+  script(REFRESH),
   ...COMMAND_NODES,
   // harness
   { path: ['plan', 'list'], kind: 'harness', effect: 'query', options: HOME, run: runPlanList },
@@ -52,6 +59,48 @@ export const COMMANDS: readonly Command[] = [
     effect: 'query',
     options: HOME,
     run: runPlanGraph,
+  },
+  {
+    path: ['docs', '<harness>', 'start'],
+    kind: 'harness',
+    effect: 'mutation',
+    options: `[--name <дельта>] ${HOME}`,
+    run: runDocsStart,
+  },
+  {
+    path: ['docs', '<harness>', 'validate'],
+    kind: 'harness',
+    effect: 'query',
+    options: HOME,
+    run: runDocsValidate,
+  },
+  {
+    path: ['docs', '<harness>', 'graph'],
+    kind: 'harness',
+    effect: 'query',
+    options: HOME,
+    run: runDocsGraph,
+  },
+  {
+    path: ['source', '<harness>', 'start'],
+    kind: 'harness',
+    effect: 'mutation',
+    options: HOME,
+    run: runSourceStart,
+  },
+  {
+    path: ['source', '<harness>', 'validate'],
+    kind: 'harness',
+    effect: 'query',
+    options: HOME,
+    run: runSourceValidate,
+  },
+  {
+    path: ['source', '<harness>', 'graph'],
+    kind: 'harness',
+    effect: 'query',
+    options: HOME,
+    run: runSourceGraph,
   },
   {
     path: ['session', 'list'],

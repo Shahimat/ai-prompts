@@ -1,5 +1,7 @@
 ---
 name: source-sync
+metadata:
+  runs: source/sync
 description: Обновление проекта из источника ai-prompts — что изменилось в контракте, модулях, skills и субагентах (индекс и SHA-256), новые модули и пресеты, версия harness; отчёт «Что нового» и план. Загружай на «проверь обновления», «что нового в источнике», «обнови контракт».
 ---
 
@@ -57,11 +59,18 @@ Manifest каждого модуля — `context/modules/<key>.yml` со сво
 
 1. Прочитай `sync.index_source`. Пусто — «источник не сохранён, пришли
    ссылку», дальше не идёшь. Получил ссылку — сохрани.
-2. Если подключён harness — `harness outdated`: текущая версия из
-   `context/harness.yml`, последняя в npm и записи журнала пакета между
-   ними. Этот шаг выполняется всегда, даже если индекс не менялся.
+2. Процесс harness:
+   <!-- expect:skill-runs -->
+   <!-- metadata.runs: source/sync -->
+   Если подключён harness — сценарий ведёт процесс `harness source sync
+   start`. Он печатает текущую версию из `context/harness.yml`, последнюю
+   в npm и записи журнала пакета между ними (всегда, даже если индекс не
+   менялся), и останавливается с заданием: шаги 3–8. После них —
+   `harness session <сессия> resume`: процесс пересоберёт адаптеры и
+   `context/index.yml` и проверит проект; провал вернёт задание.
+   <!-- /expect:skill-runs -->
 3. `curl` тянет `index.yml`, считай SHA-256. Совпал с `sync.index_sha` и
-   harness актуален — «без изменений», выход.
+   harness актуален — «без изменений», выход (с harness — resume).
 4. Не совпал — читай индекс. Источники: контракт (`sync.contract.key`)
    и модули (`context/modules/*.yml`); для каждого — его `parts`.
 5. Сравни `sha256` из индекса с сохранёнными:
@@ -89,8 +98,8 @@ Manifest каждого модуля — `context/modules/<key>.yml` со сво
    `context/project.yml`; правки слоёв документации проекта — только
    через docs-keeper. Затем обнови `sync.index_sha`, `synced_sha`
    контракта и модулей, SHA в `parts`, `synced_at`; при обновлении
-   harness — `version` в `context/harness.yml`; адаптеры — `harness
-   adapters sync` или вручную; `harness check`, если подключён harness.
+   harness — `version` в `context/harness.yml`. Адаптеры и проверку с
+   harness делает resume процесса (шаг 2), без harness — вручную.
 <!-- /expect:sync-warns-deprecated -->
 
 ## Отчёт «Что нового»
@@ -107,7 +116,7 @@ Manifest каждого модуля — `context/modules/<key>.yml` со сво
 - **Новые пресеты** — группа `presets` индекса, которых не было при
   прошлой сверке.
 - **harness** — версия проекта → последняя и записи журнала между ними
-  из `harness outdated`: новые команды и проверки.
+  из первого шага процесса: новые команды и проверки.
 
 Вопрос в конце — нумерованные варианты:
 

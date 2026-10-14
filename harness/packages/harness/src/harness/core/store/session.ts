@@ -72,6 +72,8 @@ export interface SessionData {
   question?: string;
   /** Hook отпустил планера после предела блокировок. */
   formalExhausted?: boolean;
+  /** Состояние, в котором агенту выдано задание: resume продолжает с него. */
+  handoff?: string;
 }
 
 function parseFix(value: unknown): FixInput | undefined {
@@ -123,6 +125,7 @@ export function parseSession(text: string, where: string): SessionData {
   if (fix !== undefined) session.fix = fix;
   if (typeof data['question'] === 'string') session.question = data['question'];
   if (data['formalExhausted'] === true) session.formalExhausted = true;
+  if (typeof data['handoff'] === 'string') session.handoff = data['handoff'];
   return session;
 }
 

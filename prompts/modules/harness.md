@@ -78,7 +78,7 @@ checks:
 ## harness
 
 - карта id по namespace → `context/index.yml` (генерируется);
-- в конце задачи — `harness check`; команды и конфиг → skill `harness`;
+- в конце задачи — `harness refresh`; команды и конфиг → skill `harness`;
 - сгенерированные файлы руками не правятся.
 <!-- /module:harness -->
 ```
