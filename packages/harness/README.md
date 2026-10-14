@@ -79,7 +79,13 @@ Mutation — `context index`, `adapters sync`, `delta close`,
   Schema (`expectSchema`, `dataFiles`, `frontmatters`). Общий блок
   ожиданий вне `*.expect.ts` объявляет разделы через `describe` из
   `@shahimat/harness/expect`: так ожидания приписываются файлу, который
-  блок применил. `report <file> --html <out>` — тот же отчёт HTML-файлом,
+  блок применил. `pattern(key, apply)` — паттерн ожиданий: функция с
+  параметрами, которая регистрирует ожидания для переданных целей (цели
+  — в заголовке, якоря доказательств — параметром); ожидания
+  приписываются применившему файлу, в HTML у них виден ключ паттерна.
+  Паттерны для любых проектов — `@shahimat/expectations`, для одного
+  репозитория — его `expectations/shared/`.
+  `report <file> --html <out>` — тот же отчёт HTML-файлом,
   `serve <file> [--port <n>]` — с локального сервера (см. «План в форме
   ожиданий»).
 - `harness delta check | close` — дельта проектной документации в
