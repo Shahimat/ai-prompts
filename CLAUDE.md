@@ -71,6 +71,14 @@ typecheck`, `npm run lint`, `npm test` и `npm run format:check`; CI
 (`.oxlintrc.json`); формат — prettier (`npm run format`), только TS,
 JSON и YAML: markdown промптов он не трогает (`.prettierignore`).
 
+**Неявные преобразования запрещены — как принцип.** Никаких `as T`
+(кроме `as const`), `!`, `any`, приведения к boolean / строке / числу
+и `==`. Данные извне (JSON, YAML, frontmatter, ошибки в `catch`)
+сужаются проверками — `guards.ts` в harness и в `expectations/shared/`;
+неверная форма — ошибка с путём к полю. Линтер это проверяет, но
+принцип шире линтера: обходы (`as unknown as T`, отключение правила)
+— только по согласованию.
+
 ## При добавлении или правке промпта
 
 Перед планом:
