@@ -30,12 +30,16 @@ export {
   warn,
   type Budget,
   type Level,
+  PLAN_KINDS,
+  type PlanDecl,
+  type PlanKind,
   type StepDef,
 } from './levels.ts';
 export {
   Graph,
   graphOf,
   machine,
+  plan,
   step,
   type Machine,
   type MachineGraph,

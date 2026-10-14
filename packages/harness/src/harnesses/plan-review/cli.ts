@@ -133,6 +133,7 @@ async function start(args: CommandArgs): Promise<Session> {
   };
   const title = await ask(args.name, 'Название плана: ', '--name');
   const request = await ask(args.request, 'Запрос: ', '--request');
+  prompter.say(`план: ${await createArtifact(args.root, title)}`);
   return createSession(home, {
     harness: harness.name,
     title,
@@ -141,6 +142,37 @@ async function start(args: CommandArgs): Promise<Session> {
     initial: harness.def.initial,
     now: args.now,
   });
+}
+
+export const ARTIFACTS_DIR = '.claude/artifacts/plan-review';
+
+export const slugOf = (name: string): string =>
+  name
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, '-')
+    .replace(/^-+|-+$/g, '');
+
+const quoted = (s: string): string => `'${s.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
+
+const artifactSkeleton = (name: string): string =>
+  [
+    "import { budget, plan } from '@shahimat/harness/expect';",
+    '',
+    'budget({ crit: 0, warn: 0 });',
+    '',
+    `plan({ name: ${quoted(name)}, kind: 'fsm' });`,
+    '',
+  ].join('\n');
+
+async function createArtifact(root: string, name: string): Promise<string> {
+  const slug = slugOf(name);
+  if (slug === '') throw new UsageError(`из имени плана не получается slug: ${name}`);
+  const file = path.join(root, ARTIFACTS_DIR, `${slug}.expect.ts`);
+  if (!existsSync(file)) {
+    await mkdir(path.dirname(file), { recursive: true });
+    await writeFile(file, artifactSkeleton(name), 'utf8');
+  }
+  return file;
 }
 
 const sessionOf = (args: CommandArgs): Promise<Session> => sessionOfHarness(args, 'plan-review');

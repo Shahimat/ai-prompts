@@ -1,5 +1,5 @@
 import { Graphviz } from '@hpcc-js/wasm-graphviz';
-import type { Budget, StepDef } from '#lib/expect/levels';
+import type { Budget, PlanDecl, PlanKind, StepDef } from '#lib/expect/levels';
 import { graphOf, type MachineGraph } from '#lib/expect/plan';
 import { diffTitles, type DiffMark, type Titled } from './head.ts';
 import { outcomeOf, type MachineDecl, type Outcome, type TestResult } from './results.ts';
@@ -13,6 +13,7 @@ export interface FileReport {
   budget: Budget;
   count: { crit: number; warn: number; info: number; pending: number };
   head?: Titled[];
+  plan?: PlanDecl;
 }
 
 type NodeStatus = Outcome | 'none';
@@ -220,7 +221,7 @@ function groups(tests: TestResult[], marks: Map<Titled, DiffMark>): string {
 function fileSection(r: FileReport, svg: (source: string) => string): string {
   const { marks, removed } = diffTitles(r.tests, r.head);
   const parts = [
-    `<h2>${esc(r.file)}</h2>`,
+    `<h2>${esc(r.plan?.name ?? r.file)}</h2>`,
     `<p class="summary">crit ${r.count.crit}/${r.budget.crit} · warn ${r.count.warn}/${r.budget.warn} · info ${r.count.info}${r.count.pending > 0 ? ` · ? ${r.count.pending} без вердикта` : ''}</p>`,
   ];
   if (r.issues.length > 0)
@@ -279,7 +280,11 @@ a { color: #0a84ff; }
 @media print { .card:target { outline: none; } }
 `;
 
+const KIND_TITLE: Record<PlanKind, string> = { fsm: 'План FSM' };
+
 export async function renderHtml(reports: FileReport[]): Promise<string> {
+  const kind = reports.find((r) => r.plan !== undefined)?.plan?.kind;
+  const heading = kind === undefined ? 'Ожидания' : KIND_TITLE[kind];
   const graphviz = await Graphviz.load();
   const svg = (source: string): string => inlineSvg(graphviz.dot(source));
   const body = reports.map((r) => fileSection(r, svg)).join('\n');
@@ -288,11 +293,11 @@ export async function renderHtml(reports: FileReport[]): Promise<string> {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Ожидания</title>
+<title>${heading}</title>
 <style>${STYLE}</style>
 </head>
 <body>
-<h1>Ожидания</h1>
+<h1>${heading}</h1>
 ${body}
 </body>
 </html>

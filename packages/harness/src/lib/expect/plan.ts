@@ -1,6 +1,6 @@
 import { it } from 'vitest';
 import { describe } from './levels.ts';
-import type { StepDef } from './levels.ts';
+import type { PlanDecl, StepDef } from './levels.ts';
 import { registerScope, sourceNow, type Scope, type StepStatus } from './scope.ts';
 
 function scopedDescribe(title: string, scope: Scope, body: () => void): void {
@@ -12,6 +12,15 @@ function scopedDescribe(title: string, scope: Scope, body: () => void): void {
 
 export const STEP_TITLE = '__step__';
 export const MACHINE_TITLE = '__machine__';
+export const PLAN_TITLE = '__plan__';
+
+export function plan(decl: PlanDecl): void {
+  const source = sourceNow();
+  it(PLAN_TITLE, (ctx) => {
+    ctx.task.meta.planDecl = { name: decl.name, kind: decl.kind };
+    if (source !== undefined) ctx.task.meta.source = source;
+  });
+}
 
 export interface StepOptions {
   title: string;

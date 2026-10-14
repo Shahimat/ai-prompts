@@ -28,6 +28,14 @@ export interface StepDef {
   why?: string;
 }
 
+export const PLAN_KINDS = ['fsm'] as const;
+export type PlanKind = (typeof PLAN_KINDS)[number];
+
+export interface PlanDecl {
+  name: string;
+  kind: PlanKind;
+}
+
 export interface MachineMeta {
   name: string;
   def: unknown;
@@ -46,6 +54,7 @@ declare module 'vitest' {
     machine?: MachineMeta;
     source?: string;
     pattern?: string;
+    planDecl?: PlanDecl;
   }
 }
 

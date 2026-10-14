@@ -1,6 +1,14 @@
 import path from 'node:path';
-import { BUDGET_TITLE, LEVELS, type Budget, type Level, type StepDef } from '#lib/expect/levels';
-import { MACHINE_TITLE, STEP_TITLE } from '#lib/expect/plan';
+import {
+  BUDGET_TITLE,
+  LEVELS,
+  PLAN_KINDS,
+  type Budget,
+  type Level,
+  type PlanDecl,
+  type StepDef,
+} from '#lib/expect/levels';
+import { MACHINE_TITLE, PLAN_TITLE, STEP_TITLE } from '#lib/expect/plan';
 import { isServiceTitle, STEP_STATUSES, type NodeScope, type StepStatus } from '#lib/expect/scope';
 import { isOneOf, isRecord, isStringArray } from '#shared/guards';
 
@@ -27,6 +35,7 @@ export interface TestResult {
   node?: NodeScope;
   stepDef?: StepDef;
   machine?: MachineDecl;
+  planDecl?: PlanDecl;
 }
 
 const isBudget = (v: unknown): v is Budget =>
@@ -88,6 +97,13 @@ export function parseVitestReport(data: unknown, root: string): TestResult[] {
       if (node !== undefined) result.node = node;
       const stepDef = stepDefOf(meta['stepDef']);
       if (stepDef !== undefined) result.stepDef = stepDef;
+      const planDecl = meta['planDecl'];
+      if (
+        isRecord(planDecl) &&
+        typeof planDecl['name'] === 'string' &&
+        isOneOf(PLAN_KINDS, planDecl['kind'])
+      )
+        result.planDecl = { name: planDecl['name'], kind: planDecl['kind'] };
       const machine = machineOf(meta['machine']);
       if (machine !== undefined) result.machine = machine;
       return { result, own: typeof source === 'string' };
@@ -129,6 +145,9 @@ export const machinesOf = (tests: TestResult[]): MachineDecl[] =>
   tests.flatMap((t) =>
     t.title.startsWith(MACHINE_TITLE) && t.machine !== undefined ? [t.machine] : [],
   );
+
+export const planOf = (tests: TestResult[]): PlanDecl | undefined =>
+  tests.find((t) => t.title === PLAN_TITLE)?.planDecl;
 
 export const isPlannedTest = (t: TestResult): boolean =>
   t.planned && (t.status === 'skipped' || t.status === 'pending' || t.status === 'todo');

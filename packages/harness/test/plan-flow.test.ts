@@ -161,10 +161,13 @@ describe('plan iter: сквозной прогон', () => {
     expect(plan).toContain('status: approved');
     expect(plan).toContain('## Схема');
     expect(plan).toContain('## Точки улучшения');
-    expect(await readdir(project)).toEqual(['.git', 'README.md']);
+    expect(await readdir(project)).toEqual(['.claude', '.git', 'README.md']);
+    expect(await readdir(path.join(project, '.claude/artifacts/plan-review'))).toEqual([
+      'демо.expect.ts',
+    ]);
     expect(
       spawnSync('git', ['status', '--porcelain'], { cwd: project, encoding: 'utf8' }).stdout,
-    ).toBe('?? README.md\n');
+    ).toBe('?? .claude/\n?? README.md\n');
   });
 
   it('интерактивный планер: роль, каталог сессии, Stop-hook и явные флаги', async () => {

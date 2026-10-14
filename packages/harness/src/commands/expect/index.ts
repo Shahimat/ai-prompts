@@ -38,6 +38,7 @@ import {
   isProgress,
   machinesOf,
   parseVitestReport,
+  planOf,
   stepIssues,
   stepsOf,
   visible,
@@ -218,7 +219,18 @@ async function collect(
       info: total.info + count.info,
       pending: total.pending + count.pending,
     };
-    reports.push({ file, tests: items, steps, machines: machinesOf(tests), issues, budget, count });
+    const report: FileReport = {
+      file,
+      tests: items,
+      steps,
+      machines: machinesOf(tests),
+      issues,
+      budget,
+      count,
+    };
+    const declared = planOf(tests);
+    if (declared !== undefined) report.plan = declared;
+    reports.push(report);
   }
   log(
     `\nожиданий ${total.tests}: crit ${total.crit} · warn ${total.warn} · info ${total.info} · ? ${total.pending} — ${blocked ? 'бюджет превышен' : 'в бюджете'}`,
