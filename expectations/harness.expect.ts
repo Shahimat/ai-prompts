@@ -989,7 +989,7 @@ function harnessWords(line: string): string[] | undefined {
   const words = splitWords(line);
   const start = words.findIndex(
     (w, i) =>
-      /(^|\/)bin\.js$/.test(w) ||
+      /(^|[\\/])bin\.js$/.test(w) ||
       (i === 0 && w === 'harness') ||
       /^@shahimat\/harness(@|$)/.test(w),
   );
