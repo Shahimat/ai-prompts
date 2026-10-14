@@ -120,6 +120,9 @@ describe('[harness] common', () => {
   it.todo(
     'дополнения проекта и пользователя подключаются из конфига динамическим import, без форка пакета',
   );
+  crit.todo(
+    'любой harness прогоняет ровно один файл ожиданий — свой; другие ожидания попадают в прогон только через import в нём',
+  );
 });
 
 describe('[harness] layers', () => {
@@ -267,8 +270,35 @@ describe('[harness] outdated', () => {
 });
 
 describe('[harness] expect', () => {
-  crit('команды harness expect init | report | lint | judge | serve — ожидания проекта', () =>
-    Check.commands(['expect init', 'expect report', 'expect lint', 'expect judge', 'expect serve']),
+  crit(
+    'команды harness expect init | report <file> | lint <file> | judge <file> | serve <file> — ожидания проекта',
+    () =>
+      Check.commands([
+        'expect init',
+        'expect report <file>',
+        'expect lint <file>',
+        'expect judge <file>',
+        'expect serve <file>',
+      ]),
+  );
+  crit(
+    'expect report, lint, judge и serve прогоняют ровно один файл — переданный путём; другие ожидания попадают в прогон только через import в нём',
+    () => Entry.onlyImported(),
+  );
+  crit('конфиг vitest для прогона — из пакета: проекту не нужен свой vitest.config', () =>
+    Entry.ownConfig(),
+  );
+  crit(
+    'отчёт, бюджет и проверка заголовков судьёй — по модулю, где объявлено ожидание, а не по точке входа',
+    () => Entry.perModule(),
+  );
+  crit(
+    'вердикты и задания судьи лежат рядом с точкой входа: <каталог>/.verdicts.json и <каталог>/.judge/',
+    () => Entry.besideEntry(),
+  );
+  crit(
+    'в репозитории точка входа — expectations/index.expect.ts; CI, npm run expect и судья передают её',
+    () => Entry.repoIndex(),
   );
   crit('смысловая проверка заголовков файла запускается только при изменении его заголовков', () =>
     Check.lintOnTitleChange(),
@@ -288,7 +318,7 @@ describe('[harness] expect', () => {
   );
   crit('ожидание — не длиннее 200 символов', () => Check.titleLimit());
   crit(
-    'harness expect serve [--file <path>] [--port <n>] — HTML-отчёт ожиданий с локального сервера на 127.0.0.1; файлов не пишет',
+    'harness expect serve <file> [--port <n>] — HTML-отчёт ожиданий с локального сервера на 127.0.0.1; файлов не пишет',
     () => Serve.readOnly(),
   );
   crit(
@@ -331,7 +361,7 @@ describe('[harness] expect plan', () => {
     () => Plan.graphProbes(),
   );
   crit(
-    'expect report --html <out> [--file <path>] пишет самодостаточный HTML: без сети и без JS; тот же вход — побайтно тот же файл',
+    'expect report <file> --html <out> пишет самодостаточный HTML: без сети и без JS; тот же вход — побайтно тот же файл',
     () => Plan.htmlStandalone(),
   );
   crit(
@@ -490,10 +520,10 @@ const DECLARED_COMMANDS = [
   'adapters sync',
   'adapters check',
   'expect init',
-  'expect report',
-  'expect lint',
-  'expect judge',
-  'expect serve',
+  'expect report <file>',
+  'expect lint <file>',
+  'expect judge <file>',
+  'expect serve <file>',
   'delta check',
   'delta close',
   'outdated',
@@ -1691,9 +1721,12 @@ interface PlanRun {
   html: string;
 }
 
+const PLAN_ENTRY = 'expectations/plan.expect.ts';
+
 async function withPlanFixture(
   files: Record<string, string>,
   fn: (dir: string, run: (extra?: string[]) => Promise<PlanRun>) => Promise<void>,
+  entry = PLAN_ENTRY,
 ): Promise<void> {
   const base = path.join(repoRoot(), PKG, 'test/.tmp');
   await mkdir(base, { recursive: true });
@@ -1704,25 +1737,21 @@ async function withPlanFixture(
   };
   try {
     await put('package.json', '{"name":"fixture","private":true,"type":"module"}');
-    await put(
-      'expectations/vitest.config.ts',
-      "import { defineConfig } from 'vitest/config';\nexport default defineConfig({ test: { include: ['expectations/**/*.expect.ts'] } });\n",
-    );
     for (const [rel, text] of Object.entries(files)) await put(rel, text);
-    cliOut(['expect', 'judge', '--root', dir]);
-    const judgePlan = path.join(dir, 'expectations/.judge/plan.json');
+    cliOut(['expect', 'judge', entry, '--root', dir]);
+    const judgePlan = path.join(dir, path.dirname(entry), '.judge/plan.json');
     if (existsSync(judgePlan)) {
       for (const item of unknownList(
         at(parseJson(await readFile(judgePlan, 'utf8')), 'lint'),
         'lint',
       ))
         await put(stringAt(item, 'answer'), '{"contradictions": [], "unmeasurable": []}');
-      cliOut(['expect', 'judge', '--apply', '--root', dir]);
+      cliOut(['expect', 'judge', entry, '--apply', '--root', dir]);
     }
     const html = path.join(dir, 'report.html');
     await fn(dir, async (extra = []) => {
       await rm(html, { force: true });
-      const r = cliOut(['expect', 'report', '--root', dir, '--html', html, ...extra]);
+      const r = cliOut(['expect', 'report', entry, '--root', dir, '--html', html, ...extra]);
       return {
         status: r.status,
         out: `${r.stdout}\n${r.stderr}`,
@@ -1926,8 +1955,8 @@ describe('зонды', () => {
       'expectations/other.expect.ts': `${PLAN_IMPORTS}describe('другой файл', () => { crit('чужое ожидание', () => {}); });\n`,
     };
     await withPlanFixture(files, async (_dir, run) => {
-      const first = await run(['--file', 'expectations/plan.expect.ts']);
-      const second = await run(['--file', 'expectations/plan.expect.ts']);
+      const first = await run();
+      const second = await run();
       expect(first.html).toContain('карточка a');
       expect(first.html).not.toContain('чужое ожидание');
       expect(first.html).not.toMatch(/<script|<link[^>]+href=|(src|href)="https?:/i);
@@ -1988,10 +2017,10 @@ interface Served {
   stop: () => Promise<void>;
 }
 
-async function startServe(dir: string, extra: string[] = []): Promise<Served> {
+async function startServe(dir: string, extra: string[] = [], entry = PLAN_ENTRY): Promise<Served> {
   const child = spawn(
     process.execPath,
-    [BIN(), 'expect', 'serve', '--root', dir, '--port', '0', ...extra],
+    [BIN(), 'expect', 'serve', entry, '--root', dir, '--port', '0', ...extra],
     { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'] },
   );
   let out = '';
@@ -2055,7 +2084,7 @@ class Serve {
 
   static async live(): Promise<void> {
     await withPlanFixture(planFile(SERVE_BODY), async (dir) => {
-      const served = await startServe(dir, ['--file', 'expectations/plan.expect.ts']);
+      const served = await startServe(dir);
       try {
         expect((await page(served.url)).body).toContain('первый заголовок');
         const file = path.join(dir, 'expectations/plan.expect.ts');
@@ -2080,14 +2109,153 @@ class Serve {
       'expectations/other.expect.ts': `${PLAN_IMPORTS}describe('другой файл', () => { crit('чужое ожидание', () => {}); });\n`,
     };
     await withPlanFixture(files, async (dir, run) => {
-      const file = ['--file', 'expectations/plan.expect.ts'];
-      const { html } = await run(file);
-      const served = await startServe(dir, file);
+      const { html } = await run();
+      const served = await startServe(dir);
       try {
         expect((await page(served.url)).body).toBe(html);
       } finally {
         await served.stop();
       }
     });
+  }
+}
+
+const EXPECT_HEAD =
+  "import { describe } from 'vitest';\nimport { budget, crit, warn } from '@shahimat/harness/expect';\nimport { writeFileSync } from 'node:fs';\nimport path from 'node:path';\n";
+
+const moduleFile = (budgetWarn: number, body: string): string =>
+  `${EXPECT_HEAD}void warn;\nvoid writeFileSync;\nvoid path;\nbudget({ crit: 0, warn: ${budgetWarn} });\n${body}`;
+
+const INDEX_ENTRY = 'expectations/index.expect.ts';
+const ARTIFACT_ENTRY = '.claude/artifacts/plan-review/demo.expect.ts';
+
+const ENTRY_FILES: Record<string, string> = {
+  [INDEX_ENTRY]: "import './a.expect.ts';\nimport './c.expect.ts';\n",
+  'expectations/a.expect.ts': moduleFile(
+    1,
+    "describe('A', () => {\n  crit('из импорта', () => {});\n  warn('предупреждение в бюджете', () => { throw new Error('w'); });\n});\n",
+  ),
+  'expectations/c.expect.ts': moduleFile(
+    0,
+    "describe('C', () => {\n  warn('предупреждение сверх бюджета', () => { throw new Error('w'); });\n});\n",
+  ),
+  'expectations/b.expect.ts': moduleFile(
+    0,
+    "describe('B', () => {\n  crit('не импортирован', () => writeFileSync(path.join(import.meta.dirname, '..', 'ran-b'), 'x'));\n});\n",
+  ),
+};
+
+function summaryAfter(out: string, module: string): string {
+  const lines = out.split('\n');
+  const start = lines.indexOf(module);
+  if (start < 0) return '';
+  return lines.slice(start + 1).find((l) => /crit \d+\/\d+ · warn/.test(l)) ?? '';
+}
+
+async function judgeFiles(dir: string, entry: string): Promise<string[]> {
+  cliOut(['expect', 'judge', entry, '--root', dir]);
+  const file = path.join(dir, path.dirname(entry), '.judge/plan.json');
+  if (!existsSync(file)) return [];
+  return unknownList(at(parseJson(await readFile(file, 'utf8')), 'lint'), 'lint').map((l) =>
+    stringAt(l, 'file'),
+  );
+}
+
+class Entry {
+  static async onlyImported(): Promise<void> {
+    await withPlanFixture(
+      ENTRY_FILES,
+      async (dir, run) => {
+        const { out, html } = await run();
+        expect(out).toContain('из импорта');
+        expect(out).not.toContain('не импортирован');
+        expect(html).not.toContain('не импортирован');
+        expect(existsSync(path.join(dir, 'ran-b'))).toBe(false);
+        const lint = cliOut(['expect', 'lint', INDEX_ENTRY, '--root', dir]);
+        expect(`${lint.stdout}${lint.stderr}`).toMatch(/expect lint: ok \(3\)/);
+        expect(await judgeFiles(dir, INDEX_ENTRY)).not.toContain('expectations/b.expect.ts');
+        const served = await startServe(dir, [], INDEX_ENTRY);
+        try {
+          const body = (await page(served.url)).body;
+          expect(body).toContain('из импорта');
+          expect(body).not.toContain('не импортирован');
+        } finally {
+          await served.stop();
+        }
+      },
+      INDEX_ENTRY,
+    );
+  }
+
+  static async ownConfig(): Promise<void> {
+    await withPlanFixture(
+      {
+        [ARTIFACT_ENTRY]: moduleFile(
+          0,
+          "describe('план', () => { crit('вне expectations', () => {}); });\n",
+        ),
+      },
+      async (dir, run) => {
+        expect(existsSync(path.join(dir, 'expectations/vitest.config.ts'))).toBe(false);
+        const { status, out } = await run();
+        expect(out).toContain('✓ вне expectations');
+        expect(status).toBe(0);
+      },
+      ARTIFACT_ENTRY,
+    );
+  }
+
+  static async perModule(): Promise<void> {
+    await withPlanFixture(
+      ENTRY_FILES,
+      async (dir, run) => {
+        const { status, out } = await run();
+        expect(summaryAfter(out, 'expectations/a.expect.ts')).toMatch(/✓ crit 0\/0 · warn 1\/1/);
+        expect(summaryAfter(out, 'expectations/c.expect.ts')).toMatch(/✗ crit 0\/0 · warn 1\/0/);
+        expect(status).toBe(1);
+        const a = path.join(dir, 'expectations/a.expect.ts');
+        await writeFile(a, (await readFile(a, 'utf8')).replace('из импорта', 'из импорта, иначе'));
+        expect(await judgeFiles(dir, INDEX_ENTRY)).toEqual(['expectations/a.expect.ts']);
+      },
+      INDEX_ENTRY,
+    );
+  }
+
+  static async besideEntry(): Promise<void> {
+    await withPlanFixture(
+      {
+        [ARTIFACT_ENTRY]: moduleFile(
+          0,
+          "describe('план', () => { crit('рядом с входом', () => {}); });\n",
+        ),
+      },
+      async (dir) => {
+        const near = path.join(dir, path.dirname(ARTIFACT_ENTRY));
+        expect(existsSync(path.join(near, '.verdicts.json'))).toBe(true);
+        expect(existsSync(path.join(dir, 'expectations/.verdicts.json'))).toBe(false);
+        const file = path.join(dir, ARTIFACT_ENTRY);
+        await writeFile(file, (await readFile(file, 'utf8')).replace('рядом с входом', 'рядом'));
+        expect(await judgeFiles(dir, ARTIFACT_ENTRY)).toEqual([ARTIFACT_ENTRY]);
+        expect(existsSync(path.join(near, '.judge/plan.json'))).toBe(true);
+        expect(existsSync(path.join(dir, 'expectations/.judge'))).toBe(false);
+      },
+      ARTIFACT_ENTRY,
+    );
+  }
+
+  static async repoIndex(): Promise<void> {
+    const pkg = parseJson(await readRepo('package.json'));
+    const scripts = ['expect', 'expect:judge', 'expect:apply'].filter(
+      (script) =>
+        !stringAt(pkg, 'scripts', script).includes(
+          `expect ${script === 'expect' ? 'report' : 'judge'} ${INDEX_ENTRY}`,
+        ),
+    );
+    expect(scripts).toEqual([]);
+    const index = await readRepo(INDEX_ENTRY);
+    const files = (await readdir(path.join(repoRoot(), 'expectations')))
+      .filter((f) => f.endsWith('.expect.ts') && f !== 'index.expect.ts')
+      .sort();
+    expect(files.filter((f) => !index.includes(`'./${f}'`))).toEqual([]);
   }
 }
