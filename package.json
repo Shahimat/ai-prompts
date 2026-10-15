@@ -17,9 +17,9 @@
     "format:check": "prettier --check .",
     "index:build": "node packages/harness/dist/bin.js index build --root . --raw-base https://raw.githubusercontent.com/Shahimat/ai-prompts/main",
     "index:check": "node packages/harness/dist/bin.js index check --root . --raw-base https://raw.githubusercontent.com/Shahimat/ai-prompts/main",
-    "expect": "node packages/harness/dist/bin.js expect report --root .",
-    "expect:judge": "node packages/harness/dist/bin.js expect judge --root .",
-    "expect:apply": "node packages/harness/dist/bin.js expect judge --apply --root .",
+    "expect": "node packages/harness/dist/bin.js expect report expectations/index.expect.ts --root .",
+    "expect:judge": "node packages/harness/dist/bin.js expect judge expectations/index.expect.ts --root .",
+    "expect:apply": "node packages/harness/dist/bin.js expect judge expectations/index.expect.ts --apply --root .",
     "ci": "npm run format:check && npm run build -w @shahimat/harness && npm run build -w @shahimat/expectations && npm run typecheck -w @shahimat/harness && npm run typecheck -w @shahimat/expectations && tsc -p expectations && tsc -p packages && npm run lint && npm test && npm run index:check && npm run expect"
   },
   "devDependencies": {

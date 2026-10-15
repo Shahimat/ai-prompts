@@ -1,3 +1,5 @@
+import { existsSync, statSync } from 'node:fs';
+import { homedir } from 'node:os';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { runShell } from './shell.ts';
@@ -6,14 +8,25 @@ import type { CommandArgs } from './shared/args.ts';
 import { UsageError } from './shared/diagnostics.ts';
 import { errorCode, errorMessage } from './shared/guards.ts';
 
+export function projectOf(start: string): string | undefined {
+  const home = path.resolve(homedir());
+  for (let dir = path.resolve(start); ; dir = path.dirname(dir)) {
+    const claude = path.join(dir, '.claude');
+    if (dir !== home && existsSync(claude) && statSync(claude).isDirectory()) return dir;
+    if (path.dirname(dir) === dir) return undefined;
+  }
+}
+
 export async function main(argv: string[], now: Date = new Date()): Promise<number> {
   const { values, positionals } = parseArgs({
     args: argv,
     allowPositionals: true,
     options: {
-      root: { type: 'string', default: '.' },
+      root: { type: 'string' },
       out: { type: 'string' },
       file: { type: 'string' },
+      html: { type: 'string' },
+      port: { type: 'string' },
       'raw-base': { type: 'string' },
       apply: { type: 'boolean' },
       home: { type: 'string' },
@@ -27,9 +40,18 @@ export async function main(argv: string[], now: Date = new Date()): Promise<numb
     console.log(renderUsage(positionals));
     return 0;
   }
-  const args: CommandArgs = { root: path.resolve(values.root), now };
+  const match = findCommand(positionals);
+  const root =
+    values.root !== undefined
+      ? path.resolve(values.root)
+      : match?.command.kind === 'harness'
+        ? (projectOf(process.cwd()) ?? process.cwd())
+        : path.resolve('.');
+  const args: CommandArgs = { root, now };
   if (values.out !== undefined) args.out = values.out;
   if (values.file !== undefined) args.file = values.file;
+  if (values.html !== undefined) args.html = values.html;
+  if (values.port !== undefined) args.port = values.port;
   if (values['raw-base'] !== undefined) args.rawBase = values['raw-base'];
   if (values.apply === true) args.apply = true;
   if (values.home !== undefined) args.home = values.home;
@@ -37,7 +59,6 @@ export async function main(argv: string[], now: Date = new Date()): Promise<numb
   if (values.request !== undefined) args.request = values.request;
   if (values.hook === true) args.hook = true;
 
-  const match = findCommand(positionals);
   if (match !== undefined) return match.command.run({ ...args, params: match.params });
 
   const last = positionals.at(-1);

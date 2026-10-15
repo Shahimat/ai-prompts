@@ -17,65 +17,62 @@ import {
 } from '#lib/expect/batch';
 import { readEvidence, shaOf } from '#lib/expect/evidence';
 import { COLLECT_ENV, idOf, isPendingItem, SEEN_ENV, type PendingItem } from '#lib/expect/judge';
-import { BUDGET_TITLE, LEVELS, type Budget, type Level } from '#lib/expect/levels';
-import { isOneOf, isRecord, isStringArray } from '#shared/guards';
+import { isRecord, isStringArray } from '#shared/guards';
 import { lintTitles, type Title } from '#lib/expect/lint';
-import { loadVerdicts, pruneStore, saveVerdicts, VERDICTS_PATH } from '#lib/expect/verdicts';
+import {
+  ENTRY_ENV,
+  loadVerdicts,
+  pruneStore,
+  saveVerdicts,
+  verdictsPath,
+} from '#lib/expect/verdicts';
 import type { CommandArgs } from '#shared/args';
+import { headTitles } from './head.ts';
+import { portOf, renderInChild, serveHtml } from './serve.ts';
+import { renderHtml, type FileReport } from './html.ts';
+import {
+  budgetOf,
+  byFile,
+  fullName,
+  isPlannedTest,
+  isProgress,
+  machinesOf,
+  parseVitestReport,
+  planOf,
+  stepIssues,
+  stepsOf,
+  docIssues,
+  stepStatusOf,
+  visible,
+  type Remark,
+  type TestResult,
+} from './results.ts';
 
-export const EXPECT_CONFIG = 'expectations/vitest.config.ts';
-const JUDGE_DIR = 'expectations/.judge';
+export const INDEX_ENTRY = 'expectations/index.expect.ts';
 
-const STATUSES = ['passed', 'failed', 'todo', 'skipped', 'pending', 'disabled'] as const;
+const BUILTIN_CONFIG = path.join(
+  import.meta.dirname,
+  existsSync(path.join(import.meta.dirname, 'vitest.config.js'))
+    ? 'vitest.config.js'
+    : 'vitest.config.ts',
+);
 
-interface TestResult {
-  file: string;
-  path: string[];
-  title: string;
-  status: (typeof STATUSES)[number];
-  message: string;
-  level: Level;
-  notes: string[];
-  budget?: Budget;
+const posix = (p: string): string => p.split(path.sep).join('/');
+
+const judgeDir = (entry: string): string => path.posix.join(path.posix.dirname(entry), '.judge');
+
+function entryOf(args: CommandArgs): string {
+  const file = args.params?.['file'];
+  if (file === undefined) throw new UsageError('нужен путь к файлу ожиданий: <file>');
+  const rel = posix(path.relative(args.root, path.resolve(args.root, file)));
+  if (rel.startsWith('../') || !existsSync(path.join(args.root, rel)))
+    throw new UsageError(`нет файла ожиданий ${file} в ${args.root}`);
+  if (!rel.endsWith('.expect.ts')) throw new UsageError(`файл ожиданий — *.expect.ts: ${file}`);
+  process.env[ENTRY_ENV] = rel;
+  return rel;
 }
 
-const isBudget = (v: unknown): v is Budget =>
-  isRecord(v) && typeof v['crit'] === 'number' && typeof v['warn'] === 'number';
-
-function parseVitestReport(data: unknown, root: string): TestResult[] {
-  const fail = (what: string): never => {
-    throw new Error(`отчёт vitest: ${what}`);
-  };
-  if (!isRecord(data) || !Array.isArray(data['testResults'])) return fail('нет testResults');
-  return data['testResults'].flatMap((file: unknown) => {
-    if (!isRecord(file) || typeof file['name'] !== 'string') return fail('файл без name');
-    const name = file['name'];
-    if (!Array.isArray(file['assertionResults'])) return fail(`${name}: нет assertionResults`);
-    return file['assertionResults'].map((a: unknown) => {
-      if (!isRecord(a) || typeof a['title'] !== 'string') return fail(`${name}: тест без title`);
-      const { ancestorTitles, status, failureMessages } = a;
-      if (!isStringArray(ancestorTitles)) return fail(`${name}: ancestorTitles — не строки`);
-      if (!isOneOf(STATUSES, status)) return fail(`${name}: неизвестный статус ${String(status)}`);
-      if (!isStringArray(failureMessages)) return fail(`${name}: failureMessages — не строки`);
-      const meta = isRecord(a['meta']) ? a['meta'] : {};
-      const { level, notes, budget } = meta;
-      const result: TestResult = {
-        file: path.relative(root, name).split(path.sep).join('/'),
-        path: ancestorTitles,
-        title: a['title'],
-        status,
-        message: (failureMessages[0] ?? '').split('\n')[0] ?? '',
-        level: isOneOf(LEVELS, level) ? level : 'crit',
-        notes: isStringArray(notes) ? notes : [],
-      };
-      if (isBudget(budget)) result.budget = budget;
-      return result;
-    });
-  });
-}
-
-function runVitest(root: string, env: Record<string, string> = {}): TestResult[] {
-  if (!existsSync(path.join(root, EXPECT_CONFIG))) throw new UsageError(`нет ${EXPECT_CONFIG}`);
+function vitestBin(root: string): string {
   const require = createRequire(path.join(root, 'package.json'));
   let vitestPkg: string;
   try {
@@ -87,22 +84,32 @@ function runVitest(root: string, env: Record<string, string> = {}): TestResult[]
   const bins = isRecord(pkg) ? pkg['bin'] : undefined;
   const bin = isRecord(bins) ? bins['vitest'] : undefined;
   if (typeof bin !== 'string') throw new Error(`${vitestPkg}: нет bin.vitest`);
+  return path.join(path.dirname(vitestPkg), bin);
+}
+
+function runVitest(
+  root: string,
+  entry: string,
+  env: Record<string, string> = {},
+  extra: string[] = [],
+): TestResult[] {
   const out = path.join(tmpdir(), `harness-expect-${process.pid}-${Date.now()}.json`);
   spawnSync(
     process.execPath,
     [
-      path.join(path.dirname(vitestPkg), bin),
+      vitestBin(root),
       'run',
       '--root',
       root,
       '--config',
-      EXPECT_CONFIG,
+      BUILTIN_CONFIG,
       '--reporter=json',
       `--outputFile=${out}`,
+      ...extra,
     ],
     {
       cwd: root,
-      env: { ...process.env, ...env, HARNESS_EXPECT_ROOT: root },
+      env: { ...process.env, ...env, HARNESS_EXPECT_ROOT: root, [ENTRY_ENV]: entry },
       stdio: ['ignore', 'ignore', 'inherit'],
     },
   );
@@ -112,82 +119,110 @@ function runVitest(root: string, env: Record<string, string> = {}): TestResult[]
   return parseVitestReport(data, root);
 }
 
-const fullName = (t: { path: string[]; title: string }): string => [...t.path, t.title].join(' > ');
-
-function byFile(results: TestResult[]): Map<string, TestResult[]> {
-  const files = new Map<string, TestResult[]>();
-  for (const r of results) files.set(r.file, [...(files.get(r.file) ?? []), r]);
-  return files;
-}
+const NOTHING = '(?!)';
 
 const titlesSha = (tests: TestResult[]): string => shaOf(tests.map(fullName).sort().join('\n'));
 
 const isPending = (t: TestResult): boolean =>
   t.status === 'failed' && t.message.includes('нет свежего вердикта');
 
-async function report(args: CommandArgs): Promise<number> {
-  const all = runVitest(args.root);
+function stepLabels(tests: TestResult[]): Map<string, string> {
+  const labels = new Map<string, string>();
+  for (const t of tests)
+    if (t.stepDef !== undefined)
+      labels.set(t.path.join('\u0000'), stepStatusOf(t.stepDef.id, tests));
+  return labels;
+}
+
+async function collect(
+  args: CommandArgs,
+  log: (line: string) => void,
+): Promise<{ reports: FileReport[]; blocked: boolean }> {
+  const all = runVitest(args.root, entryOf(args));
   const store = await loadVerdicts();
   const titleIssues = lintTitles(
-    all
-      .filter((r) => r.title !== BUDGET_TITLE)
-      .map((r) => ({ file: r.file, path: r.path, title: r.title })),
+    visible(all).map((r) => ({ file: r.file, path: r.path, title: r.title })),
   );
   let blocked = false;
   let total = { tests: 0, crit: 0, warn: 0, info: 0, pending: 0 };
+  const reports: FileReport[] = [];
 
   for (const [file, tests] of byFile(all)) {
-    const budget: Budget = tests.find((t) => t.title === BUDGET_TITLE)?.budget ?? {
-      crit: 0,
-      warn: 0,
-    };
-    const items = tests.filter((t) => t.title !== BUDGET_TITLE);
+    const budget = budgetOf(tests);
+    const items = visible(tests);
+    const steps = stepsOf(tests);
+    const labels = stepLabels(tests);
+    const issues: Remark[] = [];
     const count = { crit: 0, warn: 0, info: 0, pending: 0 };
-    console.log(file);
+    log(file);
     let prev: string[] = [];
     for (const t of items) {
       t.path.forEach((p, i) => {
-        if (prev[i] !== p) console.log(`${'  '.repeat(i + 1)}${p}`);
+        if (prev[i] === p) return;
+        const status = labels.get(t.path.slice(0, i + 1).join('\u0000'));
+        log(`${'  '.repeat(i + 1)}${p}${status === undefined ? '' : ` · ${status}`}`);
       });
       prev = t.path;
       const pad = '  '.repeat(t.path.length + 1);
-      if (isPending(t)) {
+      if (t.wip) {
+        log(`${pad}◐ ${t.level} ${t.title}${isProgress(t) ? `  — ${t.message}` : ''} (в работе)`);
+      } else if (isPlannedTest(t)) {
+        log(`${pad}○ ${t.level} ${t.title}`);
+      } else if (isPending(t)) {
         count.pending++;
-        console.log(`${pad}? ${t.title}  — нужен вердикт судьи`);
+        log(`${pad}? ${t.title}  — нужен вердикт судьи`);
       } else if (t.status === 'failed') {
         count[t.level === 'warn' ? 'warn' : 'crit']++;
-        console.log(`${pad}${t.level === 'warn' ? '⚠' : '✗'} ${t.title}  — ${t.message}`);
+        log(`${pad}${t.level === 'warn' ? '⚠' : '✗'} ${t.title}  — ${t.message}`);
       } else {
-        console.log(
-          `${pad}${t.status === 'todo' ? '○' : t.status === 'passed' ? '✓' : '-'} ${t.title}`,
-        );
+        log(`${pad}${t.status === 'todo' ? '○' : t.status === 'passed' ? '✓' : '-'} ${t.title}`);
       }
-      for (const n of t.notes) console.log(`${pad}  ℹ ${n}`);
+      for (const n of t.notes) log(`${pad}  ℹ ${n}`);
       count.info += t.notes.length;
     }
 
+    for (const issue of [...stepIssues(steps, tests), ...docIssues(tests)]) {
+      count.crit++;
+      issues.push({ text: issue });
+      log(`  ✗ план: ${issue}`);
+    }
     for (const d of titleIssues.filter((i) => i.title.file === file)) {
       count[d.level]++;
-      console.log(
-        `  ${d.level === 'crit' ? '✗' : '⚠'} заголовок «${d.title.title}» — ${d.message}`,
-      );
+      issues.push({ text: `заголовок «${d.title.title}»`, detail: d.message });
+      log(`  ${d.level === 'crit' ? '✗' : '⚠'} заголовок «${d.title.title}» — ${d.message}`);
     }
     const lint = store.lint[file];
     if (lint === undefined || lint.titles !== titlesSha(items)) {
       count.pending++;
-      console.log('  ? смысловая проверка заголовков устарела — harness expect judge');
+      log('  ? смысловая проверка заголовков устарела — harness expect judge');
     } else {
-      const name = new Map(items.map((t) => [idOf(fullName(t)), t.title]));
-      for (const c of lint.contradictions)
-        console.log(`  ⚠ противоречие: «${name.get(c.a)}» ↔ «${name.get(c.b)}» — ${c.reason}`);
-      for (const u of lint.unmeasurable)
-        console.log(`  ⚠ неизмеримо: «${name.get(u.id)}» — ${u.reason}`);
-      count.warn += lint.contradictions.length + lint.unmeasurable.length;
+      const byId = new Map(items.map((t) => [idOf(fullName(t)), t]));
+      const name = (id: string) => byId.get(id)?.title;
+      const stub = (...ids: string[]) =>
+        ids.some((id) => {
+          const t = byId.get(id);
+          return t !== undefined && (t.wip || isPlannedTest(t));
+        });
+      const note = (wip: boolean) => (wip ? ' (в работе — не блокирует)' : '');
+      for (const c of lint.contradictions) {
+        const wip = stub(c.a, c.b);
+        const text = `противоречие: «${name(c.a)}» ↔ «${name(c.b)}»${note(wip)}`;
+        issues.push({ text, detail: c.reason });
+        log(`  ${wip ? '◐' : '⚠'} ${text} — ${c.reason}`);
+        if (!wip) count.warn++;
+      }
+      for (const u of lint.unmeasurable) {
+        const wip = stub(u.id);
+        const text = `неизмеримо: «${name(u.id)}»${note(wip)}`;
+        issues.push({ text, detail: u.reason });
+        log(`  ${wip ? '◐' : '⚠'} ${text} — ${u.reason}`);
+        if (!wip) count.warn++;
+      }
     }
 
     const over = count.crit > budget.crit || count.warn > budget.warn || count.pending > 0;
     blocked ||= over;
-    console.log(
+    log(
       `  ${over ? '✗' : '✓'} crit ${count.crit}/${budget.crit} · warn ${count.warn}/${budget.warn} · info ${count.info}` +
         (count.pending > 0 ? ` · ? ${count.pending} без вердикта` : ''),
     );
@@ -198,17 +233,69 @@ async function report(args: CommandArgs): Promise<number> {
       info: total.info + count.info,
       pending: total.pending + count.pending,
     };
+    const report: FileReport = {
+      file,
+      all: tests,
+      tests: items,
+      steps,
+      machines: machinesOf(tests),
+      issues,
+      budget,
+      count,
+    };
+    const declared = planOf(tests);
+    if (declared !== undefined) report.plan = declared;
+    reports.push(report);
   }
-  console.log(
+  log(
     `\nожиданий ${total.tests}: crit ${total.crit} · warn ${total.warn} · info ${total.info} · ? ${total.pending} — ${blocked ? 'бюджет превышен' : 'в бюджете'}`,
   );
+  return { reports, blocked };
+}
+
+async function pageHtml(args: CommandArgs, reports: FileReport[]): Promise<string> {
+  for (const r of reports) {
+    const head = headTitles(args.root, r.file, (rel) =>
+      visible(runVitest(args.root, rel, {}, ['-t', NOTHING])).filter((t) => t.file === rel),
+    );
+    if (head !== undefined) r.head = head;
+  }
+  return renderHtml(reports, entryOf(args));
+}
+
+async function report(args: CommandArgs): Promise<number> {
+  if (args.html === '-') {
+    const { reports, blocked } = await collect(args, () => undefined);
+    process.stdout.write(await pageHtml(args, reports));
+    return blocked ? 1 : 0;
+  }
+  const { reports, blocked } = await collect(args, (line) => {
+    console.log(line);
+  });
+  if (args.html !== undefined) {
+    const out = path.resolve(args.root, args.html);
+    await mkdir(path.dirname(out), { recursive: true });
+    await writeFile(out, await pageHtml(args, reports), 'utf8');
+    console.log(`html: ${out}`);
+  }
   return blocked ? 1 : 0;
 }
 
+async function serve(args: CommandArgs): Promise<number> {
+  const entry = entryOf(args);
+  return serveHtml({
+    root: args.root,
+    port: portOf(args.port),
+    render: () => renderInChild(args.root, entry),
+  });
+}
+
 async function lint(args: CommandArgs): Promise<number> {
-  const titles: Title[] = runVitest(args.root)
-    .filter((r) => r.title !== BUDGET_TITLE)
-    .map((r) => ({ file: r.file, path: r.path, title: r.title }));
+  const titles: Title[] = visible(runVitest(args.root, entryOf(args))).map((r) => ({
+    file: r.file,
+    path: r.path,
+    title: r.title,
+  }));
   const diags = lintTitles(titles);
   for (const d of diags)
     console.error(`${d.level} ${d.title.file}: «${d.title.title}» — ${d.message}`);
@@ -246,11 +333,13 @@ function isPlan(v: unknown): v is Plan {
 }
 
 async function judgePrepare(args: CommandArgs): Promise<number> {
+  const entry = entryOf(args);
+  const JUDGE_DIR = judgeDir(entry);
   const dir = path.join(args.root, JUDGE_DIR);
   await rm(dir, { recursive: true, force: true });
   const pendingDir = path.join(dir, 'pending');
   const seenDir = path.join(dir, 'seen');
-  const results = runVitest(args.root, { [COLLECT_ENV]: pendingDir, [SEEN_ENV]: seenDir });
+  const results = runVitest(args.root, entry, { [COLLECT_ENV]: pendingDir, [SEEN_ENV]: seenDir });
   const seen = new Set(existsSync(seenDir) ? await readdir(seenDir) : []);
   await rm(seenDir, { recursive: true, force: true });
   const items: PendingItem[] = [];
@@ -281,7 +370,7 @@ async function judgePrepare(args: CommandArgs): Promise<number> {
     console.log(`expect judge: удалено устаревших вердиктов ${removed}`);
   }
   for (const [file, all] of byFile(results)) {
-    const tests = all.filter((t) => t.title !== BUDGET_TITLE);
+    const tests = visible(all);
     const sha = titlesSha(tests);
     if (store.lint[file]?.titles === sha) continue;
     const n = plan.lint.length + 1;
@@ -308,6 +397,7 @@ async function judgePrepare(args: CommandArgs): Promise<number> {
 }
 
 async function judgeApply(args: CommandArgs): Promise<number> {
+  const JUDGE_DIR = judgeDir(entryOf(args));
   const planFile = path.join(args.root, JUDGE_DIR, 'plan.json');
   if (!existsSync(planFile)) throw new UsageError('нет плана: сначала harness expect judge');
   const plan: unknown = JSON.parse(await readFile(planFile, 'utf8'));
@@ -345,25 +435,16 @@ async function judgeApply(args: CommandArgs): Promise<number> {
   for (const r of rejected) console.error(r);
   if (rejected.length > 0) {
     console.error(
-      `expect judge --apply: отклонено ${rejected.length}; принятое сохранено в ${VERDICTS_PATH}`,
+      `expect judge --apply: отклонено ${rejected.length}; принятое сохранено в ${verdictsPath()}`,
     );
     return 1;
   }
   await rm(path.join(args.root, JUDGE_DIR), { recursive: true, force: true });
-  console.log(`expect judge --apply: вердикты сохранены в ${VERDICTS_PATH}`);
+  console.log(`expect judge --apply: вердикты сохранены в ${verdictsPath()}`);
   return 0;
 }
 
-const INIT_CONFIG = `import { defineConfig } from 'vitest/config';
-
-// Ожидания: заголовки crit/warn — для человека, проверки — класс Check ниже в файле.
-// Отчёт: npm run expect. Вердикты судьи: npm run expect:judge → expect:apply.
-export default defineConfig({
-  test: {
-    include: ['expectations/**/*.expect.ts'],
-    testTimeout: 30_000,
-  },
-});
+const initIndex = (name: string): string => `import './${name}.expect.ts';
 `;
 
 const initExample = (name: string): string => `import { describe, it } from 'vitest';
@@ -391,8 +472,9 @@ async function init(args: CommandArgs): Promise<number> {
     done.push(`создан ${rel}`);
   };
   const name = path.basename(args.root);
-  await put(EXPECT_CONFIG, INIT_CONFIG);
+  await put(INDEX_ENTRY, initIndex(name));
   await put(`expectations/${name}.expect.ts`, initExample(name));
+  const JUDGE_DIR = judgeDir(INDEX_ENTRY);
 
   const gitignore = path.join(args.root, '.gitignore');
   const ignored = existsSync(gitignore) ? await readFile(gitignore, 'utf8') : '';
@@ -412,9 +494,9 @@ async function init(args: CommandArgs): Promise<number> {
     const current = pkg['scripts'] ?? {};
     if (!isRecord(current)) throw new UsageError('package.json: scripts должно быть объектом');
     const scripts = {
-      expect: 'harness expect report --root .',
-      'expect:judge': 'harness expect judge --root .',
-      'expect:apply': 'harness expect judge --apply --root .',
+      expect: `harness expect report ${INDEX_ENTRY} --root .`,
+      'expect:judge': `harness expect judge ${INDEX_ENTRY} --root .`,
+      'expect:apply': `harness expect judge ${INDEX_ENTRY} --apply --root .`,
     };
     const added = Object.entries(scripts).filter(([k]) => current[k] === undefined);
     if (added.length > 0) {
@@ -437,6 +519,8 @@ export async function runExpect(command: string | undefined, args: CommandArgs):
       return init(args);
     case 'report':
       return report(args);
+    case 'serve':
+      return serve(args);
     case 'lint':
       return lint(args);
     case 'judge':

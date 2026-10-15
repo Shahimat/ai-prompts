@@ -4,6 +4,7 @@
 *.swp
 *.swo
 .claude/
+.claude/artifacts/
 node_modules/
 dist/
 coverage/

@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -92,6 +92,7 @@ const crit = { findings: [{ criterion: 'dod-checkable', item: 'T1', text: 'DoD �
 beforeEach(async () => {
   home = await mkdtemp(path.join(tmpdir(), 'harness-home-'));
   project = await mkdtemp(path.join(tmpdir(), 'harness-proj-'));
+  await mkdir(path.join(project, '.claude'));
   spawnSync('git', ['init', '-q'], { cwd: project });
   await writeFile(path.join(project, 'README.md'), '# проект\n');
   out = [];
@@ -125,9 +126,15 @@ afterEach(async () => {
 const cli = (...args: string[]) => main([...args, '--home', home, '--root', project], NOW);
 
 async function start(): Promise<string> {
-  expect(await cli('plan-review', 'start', '--name', 'Демо', '--request', 'спланируй демо')).toBe(
-    0,
-  );
+  expect(
+    await cli(
+      'plan-review',
+      'start',
+      '.claude/artifacts/plan-review/демо.expect.ts',
+      '--request',
+      'спланируй демо',
+    ),
+  ).toBe(0);
   const [id = ''] = await readdir(path.join(home, 'sessions'));
   expect(id).toMatch(/^[0-9a-f]{64}$/);
   return id;
@@ -161,10 +168,13 @@ describe('plan iter: сквозной прогон', () => {
     expect(plan).toContain('status: approved');
     expect(plan).toContain('## Схема');
     expect(plan).toContain('## Точки улучшения');
-    expect(await readdir(project)).toEqual(['.git', 'README.md']);
+    expect(await readdir(project)).toEqual(['.claude', '.git', 'README.md']);
+    expect(await readdir(path.join(project, '.claude/artifacts/plan-review'))).toEqual([
+      'демо.expect.ts',
+    ]);
     expect(
       spawnSync('git', ['status', '--porcelain'], { cwd: project, encoding: 'utf8' }).stdout,
-    ).toBe('?? README.md\n');
+    ).toBe('?? .claude/\n?? README.md\n');
   });
 
   it('интерактивный планер: роль, каталог сессии, Stop-hook и явные флаги', async () => {
@@ -374,7 +384,7 @@ describe('harness session: команды', () => {
     const id = await start();
     out = [];
     expect(await cli('plan-review', 'list')).toBe(0);
-    expect(out.join('\n')).toContain(`${id.slice(0, 7)}\tapproved\tДемо`);
+    expect(out.join('\n')).toContain(`${id.slice(0, 7)}\tapproved\tдемо`);
     out = [];
     expect(await cli('plan-review', 'status', id)).toBe(0);
     expect(out.join('\n')).toContain('состояние: approved');
@@ -406,7 +416,7 @@ describe('harness session: команды', () => {
     out = [];
     expect(await main(['plan-review', 'list'], NOW)).toBe(0);
     vi.unstubAllEnvs();
-    expect(out.join('\n')).toContain('Демо');
+    expect(out.join('\n')).toContain('демо');
   });
 });
 
@@ -430,8 +440,8 @@ describe('harness plan: команды', () => {
     expect(err.join('\n')).toContain('критерий 1a x не реализован скриптом');
   });
 
-  it('start без --name и без терминала — ошибка вызова', async () => {
+  it('start без файла плана — ошибка вызова', async () => {
     interactive = false;
-    await expect(cli('plan-review', 'start')).rejects.toThrow('--name');
+    await expect(cli('plan-review', 'start')).rejects.toThrow('<file>');
   });
 });

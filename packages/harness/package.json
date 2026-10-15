@@ -58,6 +58,7 @@
     "prepublishOnly": "npm run typecheck && npm test && npm run build"
   },
   "dependencies": {
+    "@hpcc-js/wasm-graphviz": "^1.29.2",
     "ajv": "^8.20.0",
     "yaml": "^2.9.1"
   },

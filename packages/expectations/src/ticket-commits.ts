@@ -1,7 +1,6 @@
-import { describe } from 'vitest';
-import { crit, judged, warn } from '@shahimat/harness/expect';
+import { crit, describe, judged, pattern, warn } from '@shahimat/harness/expect';
 
-export function ticketCommits(...keys: string[]): void {
+const ticketCommitsPattern = pattern('ticket-commits', (keys: readonly string[]) => {
   if (keys.length === 0) throw new Error('ticketCommits: нужен хотя бы один ключ якоря');
   const check = (): Promise<void> => judged(keys.map((k) => `@${k}`));
 
@@ -45,4 +44,8 @@ export function ticketCommits(...keys: string[]): void {
       check,
     );
   });
+});
+
+export function ticketCommits(...keys: string[]): void {
+  ticketCommitsPattern(keys);
 }

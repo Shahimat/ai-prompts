@@ -60,6 +60,7 @@ export interface SessionData {
   question?: string;
   formalExhausted?: boolean;
   handoff?: string;
+  planFile?: string;
 }
 
 function parseFix(value: unknown): FixInput | undefined {
@@ -112,6 +113,7 @@ export function parseSession(text: string, where: string): SessionData {
   if (typeof data['question'] === 'string') session.question = data['question'];
   if (data['formalExhausted'] === true) session.formalExhausted = true;
   if (typeof data['handoff'] === 'string') session.handoff = data['handoff'];
+  if (typeof data['planFile'] === 'string') session.planFile = data['planFile'];
   return session;
 }
 

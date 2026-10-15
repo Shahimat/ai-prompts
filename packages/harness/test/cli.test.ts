@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { main, run } from '#cli';
+import { main, projectOf, run } from '#cli';
 import { promptOf, shellStep, splitWords } from '#shell';
 import { childrenOf, COMMANDS, findCommand, renderUsage } from '#tree';
 
@@ -164,6 +164,22 @@ describe('harness adapters check', () => {
   });
 });
 
+describe('корень проекта harness', () => {
+  it('ищет .claude вверх от места вызова; домашний каталог проектом не считается', async () => {
+    await mkdir(path.join(root, '.claude'));
+    await mkdir(path.join(root, 'a/b'), { recursive: true });
+    expect(projectOf(path.join(root, 'a/b'))).toBe(root);
+    const saved = process.env['HOME'];
+    process.env['HOME'] = root;
+    try {
+      expect(projectOf(path.join(root, 'a/b'))).toBeUndefined();
+    } finally {
+      if (saved === undefined) delete process.env['HOME'];
+      else process.env['HOME'] = saved;
+    }
+  });
+});
+
 describe('harness expect init', () => {
   it('создаёт каркас, дописывает скрипты и .gitignore, повтор ничего не меняет', async () => {
     await put('package.json', '{"name":"demo","scripts":{"test":"x"}}');
@@ -172,8 +188,12 @@ describe('harness expect init', () => {
     const { readFile } = await import('node:fs/promises');
     const pkg: unknown = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'));
     expect(pkg).toMatchObject({
-      scripts: { test: 'x', expect: 'harness expect report --root .' },
+      scripts: { test: 'x', expect: 'harness expect report expectations/index.expect.ts --root .' },
     });
+    expect(await readFile(path.join(root, 'expectations/index.expect.ts'), 'utf8')).toBe(
+      `import './${path.basename(root)}.expect.ts';\n`,
+    );
+    expect(existsSync(path.join(root, 'expectations/vitest.config.ts'))).toBe(false);
     expect(await readFile(path.join(root, '.gitignore'), 'utf8')).toBe(
       'node_modules/\nexpectations/.judge/\n',
     );

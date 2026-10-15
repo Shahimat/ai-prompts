@@ -43,7 +43,8 @@ npx -y @shahimat/harness@<version> <команда> --root .
 ## Команды
 
 Mutation — `context index`, `adapters sync`, `delta close`,
-`expect init`, `expect judge`, `index build`; остальные — query.
+`expect init`, `expect judge`, `expect report --html`, `index build`;
+остальные — query.
 
 - `harness secrets scan [--file <path>]` — секреты (ключи API, токены,
   пароли, приватные ключи) в отслеживаемых git файлах проекта или в
@@ -61,16 +62,32 @@ Mutation — `context index`, `adapters sync`, `delta close`,
   выключенная memory агента.
 - `harness adapters check` — сверка файлов адаптеров с `AGENTS.md` и
   `.agents/` без записи.
-- `harness expect init` — каркас ожиданий в проекте: конфиг vitest,
-  пример файла с бюджетом, npm-скрипты, `.gitignore`.
-- `harness expect report | lint | judge [--apply]` — ожидания в форме
-  vitest (`expectations/*.expect.ts`): дерево со статусами, проверка
-  заголовков, пакетная смысловая проверка судьёй-агентом с кэшем
-  вердиктов. Помощники для проверок — `@shahimat/harness/expect`
-  (нужен vitest в проекте): `crit` / `warn` / `note` / `budget`,
-  `expectAtMost` (info при > 90% порога), зонды по репозиторию,
-  `judged`, проверка JSON Schema (`expectSchema`, `dataFiles`,
-  `frontmatters`).
+- `harness expect init` — каркас ожиданий в проекте: точка входа
+  `expectations/index.expect.ts`, пример файла с бюджетом, npm-скрипты,
+  `.gitignore`.
+- `harness expect report | lint | judge [--apply] <file>` — ожидания в
+  форме vitest: дерево со статусами, проверка заголовков, пакетная
+  смысловая проверка судьёй-агентом с кэшем вердиктов. `<file>` — одна
+  точка входа `*.expect.ts`; остальные файлы ожиданий попадают в прогон
+  только через `import` в ней. Конфиг vitest — из пакета, проекту свой
+  не нужен. Отчёт, бюджет и проверка заголовков — по модулю, где
+  объявлено ожидание; вердикты и задания судьи — рядом с точкой входа
+  (`<каталог>/.verdicts.json`, `<каталог>/.judge/`). Помощники для
+  проверок — `@shahimat/harness/expect` (нужен vitest в проекте):
+  `crit` / `warn` / `note` / `budget`, `describe`, `expectAtMost` (info
+  при > 90% порога), зонды по репозиторию, `judged`, проверка JSON
+  Schema (`expectSchema`, `dataFiles`, `frontmatters`). Общий блок
+  ожиданий вне `*.expect.ts` объявляет разделы через `describe` из
+  `@shahimat/harness/expect`: так ожидания приписываются файлу, который
+  блок применил. `pattern(key, apply)` — паттерн ожиданий: функция с
+  параметрами, которая регистрирует ожидания для переданных целей (цели
+  — в заголовке, якоря доказательств — параметром); ожидания
+  приписываются применившему файлу, в HTML у них виден ключ паттерна.
+  Паттерны для любых проектов — `@shahimat/expectations`, для одного
+  репозитория — его `expectations/shared/`.
+  `report <file> --html <out>` — тот же отчёт HTML-файлом,
+  `serve <file> [--port <n>]` — с локального сервера (см. «План в форме
+  ожиданий»).
 - `harness delta check | close` — дельта проектной документации в
   `context/.delta/*.yml` (пункты `add` / `refine` / `revise`). `check`
   сверяет слои документации с `HEAD`: удалённое или изменённое знание
@@ -81,6 +98,79 @@ Mutation — `context index`, `adapters sync`, `delta close`,
   в npm и записи `CHANGELOG.md` пакета между ними (код 1 — есть новее).
 - `harness index build | check --raw-base <url>` — индекс
   `prompts/index.yml` репозитория промптов.
+
+## План в форме ожиданий
+
+План — тот же файл ожиданий, а не отдельный документ. Файл описывает
+конечное состояние; чтобы его изменить, в файл добавляются блоки — `fsm`,
+`steps` и другие. План переходит в трекинг (заглушки сменяются
+проверками), трекинг — в новое конечное состояние. Вид страницы задают
+блоки: нет блока — нет его диаграммы.
+
+```ts
+plan({ name: 'plan-review: стол и оркестратор' });
+
+const planReview = fsm('plan-review', {
+  initial: 'draft',
+  limits: { fix: 3 },
+  states: {
+    draft: { actor: 'model', on: { questions: 'clarify', plan: 'review' } },
+    clarify: { actor: 'user', on: { answered: 'draft' } },
+    review: { actor: 'model', on: { pass: 'approved', fail: [{ to: 'draft', count: 'fix' }, 'approved'] } },
+    approved: { final: true },
+  },
+});
+
+steps(() => {
+  step('T1', { title: 'Headless draft', why: 'нет TTY' }, () => {
+    planReview.state('draft', () => {
+      crit.wip('ответ планера — план или вопросы по схеме', () => Check.draftAnswer());
+    });
+  });
+  step('T2', { title: 'Вопросы', after: ['T1'] }, () => {
+    planReview.transition('draft', 'questions', () => {
+      crit.todo('вопросы нумерованы, у каждого дефолт с обоснованием');
+    });
+  });
+});
+
+planReview.whole(() => {
+  crit('из любого состояния достижимо approved', () => Graph.canReach(planReview, ['approved']));
+});
+```
+
+- `plan({ name })` — имя плана: шапка страницы, под ним перечень блоков.
+- Заглушки задают статус ожидания: `crit.todo(title)` / `warn.todo` — не
+  взято; `crit.wip(title, fn?)` / `warn.wip` — в работе: проверка
+  исполняется, если она есть, провал виден (`◐`), но не блокирует;
+  без заглушки проверка блокирует.
+- `steps(() => { step(id, { title, after, why }, body) })` — шаги плана;
+  ожидания шага — его DoD, `step` вне `steps` — ошибка. Статус шага
+  выводится из ожиданий: все `todo` — не начат, все без заглушек и
+  зелёные — готов, иначе — в работе. Нарушение плана (crit): готовый
+  шаг раньше шагов из `after`, неизвестный шаг в `after`, цикл, повтор
+  id. На странице — UML-диаграмма активностей: старт, шаги, развилки и
+  слияния по `after`, финал.
+- `fsm(name, { initial, limits, states })` — автомат данными. Имена
+  состояний и событий выводятся из литерала: опечатка в `state`,
+  `transition`, переходе или `initial` — ошибка typecheck. `state`,
+  `transition` и `whole` привязывают ожидания к узлу, переходу и
+  автомату целиком; на странице — схема Graphviz.
+- Блоки и ожидания из импортированных файлов попадают на страницу в
+  разделе своего модуля; у ожидания из общего блока видно, где оно
+  определено.
+- Зонды: `Graph.sameAs(m, def)` — граф совпадает с `harness.yaml`
+  (`def` — результат `parseMachine`); `Graph.canReach(m, targets)` — из
+  каждого состояния достижима цель; `Graph.onlyVia(m, target, via)` — в
+  `target` из `initial` не попасть в обход `via`.
+- `harness expect report <file> --html <out>` — HTML без сети
+  и без JS: диаграммы блоков — SVG Graphviz (wasm, при генерации); узел и переход ведут к карточке, цвет — статус ожиданий;
+  новые, изменённые и удалённые относительно HEAD ожидания отмечены.
+  Файл — производный вид, источник — файл ожиданий.
+- `harness expect serve <file> [--port <n>]` — та же страница
+  с `http://127.0.0.1:<port>/` (по умолчанию 4173): собирается при
+  каждом запросе, правка файла ожиданий видна после перезагрузки, на
+  диск ничего не пишется. Так артефакт плана — только файл ожиданий.
 
 ## Harness
 
@@ -94,6 +184,11 @@ harness <имя> status <id>
 harness <имя> validate | graph  # определение и Mermaid автомата
 ```
 
+- Проект для команд harness — первый каталог с `.claude` вверх от места
+  вызова (домашний каталог с `~/.claude` проектом не считается) или
+  `--root <путь>`. Без `.claude` в проекте `start` не стартует и ничего
+  не создаёт. Проектные команды (`check`, `context index` и др.) берут
+  текущий каталог.
 - id сессии — sha256, в выводе 7 символов; `open` и `status`
   принимают уникальный префикс от 4 символов.
 - Пауза — выход: каждый переход сразу на диске
@@ -131,8 +226,15 @@ harness <имя> validate | graph  # определение и Mermaid авто�
 
 Команда user scope: ставится глобально (`npm i -g @shahimat/harness`).
 
-- `harness plan-review start [--name <название>] [--request <запрос>]` —
-  интерактивный `claude` с ролью планера в каталоге проекта → проверка
+- `harness plan-review start <file> [--request <запрос>]` — план в файле
+  ожиданий `<file>` (путь от корня проекта): существующий файл — план
+  изменения его состояния, нового нет — создаётся каркас с
+  `plan({ name })`. Имя плана — из `plan({ name })`, для нового файла —
+  из имени файла. План смотрится командой `harness expect serve <file>`.
+  Дальше — интерактивный `claude` с
+  ролью планера в каталоге проекта: без `--request` запрос пишется в
+  этой сессии (текст, файлы, картинки), с `--request` текст уходит
+  планеру первым сообщением → проверка
   структуры (1a) → ревью: дешёвая модель без сети (1b) и сильная с
   проектом и сетью (2) → правки до 3 на цикл → меню: согласовать,
   вернуть всё или по пунктам, переработать, уточнить.

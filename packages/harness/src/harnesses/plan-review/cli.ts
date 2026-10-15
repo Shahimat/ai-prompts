@@ -13,6 +13,7 @@ import {
   driveSession,
   HOME,
   homeOf,
+  requireProject,
   sessionOf as sessionOfHarness,
   terminalPrompter,
   type HarnessModule,
@@ -51,7 +52,8 @@ function context(session: Session, home: string, harness: LoadedHarness): PlanCo
 
 export const PLAN_REVIEW: HarnessModule = {
   name: 'plan-review',
-  startOptions: '[--name <название>] [--request <запрос>]',
+  startOptions: '[--request <запрос>]',
+  startParams: ['<file>'],
   start: (args) => start(args),
   validate: async (home) => {
     const result = await loadHarness(home, 'plan-review');
@@ -121,26 +123,59 @@ export const PLAN_REVIEW: HarnessModule = {
 };
 
 async function start(args: CommandArgs): Promise<Session> {
+  requireProject(args.root);
   const home = homeOf(args);
   const harness = await loadHarnessOrFail(home, 'plan-review');
-  const prompter = io.prompter();
-  const ask = async (value: string | undefined, question: string, flag: string) => {
-    if (value !== undefined && value.trim() !== '') return value.trim();
-    if (!prompter.interactive) throw new UsageError(`без терминала нужен ${flag}`);
-    const answer = await prompter.text(question);
-    if (answer === '') throw new UsageError(`пустое значение: ${flag}`);
-    return answer;
-  };
-  const title = await ask(args.name, 'Название плана: ', '--name');
-  const request = await ask(args.request, 'Запрос: ', '--request');
-  return createSession(home, {
+  const planFile = await planFileOf(args);
+  const title = await planNameOf(path.join(args.root, planFile));
+  io.prompter().say(`план: ${planFile}`);
+  const session = await createSession(home, {
     harness: harness.name,
     title,
-    request,
+    request: args.request?.trim() ?? '',
     project: args.root,
     initial: harness.def.initial,
     now: args.now,
   });
+  session.data.planFile = planFile;
+  await session.save();
+  return session;
+}
+
+const quoted = (s: string): string => `'${s.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
+
+const planSkeleton = (name: string): string =>
+  [
+    "import { budget, plan } from '@shahimat/harness/expect';",
+    '',
+    'budget({ crit: 0, warn: 0 });',
+    '',
+    `plan({ name: ${quoted(name)} });`,
+    '',
+  ].join('\n');
+
+const baseName = (file: string): string => path.basename(file).replace(/\.expect\.ts$/, '');
+
+async function planFileOf(args: CommandArgs): Promise<string> {
+  const file = args.params?.['file'];
+  if (file === undefined) throw new UsageError('нужен путь к файлу плана: <file>');
+  const abs = path.resolve(args.root, file);
+  const rel = path.relative(args.root, abs).split(path.sep).join('/');
+  if (rel.startsWith('../') || path.isAbsolute(rel))
+    throw new UsageError(`файл плана вне проекта ${args.root}: ${file}`);
+  if (!rel.endsWith('.expect.ts')) throw new UsageError(`файл плана — *.expect.ts: ${file}`);
+  if (!existsSync(abs)) {
+    await mkdir(path.dirname(abs), { recursive: true });
+    await writeFile(abs, planSkeleton(baseName(abs)), 'utf8');
+  }
+  return rel;
+}
+
+const PLAN_NAME = /\bplan\(\{\s*name:\s*'((?:[^'\\]|\\.)*)'/;
+
+async function planNameOf(file: string): Promise<string> {
+  const found = PLAN_NAME.exec(await readFile(file, 'utf8'))?.[1];
+  return found === undefined ? baseName(file) : found.replace(/\\(.)/g, '$1');
 }
 
 const sessionOf = (args: CommandArgs): Promise<Session> => sessionOfHarness(args, 'plan-review');

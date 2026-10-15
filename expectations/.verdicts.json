@@ -94,13 +94,13 @@
     "1db1d3ca45dd": {
       "question": "[harness] expect > смысловая проверка заголовков файла запускается только при изменении его заголовков",
       "evidence": {
-        "@expect-cycles": "a51c7dda498723673f0fa7f6e24f07ea694b27e2ef3c331d3c4ed279684dd17c"
+        "@expect-cycles": "997a55d2e9c76311e5a6912101c1e6a8d8390dcdb87925a9f735ac40c53717f5"
       },
       "verdict": true,
       "quote": "if (store.lint[file]?.titles === sha) continue;",
       "ref": "@expect-cycles",
-      "reason": "Задание на проверку заголовков файла создаётся только если SHA его заголовков отличается от сохранённого",
-      "at": "2026-10-14"
+      "reason": "Задание lint для файла создаётся только если sha заголовков файла не совпадает с сохранённым",
+      "at": "2026-10-15"
     },
     "1e94c71faacc": {
       "question": "поведение ключевых skills > workflow: блокирующий вопрос — нумерованные варианты, дефолт с обоснованием, стоп до ответа",
@@ -339,13 +339,13 @@
     "694f0f4b5141": {
       "question": "[harness] expect > в кэше вердиктов только вердикты живых ожиданий",
       "evidence": {
-        "@verdict-prune": "066da887dc8fb90fc2c6e5084491f7230a8f5127ff4cb9636cec994c6cc3dd76"
+        "@verdict-prune": "613f3a78113b5674ce3b2b54bd361e892e5ef41eda601e3f541a22a6f41e1c03"
       },
       "verdict": true,
-      "quote": "if (!liveIds.has(id)) {",
+      "quote": "const removed = pruneStore(store, seen, new Set(byFile(results).keys()));",
       "ref": "@verdict-prune",
-      "reason": "pruneStore удаляет вердикты, id которых не встретились среди живых ожиданий при прогоне, и lint-записи удалённых файлов",
-      "at": "2026-10-14"
+      "reason": "pruneStore удаляет вердикты, id которых не встретились в прогоне (seen), и lint-записи несуществующих файлов",
+      "at": "2026-10-15"
     },
     "6a7682557244": {
       "question": "тикет — задача, техзадача или бага: последовательность шагов-коммитов > вклинившийся refactor доводится до конца отдельным шагом, затем работа возвращается к прерванному типу",
@@ -541,13 +541,13 @@
     "9d95d48cd2c2": {
       "question": "[harness] common > итог прогона считает код по бюджету и ответам модели, а не модель",
       "evidence": {
-        "@verdict-by-code": "a43e5e86cce1ee164b4550246f16df2b4fa86b7eb7927c3968c37ceb236ca3df"
+        "@verdict-by-code": "f5abfb9d6a1c78a36685a868941157b758f117fc7d52db34ba053844a8c4b705"
       },
       "verdict": true,
       "quote": "const over = count.crit > budget.crit || count.warn > budget.warn || count.pending > 0;",
       "ref": "@verdict-by-code",
-      "reason": "Итог (blocked/в бюджете) вычисляется кодом report из счётчиков по бюджету файла и сохранённым вердиктам, модель итог не выносит",
-      "at": "2026-10-14"
+      "reason": "Итог (blocked) вычисляется кодом из счётчиков по бюджету и сохранённым ответам судьи",
+      "at": "2026-10-15"
     },
     "a5651202c571": {
       "question": "виды контракта > ядро контракта перечисляет виды и что каждый включает; неподходящий вид — ручной выбор в том же чеклисте",
@@ -745,13 +745,13 @@
     "de808fdc116f": {
       "question": "[harness] expect > судья вызывается только для вердиктов, у которых изменились заголовок или доказательства",
       "evidence": {
-        "@expect-cycles": "a51c7dda498723673f0fa7f6e24f07ea694b27e2ef3c331d3c4ed279684dd17c"
+        "@expect-cycles": "997a55d2e9c76311e5a6912101c1e6a8d8390dcdb87925a9f735ac40c53717f5"
       },
       "verdict": true,
-      "quote": "cached.question === question &&",
+      "quote": "refs.every((r) => cached.evidence[r.ref] === r.sha);",
       "ref": "@expect-cycles",
-      "reason": "Вердикт считается свежим при совпадении вопроса и SHA всех доказательств; в задание судье попадают только несвежие",
-      "at": "2026-10-14"
+      "reason": "Вопрос попадает к судье только если вердикт не свежий: изменился вопрос (заголовок) или sha доказательств",
+      "at": "2026-10-15"
     },
     "dfed5ff72504": {
       "question": "приоритетные правила модулей > privacy: в документации, коммитах и журнале нет реальных персональных данных",
@@ -811,7 +811,7 @@
   },
   "lint": {
     "expectations/agent-operational-contract-v3.expect.ts": {
-      "titles": "59ee325b7c602e1001cffb3a321e517d2ca2362000b36d465e9d25c0446a3f0b",
+      "titles": "624d1aa3f27fda38cfbed6bcd16f2edaff6e7d70627e52927ac95691b7672847",
       "contradictions": [],
       "unmeasurable": [],
       "at": "2026-10-14"
@@ -829,22 +829,50 @@
       "at": "2026-10-14"
     },
     "expectations/harness-plan-review.expect.ts": {
-      "titles": "25daf98b8ea457738077fb1aa61dca4f4744fcc974969f27d05c5847a850f97b",
-      "contradictions": [],
-      "unmeasurable": [],
-      "at": "2026-10-14"
+      "titles": "3204a579adfc0eb749afb71bdd423061ededab3bce683e99d2f02a07d8ccca42",
+      "contradictions": [
+        {
+          "a": "a4b0de817800",
+          "b": "5499540dc8fa",
+          "reason": "результат планера — plan.md, но планер записывает ожидания в файл ожиданий, на котором открыта сессия"
+        },
+        {
+          "a": "3ab8af335456",
+          "b": "af13c6c66dc4",
+          "reason": "бюджет ревью зафиксирован (crit 0, warn ≤ 3), а ревью судит по бюджету файла"
+        }
+      ],
+      "unmeasurable": [
+        {
+          "id": "82b4dff9c817",
+          "reason": "нет критерия, какие вопросы обязательны для записи ожиданий — переход не проверить да/нет"
+        }
+      ],
+      "at": "2026-10-15"
     },
     "expectations/harness.expect.ts": {
-      "titles": "6212d5f85ce40de298444145be4ab2ab2f78496412ccb60c05ea0da9c124d922",
-      "contradictions": [],
+      "titles": "04388772530d513f4e192e9abeea4e019dbdb1af528f465084a1cc54efd5269a",
+      "contradictions": [
+        {
+          "a": "95fef0f60fd9",
+          "b": "8fe2f9759714",
+          "reason": "рендер не должен добавлять своих заголовков, кроме разделов fsm, но блок «Замечания» без info.remarks рендер ставит в начало страницы сам"
+        }
+      ],
       "unmeasurable": [],
-      "at": "2026-10-14"
+      "at": "2026-10-15"
     },
     "expectations/presets.expect.ts": {
       "titles": "64e4a5400f6cc17662aa0803796de07cadca271bf818427f0f174fc3e38deb9e",
       "contradictions": [],
       "unmeasurable": [],
       "at": "2026-10-13"
+    },
+    "expectations/shared/any-contract.expect.ts": {
+      "titles": "c5f9a68bcba0dbca8e1c32c4b8665c90e6714c379af7c52d844250f634ae1413",
+      "contradictions": [],
+      "unmeasurable": [],
+      "at": "2026-10-14"
     },
     "expectations/skills.expect.ts": {
       "titles": "c0a1b6a13f7e98d11b9c7820764fca0eb9169659f176b56a5d98e2984cef0f9f",

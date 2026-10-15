@@ -1,0 +1,257 @@
+import path from 'node:path';
+import {
+  BUDGET_TITLE,
+  DOC_KINDS,
+  LEVELS,
+  type Answer,
+  type DocBlock,
+  type Question,
+  type Budget,
+  type Level,
+  type PlanDecl,
+  type StepDef,
+} from '#lib/expect/levels';
+import { MACHINE_TITLE, PLAN_TITLE, STEP_TITLE } from '#lib/expect/plan';
+import { isServiceTitle, type NodeScope, type StepStatus } from '#lib/expect/scope';
+import { isOneOf, isRecord, isStringArray } from '#shared/guards';
+
+export const STATUSES = ['passed', 'failed', 'todo', 'skipped', 'pending', 'disabled'] as const;
+
+export interface MachineDecl {
+  name: string;
+  def: unknown;
+}
+
+export interface TestResult {
+  file: string;
+  path: string[];
+  title: string;
+  status: (typeof STATUSES)[number];
+  message: string;
+  level: Level;
+  notes: string[];
+  planned: boolean;
+  pattern?: string;
+  budget?: Budget;
+  step?: string;
+  wip: boolean;
+  defined?: string;
+  node?: NodeScope;
+  stepDef?: StepDef;
+  machine?: MachineDecl;
+  planDecl?: PlanDecl;
+  doc?: DocBlock;
+}
+
+const isBudget = (v: unknown): v is Budget =>
+  isRecord(v) && typeof v['crit'] === 'number' && typeof v['warn'] === 'number';
+
+function stepDefOf(v: unknown): StepDef | undefined {
+  if (!isRecord(v)) return undefined;
+  const { id, title, after, why } = v;
+  if (typeof id !== 'string' || typeof title !== 'string') return undefined;
+  if (!isStringArray(after)) return undefined;
+  const def: StepDef = { id, title, after };
+  if (typeof why === 'string') def.why = why;
+  return def;
+}
+
+function nodeOf(v: unknown): NodeScope | undefined {
+  if (!isRecord(v) || typeof v['machine'] !== 'string' || typeof v['node'] !== 'string')
+    return undefined;
+  return { machine: v['machine'], node: v['node'] };
+}
+
+function machineOf(v: unknown): MachineDecl | undefined {
+  if (!isRecord(v) || typeof v['name'] !== 'string') return undefined;
+  return { name: v['name'], def: v['def'] };
+}
+
+export function parseVitestReport(data: unknown, root: string): TestResult[] {
+  const fail = (what: string): never => {
+    throw new Error(`отчёт vitest: ${what}`);
+  };
+  if (!isRecord(data) || !Array.isArray(data['testResults'])) return fail('нет testResults');
+  return data['testResults'].flatMap((file: unknown) => {
+    if (!isRecord(file) || typeof file['name'] !== 'string') return fail('файл без name');
+    const name = file['name'];
+    if (!Array.isArray(file['assertionResults'])) return fail(`${name}: нет assertionResults`);
+    const tests = file['assertionResults'].map((a: unknown) => {
+      if (!isRecord(a) || typeof a['title'] !== 'string') return fail(`${name}: тест без title`);
+      const { ancestorTitles, status, failureMessages } = a;
+      if (!isStringArray(ancestorTitles)) return fail(`${name}: ancestorTitles — не строки`);
+      if (!isOneOf(STATUSES, status)) return fail(`${name}: неизвестный статус ${String(status)}`);
+      if (!isStringArray(failureMessages)) return fail(`${name}: failureMessages — не строки`);
+      const meta = isRecord(a['meta']) ? a['meta'] : {};
+      const { level, notes, budget, planned, step, wip, defined, source, pattern } = meta;
+      const result: TestResult = {
+        file: relative(root, typeof source === 'string' ? source : name),
+        path: ancestorTitles,
+        title: a['title'],
+        status,
+        message: (failureMessages[0] ?? '').split('\n')[0] ?? '',
+        level: isOneOf(LEVELS, level) ? level : 'crit',
+        notes: isStringArray(notes) ? notes : [],
+        planned: planned === true,
+        wip: wip === true,
+      };
+      if (typeof defined === 'string') result.defined = relative(root, defined);
+      if (isBudget(budget)) result.budget = budget;
+      if (typeof step === 'string') result.step = step;
+      if (typeof pattern === 'string') result.pattern = pattern;
+      const node = nodeOf(meta['node']);
+      if (node !== undefined) result.node = node;
+      const stepDef = stepDefOf(meta['stepDef']);
+      if (stepDef !== undefined) result.stepDef = stepDef;
+      const planDecl = meta['planDecl'];
+      const doc = meta['doc'];
+      if (isRecord(doc) && isOneOf(DOC_KINDS, doc['kind']) && typeof doc['text'] === 'string') {
+        const block: DocBlock = { kind: doc['kind'], text: doc['text'] };
+        const questions = questionsOf(doc['questions']);
+        if (questions !== undefined) block.questions = questions;
+        result.doc = block;
+      }
+      if (isRecord(planDecl) && typeof planDecl['name'] === 'string')
+        result.planDecl = { name: planDecl['name'] };
+      const machine = machineOf(meta['machine']);
+      if (machine !== undefined) result.machine = machine;
+      return { result, own: typeof source === 'string' };
+    });
+    const byTop = new Map<string, string>();
+    for (const t of tests)
+      if (t.own && t.result.path[0] !== undefined) byTop.set(t.result.path[0], t.result.file);
+    const results = tests.map(({ result, own }) => {
+      if (own) return result;
+      const top = result.path[0];
+      const file = top === undefined ? undefined : byTop.get(top);
+      return file === undefined ? result : { ...result, file };
+    });
+    const message = file['message'];
+    if (file['status'] === 'failed' && typeof message === 'string' && message !== '')
+      results.push({
+        file: relative(root, name),
+        path: [],
+        title: `файл не собран: ${message.split('\n')[0] ?? ''}`,
+        status: 'failed',
+        message: message.split('\n')[0] ?? '',
+        level: 'crit',
+        notes: [],
+        planned: false,
+        wip: false,
+      });
+    return results;
+  });
+}
+
+function answerOf(v: unknown): Answer | undefined {
+  if (!isRecord(v) || typeof v['text'] !== 'string') return undefined;
+  const a: Answer = { text: v['text'] };
+  if (v['recommended'] === true) a.recommended = true;
+  if (typeof v['comment'] === 'string') a.comment = v['comment'];
+  return a;
+}
+
+function questionsOf(v: unknown): Question[] | undefined {
+  if (!Array.isArray(v)) return undefined;
+  return v.flatMap((q): Question[] => {
+    if (!isRecord(q) || typeof q['text'] !== 'string' || !Array.isArray(q['answers'])) return [];
+    return [{ text: q['text'], answers: q['answers'].flatMap((a) => answerOf(a) ?? []) }];
+  });
+}
+
+export interface Remark {
+  text: string;
+  detail?: string;
+}
+
+const relative = (root: string, file: string): string =>
+  path.relative(root, file).split(path.sep).join('/');
+
+export const fullName = (t: { path: string[]; title: string }): string =>
+  [...t.path, t.title].join(' > ');
+
+export function byFile(results: TestResult[]): Map<string, TestResult[]> {
+  const files = new Map<string, TestResult[]>();
+  for (const r of results) files.set(r.file, [...(files.get(r.file) ?? []), r]);
+  return files;
+}
+
+export const visible = (results: TestResult[]): TestResult[] =>
+  results.filter((r) => !isServiceTitle(r.title));
+
+export const budgetOf = (tests: TestResult[]): Budget =>
+  tests.find((t) => t.title === BUDGET_TITLE)?.budget ?? { crit: 0, warn: 0 };
+
+export const stepsOf = (tests: TestResult[]): StepDef[] =>
+  tests.flatMap((t) => (t.title === STEP_TITLE && t.stepDef !== undefined ? [t.stepDef] : []));
+
+export const machinesOf = (tests: TestResult[]): MachineDecl[] =>
+  tests.flatMap((t) =>
+    t.title.startsWith(MACHINE_TITLE) && t.machine !== undefined ? [t.machine] : [],
+  );
+
+export const planOf = (tests: TestResult[]): PlanDecl | undefined =>
+  tests.find((t) => t.title === PLAN_TITLE)?.planDecl;
+
+export const isPlannedTest = (t: TestResult): boolean =>
+  t.planned && (t.status === 'skipped' || t.status === 'pending' || t.status === 'todo');
+
+export const isProgress = (t: TestResult): boolean => t.status === 'failed' && t.wip;
+
+export type Outcome = 'pass' | 'fail' | 'todo' | 'wip' | 'skip';
+
+export function outcomeOf(t: TestResult): Outcome {
+  if (t.wip) return 'wip';
+  if (isPlannedTest(t) || t.status === 'todo') return 'todo';
+  if (t.status === 'failed') return 'fail';
+  if (t.status === 'passed') return 'pass';
+  return 'skip';
+}
+
+export function stepStatusOf(id: string, tests: TestResult[]): StepStatus {
+  const outcomes = tests.filter((t) => t.step === id).map(outcomeOf);
+  if (outcomes.every((o) => o === 'todo')) return 'todo';
+  if (outcomes.every((o) => o === 'pass')) return 'done';
+  return 'active';
+}
+
+export const docsOf = (tests: TestResult[]): DocBlock[] =>
+  tests.flatMap((t) => (t.doc === undefined ? [] : [t.doc]));
+
+export function docIssues(tests: TestResult[]): string[] {
+  const titles = docsOf(tests).filter((d) => d.kind === 'title');
+  return titles.length > 1
+    ? [`info.title объявлен ${titles.length} раза — на странице один title`]
+    : [];
+}
+
+export function stepIssues(steps: StepDef[], tests: TestResult[]): string[] {
+  const issues: string[] = [];
+  const status = (id: string): StepStatus => stepStatusOf(id, tests);
+  const byId = new Map<string, StepDef>();
+  for (const s of steps) {
+    if (byId.has(s.id)) issues.push(`шаг ${s.id} объявлен дважды`);
+    byId.set(s.id, s);
+  }
+  for (const s of steps) {
+    for (const dep of s.after) {
+      const d = byId.get(dep);
+      if (d === undefined) issues.push(`шаг ${s.id}: в after нет шага ${dep}`);
+      else if (status(s.id) === 'done' && status(d.id) !== 'done')
+        issues.push(`шаг ${s.id} готов, но ${dep} — ${status(d.id)}`);
+    }
+  }
+  const color = new Map<string, number>();
+  const visit = (id: string, stack: string[]): void => {
+    if (color.get(id) === 2) return;
+    if (color.get(id) === 1) {
+      issues.push(`цикл шагов: ${[...stack.slice(stack.indexOf(id)), id].join(' → ')}`);
+      return;
+    }
+    color.set(id, 1);
+    for (const dep of byId.get(id)?.after ?? []) if (byId.has(dep)) visit(dep, [...stack, id]);
+    color.set(id, 2);
+  };
+  for (const s of steps) visit(s.id, []);
+  return issues;
+}

@@ -1,3 +1,5 @@
+import { existsSync } from 'node:fs';
+import path from 'node:path';
 import type { CommandArgs } from '#shared/args';
 import { UsageError } from '#shared/diagnostics';
 import type { CommandNode } from '#shared/node';
@@ -14,6 +16,7 @@ import { harnessHome, listSessions, resolveSession, type Session } from './store
 export interface HarnessModule {
   name: string;
   startOptions?: string;
+  startParams?: readonly string[];
   start: (args: CommandArgs) => Promise<Session>;
   validate: (home: string) => Promise<{ errors: string[]; plugins: string[]; def?: MachineDef }>;
   drive: (session: Session, home: string, event?: string) => Promise<DriveResult>;
@@ -23,6 +26,13 @@ export interface HarnessModule {
 }
 
 export const HOME = '[--home <dir>]';
+
+export function requireProject(root: string): void {
+  if (!existsSync(path.join(root, '.claude')))
+    throw new UsageError(
+      `нет каталога .claude в ${root}: harness запускается в проекте с .claude (поиск вверх от места вызова или --root)`,
+    );
+}
 
 export function param(args: CommandArgs, key: string): string {
   const value = args.params?.[key];
@@ -71,7 +81,7 @@ export function harnessNodes(m: HarnessModule): CommandNode[] {
   const at = (...words: string[]): string[] => [m.name, ...words];
   return [
     {
-      path: at('start'),
+      path: at('start', ...(m.startParams ?? [])),
       kind: 'harness',
       effect: 'mutation',
       options: [m.startOptions, HOME].filter((o) => o !== undefined).join(' '),
