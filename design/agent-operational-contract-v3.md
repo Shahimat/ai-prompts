@@ -591,3 +591,8 @@ ticket-commits, harness), `external.yml`, `private.yml`,
   harness) и DoD как ожидания на время задачи (`describe('task: …')`).
 - Поле-ссылка entity на целевой репозиторий (`target`) для оверлеев —
   вместо `paths`; поддержка в harness — с модулем `external-context`.
+- Запрет barrel-импортов в TS-коде (`import * as … from`, реэкспорт
+  через `export * from`) — правилом линтера в `.oxlintrc.json`.
+  Согласовать с правилом «слайс виден снаружи только через свой
+  `index.ts`»: это сам по себе barrel — решить, что остаётся точкой входа
+  слайса.
