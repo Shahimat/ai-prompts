@@ -134,7 +134,7 @@ async function start(args: CommandArgs): Promise<Session> {
     return answer;
   };
   const title = await ask(args.name, 'Название плана: ', '--name');
-  const request = await ask(args.request, 'Запрос: ', '--request');
+  const request = args.request?.trim() ?? '';
   prompter.say(`план: ${await createArtifact(args.root, title)}`);
   return createSession(home, {
     harness: harness.name,

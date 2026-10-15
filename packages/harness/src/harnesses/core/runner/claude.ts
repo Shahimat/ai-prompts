@@ -64,7 +64,7 @@ export function interactiveArgs(r: InteractiveRun): string[] {
     r.allowedTools.join(','),
     '--disallowedTools',
     'WebSearch,WebFetch',
-    r.prompt,
+    ...(r.prompt === '' ? [] : [r.prompt]),
   ];
 }
 
