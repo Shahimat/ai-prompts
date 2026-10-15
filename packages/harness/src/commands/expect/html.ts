@@ -609,7 +609,6 @@ export async function renderHtml(reports: FileReport[], entry?: string): Promise
   const svg = (source: string): string => inlineSvg(graphviz.dot(source));
   const page = reports.flatMap((r) => r.tests);
   pageRemarks = reports.flatMap((r) => r.issues);
-  const declared = reports.some((r) => r.all.some((t) => t.doc?.kind === 'remarks'));
   const body = reports.map((r) => fileSection(r, svg, page)).join('\n');
   return `<!doctype html>
 <html lang="ru">
@@ -620,9 +619,7 @@ export async function renderHtml(reports: FileReport[], entry?: string): Promise
 <style>${STYLE}</style>
 </head>
 <body>
-<h1>${esc(heading)}</h1>
-${declared ? '' : remarksBlock(pageRemarks)}
-${body}
+${title === undefined ? '' : `<h1>${esc(title)}</h1>\n`}${body}
 </body>
 </html>
 `;

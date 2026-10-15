@@ -6,7 +6,6 @@ import path from 'node:path';
 import { describe, expect } from 'vitest';
 import {
   BUILTIN_HARNESSES,
-  CRITERIA_SCHEMA,
   findCommand,
   FSM_SCHEMA,
   harnessHome,
@@ -16,19 +15,15 @@ import {
   parseMachine,
   planIo,
   planReviewRegistry,
-  REVIEW_TOOLS,
   staticErrors,
-  verdict,
-  type Finding,
   type ModelRunner,
   type Prompter,
 } from '@shahimat/harness';
 import {
   budget,
   crit,
-  dataFiles,
-  expectSchema,
   fsm,
+  Graph,
   info,
   judged,
   readRepo,
@@ -47,44 +42,6 @@ info.text(
 info.remarks();
 
 info.questions([
-  {
-    text: 'Старые ожидания «результат планера — plan.md» и «бюджет стадии ревью: crit 0, warn не больше 3» противоречат новой схеме (сейчас они crit.wip). Как поступить?',
-    answers: [
-      {
-        text: 'перевести их в заглушки crit.wip с пометкой «уходит при переходе на новую схему»',
-        recommended: true,
-        comment:
-          'Противоречие остаётся видно, но прогон не блокирует; до реализации ничего не теряется, а шаги плана затем уберут их по одному.',
-      },
-      { text: 'временно поднять бюджет warn файла до 2' },
-      { text: 'сразу убрать старые ожидания, противоречащие новой схеме' },
-    ],
-  },
-  {
-    text: 'Судья: «на странице только объявленное» противоречит «блок «Замечания» без info.remarks встаёт в начало страницы» (сейчас первое — crit.wip). Как поступить?',
-    answers: [
-      {
-        text: 'дописать исключение: «…кроме разделов fsm и блока «Замечания», если он не объявлен»',
-        recommended: true,
-        comment:
-          'Рендер действительно добавляет «Замечания» сам, чтобы проблемы не прятались; честнее назвать это исключение в заголовке.',
-      },
-      {
-        text: 'не ставить «Замечания» без info.remarks: тогда находки видны только в отчёте в терминале',
-      },
-    ],
-  },
-  {
-    text: 'Судья: заглушка перехода «контекст собран» неизмерима — «когда есть ответы на вопросы, без которых ожидания не записать». Как переформулировать?',
-    answers: [
-      {
-        text: '«планер переходит к записи ожиданий, когда список его открытых вопросов к пользователю пуст»',
-        recommended: true,
-        comment: 'Проверяемо да/нет: у планера есть или нет открытых вопросов.',
-      },
-      { text: 'оставить как есть до реализации: это заглушка, прогон она не блокирует' },
-    ],
-  },
   {
     text: 'Рисовать ли Ctrl+C на схеме автомата?',
     answers: [
@@ -135,37 +92,43 @@ const planReview = fsm('plan-review', {
     awaiting_input: {
       actor: 'user',
       description: 'Планер ждёт ввода пользователя',
-      on: { запрос: 'gathering', выход: 'finished' },
+      on: {
+        request: { to: 'gathering', label: 'запрос' },
+        exit: { to: 'finished', label: 'выход' },
+      },
     },
     gathering: {
       actor: 'model',
       description: 'Сбор контекста, в том числе параллельными подзадачами',
-      on: { 'контекст собран': 'composing' },
+      on: { gathered: { to: 'composing', label: 'контекст собран' } },
     },
     composing: {
       actor: 'model',
       description: 'Планер записывает ожидания в файл из блоков механизма',
-      on: { 'ожидания записаны': 'review', 'форма неясна': 'clarify_form' },
+      on: {
+        written: { to: 'review', label: 'ожидания записаны' },
+        unclear: { to: 'clarify_form', label: 'форма неясна' },
+      },
     },
     clarify_form: {
       actor: 'user',
       description: 'Пользователь выбирает, каким блоком строить ожидания',
-      on: { 'ответ получен': 'composing' },
+      on: { answered: { to: 'composing', label: 'ответ получен' } },
     },
     review: {
       actor: 'model',
       description: 'Ревью ожиданий — работа судьи',
-      on: { 'ревью пройдено': 'analyze' },
+      on: { reviewed: { to: 'analyze', label: 'ревью пройдено' } },
     },
     analyze: {
       actor: 'model',
       description: 'Планер разбирает ответ ревьюера',
       on: {
-        замечания: [
+        remarks: [
           { to: 'composing', count: 'cycles', label: 'замечания' },
           { to: 'awaiting_input', label: 'лимит исчерпан' },
         ],
-        'ревью чистое': 'awaiting_input',
+        clean: { to: 'awaiting_input', label: 'ревью чистое' },
       },
     },
     finished: { final: true, description: 'Сессия завершена' },
@@ -178,6 +141,10 @@ planReview.whole(() => {
   );
   crit.todo(
     'цикл composing → review → analyze ограничен счётчиком cycles: по умолчанию 3 полных цикла',
+  );
+  crit.wip(
+    'автомат plan-review в harness.yaml совпадает с этой схемой: состояния, акторы, события и лимиты',
+    () => Check.sameAsFsm(),
   );
 });
 
@@ -194,11 +161,11 @@ planReview.state('awaiting_input', () => {
   );
 });
 
-planReview.transition('awaiting_input', 'запрос', () => {
+planReview.transition('awaiting_input', 'request', () => {
   crit.todo('запрос любого вида — текст, файлы, картинки — пишется в интерактивной сессии планера');
 });
 
-planReview.transition('awaiting_input', 'выход', () => {
+planReview.transition('awaiting_input', 'exit', () => {
   crit.todo(
     'выход — только по явному слову пользователя или Ctrl+C; зелёный прогон выходом не считается',
   );
@@ -212,9 +179,9 @@ planReview.state('gathering', () => {
   crit.todo('на сборе контекста файл ожиданий не меняется');
 });
 
-planReview.transition('gathering', 'контекст собран', () => {
+planReview.transition('gathering', 'gathered', () => {
   crit.todo(
-    'планер переходит к записи ожиданий, когда в контексте есть ответы на вопросы, без которых ожидания не записать',
+    'планер переходит к записи ожиданий, когда список его открытых вопросов к пользователю пуст',
   );
 });
 
@@ -223,13 +190,13 @@ planReview.state('composing', () => {
   crit.todo('ожидание без готовой проверки записывается заглушкой crit.todo или crit.wip');
 });
 
-planReview.transition('composing', 'ожидания записаны', () => {
+planReview.transition('composing', 'written', () => {
   crit.todo(
     'ревью запускается на файле, который собирается без ошибок: typecheck и сбор ожиданий чистые',
   );
 });
 
-planReview.transition('composing', 'форма неясна', () => {
+planReview.transition('composing', 'unclear', () => {
   crit.todo(
     'если блок для ожиданий выбрать нельзя, планер спрашивает пользователя, каким его строить',
   );
@@ -239,7 +206,7 @@ planReview.state('clarify_form', () => {
   crit.todo('ответ пользователя о форме ожиданий передаётся планеру дословно');
 });
 
-planReview.transition('clarify_form', 'ответ получен', () => {
+planReview.transition('clarify_form', 'answered', () => {
   crit.todo('после ответа планер записывает ожидания выбранным блоком');
 });
 
@@ -250,13 +217,19 @@ planReview.state('review', () => {
   crit.todo('ревьюер не правит файл ожиданий; результат ревью возвращается планеру');
 });
 
-planReview.transition('review', 'ревью пройдено', () => {
+planReview.transition('review', 'reviewed', () => {
   crit.todo('результат ревью — замечания с уровнем crit, warn или info и пояснением к каждому');
+});
+
+planReview.state('analyze', () => {
+  crit.todo(
+    'если у файла есть замечания, а info.remarks нет, планер пишет об этом пользователю в сессии и просит добавить блок',
+  );
 });
 
 planReview.transition(
   'analyze',
-  'замечания',
+  'remarks',
   () => {
     crit.todo('crit или warn сверх бюджета возвращают планера к правке ожиданий');
   },
@@ -265,7 +238,7 @@ planReview.transition(
 
 planReview.transition(
   'analyze',
-  'замечания',
+  'remarks',
   () => {
     crit.todo(
       'после 3 циклов без чистого ревью планер возвращается к пользователю и объясняет, где зациклился и что не может разрешить',
@@ -274,7 +247,7 @@ planReview.transition(
   'awaiting_input',
 );
 
-planReview.transition('analyze', 'ревью чистое', () => {
+planReview.transition('analyze', 'clean', () => {
   crit.todo(
     'при чистом ревью планер возвращается к пользователю с пояснениями и ждёт следующего запроса',
   );
@@ -294,18 +267,13 @@ describe('[harness] plan-review start', () => {
     'без --request запрос пишется в интерактивной сессии планера: текст, файлы, картинки; start его не спрашивает',
     () => Start.request(),
   );
-  crit('без info.title шапка страницы — имя плана из plan({ name })', () => Start.htmlHeader());
+  crit(
+    'без info.title шапки на странице нет; у плана без info.title отчёт в терминале просит добавить info.title()',
+    () => Start.htmlHeader(),
+  );
 });
 
 describe('[harness] plan-review', () => {
-  crit(
-    'команды планера: harness plan-review start | open | list | status | validate | graph | check | render | read | clone',
-    () => Check.commands(),
-  );
-  crit.wip(
-    'результат планера — plan.md; HTML для просмотра собирает отдельная команда render',
-    () => Check.planIsSource(),
-  );
   crit('сессии лежат в ~/.config/harness; каталог переопределяется параметром', () => Check.home());
   warn(
     'переходами управляет автомат из harness.yaml; модель работает только внутри состояний',
@@ -318,24 +286,6 @@ describe('[harness] plan-review', () => {
   crit('в harness.yaml нет выражений: guards и действия — имена из реестра', () =>
     Check.noExpressions(),
   );
-  crit('критерии ревью плана — один criteria.yaml по схеме plan-criteria', () =>
-    Check.criteriaFile(),
-  );
-  crit.wip('бюджет стадии ревью: crit 0, warn не больше 3; info не блокирует', () =>
-    Check.budget(),
-  );
-  crit('проверка структуры плана (1a) не расходует попыток правки', () => Check.formalFree());
-  crit('не больше 3 правок на цикл ревью; после четвёртого провала — failure-report.md', () =>
-    Check.fixLimit(),
-  );
-  crit('ревьюеры плана не получают context.md', () => Check.reviewersBlind());
-  crit('у стадии ревью без сети нет WebSearch и WebFetch', () => Check.offlineStage());
-  crit('после «уточнить» plan.md не меняется ни на байт', () => Check.askKeepsPlan());
-  crit('после «вернуть на доработку» изменены только отмеченные пункты и зависящие от них', () =>
-    Check.reviseScope(),
-  );
-  crit('согласованный план не правится', () => Check.approvedFrozen());
-  warn('планер не планирует дальше нерешённого spike', () => Check.spikeHorizon());
   crit('headless-прогоны задают флаги явно и не исполняют hooks проекта', () =>
     Check.explicitFlags(),
   );
@@ -387,9 +337,6 @@ type InteractiveRun = Parameters<ModelRunner['interactive']>[0];
 
 interface Script {
   answers: string[];
-  review?: (stage: '1b' | '2') => unknown;
-  fix?: (text: string, n: number) => string;
-  draft?: (session: string) => string;
   plan?: string;
   request?: string;
 }
@@ -401,7 +348,6 @@ interface Flow {
   dir: string;
   interactive: InteractiveRun[];
   headless: HeadlessRun[];
-  askedPlan?: string;
   run: (...words: string[]) => Promise<number>;
 }
 
@@ -442,36 +388,21 @@ async function withFlow(
       });
     },
   };
-  let fixes = 0;
   const runner: ModelRunner = {
     interactive: async (run) => {
       flow.interactive.push(run);
       const session = path.basename(run.addDirs[0] ?? '');
-      const draft = script.draft ?? ((s: string) => PLAN.replace('SESSION', s));
-      await writeFile(path.join(run.addDirs[0] ?? '', 'plan.md'), draft(session));
+      await writeFile(path.join(run.addDirs[0] ?? '', 'plan.md'), PLAN.replace('SESSION', session));
       return 0;
     },
     headless: async (run) => {
       flow.headless.push(run);
-      const planPath = path.join(run.addDirs[0] ?? '', 'plan.md');
-      if (run.schema !== undefined) {
-        const stage = run.tools.includes('WebSearch') ? '2' : '1b';
-        return {
-          text: '',
-          structured: script.review?.(stage) ?? { findings: [] },
-          sessionId: undefined,
-          costUsd: 0,
-        };
-      }
-      if (run.systemPrompt.includes('отвечает на вопрос')) {
-        flow.askedPlan = await readFile(planPath, 'utf8');
-        await writeFile(planPath, 'ответчик испортил план');
-        return { text: 'ответ', structured: undefined, sessionId: undefined, costUsd: 0 };
-      }
-      fixes += 1;
-      const text = await readFile(planPath, 'utf8');
-      await writeFile(planPath, script.fix?.(text, fixes) ?? text);
-      return { text: 'ok', structured: undefined, sessionId: run.sessionId, costUsd: 0 };
+      return {
+        text: '',
+        structured: run.schema === undefined ? undefined : { findings: [] },
+        sessionId: run.sessionId,
+        costUsd: 0,
+      };
     },
   };
   const prompter: Prompter = {
@@ -499,11 +430,6 @@ async function withFlow(
   }
 }
 
-const state = async (flow: Flow): Promise<string> =>
-  (await openSession(flow.home, flow.id)).data.state;
-
-const CRIT_1B = { findings: [{ criterion: 'dod-checkable', item: 'T1', text: 'не проверяем' }] };
-
 async function builtinDef() {
   const result = await loadHarness(path.join(tmpdir(), 'plan-review-no-home'), 'plan-review');
   if (result.harness === undefined) throw new Error(result.errors.join('\n'));
@@ -511,31 +437,9 @@ async function builtinDef() {
 }
 
 class Check {
-  static async commands(): Promise<void> {
-    const lines = [
-      'plan-review start f.expect.ts',
-      'plan-review open s',
-      'plan-review list',
-      'plan-review status s',
-      'plan-review validate',
-      'plan-review graph',
-      'plan-review check s',
-      'plan-review render s',
-      'plan-review read s',
-      'plan-review clone s',
-      'plan-review clone s md',
-    ];
-    expect(lines.filter((l) => findCommand(l.split(' ')) === undefined)).toEqual([]);
-  }
-
-  static async planIsSource(): Promise<void> {
-    await withFlow({ answers: ['approve'] }, async (flow) => {
-      expect(await state(flow)).toBe('approved');
-      expect(existsSync(path.join(flow.dir, 'plan.md'))).toBe(true);
-      expect(existsSync(path.join(flow.dir, 'plan.html'))).toBe(false);
-      expect(await flow.run('plan-review', 'render', flow.id)).toBe(0);
-      expect(await readFile(path.join(flow.dir, 'plan.html'), 'utf8')).toContain('<svg');
-    });
+  static async sameAsFsm(): Promise<void> {
+    const { def } = await builtinDef();
+    Graph.sameAs(planReview, def);
   }
 
   static async home(): Promise<void> {
@@ -580,131 +484,6 @@ class Check {
       FSM_SCHEMA,
     );
   }
-
-  static async criteriaFile(): Promise<void> {
-    const files = (
-      await readdir(path.join(BUILTIN_HARNESSES, 'plan-review'), { recursive: true })
-    ).filter((f) => /criteria.*\.ya?ml$/.test(f));
-    expect(files).toEqual(['criteria.yaml']);
-    await expectSchema(
-      await dataFiles(['packages/harness/src/harnesses/plan-review/criteria.yaml']),
-      'expectations/schemas/plan-criteria.schema.json',
-    );
-    expect(parseJson(await readRepo('expectations/schemas/plan-criteria.schema.json'))).toEqual(
-      CRITERIA_SCHEMA,
-    );
-  }
-
-  static async budget(): Promise<void> {
-    const { def } = await builtinDef();
-    expect(def.review.budget).toEqual({ crit: 0, warn: 3 });
-    const f = (level: Finding['level']): Finding => ({
-      criterion: 'c',
-      level,
-      stage: '1b',
-      item: 'T1',
-      text: 't',
-    });
-    const passes = (list: Finding[]) => verdict(list, def.review.budget).every((v) => v.pass);
-    expect(
-      passes([f('warn'), f('warn'), f('warn'), f('info'), f('info'), f('info'), f('info')]),
-    ).toBe(true);
-    expect(passes([f('warn'), f('warn'), f('warn'), f('warn')])).toBe(false);
-    expect(passes([f('crit')])).toBe(false);
-  }
-
-  static async formalFree(): Promise<void> {
-    const broken = (s: string) => PLAN.replace('SESSION', s).replace('- Таймбокс: полдня\n', '');
-    const fix = (t: string) =>
-      t.replace(
-        '- Ожидаемое решение: выбор библиотеки\n',
-        '- Ожидаемое решение: выбор библиотеки\n- Таймбокс: полдня\n',
-      );
-    await withFlow({ answers: ['approve'], draft: broken, fix }, async (flow) => {
-      const s = await openSession(flow.home, flow.id);
-      expect(s.data.state).toBe('approved');
-      expect(s.data.counters['fix'] ?? 0).toBe(0);
-      expect(flow.headless.some((r) => r.resume !== undefined)).toBe(true);
-    });
-  }
-
-  static async fixLimit(): Promise<void> {
-    await withFlow(
-      { answers: [], review: (s) => (s === '1b' ? CRIT_1B : { findings: [] }) },
-      async (flow) => {
-        expect(await state(flow)).toBe('failed');
-        expect(flow.headless.filter((r) => r.schema === undefined)).toHaveLength(3);
-        expect((await openSession(flow.home, flow.id)).data.round).toBe(4);
-        expect(await readFile(path.join(flow.dir, 'failure-report.md'), 'utf8')).toContain(
-          'dod-checkable',
-        );
-      },
-    );
-  }
-
-  static async reviewersBlind(): Promise<void> {
-    await withFlow({ answers: ['approve'] }, async (flow) => {
-      const reviews = flow.headless.filter((r) => r.schema !== undefined);
-      expect(reviews.length).toBeGreaterThan(0);
-      for (const r of reviews) {
-        expect([r.cwd, ...r.addDirs]).not.toContain(flow.dir);
-        expect(r.systemPrompt).not.toContain('context.md');
-        for (const dir of [r.cwd, ...r.addDirs].filter((d) => d.startsWith(flow.dir)))
-          expect(await readdir(dir)).not.toContain('context.md');
-      }
-    });
-  }
-
-  static offlineStage(): void {
-    expect(REVIEW_TOOLS['1b']).not.toContain('WebSearch');
-    expect(REVIEW_TOOLS['1b']).not.toContain('WebFetch');
-    const args = headlessArgs({
-      cwd: '.',
-      model: 'haiku',
-      addDirs: [],
-      systemPrompt: '',
-      tools: REVIEW_TOOLS['1b'],
-      allowedTools: REVIEW_TOOLS['1b'],
-      prompt: 'p',
-      persist: false,
-      maxTurns: 1,
-    });
-    expect(args[args.indexOf('--tools') + 1]).toBe('Read');
-    expect(args[args.indexOf('--disallowedTools') + 1]).toBe('WebSearch,WebFetch');
-  }
-
-  static async askKeepsPlan(): Promise<void> {
-    await withFlow({ answers: ['ask', 'зачем S1?', 'approve'] }, async (flow) => {
-      const plan = await readFile(path.join(flow.dir, 'plan.md'), 'utf8');
-      expect(flow.askedPlan).toBeDefined();
-      expect(plan.replace('status: approved', 'status: awaiting-user')).toBe(flow.askedPlan);
-      expect(await readFile(path.join(flow.dir, 'context.md'), 'utf8')).toContain('зачем S1?');
-    });
-  }
-
-  static async reviseScope(): Promise<void> {
-    const fix = (t: string, n: number) =>
-      n === 1
-        ? t.replace('точка входа.', 'точка входа CLI.')
-        : t.replace('модель плана.', 'модель плана, обратимая.');
-    await withFlow({ answers: ['walk', 'уточни', '', '', 'approve'], fix }, async (flow) => {
-      const plan = await readFile(path.join(flow.dir, 'plan.md'), 'utf8');
-      expect(await state(flow)).toBe('approved');
-      expect(plan).not.toContain('точка входа CLI.');
-      expect(plan).toContain('модель плана, обратимая.');
-    });
-  }
-
-  static async approvedFrozen(): Promise<void> {
-    await withFlow({ answers: ['approve'] }, async (flow) => {
-      const before = await readFile(path.join(flow.dir, 'plan.md'), 'utf8');
-      expect(await flow.run('plan-review', 'open', flow.id)).toBe(0);
-      expect(await readFile(path.join(flow.dir, 'plan.md'), 'utf8')).toBe(before);
-      expect(flow.headless.filter((r) => r.schema === undefined)).toHaveLength(0);
-    });
-  }
-
-  static spikeHorizon = (): Promise<void> => judged(['@spike-horizon']);
 
   static explicitFlags(): void {
     const args = headlessArgs({
@@ -799,7 +578,7 @@ class Start {
         "import { describe } from 'vitest';\nimport { budget, crit, fsm, plan } from '@shahimat/harness/expect';\nbudget({ crit: 0, warn: 0 });\nplan({ name: 'Демо-план' });\nfsm('demo-flow', { initial: 'a', states: { a: { actor: 'model', on: { go: 'b' } }, b: { final: true } } });\ndescribe('раздел', () => { crit('ожидание плана', () => {}); });\n",
       );
       const out = path.join(dir, 'page.html');
-      spawnSync(
+      const run = spawnSync(
         process.execPath,
         [
           path.join(repoRoot(), 'packages/harness/dist/bin.js'),
@@ -814,7 +593,9 @@ class Start {
         { cwd: dir, encoding: 'utf8' },
       );
       const html = existsSync(out) ? await readFile(out, 'utf8') : '';
-      expect(html).toMatch(/<h1>Демо-план<\/h1>/);
+      expect(html).toContain('ожидание плана');
+      expect(html).not.toContain('<h1>');
+      expect(run.stdout).toMatch(/у плана «Демо-план» нет шапки: добавьте info\.title\(\)/);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }

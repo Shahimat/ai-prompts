@@ -430,7 +430,7 @@ describe('[harness] expect plan', () => {
     'блоки и ожидания из импортированных файлов попадают на страницу; у ожидания из другого модуля видно, где оно определено',
     () => Plan.importedBlocks(),
   );
-  crit.wip(
+  crit(
     'на странице только объявленное в файле: тексты info, блоки и ожидания; своих заголовков и сводок рендер не добавляет, кроме разделов fsm «Состояния» и «Переходы»',
     () => Plan.onlyDeclared(),
   );
@@ -450,8 +450,12 @@ describe('[harness] expect plan', () => {
     () => Plan.questions(),
   );
   crit(
-    'замечания — один блок «Замечания» на странице: находка и пояснение; на месте info.remarks, без него — в начале страницы',
+    'замечания — один блок «Замечания» на месте info.remarks: находка и пояснение; без info.remarks блока на странице нет',
     () => Plan.remarks(),
+  );
+  crit(
+    'замечания есть, а info.remarks нет — отчёт в терминале называет их число и просит добавить info.remarks()',
+    () => Plan.remarksHint(),
   );
   warn('цвет узла на схеме — статус его ожиданий: todo, пройдено, провал', () =>
     Plan.htmlStatuses(),
@@ -2056,7 +2060,18 @@ describe('счёт', () => {
     );
     await withPlanFixture(planFile(`info.title('Т');\n${broken}`), async (_dir, run) => {
       const { html } = await run();
-      expect(html).toMatch(/<h1>Т<\/h1>\s*<section class="block remarks">/);
+      expect(html).not.toContain('block remarks');
+    });
+  }
+
+  static async remarksHint(): Promise<void> {
+    const broken = `steps(() => { step('T1', { title: 'a', after: ['T9'] }, () => {}); });\n`;
+    const hint = /замечаний \d+, блока info\.remarks нет[^\n]*info\.remarks\(\)/;
+    await withPlanFixture(planFile(broken), async (_dir, run) => {
+      expect((await run()).out).toMatch(hint);
+    });
+    await withPlanFixture(planFile(`info.remarks();\n${broken}`), async (_dir, run) => {
+      expect((await run()).out).not.toMatch(hint);
     });
   }
 

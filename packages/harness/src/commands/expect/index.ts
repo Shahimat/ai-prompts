@@ -247,6 +247,16 @@ async function collect(
     if (declared !== undefined) report.plan = declared;
     reports.push(report);
   }
+  const remarks = reports.reduce((n, r) => n + r.issues.length, 0);
+  const declared = reports.some((r) => r.all.some((t) => t.doc?.kind === 'remarks'));
+  const titled = reports.some((r) => r.all.some((t) => t.doc?.kind === 'title'));
+  const planned = reports.find((r) => r.plan !== undefined)?.plan;
+  if (planned !== undefined && !titled)
+    log(`\nу плана «${planned.name}» нет шапки: добавьте info.title()`);
+  if (remarks > 0 && !declared)
+    log(
+      `\nзамечаний ${remarks}, блока info.remarks нет — на странице их не видно: добавьте info.remarks()`,
+    );
   log(
     `\nожиданий ${total.tests}: crit ${total.crit} · warn ${total.warn} · info ${total.info} · ? ${total.pending} — ${blocked ? 'бюджет превышен' : 'в бюджете'}`,
   );

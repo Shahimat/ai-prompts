@@ -94,12 +94,12 @@
     "1db1d3ca45dd": {
       "question": "[harness] expect > смысловая проверка заголовков файла запускается только при изменении его заголовков",
       "evidence": {
-        "@expect-cycles": "997a55d2e9c76311e5a6912101c1e6a8d8390dcdb87925a9f735ac40c53717f5"
+        "@expect-cycles": "a3e8670b407ae645aeea3b4a59be6fb84068cc64f3204abd219348f158fed9bb"
       },
       "verdict": true,
       "quote": "if (store.lint[file]?.titles === sha) continue;",
       "ref": "@expect-cycles",
-      "reason": "Задание lint для файла создаётся только если sha заголовков файла не совпадает с сохранённым",
+      "reason": "judgePrepare создаёт lint-задание только для файлов, у которых sha заголовков разошёлся с сохранённым",
       "at": "2026-10-15"
     },
     "1e94c71faacc": {
@@ -339,12 +339,12 @@
     "694f0f4b5141": {
       "question": "[harness] expect > в кэше вердиктов только вердикты живых ожиданий",
       "evidence": {
-        "@verdict-prune": "613f3a78113b5674ce3b2b54bd361e892e5ef41eda601e3f541a22a6f41e1c03"
+        "@verdict-prune": "7f0bbae5b696fc237f671393270e59d7d594bdb608cd307617d21a6549614759"
       },
       "verdict": true,
       "quote": "const removed = pruneStore(store, seen, new Set(byFile(results).keys()));",
       "ref": "@verdict-prune",
-      "reason": "pruneStore удаляет вердикты, id которых не встретились в прогоне (seen), и lint-записи несуществующих файлов",
+      "reason": "pruneStore удаляет вердикты с id, не встреченными в прогоне, и lint-записи файлов вне прогона, затем store сохраняется",
       "at": "2026-10-15"
     },
     "6a7682557244": {
@@ -541,12 +541,12 @@
     "9d95d48cd2c2": {
       "question": "[harness] common > итог прогона считает код по бюджету и ответам модели, а не модель",
       "evidence": {
-        "@verdict-by-code": "f5abfb9d6a1c78a36685a868941157b758f117fc7d52db34ba053844a8c4b705"
+        "@verdict-by-code": "a8f1414af31f5641c9ad24135d3696e7b59fd5d3b64668ea9f6ef97a829b3abc"
       },
       "verdict": true,
       "quote": "const over = count.crit > budget.crit || count.warn > budget.warn || count.pending > 0;",
       "ref": "@verdict-by-code",
-      "reason": "Итог (blocked) вычисляется кодом из счётчиков по бюджету и сохранённым ответам судьи",
+      "reason": "итог и блокировку вычисляет код из счётчиков (с учётом сохранённых ответов судьи) и бюджета файла",
       "at": "2026-10-15"
     },
     "a5651202c571": {
@@ -614,17 +614,6 @@
       "quote": "- `own`-позиция и пост записываются только в моей формулировке:",
       "ref": "@own-voice",
       "reason": "Own — только в формулировке пользователя; вывод агента — разбор (analysis) или tension.",
-      "at": "2026-10-14"
-    },
-    "c2c4ecf68df9": {
-      "question": "[harness] plan-review > планер не планирует дальше нерешённого spike",
-      "evidence": {
-        "@spike-horizon": "42a33ddf40a0e5b0292e4cb2af2eed5a9dd48896a5e11afd6d71e3da8fb88c35"
-      },
-      "verdict": true,
-      "quote": "содержание задачи зависит от ответа spike — эту задачу не планируй,",
-      "ref": "@spike-horizon",
-      "reason": "промпт планера и критерий spike-horizon выносят зависящие от spike задачи в «За горизонтом»",
       "at": "2026-10-14"
     },
     "c6b9e7459e9b": {
@@ -745,12 +734,12 @@
     "de808fdc116f": {
       "question": "[harness] expect > судья вызывается только для вердиктов, у которых изменились заголовок или доказательства",
       "evidence": {
-        "@expect-cycles": "997a55d2e9c76311e5a6912101c1e6a8d8390dcdb87925a9f735ac40c53717f5"
+        "@expect-cycles": "a3e8670b407ae645aeea3b4a59be6fb84068cc64f3204abd219348f158fed9bb"
       },
       "verdict": true,
       "quote": "refs.every((r) => cached.evidence[r.ref] === r.sha);",
       "ref": "@expect-cycles",
-      "reason": "Вопрос попадает к судье только если вердикт не свежий: изменился вопрос (заголовок) или sha доказательств",
+      "reason": "вопрос судье собирается только для несвежего вердикта: изменились заголовок (cached.question) или sha доказательств",
       "at": "2026-10-15"
     },
     "dfed5ff72504": {
@@ -829,36 +818,14 @@
       "at": "2026-10-14"
     },
     "expectations/harness-plan-review.expect.ts": {
-      "titles": "3204a579adfc0eb749afb71bdd423061ededab3bce683e99d2f02a07d8ccca42",
-      "contradictions": [
-        {
-          "a": "a4b0de817800",
-          "b": "5499540dc8fa",
-          "reason": "результат планера — plan.md, но планер записывает ожидания в файл ожиданий, на котором открыта сессия"
-        },
-        {
-          "a": "3ab8af335456",
-          "b": "af13c6c66dc4",
-          "reason": "бюджет ревью зафиксирован (crit 0, warn ≤ 3), а ревью судит по бюджету файла"
-        }
-      ],
-      "unmeasurable": [
-        {
-          "id": "82b4dff9c817",
-          "reason": "нет критерия, какие вопросы обязательны для записи ожиданий — переход не проверить да/нет"
-        }
-      ],
+      "titles": "ed8faa10be62d467241e21ba59835ea17503b61519759ed466856a6e32cb7734",
+      "contradictions": [],
+      "unmeasurable": [],
       "at": "2026-10-15"
     },
     "expectations/harness.expect.ts": {
-      "titles": "04388772530d513f4e192e9abeea4e019dbdb1af528f465084a1cc54efd5269a",
-      "contradictions": [
-        {
-          "a": "95fef0f60fd9",
-          "b": "8fe2f9759714",
-          "reason": "рендер не должен добавлять своих заголовков, кроме разделов fsm, но блок «Замечания» без info.remarks рендер ставит в начало страницы сам"
-        }
-      ],
+      "titles": "4febbddfbe72ea1fac951ba918e737e14026fb9455a73c4edf8e5b5d1d30f326",
+      "contradictions": [],
       "unmeasurable": [],
       "at": "2026-10-15"
     },
