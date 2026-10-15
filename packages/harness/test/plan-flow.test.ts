@@ -126,9 +126,15 @@ afterEach(async () => {
 const cli = (...args: string[]) => main([...args, '--home', home, '--root', project], NOW);
 
 async function start(): Promise<string> {
-  expect(await cli('plan-review', 'start', '--name', 'Демо', '--request', 'спланируй демо')).toBe(
-    0,
-  );
+  expect(
+    await cli(
+      'plan-review',
+      'start',
+      '.claude/artifacts/plan-review/демо.expect.ts',
+      '--request',
+      'спланируй демо',
+    ),
+  ).toBe(0);
   const [id = ''] = await readdir(path.join(home, 'sessions'));
   expect(id).toMatch(/^[0-9a-f]{64}$/);
   return id;
@@ -378,7 +384,7 @@ describe('harness session: команды', () => {
     const id = await start();
     out = [];
     expect(await cli('plan-review', 'list')).toBe(0);
-    expect(out.join('\n')).toContain(`${id.slice(0, 7)}\tapproved\tДемо`);
+    expect(out.join('\n')).toContain(`${id.slice(0, 7)}\tapproved\tдемо`);
     out = [];
     expect(await cli('plan-review', 'status', id)).toBe(0);
     expect(out.join('\n')).toContain('состояние: approved');
@@ -410,7 +416,7 @@ describe('harness session: команды', () => {
     out = [];
     expect(await main(['plan-review', 'list'], NOW)).toBe(0);
     vi.unstubAllEnvs();
-    expect(out.join('\n')).toContain('Демо');
+    expect(out.join('\n')).toContain('демо');
   });
 });
 
@@ -434,8 +440,8 @@ describe('harness plan: команды', () => {
     expect(err.join('\n')).toContain('критерий 1a x не реализован скриптом');
   });
 
-  it('start без --name и без терминала — ошибка вызова', async () => {
+  it('start без файла плана — ошибка вызова', async () => {
     interactive = false;
-    await expect(cli('plan-review', 'start')).rejects.toThrow('--name');
+    await expect(cli('plan-review', 'start')).rejects.toThrow('<file>');
   });
 });

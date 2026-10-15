@@ -39,19 +39,18 @@ budget({ crit: 0, warn: 0 });
 
 describe('[harness] plan-review start', () => {
   crit(
-    'harness plan-review start --name <имя> создаёт план .claude/artifacts/plan-review/<slug>.expect.ts; без --name имя спрашивается в терминале, без терминала — ошибка',
-    () => Start.artifact(),
+    'harness plan-review start <file>: существующий файл ожиданий — план изменения его состояния; нового файла нет — создаётся каркас с plan({ name })',
+    () => Start.file(),
+  );
+  crit('имя плана берётся из plan({ name }) в файле; для нового файла — из имени файла', () =>
+    Start.name(),
   );
   crit(
     'без --request запрос пишется в интерактивной сессии планера: текст, файлы, картинки; start его не спрашивает',
     () => Start.request(),
   );
-  crit('slug плана — имя в нижнем регистре, пробелы и знаки — дефис; кириллица сохраняется', () =>
-    Start.slug(),
-  );
-  crit(
-    'файл плана объявляет plan({ name, kind }); в HTML шапка по виду — «План FSM» для fsm — и имя плана вместо пути к файлу',
-    () => Start.htmlHeader(),
+  crit('plan({ name }): шапка страницы — имя плана, под ним перечень блоков', () =>
+    Start.htmlHeader(),
   );
 });
 
@@ -145,7 +144,8 @@ interface Script {
   review?: (stage: '1b' | '2') => unknown;
   fix?: (text: string, n: number) => string;
   draft?: (session: string) => string;
-  start?: { name?: string; request?: string };
+  plan?: string;
+  request?: string;
 }
 
 interface Flow {
@@ -159,12 +159,20 @@ interface Flow {
   run: (...words: string[]) => Promise<number>;
 }
 
-async function withFlow(script: Script, fn: (flow: Flow) => Promise<void>): Promise<void> {
+async function withFlow(
+  script: Script,
+  fn: (flow: Flow) => Promise<void>,
+  files: Record<string, string> = {},
+): Promise<void> {
   const home = await mkdtemp(path.join(tmpdir(), 'plan-review-home-'));
   const project = await mkdtemp(path.join(tmpdir(), 'plan-review-proj-'));
   spawnSync('git', ['init', '-q'], { cwd: project });
   await mkdir(path.join(project, '.claude'), { recursive: true });
   await writeFile(path.join(project, 'README.md'), '# проект\n');
+  for (const [rel, text] of Object.entries(files)) {
+    await mkdir(path.dirname(path.join(project, rel)), { recursive: true });
+    await writeFile(path.join(project, rel), text);
+  }
   const saved = { runner: planIo.runner, prompter: planIo.prompter };
   const flow: Flow = {
     home,
@@ -183,7 +191,7 @@ async function withFlow(script: Script, fn: (flow: Flow) => Promise<void>): Prom
         now: NOW,
         home,
         params: match.params,
-        ...(script.start ?? { name: 'Демо', request: 'спланируй' }),
+        request: script.request ?? 'спланируй',
         ...(outAt >= 0 ? { out: words[outAt + 1] ?? '' } : {}),
       });
     },
@@ -231,7 +239,7 @@ async function withFlow(script: Script, fn: (flow: Flow) => Promise<void>): Prom
   const log = console.log;
   console.log = () => undefined;
   try {
-    await flow.run('plan-review', 'start');
+    await flow.run('plan-review', 'start', script.plan ?? `${ARTIFACTS}/демо.expect.ts`);
     const [id = ''] = await readdir(path.join(home, 'sessions'));
     flow.id = id;
     flow.dir = path.join(home, 'sessions', id);
@@ -259,7 +267,7 @@ async function builtinDef() {
 class Check {
   static async commands(): Promise<void> {
     const lines = [
-      'plan-review start',
+      'plan-review start f.expect.ts',
       'plan-review open s',
       'plan-review list',
       'plan-review status s',
@@ -482,66 +490,51 @@ const artifactsOf = async (project: string): Promise<string[]> =>
     : [];
 
 class Start {
-  static async artifact(): Promise<void> {
+  static async file(): Promise<void> {
     await withFlow({ answers: ['approve'] }, async (flow) => {
       expect(await artifactsOf(flow.project)).toEqual(['демо.expect.ts']);
       expect(
         await readFile(path.join(flow.project, ARTIFACTS, 'демо.expect.ts'), 'utf8'),
-      ).toContain("plan({ name: 'Демо', kind: 'fsm' })");
-    });
-    await withFlow({ answers: ['Из терминала', 'approve'], start: {} }, async (flow) => {
-      expect(await artifactsOf(flow.project)).toEqual(['из-терминала.expect.ts']);
-    });
-    const project = await mkdtemp(path.join(tmpdir(), 'plan-review-noname-'));
-    const home = await mkdtemp(path.join(tmpdir(), 'plan-review-noname-home-'));
-    try {
-      await mkdir(path.join(project, '.claude'), { recursive: true });
-      const r = spawnSync(
-        process.execPath,
-        [
-          path.join(repoRoot(), 'packages/harness/dist/bin.js'),
-          'plan-review',
-          'start',
-          '--root',
-          project,
-          '--home',
-          home,
-        ],
-        { cwd: project, encoding: 'utf8' },
+      ).toContain("plan({ name: 'демо' })");
+      expect((await openSession(flow.home, flow.id)).data.planFile).toBe(
+        `${ARTIFACTS}/демо.expect.ts`,
       );
-      expect({ status: r.status, name: `${r.stdout}${r.stderr}`.includes('--name') }).toEqual({
-        status: 2,
-        name: true,
-      });
-      expect(await artifactsOf(project)).toEqual([]);
-    } finally {
-      await rm(project, { recursive: true, force: true });
-      await rm(home, { recursive: true, force: true });
-    }
+    });
+    const existing =
+      "import { plan } from '@shahimat/harness/expect';\nplan({ name: 'Текущее состояние' });\n";
+    await withFlow(
+      { answers: ['approve'], plan: 'expectations/own.expect.ts' },
+      async (flow) => {
+        expect(await readFile(path.join(flow.project, 'expectations/own.expect.ts'), 'utf8')).toBe(
+          existing,
+        );
+      },
+      { 'expectations/own.expect.ts': existing },
+    );
+  }
+
+  static async name(): Promise<void> {
+    await withFlow(
+      { answers: ['approve'], plan: 'expectations/own.expect.ts' },
+      async (flow) => {
+        expect((await openSession(flow.home, flow.id)).data.title).toBe('Текущее состояние');
+      },
+      { 'expectations/own.expect.ts': "plan({ name: 'Текущее состояние' });\n" },
+    );
+    await withFlow({ answers: ['approve'], plan: 'plans/новый-план.expect.ts' }, async (flow) => {
+      expect((await openSession(flow.home, flow.id)).data.title).toBe('новый-план');
+    });
   }
 
   static async request(): Promise<void> {
-    await withFlow({ answers: ['approve'], start: { name: 'Без запроса' } }, async (flow) => {
+    await withFlow({ answers: ['approve'], request: '' }, async (flow) => {
       expect((await openSession(flow.home, flow.id)).data.request).toBe('');
-      expect(await artifactsOf(flow.project)).toEqual(['без-запроса.expect.ts']);
       expect(flow.interactive.map((r) => r.prompt)).toEqual(['']);
       expect(flow.interactive[0]?.systemPrompt).toContain('дождись запроса');
     });
-    await withFlow(
-      { answers: ['approve'], start: { name: 'С запросом', request: 'одной строкой' } },
-      async (flow) => {
-        expect(flow.interactive.map((r) => r.prompt)).toEqual(['одной строкой']);
-      },
-    );
-  }
-
-  static async slug(): Promise<void> {
-    await withFlow(
-      { answers: ['approve'], start: { name: 'План  стола: FSM!', request: 'r' } },
-      async (flow) => {
-        expect(await artifactsOf(flow.project)).toEqual(['план-стола-fsm.expect.ts']);
-      },
-    );
+    await withFlow({ answers: ['approve'], request: 'одной строкой' }, async (flow) => {
+      expect(flow.interactive.map((r) => r.prompt)).toEqual(['одной строкой']);
+    });
   }
 
   static async htmlHeader(): Promise<void> {
@@ -557,7 +550,7 @@ class Start {
       );
       await writeFile(
         path.join(dir, file),
-        "import { describe } from 'vitest';\nimport { budget, crit, plan } from '@shahimat/harness/expect';\nbudget({ crit: 0, warn: 0 });\nplan({ name: 'Демо-план', kind: 'fsm' });\ndescribe('раздел', () => { crit('ожидание плана', () => {}); });\n",
+        "import { describe } from 'vitest';\nimport { budget, crit, fsm, plan } from '@shahimat/harness/expect';\nbudget({ crit: 0, warn: 0 });\nplan({ name: 'Демо-план' });\nfsm('demo-flow', { initial: 'a', states: { a: { actor: 'model', on: { go: 'b' } }, b: { final: true } } });\ndescribe('раздел', () => { crit('ожидание плана', () => {}); });\n",
       );
       const out = path.join(dir, 'page.html');
       spawnSync(
@@ -575,9 +568,7 @@ class Start {
         { cwd: dir, encoding: 'utf8' },
       );
       const html = existsSync(out) ? await readFile(out, 'utf8') : '';
-      expect(html).toMatch(/<h1>План FSM<\/h1>/);
-      expect(html).toMatch(/<h2>Демо-план<\/h2>/);
-      expect(html).not.toContain(`<h2>${file}</h2>`);
+      expect(html).toMatch(/<h1>Демо-план<\/h1>\s*<p class="blocks">блоки: fsm demo-flow<\/p>/);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }

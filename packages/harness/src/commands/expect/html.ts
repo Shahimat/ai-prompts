@@ -1,8 +1,14 @@
 import { Graphviz } from '@hpcc-js/wasm-graphviz';
-import type { Budget, PlanDecl, PlanKind, StepDef } from '#lib/expect/levels';
+import type { Budget, PlanDecl, StepDef } from '#lib/expect/levels';
 import { graphOf, type MachineGraph } from '#lib/expect/plan';
 import { diffTitles, type DiffMark, type Titled } from './head.ts';
-import { outcomeOf, type MachineDecl, type Outcome, type TestResult } from './results.ts';
+import {
+  outcomeOf,
+  stepStatusOf,
+  type MachineDecl,
+  type Outcome,
+  type TestResult,
+} from './results.ts';
 
 export interface FileReport {
   file: string;
@@ -28,12 +34,13 @@ const attrs = (a: Record<string, string>): string =>
     .map(([k, v]) => `${k}=${dot(v)}`)
     .join(' ')}]`;
 
-const MARK: Record<Outcome, string> = { pass: '✓', fail: '✗', todo: '○', skip: '-' };
+const MARK: Record<Outcome, string> = { pass: '✓', fail: '✗', todo: '○', wip: '◐', skip: '-' };
 
 const FILL: Record<string, string> = {
   pass: '#d9f2df',
   fail: '#f9d6d5',
   todo: '#ececec',
+  wip: '#fff1c2',
   none: '#ffffff',
   skip: '#ffffff',
   done: '#d9f2df',
@@ -43,6 +50,7 @@ const FILL: Record<string, string> = {
 function statusOf(tests: TestResult[]): NodeStatus {
   const outcomes = tests.map(outcomeOf);
   if (outcomes.includes('fail')) return 'fail';
+  if (outcomes.includes('wip')) return 'wip';
   if (outcomes.includes('todo')) return 'todo';
   if (outcomes.includes('pass')) return 'pass';
   return 'none';
@@ -94,21 +102,82 @@ function machineDot(name: string, g: MachineGraph, tests: TestResult[]): string 
   return `digraph ${dot(name)} {\n  ${lines.join(';\n  ')};\n}`;
 }
 
-function stepsDot(steps: StepDef[]): string {
+const BAR = {
+  shape: 'box',
+  label: '',
+  height: '0.04',
+  width: '0.9',
+  style: 'filled',
+  fillcolor: '#333333',
+  color: '#333333',
+};
+
+function stepsDot(steps: StepDef[], tests: TestResult[]): string {
   const ids = new Set(steps.map((s) => s.id));
-  const lines = [...GRAPH_HEAD];
+  const succ = new Map<string, string[]>();
+  const pred = new Map<string, string[]>();
   for (const s of steps)
+    for (const dep of s.after.filter((d) => ids.has(d))) {
+      succ.set(dep, [...(succ.get(dep) ?? []), s.id]);
+      pred.set(s.id, [...(pred.get(s.id) ?? []), dep]);
+    }
+  const lines = [
+    ...GRAPH_HEAD.map((l) => (l === 'rankdir=LR' ? 'rankdir=TB' : l)),
+    `"__initial" ${attrs({ shape: 'circle', label: '', width: '0.22', style: 'filled', fillcolor: '#333333' })}`,
+    `"__final" ${attrs({ shape: 'doublecircle', label: '', width: '0.16', style: 'filled', fillcolor: '#333333' })}`,
+  ];
+  const bars = new Set<string>();
+  const bar = (name: string): string => {
+    if (!bars.has(name)) {
+      bars.add(name);
+      lines.push(`${dot(name)} ${attrs(BAR)}`);
+    }
+    return dot(name);
+  };
+  const out = (id: string): string => {
+    if ((succ.get(id) ?? []).length < 2) return dot(id);
+    const fork = bar(`__fork_${id}`);
+    if (!bars.has(`__forked_${id}`)) {
+      bars.add(`__forked_${id}`);
+      lines.push(`${dot(id)} -> ${fork}`);
+    }
+    return fork;
+  };
+  const into = (id: string): string => {
+    if ((pred.get(id) ?? []).length < 2) return dot(id);
+    const join = bar(`__join_${id}`);
+    if (!bars.has(`__joined_${id}`)) {
+      bars.add(`__joined_${id}`);
+      lines.push(`${join} -> ${dot(id)}`);
+    }
+    return join;
+  };
+  for (const s of steps) {
+    const status = stepStatusOf(s.id, tests);
     lines.push(
       `${dot(s.id)} ${attrs({
         label: `${s.id}\n${s.title}`,
         URL: `#step-${s.id}`,
-        class: s.status,
-        fillcolor: FILL[s.status] ?? '#ffffff',
-        tooltip: `${s.id}. ${s.title} — ${s.status}`,
+        class: status,
+        fillcolor: FILL[status] ?? '#ffffff',
+        tooltip: `${s.id}. ${s.title} — ${status}`,
       })}`,
     );
+  }
   for (const s of steps)
-    for (const dep of s.after) if (ids.has(dep)) lines.push(`${dot(dep)} -> ${dot(s.id)}`);
+    for (const next of succ.get(s.id) ?? []) lines.push(`${out(s.id)} -> ${into(next)}`);
+  const roots = steps.filter((s) => (pred.get(s.id) ?? []).length === 0).map((s) => s.id);
+  const leaves = steps.filter((s) => (succ.get(s.id) ?? []).length === 0).map((s) => s.id);
+  if (roots.length > 1) {
+    const fork = bar('__fork_initial');
+    lines.push(`"__initial" -> ${fork}`);
+    for (const r of roots) lines.push(`${fork} -> ${dot(r)}`);
+  } else for (const r of roots) lines.push(`"__initial" -> ${dot(r)}`);
+  if (leaves.length > 1) {
+    const join = bar('__join_final');
+    for (const l of leaves) lines.push(`${dot(l)} -> ${join}`);
+    lines.push(`${join} -> "__final"`);
+  } else for (const l of leaves) lines.push(`${dot(l)} -> "__final"`);
   return `digraph "steps" {\n  ${lines.join(';\n  ')};\n}`;
 }
 
@@ -127,9 +196,13 @@ function item(t: TestResult, mark: DiffMark | undefined): string {
   const msg =
     outcome === 'fail' && t.message !== '' ? `<div class="msg">${esc(t.message)}</div>` : '';
   const notes = t.notes.map((n) => `<div class="note">ℹ ${esc(n)}</div>`).join('');
+  const defined =
+    t.defined === undefined || t.defined === t.file
+      ? ''
+      : ` <span class="from">из ${esc(t.defined)}</span>`;
   const from =
     t.pattern === undefined ? '' : ` <span class="pattern">паттерн ${esc(t.pattern)}</span>`;
-  return `<li class="${cls.join(' ')}"><span class="mark">${MARK[outcome]}</span> <span class="lvl">${t.level}</span> <span class="title">${esc(t.title)}</span>${from}${was}${msg}${notes}</li>`;
+  return `<li class="${cls.join(' ')}"><span class="mark">${MARK[outcome]}</span> <span class="lvl">${t.level}</span> <span class="title">${esc(t.title)}</span>${from}${defined}${was}${msg}${notes}</li>`;
 }
 
 const list = (tests: TestResult[], marks: Map<Titled, DiffMark>): string =>
@@ -194,12 +267,13 @@ function machineSection(
 }
 
 function stepSection(s: StepDef, tests: TestResult[], marks: Map<Titled, DiffMark>): string {
+  const status = stepStatusOf(s.id, tests);
   const after =
     s.after.length === 0
       ? ''
       : `<p class="after">после: ${s.after.map((d) => `<a href="#step-${esc(d)}">${esc(d)}</a>`).join(', ')}</p>`;
   const why = s.why === undefined ? '' : `<p class="why">${esc(s.why)}</p>`;
-  return `<section class="card step st-${s.status}" id="step-${esc(s.id)}"><h4>${esc(s.id)}. ${esc(s.title)} <span class="badge">${s.status}</span></h4>${after}${why}${list(
+  return `<section class="card step st-${status}" id="step-${esc(s.id)}"><h4>${esc(s.id)}. ${esc(s.title)} <span class="badge">${status}</span></h4>${after}${why}${list(
     tests.filter((t) => t.step === s.id),
     marks,
   )}</section>`;
@@ -221,7 +295,7 @@ function groups(tests: TestResult[], marks: Map<Titled, DiffMark>): string {
 function fileSection(r: FileReport, svg: (source: string) => string): string {
   const { marks, removed } = diffTitles(r.tests, r.head);
   const parts = [
-    `<h2>${esc(r.plan?.name ?? r.file)}</h2>`,
+    `<h2>${esc(r.file)}</h2>`,
     `<p class="summary">crit ${r.count.crit}/${r.budget.crit} · warn ${r.count.warn}/${r.budget.warn} · info ${r.count.info}${r.count.pending > 0 ? ` · ? ${r.count.pending} без вердикта` : ''}</p>`,
   ];
   if (r.issues.length > 0)
@@ -229,7 +303,10 @@ function fileSection(r: FileReport, svg: (source: string) => string): string {
       `<ul class="issues">${r.issues.map((i) => `<li class="issue">${esc(i)}</li>`).join('')}</ul>`,
     );
   if (r.steps.length > 0) {
-    parts.push('<h3>Шаги плана</h3>', `<div class="graph">${svg(stepsDot(r.steps))}</div>`);
+    parts.push(
+      '<h3>Шаги плана</h3>',
+      `<div class="graph">${svg(stepsDot(r.steps, r.tests))}</div>`,
+    );
     for (const s of r.steps) parts.push(stepSection(s, r.tests, marks));
   }
   for (const m of r.machines)
@@ -268,6 +345,9 @@ h1 { font-size: 1.6rem; } h2 { margin-top: 2.5rem; border-bottom: 1px solid var(
 ul { padding-left: 1.2rem; } li.exp { list-style: none; margin: .25rem 0 .25rem -1.2rem; }
 .mark { display: inline-block; width: 1.1rem; } .o-pass .mark { color: var(--pass); } .o-fail .mark { color: var(--fail); }
 .o-todo .mark, .o-skip .mark { color: var(--todo); }
+.o-wip .mark { color: #b7791f; }
+.from { font-size: .75rem; color: var(--muted); margin-left: .4rem; }
+.blocks { color: var(--muted); margin-top: -.6rem; }
 .lvl { font-size: .75rem; color: var(--muted); text-transform: uppercase; }
 .diff-added { background: var(--added); } .diff-changed { background: var(--changed); } .diff-removed { background: var(--removed); }
 .was { color: var(--muted); margin-left: .5rem; }
@@ -280,11 +360,16 @@ a { color: #0a84ff; }
 @media print { .card:target { outline: none; } }
 `;
 
-const KIND_TITLE: Record<PlanKind, string> = { fsm: 'План FSM' };
+function blocksLine(reports: FileReport[]): string {
+  const blocks = [
+    ...reports.flatMap((r) => r.machines.map((m) => `fsm ${m.name}`)),
+    ...(reports.some((r) => r.steps.length > 0) ? ['шаги'] : []),
+  ];
+  return blocks.length === 0 ? '' : `<p class="blocks">блоки: ${esc(blocks.join(' · '))}</p>`;
+}
 
 export async function renderHtml(reports: FileReport[]): Promise<string> {
-  const kind = reports.find((r) => r.plan !== undefined)?.plan?.kind;
-  const heading = kind === undefined ? 'Ожидания' : KIND_TITLE[kind];
+  const heading = reports.find((r) => r.plan !== undefined)?.plan?.name ?? 'Ожидания';
   const graphviz = await Graphviz.load();
   const svg = (source: string): string => inlineSvg(graphviz.dot(source));
   const body = reports.map((r) => fileSection(r, svg)).join('\n');
@@ -293,11 +378,12 @@ export async function renderHtml(reports: FileReport[]): Promise<string> {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${heading}</title>
+<title>${esc(heading)}</title>
 <style>${STYLE}</style>
 </head>
 <body>
-<h1>${heading}</h1>
+<h1>${esc(heading)}</h1>
+${blocksLine(reports)}
 ${body}
 </body>
 </html>

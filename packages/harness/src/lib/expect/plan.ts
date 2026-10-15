@@ -1,7 +1,7 @@
 import { it } from 'vitest';
 import { describe } from './levels.ts';
 import type { PlanDecl, StepDef } from './levels.ts';
-import { registerScope, sourceNow, type Scope, type StepStatus } from './scope.ts';
+import { registerScope, sourceNow, type Scope } from './scope.ts';
 
 function scopedDescribe(title: string, scope: Scope, body: () => void): void {
   registerScope(title, scope);
@@ -13,32 +13,45 @@ function scopedDescribe(title: string, scope: Scope, body: () => void): void {
 export const STEP_TITLE = '__step__';
 export const MACHINE_TITLE = '__machine__';
 export const PLAN_TITLE = '__plan__';
+export const STEPS_TITLE = 'шаги плана';
 
 export function plan(decl: PlanDecl): void {
   const source = sourceNow();
   it(PLAN_TITLE, (ctx) => {
-    ctx.task.meta.planDecl = { name: decl.name, kind: decl.kind };
+    ctx.task.meta.planDecl = { name: decl.name };
     if (source !== undefined) ctx.task.meta.source = source;
+  });
+}
+
+let stepsDepth = 0;
+
+export function steps(body: () => void): void {
+  describe(STEPS_TITLE, () => {
+    stepsDepth++;
+    try {
+      body();
+    } finally {
+      stepsDepth--;
+    }
   });
 }
 
 export interface StepOptions {
   title: string;
-  status: StepStatus;
   after?: readonly string[];
   why?: string;
 }
 
 export function step(id: string, options: StepOptions, body: () => void): void {
+  if (stepsDepth === 0) throw new Error(`step ${id}: шаг объявляется внутри steps(...)`);
   const def: StepDef = {
     id,
     title: options.title,
-    status: options.status,
     after: [...(options.after ?? [])],
   };
   if (options.why !== undefined) def.why = options.why;
   const source = sourceNow();
-  scopedDescribe(`${id}. ${options.title}`, { step: { id, status: options.status } }, () => {
+  scopedDescribe(`${id}. ${options.title}`, { step: { id } }, () => {
     it(STEP_TITLE, (ctx) => {
       ctx.task.meta.stepDef = def;
       if (source !== undefined) ctx.task.meta.source = source;
@@ -95,7 +108,7 @@ export interface Machine<D> {
   whole: (body: () => void) => void;
 }
 
-export function machine<const D extends MachineSpec<StatesOf<D>, LimitsOf<D>>>(
+export function fsm<const D extends MachineSpec<StatesOf<D>, LimitsOf<D>>>(
   name: string,
   def: D,
 ): Machine<D> {

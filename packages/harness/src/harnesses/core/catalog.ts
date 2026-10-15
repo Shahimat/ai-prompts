@@ -16,6 +16,7 @@ import { harnessHome, listSessions, resolveSession, type Session } from './store
 export interface HarnessModule {
   name: string;
   startOptions?: string;
+  startParams?: readonly string[];
   start: (args: CommandArgs) => Promise<Session>;
   validate: (home: string) => Promise<{ errors: string[]; plugins: string[]; def?: MachineDef }>;
   drive: (session: Session, home: string, event?: string) => Promise<DriveResult>;
@@ -80,7 +81,7 @@ export function harnessNodes(m: HarnessModule): CommandNode[] {
   const at = (...words: string[]): string[] => [m.name, ...words];
   return [
     {
-      path: at('start'),
+      path: at('start', ...(m.startParams ?? [])),
       kind: 'harness',
       effect: 'mutation',
       options: [m.startOptions, HOME].filter((o) => o !== undefined).join(' '),

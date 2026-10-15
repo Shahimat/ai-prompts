@@ -3,7 +3,6 @@ export type StepStatus = (typeof STEP_STATUSES)[number];
 
 export interface StepScope {
   id: string;
-  status: StepStatus;
 }
 
 export interface NodeScope {
@@ -60,6 +59,21 @@ export function originNow(): Origin {
 }
 
 export const sourceNow = (): string | undefined => originNow().source;
+
+const slashes = (p: string): string => p.replace(/\\/g, '/');
+const LIB_DIR = slashes(import.meta.dirname);
+const FRAME_FILE = /((?:file:\/\/)?(?:\/?[A-Za-z]:)?[\\/][^\s():]+\.[cm]?[jt]s)(?::\d+)+/;
+
+export function definingModule(): string | undefined {
+  for (const line of (new Error().stack ?? '').split('\n').slice(1)) {
+    const raw = FRAME_FILE.exec(line)?.[1];
+    if (raw === undefined) continue;
+    const file = decodeURIComponent(raw.replace(/^file:\/\//, '').replace(/^\/([A-Za-z]:)/, '$1'));
+    if (slashes(file).startsWith(LIB_DIR) || file.includes('node_modules')) continue;
+    return file;
+  }
+  return undefined;
+}
 
 export function withOrigin(origin: Origin, body: () => void): void {
   const saved = current;

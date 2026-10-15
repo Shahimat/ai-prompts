@@ -2,14 +2,13 @@ import path from 'node:path';
 import {
   BUDGET_TITLE,
   LEVELS,
-  PLAN_KINDS,
   type Budget,
   type Level,
   type PlanDecl,
   type StepDef,
 } from '#lib/expect/levels';
 import { MACHINE_TITLE, PLAN_TITLE, STEP_TITLE } from '#lib/expect/plan';
-import { isServiceTitle, STEP_STATUSES, type NodeScope, type StepStatus } from '#lib/expect/scope';
+import { isServiceTitle, type NodeScope, type StepStatus } from '#lib/expect/scope';
 import { isOneOf, isRecord, isStringArray } from '#shared/guards';
 
 export const STATUSES = ['passed', 'failed', 'todo', 'skipped', 'pending', 'disabled'] as const;
@@ -31,7 +30,8 @@ export interface TestResult {
   pattern?: string;
   budget?: Budget;
   step?: string;
-  stepStatus?: StepStatus;
+  wip: boolean;
+  defined?: string;
   node?: NodeScope;
   stepDef?: StepDef;
   machine?: MachineDecl;
@@ -43,10 +43,10 @@ const isBudget = (v: unknown): v is Budget =>
 
 function stepDefOf(v: unknown): StepDef | undefined {
   if (!isRecord(v)) return undefined;
-  const { id, title, status, after, why } = v;
+  const { id, title, after, why } = v;
   if (typeof id !== 'string' || typeof title !== 'string') return undefined;
-  if (!isOneOf(STEP_STATUSES, status) || !isStringArray(after)) return undefined;
-  const def: StepDef = { id, title, status, after };
+  if (!isStringArray(after)) return undefined;
+  const def: StepDef = { id, title, after };
   if (typeof why === 'string') def.why = why;
   return def;
 }
@@ -78,7 +78,7 @@ export function parseVitestReport(data: unknown, root: string): TestResult[] {
       if (!isOneOf(STATUSES, status)) return fail(`${name}: неизвестный статус ${String(status)}`);
       if (!isStringArray(failureMessages)) return fail(`${name}: failureMessages — не строки`);
       const meta = isRecord(a['meta']) ? a['meta'] : {};
-      const { level, notes, budget, planned, step, stepStatus, source, pattern } = meta;
+      const { level, notes, budget, planned, step, wip, defined, source, pattern } = meta;
       const result: TestResult = {
         file: relative(root, typeof source === 'string' ? source : name),
         path: ancestorTitles,
@@ -88,22 +88,19 @@ export function parseVitestReport(data: unknown, root: string): TestResult[] {
         level: isOneOf(LEVELS, level) ? level : 'crit',
         notes: isStringArray(notes) ? notes : [],
         planned: planned === true,
+        wip: wip === true,
       };
+      if (typeof defined === 'string') result.defined = relative(root, defined);
       if (isBudget(budget)) result.budget = budget;
       if (typeof step === 'string') result.step = step;
       if (typeof pattern === 'string') result.pattern = pattern;
-      if (isOneOf(STEP_STATUSES, stepStatus)) result.stepStatus = stepStatus;
       const node = nodeOf(meta['node']);
       if (node !== undefined) result.node = node;
       const stepDef = stepDefOf(meta['stepDef']);
       if (stepDef !== undefined) result.stepDef = stepDef;
       const planDecl = meta['planDecl'];
-      if (
-        isRecord(planDecl) &&
-        typeof planDecl['name'] === 'string' &&
-        isOneOf(PLAN_KINDS, planDecl['kind'])
-      )
-        result.planDecl = { name: planDecl['name'], kind: planDecl['kind'] };
+      if (isRecord(planDecl) && typeof planDecl['name'] === 'string')
+        result.planDecl = { name: planDecl['name'] };
       const machine = machineOf(meta['machine']);
       if (machine !== undefined) result.machine = machine;
       return { result, own: typeof source === 'string' };
@@ -111,12 +108,26 @@ export function parseVitestReport(data: unknown, root: string): TestResult[] {
     const byTop = new Map<string, string>();
     for (const t of tests)
       if (t.own && t.result.path[0] !== undefined) byTop.set(t.result.path[0], t.result.file);
-    return tests.map(({ result, own }) => {
+    const results = tests.map(({ result, own }) => {
       if (own) return result;
       const top = result.path[0];
       const file = top === undefined ? undefined : byTop.get(top);
       return file === undefined ? result : { ...result, file };
     });
+    const message = file['message'];
+    if (file['status'] === 'failed' && typeof message === 'string' && message !== '')
+      results.push({
+        file: relative(root, name),
+        path: [],
+        title: `файл не собран: ${message.split('\n')[0] ?? ''}`,
+        status: 'failed',
+        message: message.split('\n')[0] ?? '',
+        level: 'crit',
+        notes: [],
+        planned: false,
+        wip: false,
+      });
+    return results;
   });
 }
 
@@ -152,20 +163,28 @@ export const planOf = (tests: TestResult[]): PlanDecl | undefined =>
 export const isPlannedTest = (t: TestResult): boolean =>
   t.planned && (t.status === 'skipped' || t.status === 'pending' || t.status === 'todo');
 
-export const isProgress = (t: TestResult): boolean =>
-  t.status === 'failed' && t.stepStatus === 'active';
+export const isProgress = (t: TestResult): boolean => t.status === 'failed' && t.wip;
 
-export type Outcome = 'pass' | 'fail' | 'todo' | 'skip';
+export type Outcome = 'pass' | 'fail' | 'todo' | 'wip' | 'skip';
 
 export function outcomeOf(t: TestResult): Outcome {
+  if (t.wip) return 'wip';
   if (isPlannedTest(t) || t.status === 'todo') return 'todo';
   if (t.status === 'failed') return 'fail';
   if (t.status === 'passed') return 'pass';
   return 'skip';
 }
 
+export function stepStatusOf(id: string, tests: TestResult[]): StepStatus {
+  const outcomes = tests.filter((t) => t.step === id).map(outcomeOf);
+  if (outcomes.every((o) => o === 'todo')) return 'todo';
+  if (outcomes.every((o) => o === 'pass')) return 'done';
+  return 'active';
+}
+
 export function stepIssues(steps: StepDef[], tests: TestResult[]): string[] {
   const issues: string[] = [];
+  const status = (id: string): StepStatus => stepStatusOf(id, tests);
   const byId = new Map<string, StepDef>();
   for (const s of steps) {
     if (byId.has(s.id)) issues.push(`шаг ${s.id} объявлен дважды`);
@@ -175,11 +194,9 @@ export function stepIssues(steps: StepDef[], tests: TestResult[]): string[] {
     for (const dep of s.after) {
       const d = byId.get(dep);
       if (d === undefined) issues.push(`шаг ${s.id}: в after нет шага ${dep}`);
-      else if (s.status === 'done' && d.status !== 'done')
-        issues.push(`шаг ${s.id} done, но ${dep} — ${d.status}`);
+      else if (status(s.id) === 'done' && status(d.id) !== 'done')
+        issues.push(`шаг ${s.id} готов, но ${dep} — ${status(d.id)}`);
     }
-    if (s.status === 'done' && tests.some((t) => t.step === s.id && t.planned))
-      issues.push(`шаг ${s.id} done, но в нём есть ожидания без проверки (todo)`);
   }
   const color = new Map<string, number>();
   const visit = (id: string, stack: string[]): void => {

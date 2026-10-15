@@ -41,6 +41,7 @@ import {
   planOf,
   stepIssues,
   stepsOf,
+  stepStatusOf,
   visible,
   type TestResult,
 } from './results.ts';
@@ -126,7 +127,8 @@ const isPending = (t: TestResult): boolean =>
 function stepLabels(tests: TestResult[]): Map<string, string> {
   const labels = new Map<string, string>();
   for (const t of tests)
-    if (t.stepDef !== undefined) labels.set(t.path.join('\u0000'), t.stepDef.status);
+    if (t.stepDef !== undefined)
+      labels.set(t.path.join('\u0000'), stepStatusOf(t.stepDef.id, tests));
   return labels;
 }
 
@@ -160,10 +162,10 @@ async function collect(
       });
       prev = t.path;
       const pad = '  '.repeat(t.path.length + 1);
-      if (isPlannedTest(t)) {
+      if (t.wip) {
+        log(`${pad}◐ ${t.level} ${t.title}${isProgress(t) ? `  — ${t.message}` : ''} (в работе)`);
+      } else if (isPlannedTest(t)) {
         log(`${pad}○ ${t.level} ${t.title}`);
-      } else if (isProgress(t)) {
-        log(`${pad}◐ ${t.title}  — ${t.message} (шаг active)`);
       } else if (isPending(t)) {
         count.pending++;
         log(`${pad}? ${t.title}  — нужен вердикт судьи`);

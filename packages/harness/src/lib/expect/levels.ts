@@ -1,11 +1,11 @@
 import { describe as vitestDescribe, expect, it } from 'vitest';
 import {
+  definingModule,
   originNow,
   scopeOf,
   sourceNow,
   withOrigin,
   type NodeScope,
-  type StepStatus,
 } from './scope.ts';
 
 export const LEVELS = ['crit', 'warn', 'info'] as const;
@@ -23,17 +23,12 @@ export const NEAR_LIMIT = 0.9;
 export interface StepDef {
   id: string;
   title: string;
-  status: StepStatus;
   after: string[];
   why?: string;
 }
 
-export const PLAN_KINDS = ['fsm'] as const;
-export type PlanKind = (typeof PLAN_KINDS)[number];
-
 export interface PlanDecl {
   name: string;
-  kind: PlanKind;
 }
 
 export interface MachineMeta {
@@ -48,7 +43,8 @@ declare module 'vitest' {
     budget?: Budget;
     planned?: boolean;
     step?: string;
-    stepStatus?: StepStatus;
+    wip?: boolean;
+    defined?: string;
     node?: NodeScope;
     stepDef?: StepDef;
     machine?: MachineMeta;
@@ -62,20 +58,22 @@ let notes: string[] = [];
 
 type Body = () => unknown;
 
-function levelled(level: Level, title: string, fn: Body | undefined): void {
+type Stub = 'todo' | 'wip' | undefined;
+
+function levelled(level: Level, title: string, fn: Body | undefined, stub: Stub): void {
   const origin = originNow();
+  const defined = definingModule();
   it(title, async (ctx) => {
     const scope = scopeOf(ctx.task);
     const meta = ctx.task.meta;
     meta.level = level;
     if (origin.source !== undefined) meta.source = origin.source;
     if (origin.pattern !== undefined) meta.pattern = origin.pattern;
-    if (scope.step !== undefined) {
-      meta.step = scope.step.id;
-      meta.stepStatus = scope.step.status;
-    }
+    if (defined !== undefined) meta.defined = defined;
+    if (stub === 'wip') meta.wip = true;
+    if (scope.step !== undefined) meta.step = scope.step.id;
     if (scope.node !== undefined) meta.node = scope.node;
-    if (fn === undefined || scope.step?.status === 'todo') {
+    if (fn === undefined) {
       meta.planned = true;
       ctx.skip();
       return;
@@ -93,11 +91,13 @@ function levelled(level: Level, title: string, fn: Body | undefined): void {
 interface LevelFn {
   (title: string, fn: Body): void;
   todo: (title: string) => void;
+  wip: (title: string, fn?: Body) => void;
 }
 
 const levelFn = (level: Level): LevelFn =>
-  Object.assign((title: string, fn: Body) => levelled(level, title, fn), {
-    todo: (title: string) => levelled(level, title, undefined),
+  Object.assign((title: string, fn: Body) => levelled(level, title, fn, undefined), {
+    todo: (title: string) => levelled(level, title, undefined, 'todo'),
+    wip: (title: string, fn?: Body) => levelled(level, title, fn, 'wip'),
   });
 
 export const crit: LevelFn = levelFn('crit');
