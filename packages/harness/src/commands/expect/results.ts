@@ -1,7 +1,11 @@
 import path from 'node:path';
 import {
   BUDGET_TITLE,
+  DOC_KINDS,
   LEVELS,
+  type Answer,
+  type DocBlock,
+  type Question,
   type Budget,
   type Level,
   type PlanDecl,
@@ -36,6 +40,7 @@ export interface TestResult {
   stepDef?: StepDef;
   machine?: MachineDecl;
   planDecl?: PlanDecl;
+  doc?: DocBlock;
 }
 
 const isBudget = (v: unknown): v is Budget =>
@@ -99,6 +104,13 @@ export function parseVitestReport(data: unknown, root: string): TestResult[] {
       const stepDef = stepDefOf(meta['stepDef']);
       if (stepDef !== undefined) result.stepDef = stepDef;
       const planDecl = meta['planDecl'];
+      const doc = meta['doc'];
+      if (isRecord(doc) && isOneOf(DOC_KINDS, doc['kind']) && typeof doc['text'] === 'string') {
+        const block: DocBlock = { kind: doc['kind'], text: doc['text'] };
+        const questions = questionsOf(doc['questions']);
+        if (questions !== undefined) block.questions = questions;
+        result.doc = block;
+      }
       if (isRecord(planDecl) && typeof planDecl['name'] === 'string')
         result.planDecl = { name: planDecl['name'] };
       const machine = machineOf(meta['machine']);
@@ -129,6 +141,27 @@ export function parseVitestReport(data: unknown, root: string): TestResult[] {
       });
     return results;
   });
+}
+
+function answerOf(v: unknown): Answer | undefined {
+  if (!isRecord(v) || typeof v['text'] !== 'string') return undefined;
+  const a: Answer = { text: v['text'] };
+  if (v['recommended'] === true) a.recommended = true;
+  if (typeof v['comment'] === 'string') a.comment = v['comment'];
+  return a;
+}
+
+function questionsOf(v: unknown): Question[] | undefined {
+  if (!Array.isArray(v)) return undefined;
+  return v.flatMap((q): Question[] => {
+    if (!isRecord(q) || typeof q['text'] !== 'string' || !Array.isArray(q['answers'])) return [];
+    return [{ text: q['text'], answers: q['answers'].flatMap((a) => answerOf(a) ?? []) }];
+  });
+}
+
+export interface Remark {
+  text: string;
+  detail?: string;
 }
 
 const relative = (root: string, file: string): string =>
@@ -180,6 +213,16 @@ export function stepStatusOf(id: string, tests: TestResult[]): StepStatus {
   if (outcomes.every((o) => o === 'todo')) return 'todo';
   if (outcomes.every((o) => o === 'pass')) return 'done';
   return 'active';
+}
+
+export const docsOf = (tests: TestResult[]): DocBlock[] =>
+  tests.flatMap((t) => (t.doc === undefined ? [] : [t.doc]));
+
+export function docIssues(tests: TestResult[]): string[] {
+  const titles = docsOf(tests).filter((d) => d.kind === 'title');
+  return titles.length > 1
+    ? [`info.title объявлен ${titles.length} раза — на странице один title`]
+    : [];
 }
 
 export function stepIssues(steps: StepDef[], tests: TestResult[]): string[] {

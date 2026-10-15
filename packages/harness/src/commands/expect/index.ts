@@ -28,7 +28,7 @@ import {
 } from '#lib/expect/verdicts';
 import type { CommandArgs } from '#shared/args';
 import { headTitles } from './head.ts';
-import { portOf, serveHtml } from './serve.ts';
+import { portOf, renderInChild, serveHtml } from './serve.ts';
 import { renderHtml, type FileReport } from './html.ts';
 import {
   budgetOf,
@@ -41,8 +41,10 @@ import {
   planOf,
   stepIssues,
   stepsOf,
+  docIssues,
   stepStatusOf,
   visible,
+  type Remark,
   type TestResult,
 } from './results.ts';
 
@@ -150,7 +152,7 @@ async function collect(
     const items = visible(tests);
     const steps = stepsOf(tests);
     const labels = stepLabels(tests);
-    const issues: string[] = [];
+    const issues: Remark[] = [];
     const count = { crit: 0, warn: 0, info: 0, pending: 0 };
     log(file);
     let prev: string[] = [];
@@ -179,14 +181,14 @@ async function collect(
       count.info += t.notes.length;
     }
 
-    for (const issue of stepIssues(steps, tests)) {
+    for (const issue of [...stepIssues(steps, tests), ...docIssues(tests)]) {
       count.crit++;
-      issues.push(issue);
+      issues.push({ text: issue });
       log(`  ✗ план: ${issue}`);
     }
     for (const d of titleIssues.filter((i) => i.title.file === file)) {
       count[d.level]++;
-      issues.push(`заголовок «${d.title.title}» — ${d.message}`);
+      issues.push({ text: `заголовок «${d.title.title}»`, detail: d.message });
       log(`  ${d.level === 'crit' ? '✗' : '⚠'} заголовок «${d.title.title}» — ${d.message}`);
     }
     const lint = store.lint[file];
@@ -194,18 +196,28 @@ async function collect(
       count.pending++;
       log('  ? смысловая проверка заголовков устарела — harness expect judge');
     } else {
-      const name = new Map(items.map((t) => [idOf(fullName(t)), t.title]));
+      const byId = new Map(items.map((t) => [idOf(fullName(t)), t]));
+      const name = (id: string) => byId.get(id)?.title;
+      const stub = (...ids: string[]) =>
+        ids.some((id) => {
+          const t = byId.get(id);
+          return t !== undefined && (t.wip || isPlannedTest(t));
+        });
+      const note = (wip: boolean) => (wip ? ' (в работе — не блокирует)' : '');
       for (const c of lint.contradictions) {
-        const line = `противоречие: «${name.get(c.a)}» ↔ «${name.get(c.b)}» — ${c.reason}`;
-        issues.push(line);
-        log(`  ⚠ ${line}`);
+        const wip = stub(c.a, c.b);
+        const text = `противоречие: «${name(c.a)}» ↔ «${name(c.b)}»${note(wip)}`;
+        issues.push({ text, detail: c.reason });
+        log(`  ${wip ? '◐' : '⚠'} ${text} — ${c.reason}`);
+        if (!wip) count.warn++;
       }
       for (const u of lint.unmeasurable) {
-        const line = `неизмеримо: «${name.get(u.id)}» — ${u.reason}`;
-        issues.push(line);
-        log(`  ⚠ ${line}`);
+        const wip = stub(u.id);
+        const text = `неизмеримо: «${name(u.id)}»${note(wip)}`;
+        issues.push({ text, detail: u.reason });
+        log(`  ${wip ? '◐' : '⚠'} ${text} — ${u.reason}`);
+        if (!wip) count.warn++;
       }
-      count.warn += lint.contradictions.length + lint.unmeasurable.length;
     }
 
     const over = count.crit > budget.crit || count.warn > budget.warn || count.pending > 0;
@@ -223,6 +235,7 @@ async function collect(
     };
     const report: FileReport = {
       file,
+      all: tests,
       tests: items,
       steps,
       machines: machinesOf(tests),
@@ -247,10 +260,15 @@ async function pageHtml(args: CommandArgs, reports: FileReport[]): Promise<strin
     );
     if (head !== undefined) r.head = head;
   }
-  return renderHtml(reports);
+  return renderHtml(reports, entryOf(args));
 }
 
 async function report(args: CommandArgs): Promise<number> {
+  if (args.html === '-') {
+    const { reports, blocked } = await collect(args, () => undefined);
+    process.stdout.write(await pageHtml(args, reports));
+    return blocked ? 1 : 0;
+  }
   const { reports, blocked } = await collect(args, (line) => {
     console.log(line);
   });
@@ -264,12 +282,12 @@ async function report(args: CommandArgs): Promise<number> {
 }
 
 async function serve(args: CommandArgs): Promise<number> {
-  entryOf(args);
-  const render = async (): Promise<string> => {
-    const { reports } = await collect(args, () => undefined);
-    return pageHtml(args, reports);
-  };
-  return serveHtml({ root: args.root, port: portOf(args.port), render });
+  const entry = entryOf(args);
+  return serveHtml({
+    root: args.root,
+    port: portOf(args.port),
+    render: () => renderInChild(args.root, entry),
+  });
 }
 
 async function lint(args: CommandArgs): Promise<number> {

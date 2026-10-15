@@ -37,6 +37,8 @@ export function headTitles(
   }
 }
 
+export const HEAD_COPY = /\.head-\d+\.expect\.ts$/;
+
 const keyOf = (t: Titled): string => [...t.path, t.title].join('\u0000');
 const pathOf = (t: Titled): string => t.path.join('\u0000');
 

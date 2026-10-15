@@ -1,21 +1,23 @@
 import { Graphviz } from '@hpcc-js/wasm-graphviz';
-import type { Budget, PlanDecl, StepDef } from '#lib/expect/levels';
+import type { Budget, PlanDecl, Question, StepDef } from '#lib/expect/levels';
 import { graphOf, type MachineGraph } from '#lib/expect/plan';
 import { diffTitles, type DiffMark, type Titled } from './head.ts';
 import {
   outcomeOf,
   stepStatusOf,
   type MachineDecl,
+  type Remark,
   type Outcome,
   type TestResult,
 } from './results.ts';
 
 export interface FileReport {
   file: string;
+  all: TestResult[];
   tests: TestResult[];
   steps: StepDef[];
   machines: MachineDecl[];
-  issues: string[];
+  issues: Remark[];
   budget: Budget;
   count: { crit: number; warn: number; info: number; pending: number };
   head?: Titled[];
@@ -56,6 +58,9 @@ function statusOf(tests: TestResult[]): NodeStatus {
   return 'none';
 }
 
+const ENTRY = '#16a34a';
+const EXIT = '#2563eb';
+
 const GRAPH_HEAD = [
   'rankdir=LR',
   'bgcolor="transparent"',
@@ -63,42 +68,158 @@ const GRAPH_HEAD = [
   'edge [fontname="Helvetica" fontsize=10 color="#777777"]',
 ];
 
-function machineDot(name: string, g: MachineGraph, tests: TestResult[]): string {
+const USER = '#7c3aed';
+
+function nodeStatus(machine: string, s: MachineGraph['states'][number], tests: TestResult[]) {
+  const mine = (node: string) =>
+    tests.filter((t) => t.node?.machine === machine && t.node.node === node);
+  const own = mine(`state:${s.name}`);
+  if (own.length > 0) return statusOf(own);
+  return statusOf(
+    Object.keys(s.on).flatMap((event) =>
+      tests.filter(
+        (t) =>
+          t.node?.machine === machine &&
+          (t.node.node === `tr:${s.name}:${event}` ||
+            t.node.node.startsWith(`tr:${s.name}:${event}:`)),
+      ),
+    ),
+  );
+}
+
+const slugId = (x: string): string => x.replace(/[^\p{L}\p{N}_-]+/gu, '_');
+
+const stateCard = (state: string): string => `state-${slugId(state)}`;
+const trCard = (from: string, event: string, to?: string): string =>
+  `tr-${slugId(from)}-${slugId(event)}${to === undefined ? '' : `--${slugId(to)}`}`;
+const entryCard = (machine: string): string => `entry-${slugId(machine)}`;
+const nodeId = (machine: string, state: string): string =>
+  `g-${slugId(machine)}-s-${slugId(state)}`;
+const edgeId = (machine: string, from: string, event: string): string =>
+  `g-${slugId(machine)}-t-${slugId(from)}-${slugId(event)}`;
+const entryEdgeId = (machine: string): string => `g-${slugId(machine)}-entry`;
+
+interface DotOptions {
+  focus?: string;
+}
+
+type Variant = MachineGraph['states'][number]['on'][string][number];
+
+function edgeLabel(
+  g: MachineGraph,
+  event: string,
+  t: Variant,
+  earlier: readonly Variant[] = [],
+): string {
+  if (t.label !== undefined) return t.label;
+  return [
+    event,
+    t.count === undefined ? '' : `${t.count}≤${g.limits[t.count] ?? '?'}`,
+    t.count === undefined && earlier.some((e) => e.count !== undefined) ? 'лимит исчерпан' : '',
+    ...t.reset.map((r) => `${r}=0`),
+  ]
+    .filter((p) => p !== '')
+    .join(' · ');
+}
+
+function machineDot(
+  name: string,
+  g: MachineGraph,
+  tests: TestResult[],
+  opts: DotOptions = {},
+): string {
   const own = (node: string) =>
     tests.filter((t) => t.node?.machine === name && t.node.node === node);
-  const lines = [...GRAPH_HEAD, `"__start" [shape=point width=0.12 label=""]`];
-  lines.push(`"__start" -> ${dot(g.initial)}`);
+  const local = opts.focus;
+  const near = new Set<string>();
+  if (local !== undefined) {
+    near.add(local);
+    for (const s of g.states)
+      for (const list of Object.values(s.on))
+        for (const t of list) {
+          if (s.name === local) near.add(t.to);
+          if (t.to === local) near.add(s.name);
+        }
+  }
+  const shown = (state: string) => local === undefined || near.has(state);
+  const keepEdge = (from: string, to: string) =>
+    local === undefined || from === local || to === local;
+  const userState = new Set(g.states.filter((s) => s.actor === 'user').map((s) => s.name));
+  const lines = [...GRAPH_HEAD];
+  if (local === undefined || local === g.initial) {
+    const entry: Record<string, string> = {
+      shape: 'circle',
+      label: '',
+      width: '0.3',
+      style: 'filled',
+      fillcolor: ENTRY,
+      color: ENTRY,
+      tooltip: 'вход',
+      URL: `#${entryCard(name)}`,
+    };
+    const edge: Record<string, string> = {
+      label: g.start ?? '',
+      color: ENTRY,
+      fontcolor: ENTRY,
+      penwidth: '2',
+      URL: `#${entryCard(name)}`,
+      tooltip: `вход → ${g.initial}`,
+    };
+    if (local === undefined) {
+      entry['id'] = `${entryEdgeId(name)}-node`;
+      edge['id'] = entryEdgeId(name);
+    }
+    lines.push(`"__start" ${attrs(entry)}`, `"__start" -> ${dot(g.initial)} ${attrs(edge)}`);
+  }
   for (const s of g.states) {
-    const status = statusOf(own(`state:${s.name}`));
+    if (!shown(s.name)) continue;
+    const status = nodeStatus(name, s, tests);
     const a: Record<string, string> = {
-      label: s.final ? s.name : `${s.name}\n${s.actor ?? ''}`,
-      URL: `#state-${s.name}`,
+      label: s.name,
+      URL: `#${stateCard(s.name)}`,
       class: status,
       fillcolor: FILL[status] ?? '#ffffff',
-      tooltip: s.name,
+      tooltip: s.description ?? s.name,
     };
-    if (s.final) a['peripheries'] = '2';
+    if (local === undefined) a['id'] = nodeId(name, s.name);
+    if (userState.has(s.name)) {
+      a['color'] = USER;
+      a['penwidth'] = '2.5';
+      a['fontcolor'] = USER;
+    }
+    if (s.name === local) a['penwidth'] = '3';
+    if (s.final) {
+      a['peripheries'] = '2';
+      a['fillcolor'] = EXIT;
+      a['color'] = EXIT;
+      a['fontcolor'] = '#ffffff';
+    }
     lines.push(`${dot(s.name)} ${attrs(a)}`);
   }
   for (const s of g.states)
     for (const [event, list] of Object.entries(s.on))
-      for (const t of list) {
-        const label = [
-          event,
-          t.count === undefined ? '' : `${t.count}≤${g.limits[t.count] ?? '?'}`,
-          ...t.reset.map((r) => `${r}=0`),
-        ]
-          .filter((p) => p !== '')
-          .join(' · ');
-        const a: Record<string, string> = { label };
-        const card = own(`tr:${s.name}:${event}`);
-        if (card.length > 0) {
-          a['URL'] = `#tr-${s.name}-${event}`;
-          a['class'] = statusOf(card);
-          a['tooltip'] = `${s.name} —${event}→ ${t.to}`;
+      list.forEach((t, i) => {
+        if (!keepEdge(s.name, t.to)) return;
+        const multi = list.length > 1;
+        const card = [
+          ...own(`tr:${s.name}:${event}:${t.to}`),
+          ...(!multi || i === 0 ? own(`tr:${s.name}:${event}`) : []),
+        ];
+        const a: Record<string, string> = {
+          label: edgeLabel(g, event, t, list.slice(0, i)),
+          URL: `#${trCard(s.name, event, multi ? t.to : undefined)}`,
+          tooltip: `${s.name} → ${t.to} [${event}]`,
+        };
+        if (card.length > 0) a['class'] = statusOf(card);
+        if (local === undefined)
+          a['id'] = `${edgeId(name, s.name, event)}${i === 0 ? '' : `-${i}`}`;
+        if (userState.has(s.name)) {
+          a['color'] = USER;
+          a['fontcolor'] = USER;
+          a['penwidth'] = '1.8';
         }
         lines.push(`${dot(s.name)} -> ${dot(t.to)} ${attrs(a)}`);
-      }
+      });
   return `digraph ${dot(name)} {\n  ${lines.join(';\n  ')};\n}`;
 }
 
@@ -187,6 +308,8 @@ const inlineSvg = (svg: string): string =>
     .replace(/<!DOCTYPE[^>]*>\s*/, '')
     .trim();
 
+let pageEntry: string | undefined;
+
 function item(t: TestResult, mark: DiffMark | undefined): string {
   const outcome = outcomeOf(t);
   const cls = ['exp', `o-${outcome}`, `lvl-${t.level}`];
@@ -196,10 +319,11 @@ function item(t: TestResult, mark: DiffMark | undefined): string {
   const msg =
     outcome === 'fail' && t.message !== '' ? `<div class="msg">${esc(t.message)}</div>` : '';
   const notes = t.notes.map((n) => `<div class="note">ℹ ${esc(n)}</div>`).join('');
+  const origin = t.defined ?? t.file;
   const defined =
-    t.defined === undefined || t.defined === t.file
+    pageEntry === undefined || origin === pageEntry
       ? ''
-      : ` <span class="from">из ${esc(t.defined)}</span>`;
+      : ` <span class="from">из ${esc(origin)}</span>`;
   const from =
     t.pattern === undefined ? '' : ` <span class="pattern">паттерн ${esc(t.pattern)}</span>`;
   return `<li class="${cls.join(' ')}"><span class="mark">${MARK[outcome]}</span> <span class="lvl">${t.level}</span> <span class="title">${esc(t.title)}</span>${from}${defined}${was}${msg}${notes}</li>`;
@@ -210,59 +334,69 @@ const list = (tests: TestResult[], marks: Map<Titled, DiffMark>): string =>
     ? '<p class="empty">ожиданий нет</p>'
     : `<ul>${tests.map((t) => item(t, marks.get(t))).join('')}</ul>`;
 
-function transitionsTable(rows: { event: string; other: string; note: string }[], head: string) {
-  if (rows.length === 0) return '';
-  return `<table><thead><tr><th>событие</th><th>${head}</th><th></th></tr></thead><tbody>${rows
-    .map(
-      (r) =>
-        `<tr><td><code>${esc(r.event)}</code></td><td><a href="#state-${esc(r.other)}">${esc(r.other)}</a></td><td>${esc(r.note)}</td></tr>`,
-    )
-    .join('')}</tbody></table>`;
+function chip(href: string, text: string, cls: string): string {
+  return `<a class="chip ${cls}" href="#${href}">${esc(text)}</a>`;
 }
+
+const LEGEND = `<p class="legend"><span class="lg user">действие пользователя</span><span class="lg auto">автоматика</span><span class="lg entry">вход</span><span class="lg exit">выход</span></p>`;
 
 function machineSection(
   m: MachineDecl,
-  svg: string,
+  svg: (source: string) => string,
   tests: TestResult[],
   marks: Map<Titled, DiffMark>,
 ): string {
   const g = graphOf(m.def);
   const own = (node: string) =>
     tests.filter((t) => t.node?.machine === m.name && t.node.node === node);
-  const parts = [
-    `<h3>Автомат <code>${esc(m.name)}</code></h3>`,
-    `<div class="graph">${svg}</div>`,
-    `<section class="card" id="machine-${esc(m.name)}"><h4>Автомат целиком</h4>${list(own('machine'), marks)}</section>`,
-  ];
-  for (const s of g.states) {
-    const out = Object.entries(s.on).flatMap(([event, l]) =>
-      l.map((t) => ({
-        event,
-        other: t.to,
-        note: [t.count === undefined ? '' : `счётчик ${t.count}`, ...t.reset.map((r) => `${r}=0`)]
-          .filter((p) => p !== '')
-          .join(', '),
-      })),
-    );
-    const incoming = g.states.flatMap((from) =>
-      Object.entries(from.on).flatMap(([event, l]) =>
-        l.filter((t) => t.to === s.name).map(() => ({ event, other: from.name, note: '' })),
+  const kind = (state: string): string => {
+    const s = g.states.find((x) => x.name === state);
+    const status = s === undefined ? 'none' : nodeStatus(m.name, s, tests);
+    return `s-${status}${s?.actor === 'user' ? ' user' : ''}${s?.final === true ? ' exit' : ''}`;
+  };
+  const stateChip = (state: string) => chip(stateCard(state), state, kind(state));
+  const back = (id: string) => `to-${id}`;
+  const anchors = [
+    entryEdgeId(m.name),
+    ...g.states.map((s) => nodeId(m.name, s.name)),
+    ...g.states.flatMap((s) =>
+      Object.entries(s.on).flatMap(([event, l]) =>
+        l.map((_t, i) => `${edgeId(m.name, s.name, event)}${i === 0 ? '' : `-${i}`}`),
       ),
-    );
-    const status = statusOf(own(`state:${s.name}`));
+    ),
+  ];
+  const parts = [
+    `<div class="graph main">${anchors.map((id) => `<span class="anchor" id="to-${id}"></span>`).join('')}${svg(machineDot(m.name, g, tests))}</div>`,
+    `<style>${anchors.map((id) => `.graph:has(#to-${id}:target) #${id} :is(path, polygon, ellipse)`).join(',\n')} { animation: flash 1.4s ease-in-out 2; }</style>`,
+    LEGEND,
+    `<section class="whole" id="machine-${esc(m.name)}">${list(own('machine'), marks)}</section>`,
+  ];
+  const entry = `<section class="card transition" id="${entryCard(m.name)}"><h4>${chip(back(entryEdgeId(m.name)), 'вход', 'entry')} → ${stateChip(g.initial)} ${chip(back(entryEdgeId(m.name)), `[${g.start ?? 'start'}]`, `ev s-${statusOf(own('entry'))}`)}</h4>${list(own('entry'), marks)}</section>`;
+  parts.push('<h3 class="fsm-part">Состояния</h3>');
+  for (const s of g.states) {
+    const badges = [
+      s.final ? 'final' : (s.actor ?? ''),
+      g.initial === s.name ? 'initial' : '',
+    ].filter((b) => b !== '');
     parts.push(
-      `<section class="card state s-${status}" id="state-${esc(s.name)}"><h4>${esc(s.name)} <span class="badge">${s.final ? 'final' : esc(s.actor ?? '')}</span>${g.initial === s.name ? ' <span class="badge">initial</span>' : ''}</h4>${transitionsTable(incoming, 'откуда')}${transitionsTable(out, 'куда')}${list(own(`state:${s.name}`), marks)}</section>`,
+      `<section class="card state ${kind(s.name)}" id="${stateCard(s.name)}"><h4>${chip(back(nodeId(m.name, s.name)), s.name, kind(s.name))} ${badges.map((b) => `<span class="badge">${esc(b)}</span>`).join(' ')}</h4>${s.description === undefined ? '' : `<p class="why">${esc(s.description)}</p>`}<details class="local"><summary>соседи на схеме</summary><div class="graph">${svg(machineDot(m.name, g, tests, { focus: s.name }))}</div></details>${list(own(`state:${s.name}`), marks)}</section>`,
     );
   }
+  parts.push('<h3 class="fsm-part">Переходы</h3>', entry);
   for (const s of g.states)
-    for (const event of Object.keys(s.on)) {
-      const card = own(`tr:${s.name}:${event}`);
-      if (card.length === 0) continue;
-      const to = (s.on[event] ?? []).map((t) => t.to).join(' | ');
-      parts.push(
-        `<section class="card transition" id="tr-${esc(s.name)}-${esc(event)}"><h4>${esc(s.name)} —${esc(event)}→ ${esc(to)}</h4>${list(card, marks)}</section>`,
-      );
-    }
+    for (const [event, targets] of Object.entries(s.on))
+      targets.forEach((t, i) => {
+        const multi = targets.length > 1;
+        const card = [
+          ...own(`tr:${s.name}:${event}:${t.to}`),
+          ...(!multi || i === 0 ? own(`tr:${s.name}:${event}`) : []),
+        ];
+        const label = edgeLabel(g, event, t, targets.slice(0, i));
+        const edge = `${edgeId(m.name, s.name, event)}${i === 0 ? '' : `-${i}`}`;
+        parts.push(
+          `<section class="card transition" id="${trCard(s.name, event, multi ? t.to : undefined)}"><h4>${stateChip(s.name)} → ${stateChip(t.to)} ${chip(back(edge), `[${label}]`, `ev s-${statusOf(card)}`)}</h4>${list(card, marks)}</section>`,
+        );
+      });
   return parts.join('\n');
 }
 
@@ -292,27 +426,92 @@ function groups(tests: TestResult[], marks: Map<Titled, DiffMark>): string {
     .join('\n');
 }
 
-function fileSection(r: FileReport, svg: (source: string) => string): string {
+interface Counts {
+  passed: number;
+  stubs: number;
+  failed: number;
+  total: number;
+}
+
+function countsOf(tests: TestResult[], level: string): Counts {
+  const own = tests.filter((t) => t.level === level);
+  const outcomes = own.map(outcomeOf);
+  return {
+    passed: outcomes.filter((o) => o === 'pass').length,
+    stubs: outcomes.filter((o) => o === 'todo' || o === 'wip').length,
+    failed: outcomes.filter((o) => o === 'fail').length,
+    total: own.length,
+  };
+}
+
+function statsWidget(level: string, page: TestResult[]): string {
+  const c = countsOf(page, level);
+  const cell = (kind: string, value: number, label: string) =>
+    `<div class="stat ${kind}${value > 0 ? ' on' : ''}"><span class="value">${value}</span><span class="label">${label}</span></div>`;
+  return `<div class="stats lvl-${esc(level)}"><div class="stats-level">${esc(level)}</div>${cell('passed', c.passed, 'пройдено')}${cell('stubs', c.stubs, 'заглушки')}${cell('failed', c.failed, 'не пройдено')}${cell('total', c.total, 'всего')}</div>`;
+}
+
+function questionsBlock(questions: readonly Question[]): string {
+  const answer = (a: Question['answers'][number]) =>
+    `<li class="answer${a.recommended === true ? ' rec' : ''}">${esc(a.text)}${a.comment === undefined ? '' : `<span class="tip">${esc(a.comment)}</span>`}</li>`;
+  return `<section class="block questions"><h3>Вопросы и предложения</h3><ol>${questions
+    .map(
+      (q) =>
+        `<li class="question">${esc(q.text)}<ol class="answers">${q.answers.map(answer).join('')}</ol></li>`,
+    )
+    .join('')}</ol></section>`;
+}
+
+let pageRemarks: Remark[] = [];
+
+function remarksBlock(remarks: readonly Remark[]): string {
+  if (remarks.length === 0) return '';
+  return `<section class="block remarks"><h3>Замечания</h3><ol>${remarks
+    .map(
+      (r) =>
+        `<li class="remark">${esc(r.text)}${r.detail === undefined ? '' : `<ul><li class="detail">${esc(r.detail)}</li></ul>`}</li>`,
+    )
+    .join('')}</ol></section>`;
+}
+
+function fileSection(r: FileReport, svg: (source: string) => string, page: TestResult[]): string {
   const { marks, removed } = diffTitles(r.tests, r.head);
-  const parts = [
-    `<h2>${esc(r.file)}</h2>`,
-    `<p class="summary">crit ${r.count.crit}/${r.budget.crit} · warn ${r.count.warn}/${r.budget.warn} · info ${r.count.info}${r.count.pending > 0 ? ` · ? ${r.count.pending} без вердикта` : ''}</p>`,
-  ];
-  if (r.issues.length > 0)
-    parts.push(
-      `<ul class="issues">${r.issues.map((i) => `<li class="issue">${esc(i)}</li>`).join('')}</ul>`,
-    );
-  if (r.steps.length > 0) {
-    parts.push(
-      '<h3>Шаги плана</h3>',
-      `<div class="graph">${svg(stepsDot(r.steps, r.tests))}</div>`,
-    );
-    for (const s of r.steps) parts.push(stepSection(s, r.tests, marks));
-  }
-  for (const m of r.machines)
-    parts.push(machineSection(m, svg(machineDot(m.name, graphOf(m.def), r.tests)), r.tests, marks));
+  const parts: string[] = [];
   const rest = r.tests.filter((t) => t.step === undefined && t.node === undefined);
-  if (rest.length > 0) parts.push('<h3>Ожидания</h3>', groups(rest, marks));
+  const restPath = (t: TestResult): string => t.path.join(' › ');
+  const placed = new Set<string>();
+  let stepsPlaced = r.steps.length === 0;
+  for (const t of r.all) {
+    if (t.doc !== undefined) {
+      if (t.doc.kind === 'subtitle') parts.push(`<h2 class="subtitle">${esc(t.doc.text)}</h2>`);
+      if (t.doc.kind === 'text') parts.push(`<p class="text">${esc(t.doc.text)}</p>`);
+      if (t.doc.kind === 'stats') parts.push(statsWidget(t.doc.text, page));
+      if (t.doc.kind === 'questions') parts.push(questionsBlock(t.doc.questions ?? []));
+      if (t.doc.kind === 'remarks') parts.push(remarksBlock(pageRemarks));
+      continue;
+    }
+    if (t.machine !== undefined) {
+      const m = t.machine;
+      parts.push(machineSection(m, svg, r.tests, marks));
+      continue;
+    }
+    if (t.stepDef !== undefined && !stepsPlaced) {
+      stepsPlaced = true;
+      parts.push(
+        `<div class="graph">${svg(stepsDot(r.steps, r.tests))}</div>`,
+        ...r.steps.map((st) => stepSection(st, r.tests, marks)),
+      );
+      continue;
+    }
+    if (!rest.includes(t) || placed.has(restPath(t))) continue;
+    placed.add(restPath(t));
+    parts.push(
+      groups(
+        rest.filter((x) => restPath(x) === restPath(t)),
+        marks,
+      ),
+    );
+  }
   if (removed.length > 0)
     parts.push(
       `<div class="group removed"><h3>Удалено относительно HEAD</h3><ul>${removed
@@ -347,32 +546,71 @@ ul { padding-left: 1.2rem; } li.exp { list-style: none; margin: .25rem 0 .25rem 
 .o-todo .mark, .o-skip .mark { color: var(--todo); }
 .o-wip .mark { color: #b7791f; }
 .from { font-size: .75rem; color: var(--muted); margin-left: .4rem; }
-.blocks { color: var(--muted); margin-top: -.6rem; }
+.stats { display: inline-flex; gap: .4rem; align-items: stretch; margin: .4rem .8rem .4rem 0; padding: .4rem; border: 1px solid var(--line); border-radius: 8px; background: var(--card); }
+.stats-level { align-self: center; font-size: .75rem; text-transform: uppercase; color: var(--muted); padding: 0 .3rem; }
+.stats.lvl-crit .stats-level { color: var(--fail); font-weight: 700; }
+.stats.lvl-warn .stats-level { color: #d97706; font-weight: 700; }
+.stat { display: flex; flex-direction: column; align-items: center; min-width: 4.2rem; padding: .2rem .4rem; border-radius: 6px; }
+.stat .value { font-size: 1.5rem; font-weight: 600; line-height: 1.2; }
+.stat .label { font-size: .7rem; color: var(--muted); }
+.stat.passed.on .value { color: var(--pass); }
+.stat.stubs.on .value { color: var(--todo); }
+.stat.failed.on .value { color: var(--fail); }
+.stat.total.on .value { color: var(--fg); font-weight: 700; }
+h2.subtitle { border-bottom: none; margin-top: 2rem; }
+p.text { font-size: 1.05rem; }
 .lvl { font-size: .75rem; color: var(--muted); text-transform: uppercase; }
 .diff-added { background: var(--added); } .diff-changed { background: var(--changed); } .diff-removed { background: var(--removed); }
 .was { color: var(--muted); margin-left: .5rem; }
 .pattern { font-size: .75rem; color: var(--muted); border: 1px dashed var(--line); border-radius: 4px; padding: 0 .3rem; margin-left: .4rem; }
 .msg, .note { margin-left: 1.4rem; font-size: .85rem; color: var(--muted); }
-.issues .issue { color: var(--fail); }
+.legend { display: flex; justify-content: center; align-items: center; gap: .8rem; font-size: .8rem; color: var(--muted); margin: -.4rem 0 .6rem; }
+.lg { display: inline-flex; align-items: center; }
+h3.fsm-part { margin-top: 1.6rem; }
+.lg::before { content: ''; display: inline-block; width: .8rem; height: .8rem; border-radius: 3px; margin-right: .3rem; border: 2px solid #555555; background: #ffffff; }
+.lg.user::before { border-color: #7c3aed; }
+.lg.entry::before { border-color: #16a34a; background: #16a34a; border-radius: 50%; }
+.lg.exit::before { border-color: #2563eb; background: #2563eb; }
+.whole ul { margin-top: 0; }
+.chip { display: inline-block; padding: 0 .45rem; border: 2px solid #9ca3af; border-radius: 999px; text-decoration: none; color: var(--fg); font-weight: 600; font-size: .9rem; }
+.chip:hover { background: rgba(10, 132, 255, .08); }
+.chip.s-pass { border-color: var(--pass); } .chip.s-fail { border-color: var(--fail); }
+.chip.s-todo { border-color: #9ca3af; } .chip.s-wip { border-color: #d97706; }
+.chip.user { color: #7c3aed; } .chip.exit { border-color: #2563eb; } .chip.entry { border-color: #16a34a; color: #16a34a; }
+.chip.ev { font-weight: normal; border-style: dashed; }
+details.local summary { cursor: pointer; color: var(--muted); font-size: .85rem; margin: .2rem 0; }
+.graph.main { position: relative; }
+.card { scroll-margin-top: 6rem; }
+.graph .anchor { position: absolute; top: 0; left: 0; width: 1px; height: 1px; scroll-margin-top: .8rem; }
+@keyframes flash { 0%, 100% { stroke-width: 1; } 50% { stroke: #f59e0b; stroke-width: 6; } }
+.block { border: 2px solid var(--line); border-radius: 10px; padding: .4rem 1rem .6rem; margin: 1rem 0; }
+.block h3 { margin: .3rem 0 .4rem; }
+.block.remarks { border-color: var(--fail); }
+.block.questions { border-color: #14b8a6; }
+.block ol { padding-left: 1.4rem; } .block li { margin: .3rem 0; }
+.remark .detail { color: var(--muted); list-style: disc; }
+.answers { list-style: lower-alpha; }
+.answer { position: relative; }
+.answer.rec { font-weight: 600; background: rgba(20, 184, 166, .15); border-radius: 4px; padding: 0 .3rem; }
+.answer .tip { display: none; position: absolute; left: 0; top: 100%; z-index: 2; max-width: 32rem; font-weight: normal; background: var(--bg); border: 1px solid #14b8a6; border-radius: 6px; padding: .4rem .6rem; box-shadow: 0 4px 14px rgba(0,0,0,.15); }
+.answer:hover .tip { display: block; }
+.answer:has(.tip) { cursor: help; text-decoration: underline dotted; }
 table { border-collapse: collapse; font-size: .85rem; margin: .3rem 0; }
 td, th { border-bottom: 1px solid var(--line); padding: .15rem .6rem; text-align: left; }
 a { color: #0a84ff; }
 @media print { .card:target { outline: none; } }
 `;
 
-function blocksLine(reports: FileReport[]): string {
-  const blocks = [
-    ...reports.flatMap((r) => r.machines.map((m) => `fsm ${m.name}`)),
-    ...(reports.some((r) => r.steps.length > 0) ? ['шаги'] : []),
-  ];
-  return blocks.length === 0 ? '' : `<p class="blocks">блоки: ${esc(blocks.join(' · '))}</p>`;
-}
-
-export async function renderHtml(reports: FileReport[]): Promise<string> {
-  const heading = reports.find((r) => r.plan !== undefined)?.plan?.name ?? 'Ожидания';
+export async function renderHtml(reports: FileReport[], entry?: string): Promise<string> {
+  pageEntry = entry;
+  const title = reports.flatMap((r) => r.all).find((t) => t.doc?.kind === 'title')?.doc?.text;
+  const heading = title ?? reports.find((r) => r.plan !== undefined)?.plan?.name ?? 'Ожидания';
   const graphviz = await Graphviz.load();
   const svg = (source: string): string => inlineSvg(graphviz.dot(source));
-  const body = reports.map((r) => fileSection(r, svg)).join('\n');
+  const page = reports.flatMap((r) => r.tests);
+  pageRemarks = reports.flatMap((r) => r.issues);
+  const declared = reports.some((r) => r.all.some((t) => t.doc?.kind === 'remarks'));
+  const body = reports.map((r) => fileSection(r, svg, page)).join('\n');
   return `<!doctype html>
 <html lang="ru">
 <head>
@@ -383,7 +621,7 @@ export async function renderHtml(reports: FileReport[]): Promise<string> {
 </head>
 <body>
 <h1>${esc(heading)}</h1>
-${blocksLine(reports)}
+${declared ? '' : remarksBlock(pageRemarks)}
 ${body}
 </body>
 </html>

@@ -31,6 +31,28 @@ export interface PlanDecl {
   name: string;
 }
 
+export const DOC_KINDS = ['title', 'subtitle', 'text', 'stats', 'questions', 'remarks'] as const;
+export type DocKind = (typeof DOC_KINDS)[number];
+
+export interface Answer {
+  text: string;
+  recommended?: boolean;
+  comment?: string;
+}
+
+export interface Question {
+  text: string;
+  answers: readonly Answer[];
+}
+
+export interface DocBlock {
+  kind: DocKind;
+  text: string;
+  questions?: Question[];
+}
+
+export const DOC_TITLE = '__doc__';
+
 export interface MachineMeta {
   name: string;
   def: unknown;
@@ -51,6 +73,7 @@ declare module 'vitest' {
     source?: string;
     pattern?: string;
     planDecl?: PlanDecl;
+    doc?: DocBlock;
   }
 }
 
@@ -118,6 +141,34 @@ export function pattern<P>(key: string, apply: (params: P) => void): (params: P)
     });
   };
 }
+
+function docBlock(kind: DocKind, text: string, questions?: readonly Question[]): void {
+  const source = sourceNow();
+  it(DOC_TITLE, (ctx) => {
+    ctx.task.meta.level = 'info';
+    ctx.task.meta.doc =
+      questions === undefined
+        ? { kind, text }
+        : {
+            kind,
+            text,
+            questions: questions.map((q) => ({
+              text: q.text,
+              answers: q.answers.map((a) => ({ ...a })),
+            })),
+          };
+    if (source !== undefined) ctx.task.meta.source = source;
+  });
+}
+
+export const info = {
+  title: (text: string): void => docBlock('title', text),
+  subtitle: (text: string): void => docBlock('subtitle', text),
+  text: (text: string): void => docBlock('text', text),
+  stats: (level: 'crit' | 'warn'): void => docBlock('stats', level),
+  questions: (list: readonly Question[]): void => docBlock('questions', '', list),
+  remarks: (): void => docBlock('remarks', ''),
+};
 
 export function note(text: string): void {
   notes.push(text);

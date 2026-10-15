@@ -64,7 +64,13 @@ export type Actor = 'script' | 'model' | 'user';
 
 export type TargetSpec<S extends string, L extends string> =
   | S
-  | { readonly to: S; readonly count?: L; readonly reset?: readonly L[]; readonly guard?: string };
+  | {
+      readonly to: S;
+      readonly count?: L;
+      readonly reset?: readonly L[];
+      readonly guard?: string;
+      readonly label?: string;
+    };
 
 export interface ActiveStateSpec<S extends string, L extends string> {
   readonly actor: Actor;
@@ -83,6 +89,7 @@ export type StateSpec<S extends string, L extends string> = ActiveStateSpec<S, L
 
 export interface MachineSpec<S extends string, L extends string> {
   readonly initial: S;
+  readonly start?: string;
   readonly limits?: Readonly<Record<L, number>>;
   readonly states: Readonly<Record<S, StateSpec<S, L>>>;
 }
@@ -104,8 +111,14 @@ export interface Machine<D> {
   readonly name: string;
   readonly def: D;
   state: (name: StatesOf<D>, body: () => void) => void;
-  transition: <K extends ActiveOf<D>>(from: K, event: EventsOf<D, K>, body: () => void) => void;
+  transition: <K extends ActiveOf<D>>(
+    from: K,
+    event: EventsOf<D, K>,
+    body: () => void,
+    to?: StatesOf<D>,
+  ) => void;
   whole: (body: () => void) => void;
+  entry: (body: () => void) => void;
 }
 
 export function fsm<const D extends MachineSpec<StatesOf<D>, LimitsOf<D>>>(
@@ -123,9 +136,12 @@ export function fsm<const D extends MachineSpec<StatesOf<D>, LimitsOf<D>>>(
     name,
     def,
     state: (s: string, body) => scoped(`состояние ${s}`, `state:${s}`, body),
-    transition: (from: string, event: string, body) =>
-      scoped(`переход ${from} —${event}→`, `tr:${from}:${event}`, body),
+    transition: (from: string, event: string, body, to?: string) =>
+      to === undefined
+        ? scoped(`переход ${from} —${event}→`, `tr:${from}:${event}`, body)
+        : scoped(`переход ${from} —${event}→ ${to}`, `tr:${from}:${event}:${to}`, body),
     whole: (body) => scoped('автомат', 'machine', body),
+    entry: (body) => scoped('вход', 'entry', body),
   };
 }
 
@@ -133,17 +149,20 @@ export interface GraphTransition {
   to: string;
   count?: string;
   reset: string[];
+  label?: string;
 }
 
 export interface GraphState {
   name: string;
   actor?: Actor;
   final: boolean;
+  description?: string;
   on: Record<string, GraphTransition[]>;
 }
 
 export interface MachineGraph {
   initial: string;
+  start?: string;
   limits: Record<string, number>;
   states: GraphState[];
 }
@@ -156,6 +175,7 @@ function transitionOf(t: unknown): GraphTransition {
   if (!isObject(t) || typeof t['to'] !== 'string') throw new Error('переход без to');
   const result: GraphTransition = { to: t['to'], reset: [] };
   if (typeof t['count'] === 'string') result.count = t['count'];
+  if (typeof t['label'] === 'string') result.label = t['label'];
   const reset = t['reset'];
   if (Array.isArray(reset)) result.reset = reset.filter((r) => typeof r === 'string');
   return result;
@@ -173,13 +193,16 @@ export function graphOf(def: unknown): MachineGraph {
     const state: GraphState = { name, final: s['final'] === true, on: {} };
     const actor = s['actor'];
     if (actor === 'script' || actor === 'model' || actor === 'user') state.actor = actor;
+    if (typeof s['description'] === 'string') state.description = s['description'];
     const on = s['on'];
     if (isObject(on))
       for (const [event, t] of Object.entries(on))
         state.on[event] = (Array.isArray(t) ? t : [t]).map(transitionOf);
     return state;
   });
-  return { initial: def['initial'], limits, states };
+  const graph: MachineGraph = { initial: def['initial'], limits, states };
+  if (typeof def['start'] === 'string') graph.start = def['start'];
+  return graph;
 }
 
 export interface YamlMachine {

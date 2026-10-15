@@ -28,6 +28,8 @@ import {
   crit,
   dataFiles,
   expectSchema,
+  fsm,
+  info,
   judged,
   readRepo,
   repoRoot,
@@ -36,6 +38,249 @@ import {
 import { parseJson } from './shared/guards.ts';
 
 budget({ crit: 0, warn: 0 });
+
+info.title('Harness Plan-Review');
+info.text(
+  'Интерактивный планер: из запроса пользователя он строит ожидания в файле и проверяет их ревью. Мотивация — предсказуемость.',
+);
+
+info.remarks();
+
+info.questions([
+  {
+    text: 'Старые ожидания «результат планера — plan.md» и «бюджет стадии ревью: crit 0, warn не больше 3» противоречат новой схеме (сейчас они crit.wip). Как поступить?',
+    answers: [
+      {
+        text: 'перевести их в заглушки crit.wip с пометкой «уходит при переходе на новую схему»',
+        recommended: true,
+        comment:
+          'Противоречие остаётся видно, но прогон не блокирует; до реализации ничего не теряется, а шаги плана затем уберут их по одному.',
+      },
+      { text: 'временно поднять бюджет warn файла до 2' },
+      { text: 'сразу убрать старые ожидания, противоречащие новой схеме' },
+    ],
+  },
+  {
+    text: 'Судья: «на странице только объявленное» противоречит «блок «Замечания» без info.remarks встаёт в начало страницы» (сейчас первое — crit.wip). Как поступить?',
+    answers: [
+      {
+        text: 'дописать исключение: «…кроме разделов fsm и блока «Замечания», если он не объявлен»',
+        recommended: true,
+        comment:
+          'Рендер действительно добавляет «Замечания» сам, чтобы проблемы не прятались; честнее назвать это исключение в заголовке.',
+      },
+      {
+        text: 'не ставить «Замечания» без info.remarks: тогда находки видны только в отчёте в терминале',
+      },
+    ],
+  },
+  {
+    text: 'Судья: заглушка перехода «контекст собран» неизмерима — «когда есть ответы на вопросы, без которых ожидания не записать». Как переформулировать?',
+    answers: [
+      {
+        text: '«планер переходит к записи ожиданий, когда список его открытых вопросов к пользователю пуст»',
+        recommended: true,
+        comment: 'Проверяемо да/нет: у планера есть или нет открытых вопросов.',
+      },
+      { text: 'оставить как есть до реализации: это заглушка, прогон она не блокирует' },
+    ],
+  },
+  {
+    text: 'Рисовать ли Ctrl+C на схеме автомата?',
+    answers: [
+      {
+        text: 'нет: оставить заглушкой на автомат целиком',
+        recommended: true,
+        comment:
+          'Стрелка Ctrl+C из каждого состояния делает схему нечитаемой, а смысл один для всех узлов.',
+      },
+      { text: 'да: событие interrupt из каждого состояния в finished' },
+    ],
+  },
+  {
+    text: 'Разбор ответа ревьюера — отдельное состояние планера или часть ревью?',
+    answers: [
+      {
+        text: 'отдельное состояние analyze',
+        recommended: true,
+        comment: 'Так видно, кто решает, что замечание крупное: ревьюер находит, планер решает.',
+      },
+      { text: 'часть состояния review' },
+    ],
+  },
+  {
+    text: 'Оставить ли на странице служебные разделы — нарушения плана и удалённые относительно HEAD ожидания?',
+    answers: [
+      {
+        text: 'оставить: они появляются, только когда есть что показать',
+        recommended: true,
+        comment:
+          'Нарушения плана теперь идут в блок «Замечания»; список удалённых нужен, чтобы видеть, что ушло из файла.',
+      },
+      { text: 'убрать' },
+    ],
+  },
+]);
+
+info.stats('crit');
+info.stats('warn');
+
+info.subtitle('FSM');
+
+const planReview = fsm('plan-review', {
+  initial: 'awaiting_input',
+  start: 'запуск: start <file>',
+  limits: { cycles: 3 },
+  states: {
+    awaiting_input: {
+      actor: 'user',
+      description: 'Планер ждёт ввода пользователя',
+      on: { запрос: 'gathering', выход: 'finished' },
+    },
+    gathering: {
+      actor: 'model',
+      description: 'Сбор контекста, в том числе параллельными подзадачами',
+      on: { 'контекст собран': 'composing' },
+    },
+    composing: {
+      actor: 'model',
+      description: 'Планер записывает ожидания в файл из блоков механизма',
+      on: { 'ожидания записаны': 'review', 'форма неясна': 'clarify_form' },
+    },
+    clarify_form: {
+      actor: 'user',
+      description: 'Пользователь выбирает, каким блоком строить ожидания',
+      on: { 'ответ получен': 'composing' },
+    },
+    review: {
+      actor: 'model',
+      description: 'Ревью ожиданий — работа судьи',
+      on: { 'ревью пройдено': 'analyze' },
+    },
+    analyze: {
+      actor: 'model',
+      description: 'Планер разбирает ответ ревьюера',
+      on: {
+        замечания: [
+          { to: 'composing', count: 'cycles', label: 'замечания' },
+          { to: 'awaiting_input', label: 'лимит исчерпан' },
+        ],
+        'ревью чистое': 'awaiting_input',
+      },
+    },
+    finished: { final: true, description: 'Сессия завершена' },
+  },
+});
+
+planReview.whole(() => {
+  crit.todo(
+    'Ctrl+C в любом состоянии завершает сессию; файл ожиданий остаётся в последнем записанном виде',
+  );
+  crit.todo(
+    'цикл composing → review → analyze ограничен счётчиком cycles: по умолчанию 3 полных цикла',
+  );
+});
+
+planReview.entry(() => {
+  crit.todo(
+    'вход — harness plan-review start <file>: сессия открывается на конкретном файле ожиданий',
+  );
+});
+
+planReview.state('awaiting_input', () => {
+  crit.todo('в ожидании ввода планер ничего не меняет в файле ожиданий и проекте');
+  crit.todo(
+    'при запуске планер получает перечень блоков, из которых строит ожидания: fsm, steps, паттерны',
+  );
+});
+
+planReview.transition('awaiting_input', 'запрос', () => {
+  crit.todo('запрос любого вида — текст, файлы, картинки — пишется в интерактивной сессии планера');
+});
+
+planReview.transition('awaiting_input', 'выход', () => {
+  crit.todo(
+    'выход — только по явному слову пользователя или Ctrl+C; зелёный прогон выходом не считается',
+  );
+  crit.todo(
+    'на просьбу о выходе планер завершает сессию в точке, где файл ожиданий записан целиком',
+  );
+});
+
+planReview.state('gathering', () => {
+  crit.todo('сбор контекста может идти параллельными подзадачами внутри сессии планера');
+  crit.todo('на сборе контекста файл ожиданий не меняется');
+});
+
+planReview.transition('gathering', 'контекст собран', () => {
+  crit.todo(
+    'планер переходит к записи ожиданий, когда в контексте есть ответы на вопросы, без которых ожидания не записать',
+  );
+});
+
+planReview.state('composing', () => {
+  crit.todo('планер записывает в файл ожидания по собранному контексту только из блоков перечня');
+  crit.todo('ожидание без готовой проверки записывается заглушкой crit.todo или crit.wip');
+});
+
+planReview.transition('composing', 'ожидания записаны', () => {
+  crit.todo(
+    'ревью запускается на файле, который собирается без ошибок: typecheck и сбор ожиданий чистые',
+  );
+});
+
+planReview.transition('composing', 'форма неясна', () => {
+  crit.todo(
+    'если блок для ожиданий выбрать нельзя, планер спрашивает пользователя, каким его строить',
+  );
+});
+
+planReview.state('clarify_form', () => {
+  crit.todo('ответ пользователя о форме ожиданий передаётся планеру дословно');
+});
+
+planReview.transition('clarify_form', 'ответ получен', () => {
+  crit.todo('после ответа планер записывает ожидания выбранным блоком');
+});
+
+planReview.state('review', () => {
+  crit.todo(
+    'ревью проверяет ожидания как судья: противоречия и неизмеримые заголовки, crit, warn и info по бюджету файла',
+  );
+  crit.todo('ревьюер не правит файл ожиданий; результат ревью возвращается планеру');
+});
+
+planReview.transition('review', 'ревью пройдено', () => {
+  crit.todo('результат ревью — замечания с уровнем crit, warn или info и пояснением к каждому');
+});
+
+planReview.transition(
+  'analyze',
+  'замечания',
+  () => {
+    crit.todo('crit или warn сверх бюджета возвращают планера к правке ожиданий');
+  },
+  'composing',
+);
+
+planReview.transition(
+  'analyze',
+  'замечания',
+  () => {
+    crit.todo(
+      'после 3 циклов без чистого ревью планер возвращается к пользователю и объясняет, где зациклился и что не может разрешить',
+    );
+  },
+  'awaiting_input',
+);
+
+planReview.transition('analyze', 'ревью чистое', () => {
+  crit.todo(
+    'при чистом ревью планер возвращается к пользователю с пояснениями и ждёт следующего запроса',
+  );
+});
+
+info.subtitle('общие ожидания');
 
 describe('[harness] plan-review start', () => {
   crit(
@@ -49,9 +294,7 @@ describe('[harness] plan-review start', () => {
     'без --request запрос пишется в интерактивной сессии планера: текст, файлы, картинки; start его не спрашивает',
     () => Start.request(),
   );
-  crit('plan({ name }): шапка страницы — имя плана, под ним перечень блоков', () =>
-    Start.htmlHeader(),
-  );
+  crit('без info.title шапка страницы — имя плана из plan({ name })', () => Start.htmlHeader());
 });
 
 describe('[harness] plan-review', () => {
@@ -59,8 +302,9 @@ describe('[harness] plan-review', () => {
     'команды планера: harness plan-review start | open | list | status | validate | graph | check | render | read | clone',
     () => Check.commands(),
   );
-  crit('результат планера — plan.md; HTML для просмотра собирает отдельная команда render', () =>
-    Check.planIsSource(),
+  crit.wip(
+    'результат планера — plan.md; HTML для просмотра собирает отдельная команда render',
+    () => Check.planIsSource(),
   );
   crit('сессии лежат в ~/.config/harness; каталог переопределяется параметром', () => Check.home());
   warn(
@@ -77,7 +321,9 @@ describe('[harness] plan-review', () => {
   crit('критерии ревью плана — один criteria.yaml по схеме plan-criteria', () =>
     Check.criteriaFile(),
   );
-  crit('бюджет стадии ревью: crit 0, warn не больше 3; info не блокирует', () => Check.budget());
+  crit.wip('бюджет стадии ревью: crit 0, warn не больше 3; info не блокирует', () =>
+    Check.budget(),
+  );
   crit('проверка структуры плана (1a) не расходует попыток правки', () => Check.formalFree());
   crit('не больше 3 правок на цикл ревью; после четвёртого провала — failure-report.md', () =>
     Check.fixLimit(),
@@ -568,7 +814,7 @@ class Start {
         { cwd: dir, encoding: 'utf8' },
       );
       const html = existsSync(out) ? await readFile(out, 'utf8') : '';
-      expect(html).toMatch(/<h1>Демо-план<\/h1>\s*<p class="blocks">блоки: fsm demo-flow<\/p>/);
+      expect(html).toMatch(/<h1>Демо-план<\/h1>/);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }

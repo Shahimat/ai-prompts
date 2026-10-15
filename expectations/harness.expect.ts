@@ -341,8 +341,16 @@ describe('[harness] expect', () => {
     'страница собирается из файла ожиданий при запросе: правка файла видна после перезагрузки, без перезапуска сервера',
     () => Serve.live(),
   );
-  crit('страница сервера побайтно совпадает с тем, что пишет report --html для того же входа', () =>
-    Serve.sameAsHtml(),
+  crit(
+    'страница сервера совпадает с report --html для того же входа, кроме скрипта автообновления',
+    () => Serve.sameAsHtml(),
+  );
+  crit(
+    'serve следит за файлами проекта и сам обновляет открытую страницу при изменении; позиция прокрутки сохраняется',
+    () => Serve.reload(),
+  );
+  crit('expect report <file> --html - пишет HTML в stdout, файлов не создаёт', () =>
+    Serve.htmlStdout(),
   );
 });
 
@@ -419,8 +427,31 @@ describe('[harness] expect plan', () => {
     Plan.viewByBlocks(),
   );
   crit(
-    'блоки и ожидания из импортированных файлов попадают на страницу с пометкой модуля, где они определены',
+    'блоки и ожидания из импортированных файлов попадают на страницу; у ожидания из другого модуля видно, где оно определено',
     () => Plan.importedBlocks(),
+  );
+  crit.wip(
+    'на странице только объявленное в файле: тексты info, блоки и ожидания; своих заголовков и сводок рендер не добавляет, кроме разделов fsm «Состояния» и «Переходы»',
+    () => Plan.onlyDeclared(),
+  );
+  crit(
+    'info.title, info.subtitle и info.text — заголовок, подзаголовки и текст страницы в порядке объявления; title на странице один',
+    () => Plan.docs(),
+  );
+  crit(
+    'info.stats(crit | warn) — виджет из четырёх чисел: пройдено, заглушки, не пройдено, всего; ненулевые подсвечены цветом',
+    () => Plan.stats(),
+  );
+  crit('у fsm вход — яркая точка с подписью start, выход — конечные состояния яркого цвета', () =>
+    Plan.entryExit(),
+  );
+  crit(
+    'info.questions — вопросы и варианты ответа, не больше двух уровней; рекомендуемый вариант выделен, комментарий — во всплывающей подсказке',
+    () => Plan.questions(),
+  );
+  crit(
+    'замечания — один блок «Замечания» на странице: находка и пояснение; на месте info.remarks, без него — в начале страницы',
+    () => Plan.remarks(),
   );
   warn('цвет узла на схеме — статус его ожиданий: todo, пройдено, провал', () =>
     Plan.htmlStatuses(),
@@ -1686,7 +1717,7 @@ class Processes {
 }
 
 const PLAN_IMPORTS =
-  "import { describe, expect } from 'vitest';\nimport { budget, crit, warn, step, steps, fsm, Graph } from '@shahimat/harness/expect';\n";
+  "import { describe, expect } from 'vitest';\nimport { budget, crit, warn, step, steps, fsm, Graph, info } from '@shahimat/harness/expect';\nvoid info;\n";
 
 const DEMO_MACHINE = `const M = fsm('demo-flow', {
   initial: 'a',
@@ -1878,7 +1909,8 @@ class Plan {
   }
 
   static async viewByBlocks(): Promise<void> {
-    const svgCount = (html: string) => (html.match(/<svg/g) ?? []).length;
+    const svgCount = (html: string) =>
+      (html.replace(/<details[\s\S]*?<\/details>/g, '').match(/<svg/g) ?? []).length;
     await withPlanFixture(
       planFile(`describe('только ожидания', () => { crit('просто', () => {}); });\n`),
       async (_dir, run) => {
@@ -1891,10 +1923,140 @@ class Plan {
       const { html } = await run();
       expect(svgCount(html)).toBe(1);
       expect(html).not.toContain('id="step-');
-      expect(html).toMatch(/class="blocks"[^<]*fsm demo-flow/);
     });
     await withPlanFixture(planFile(`${DEMO_MACHINE}${STEPS}`), async (_dir, run) => {
       expect(svgCount((await run()).html)).toBe(2);
+    });
+  }
+
+  static async onlyDeclared(): Promise<void> {
+    await withPlanFixture(
+      planFile(
+        `${DEMO_MACHINE}${STEPS}describe('раздел', () => { crit('ожидание', () => {}); });\n`,
+      ),
+      async (_dir, run) => {
+        const { html } = await run();
+        const parts = html.match(/<h3 class="fsm-part">[^<]*<\/h3>/g) ?? [];
+        expect(parts).toEqual([
+          '<h3 class="fsm-part">Состояния</h3>',
+          '<h3 class="fsm-part">Переходы</h3>',
+        ]);
+        expect(html.replace(/<h3 class="fsm-part">[^<]*<\/h3>/g, '')).not.toMatch(/<h[23][ >]/);
+        expect(html).not.toMatch(/class="(blocks|summary)/);
+        expect(html).not.toContain('plan.expect.ts');
+      },
+    );
+  }
+
+  static async docs(): Promise<void> {
+    const body = `info.title('Страница');
+info.text('Вводный абзац');
+info.subtitle('Раздел один');
+describe('A', () => { crit('ожидание A', () => {}); });
+info.subtitle('Раздел два');
+describe('B', () => { crit('ожидание B', () => {}); });
+`;
+    await withPlanFixture(planFile(body), async (_dir, run) => {
+      const { html } = await run();
+      const order = [
+        '<h1>Страница</h1>',
+        '<p class="text">Вводный абзац</p>',
+        '>Раздел один</h2>',
+        'ожидание A',
+        '>Раздел два</h2>',
+        'ожидание B',
+      ].map((m) => html.indexOf(m));
+      expect(order.every((i) => i >= 0)).toBe(true);
+      expect([...order].sort((a, b) => a - b)).toEqual(order);
+    });
+    await withPlanFixture(
+      planFile(`info.title('Раз');\ninfo.title('Два');\n`),
+      async (_dir, run) => {
+        const { status, out } = await run();
+        expect(status).toBe(1);
+        expect(out).toContain('info.title');
+      },
+    );
+  }
+
+  static async stats(): Promise<void> {
+    const body = `info.stats('crit');
+info.stats('warn');
+describe('счёт', () => {
+  crit('проходит раз', () => {});
+  crit('проходит два', () => {});
+  crit('падает', () => expect(1).toBe(2));
+  crit.todo('впереди');
+  warn.wip('в работе');
+});
+`;
+    await withPlanFixture(planFile(body), async (_dir, run) => {
+      const { html } = await run();
+      const widget = (level: string) => {
+        const at = html.indexOf(`class="stats lvl-${level}"`);
+        const next = html.indexOf('class="stats ', at + 1);
+        const part = html.slice(at, next < 0 ? undefined : next);
+        return Object.fromEntries(
+          [
+            ...part.matchAll(
+              /class="stat (passed|stubs|failed|total)( on)?"><span class="value">(\d+)/g,
+            ),
+          ].map((m) => [m[1] ?? '', `${m[3] ?? ''}${m[2] === undefined ? '' : '*'}`]),
+        );
+      };
+      expect(widget('crit')).toEqual({ passed: '2*', stubs: '1*', failed: '1*', total: '4*' });
+      expect(widget('warn')).toEqual({ passed: '0', stubs: '1*', failed: '0', total: '1*' });
+    });
+  }
+
+  static async entryExit(): Promise<void> {
+    const body = DEMO_MACHINE.replace("initial: 'a',", "initial: 'a',\n  start: 'запуск',");
+    await withPlanFixture(planFile(body), async (_dir, run) => {
+      const svg = /<svg[\s\S]*?<\/svg>/.exec((await run()).html)?.[0] ?? '';
+      const node = (name: string) =>
+        new RegExp(`<title>${name}</title>[\\s\\S]*?</g>`).exec(svg)?.[0] ?? '';
+      expect(node('__start')).toMatch(/fill="#16a34a"/);
+      expect(svg).toMatch(/>запуск</);
+      expect(node('done')).toMatch(/fill="#2563eb"/);
+      expect(node('a')).not.toMatch(/fill="#16a34a"|fill="#2563eb"/);
+    });
+  }
+
+  static async questions(): Promise<void> {
+    const body = `info.questions([
+  { text: 'Какой путь?', answers: [
+    { text: 'короткий', recommended: true, comment: 'меньше шагов' },
+    { text: 'длинный' },
+  ] },
+]);
+`;
+    await withPlanFixture(planFile(body), async (_dir, run) => {
+      const { html } = await run();
+      const block = /<section class="block questions">[\s\S]*?<\/section>/.exec(html)?.[0] ?? '';
+      expect(block).toContain('<h3>Вопросы и предложения</h3>');
+      expect(block).toMatch(/<li class="question">Какой путь\?<ol class="answers">/);
+      expect(block).toMatch(
+        /<li class="answer rec">короткий<span class="tip">меньше шагов<\/span><\/li>/,
+      );
+      expect(block).toMatch(/<li class="answer">длинный<\/li>/);
+    });
+  }
+
+  static async remarks(): Promise<void> {
+    const broken = `steps(() => { step('T1', { title: 'a', after: ['T9'] }, () => {}); });\n`;
+    await withPlanFixture(
+      planFile(`info.title('Т');\ninfo.subtitle('до');\ninfo.remarks();\n${broken}`),
+      async (_dir, run) => {
+        const { html } = await run();
+        const blocks = html.match(/<section class="block remarks">/g) ?? [];
+        expect(blocks).toHaveLength(1);
+        expect(html.indexOf('>до</h2>')).toBeLessThan(html.indexOf('block remarks'));
+        expect(html).toMatch(/<li class="remark">[^<]*T9/);
+      },
+    );
+    await withPlanFixture(planFile(`info.title('Т');\n${broken}`), async (_dir, run) => {
+      const { html } = await run();
+      expect(html).toMatch(/<h1>Т<\/h1>\s*<section class="block remarks">/);
     });
   }
 
@@ -1908,8 +2070,8 @@ class Plan {
     };
     await withPlanFixture(files, async (_dir, run) => {
       const { html } = await run();
-      expect(html).toContain('<h2>expectations/shared/flow.expect.ts</h2>');
       expect(card(html, 'state-a')).toContain('из импорта на узле');
+      expect(card(html, 'state-a')).toContain('из expectations/shared/flow.expect.ts');
       const shared = listItems(html).find((i) => i.text.includes('ожидание общего блока'));
       expect(shared?.text).toContain('из expectations/shared/block.ts');
     });
@@ -2178,10 +2340,58 @@ class Serve {
       const { html } = await run();
       const served = await startServe(dir);
       try {
-        expect((await page(served.url)).body).toBe(html);
+        const body = (await page(served.url)).body;
+        expect(body).toContain('<script>');
+        expect(body.replace(/<script>[\s\S]*?<\/script>\n/, '')).toBe(html);
       } finally {
         await served.stop();
       }
+    });
+  }
+
+  static async reload(): Promise<void> {
+    await withPlanFixture(planFile(SERVE_BODY), async (dir) => {
+      const served = await startServe(dir);
+      try {
+        const first = (await page(served.url)).body;
+        expect(first).toContain('EventSource');
+        expect(first).toContain('scrollY');
+        const events = await fetch(`${served.url}events`);
+        const reader = events.body?.getReader();
+        if (reader === undefined) throw new Error('нет потока событий');
+        const decoder = new TextDecoder();
+        let seen = '';
+        const reloaded = (async () => {
+          while (!seen.includes('data: reload')) {
+            const next = await reader.read();
+            if (next.done) return false;
+            const chunk: unknown = next.value;
+            if (chunk instanceof Uint8Array) seen += decoder.decode(chunk);
+          }
+          return true;
+        })();
+        await new Promise((r) => setTimeout(r, 500));
+        const file = path.join(dir, PLAN_ENTRY);
+        await writeFile(
+          file,
+          (await readFile(file, 'utf8')).replace('первый заголовок', 'обновлённый заголовок'),
+        );
+        const timeout = new Promise<boolean>((r) => setTimeout(() => r(false), 25_000));
+        expect(await Promise.race([reloaded, timeout])).toBe(true);
+        await reader.cancel();
+      } finally {
+        await served.stop();
+      }
+    });
+  }
+
+  static async htmlStdout(): Promise<void> {
+    await withPlanFixture(planFile(SERVE_BODY), async (dir) => {
+      const before = await snapshot(dir, skipRuntime);
+      const r = cliOut(['expect', 'report', PLAN_ENTRY, '--root', dir, '--html', '-']);
+      expect(r.stdout.startsWith('<!doctype html>')).toBe(true);
+      expect(r.stdout).toContain('первый заголовок');
+      expect(await snapshot(dir, skipRuntime)).toEqual(before);
     });
   }
 }
@@ -2320,7 +2530,10 @@ class Entry {
     expect(scripts).toEqual([]);
     const index = await readRepo(INDEX_ENTRY);
     const files = (await readdir(path.join(repoRoot(), 'expectations')))
-      .filter((f) => f.endsWith('.expect.ts') && f !== 'index.expect.ts')
+      .filter(
+        (f) =>
+          f.endsWith('.expect.ts') && f !== 'index.expect.ts' && !/\.head-\d+\.expect\.ts$/.test(f),
+      )
       .sort();
     expect(files.filter((f) => !index.includes(`'./${f}'`))).toEqual([]);
   }
