@@ -27,16 +27,11 @@ export interface MachineDef {
   harness: string;
   initial: string;
   limits: Record<string, number>;
-  review: { mode: 'collect' | 'sequential'; budget: { crit: number; warn: number } };
-  models: { planner: string; '1b': string; '2': string };
+  models: { planner: string; judge: string };
   states: StateDef[];
 }
 
-export const DEFAULT_REVIEW: MachineDef['review'] = {
-  mode: 'collect',
-  budget: { crit: 0, warn: 3 },
-};
-export const DEFAULT_MODELS: MachineDef['models'] = { planner: 'opus', '1b': 'haiku', '2': 'opus' };
+export const DEFAULT_MODELS: MachineDef['models'] = { planner: 'opus', judge: 'opus' };
 
 export type ActionResult = { event: string } | { pause: string };
 
@@ -80,31 +75,20 @@ export function parseMachine(text: string, where: string): ParseResult {
   }
   const errors = schemaErrors(FSM_SCHEMA, data, where);
   if (errors.length > 0 || !isRecord(data)) return { errors };
-  const { harness, initial, limits, review, models, states } = data;
+  const { harness, initial, limits, models, states } = data;
   if (typeof harness !== 'string' || typeof initial !== 'string' || !isRecord(states))
     return { errors: [`${where}: нет harness, initial или states`] };
   const def: MachineDef = {
     harness,
     initial,
     limits: {},
-    review: { mode: DEFAULT_REVIEW.mode, budget: { ...DEFAULT_REVIEW.budget } },
     models: { ...DEFAULT_MODELS },
     states: [],
   };
   if (isRecord(limits))
     for (const [k, v] of Object.entries(limits)) if (typeof v === 'number') def.limits[k] = v;
-  if (isRecord(review)) {
-    if (isOneOf(['collect', 'sequential'], review['mode'])) def.review.mode = review['mode'];
-    const budget = review['budget'];
-    if (
-      isRecord(budget) &&
-      typeof budget['crit'] === 'number' &&
-      typeof budget['warn'] === 'number'
-    )
-      def.review.budget = { crit: budget['crit'], warn: budget['warn'] };
-  }
   if (isRecord(models)) {
-    for (const key of ['planner', '1b', '2'] as const) {
+    for (const key of ['planner', 'judge'] as const) {
       const m = models[key];
       if (typeof m === 'string') def.models[key] = m;
     }

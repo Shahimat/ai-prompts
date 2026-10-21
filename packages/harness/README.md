@@ -233,18 +233,36 @@ harness <имя> validate | graph  # определение и Mermaid авто�
   изменения его состояния, нового нет — создаётся каркас с
   `plan({ name })`. Имя плана — из `plan({ name })`, для нового файла —
   из имени файла. План смотрится командой `harness expect serve <file>`.
-  Дальше — интерактивный `claude` с
-  ролью планера в каталоге проекта: без `--request` запрос пишется в
-  этой сессии (текст, файлы, картинки), с `--request` текст уходит
-  планеру первым сообщением → проверка
-  структуры (1a) → ревью: дешёвая модель без сети (1b) и сильная с
-  проектом и сетью (2) → правки до 3 на цикл → меню: согласовать,
-  вернуть всё или по пунктам, переработать, уточнить.
-- Свои команды: `check <id> [--hook]` (1a; `--hook` — Stop-hook планера,
-  ведёт счётчик блокировок), `render <id> [--out]`, `read <id>`,
-  `clone <id> [md] [--out]`.
-- Определение: `harness.yaml` (автомат, лимиты, бюджет, модели),
-  `criteria.yaml` (критерии ревью), `prompts/`.
+  Дальше — интерактивный `claude` с ролью планера в каталоге проекта:
+  без `--request` запрос пишется в этой сессии (текст, файлы,
+  картинки), с `--request` текст уходит планеру первым сообщением. Без
+  терминала `start` встаёт на паузу, `open <id>` продолжает (`--resume`
+  той же сессии планера).
+- Автомат: `awaiting_input` → `gathering` → `composing` (↔
+  `clarify_form`) → `review` → `analyze` → `composing` или
+  `awaiting_input`; `exit` → `finished`. Схема — блок `fsm` в
+  `expectations/harness-plan-review.expect.ts`, `harness.yaml` с ней
+  совпадает (`Graph.sameAs`).
+- События выводит `harness plan-review hook <id> <hook>` из hooks сессии
+  планера, модель их не объявляет: `prompt` (UserPromptSubmit) в
+  `awaiting_input` — `request`; `edit` (PreToolUse Edit/Write) — `gathered`, правка другого
+  файла или правка вне `gathering`/`composing` блокируется; `ask` и
+  `answer` (AskUserQuestion) — `unclear` и `answered`; `stop` — сборка
+  файла (сбор ожиданий и `tsc` ближайшего `tsconfig.json`; не собирается
+  — блок не больше `limits.build` раз), затем ревью судьёй и разбор;
+  `prompt` со словом «выход» в `awaiting_input` — `exit`; флаг
+  `[plan-review: exit]` последней строкой ответа планера читается на
+  `stop` после стадии: чистое ревью — `exit`, иначе выход отложен; `end`
+  (SessionEnd: Ctrl+C, `/exit`) — пауза в любом состоянии: автомат на
+  месте, `open <id>` продолжает ту же сессию через `--resume`.
+- Ревью: `expect judge` по файлу плана, задания отвечает `models.judge`
+  headless без сети и без записи (ответ — по `--json-schema`), затем
+  `--apply` и прогон по бюджету файла. Сверх бюджета — `remarks`, планер
+  получает замечания и правит; после `limits.cycles` циклов — к
+  пользователю с объяснением; чисто — `clean`, планер поясняет итог.
+- Определение: `harness.yaml` (автомат, лимиты `cycles` и `build`,
+  модели `planner` и `judge`), `prompts/` (`planner`, `judge`). Состояние
+  ревью — `plan-review.json` и `review/<n>.json` в каталоге сессии.
 
 Коды выхода: `0` — ok, `1` — нарушения, `2` — ошибка вызова или
 конфигурации.

@@ -1,7 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
-import { homedir, tmpdir } from 'node:os';
+import { homedir } from 'node:os';
 import path from 'node:path';
 import { describe, expect } from 'vitest';
 import {
@@ -10,14 +10,17 @@ import {
   FSM_SCHEMA,
   harnessHome,
   headlessArgs,
+  hookEvent,
+  JUDGE_TOOLS,
   loadHarness,
   openSession,
   parseMachine,
   planIo,
   planReviewRegistry,
+  reviewText,
   staticErrors,
+  type HookName,
   type ModelRunner,
-  type Prompter,
 } from '@shahimat/harness';
 import {
   budget,
@@ -38,46 +41,11 @@ info.title('Harness Plan-Review');
 info.text(
   'Интерактивный планер: из запроса пользователя он строит ожидания в файле и проверяет их ревью. Мотивация — предсказуемость.',
 );
+info.text(
+  'Переходы выводит команда hook из событий сессии планера: UserPromptSubmit, PreToolUse, PostToolUse, Stop и SessionEnd. Модель событий не объявляет.',
+);
 
 info.remarks();
-
-info.questions([
-  {
-    text: 'Рисовать ли Ctrl+C на схеме автомата?',
-    answers: [
-      {
-        text: 'нет: оставить заглушкой на автомат целиком',
-        recommended: true,
-        comment:
-          'Стрелка Ctrl+C из каждого состояния делает схему нечитаемой, а смысл один для всех узлов.',
-      },
-      { text: 'да: событие interrupt из каждого состояния в finished' },
-    ],
-  },
-  {
-    text: 'Разбор ответа ревьюера — отдельное состояние планера или часть ревью?',
-    answers: [
-      {
-        text: 'отдельное состояние analyze',
-        recommended: true,
-        comment: 'Так видно, кто решает, что замечание крупное: ревьюер находит, планер решает.',
-      },
-      { text: 'часть состояния review' },
-    ],
-  },
-  {
-    text: 'Оставить ли на странице служебные разделы — нарушения плана и удалённые относительно HEAD ожидания?',
-    answers: [
-      {
-        text: 'оставить: они появляются, только когда есть что показать',
-        recommended: true,
-        comment:
-          'Нарушения плана теперь идут в блок «Замечания»; список удалённых нужен, чтобы видеть, что ушло из файла.',
-      },
-      { text: 'убрать' },
-    ],
-  },
-]);
 
 info.stats('crit');
 info.stats('warn');
@@ -87,13 +55,13 @@ info.subtitle('FSM');
 const planReview = fsm('plan-review', {
   initial: 'awaiting_input',
   start: 'запуск: start <file>',
-  limits: { cycles: 3 },
+  limits: { cycles: 3, build: 3 },
   states: {
     awaiting_input: {
       actor: 'user',
       description: 'Планер ждёт ввода пользователя',
       on: {
-        request: { to: 'gathering', label: 'запрос' },
+        request: { to: 'gathering', reset: ['cycles'], label: 'запрос' },
         exit: { to: 'finished', label: 'выход' },
       },
     },
@@ -122,7 +90,7 @@ const planReview = fsm('plan-review', {
     },
     analyze: {
       actor: 'model',
-      description: 'Планер разбирает ответ ревьюера',
+      description: 'Код сравнивает находки с бюджетом файла, планер разбирает ответ',
       on: {
         remarks: [
           { to: 'composing', count: 'cycles', label: 'замечания' },
@@ -136,94 +104,153 @@ const planReview = fsm('plan-review', {
 });
 
 planReview.whole(() => {
-  crit.todo(
-    'Ctrl+C в любом состоянии завершает сессию; файл ожиданий остаётся в последнем записанном виде',
+  crit(
+    'Ctrl+C или /exit в любом состоянии ставят сессию на паузу: автомат остаётся на месте, файл ожиданий — в последнем записанном виде; open <id> продолжает с той же точки',
+    () => Machine.pause(),
   );
-  crit.todo(
+  crit(
     'цикл composing → review → analyze ограничен счётчиком cycles: по умолчанию 3 полных цикла',
+    () => Machine.cycles(),
   );
-  crit.wip(
+  crit(
     'автомат plan-review в harness.yaml совпадает с этой схемой: состояния, акторы, события и лимиты',
-    () => Check.sameAsFsm(),
+    () => Machine.sameAsFsm(),
+  );
+  crit('переходы выводит команда hook из событий сессии планера; модель событий не объявляет', () =>
+    Machine.hooksDrive(),
   );
 });
 
 planReview.entry(() => {
-  crit.todo(
+  crit(
     'вход — harness plan-review start <file>: сессия открывается на конкретном файле ожиданий',
+    () => Machine.entry(),
   );
 });
 
 planReview.state('awaiting_input', () => {
-  crit.todo('в ожидании ввода планер ничего не меняет в файле ожиданий и проекте');
-  crit.todo(
+  crit('в ожидании ввода планер ничего не меняет в файле ожиданий и проекте', () =>
+    Machine.awaitingReadOnly(),
+  );
+  crit(
     'при запуске планер получает перечень блоков, из которых строит ожидания: fsm, steps, паттерны',
+    () => Machine.blocksListed(),
   );
 });
 
 planReview.transition('awaiting_input', 'request', () => {
-  crit.todo('запрос любого вида — текст, файлы, картинки — пишется в интерактивной сессии планера');
+  crit('запрос любого вида — текст, файлы, картинки — пишется в интерактивной сессии планера', () =>
+    Machine.requestInteractive(),
+  );
+  crit('событие request — hook UserPromptSubmit в состоянии awaiting_input', () =>
+    Machine.hook('awaiting_input', 'prompt', 'request'),
+  );
 });
 
 planReview.transition('awaiting_input', 'exit', () => {
-  crit.todo(
-    'выход — только по явному слову пользователя или Ctrl+C; зелёный прогон выходом не считается',
+  crit(
+    'выход — только по явной просьбе пользователя: его слово «выход» или флаг exit в ответе планера; Ctrl+C и зелёный прогон выходом не считаются',
+    () => Machine.exitOnlyByUser(),
   );
-  crit.todo(
+  crit(
     'на просьбу о выходе планер завершает сессию в точке, где файл ожиданий записан целиком',
+    () => Machine.exitWhenWritten(),
+  );
+  warn('на просьбу о выходе планер ставит последней строкой ответа флаг [plan-review: exit]', () =>
+    Machine.plannerRole(),
+  );
+  crit(
+    'событие exit — слово «выход» (UserPromptSubmit) в awaiting_input или флаг exit, прочитанный на Stop после стадии; SessionEnd событий не даёт',
+    () => Machine.exitHook(),
   );
 });
 
 planReview.state('gathering', () => {
-  crit.todo('сбор контекста может идти параллельными подзадачами внутри сессии планера');
-  crit.todo('на сборе контекста файл ожиданий не меняется');
+  crit('сбор контекста может идти параллельными подзадачами внутри сессии планера', () =>
+    Machine.subagents(),
+  );
+  crit('на сборе контекста файл ожиданий не меняется', () => Machine.gatheringReadOnly());
 });
 
 planReview.transition('gathering', 'gathered', () => {
-  crit.todo(
+  warn(
     'планер переходит к записи ожиданий, когда список его открытых вопросов к пользователю пуст',
+    () => Machine.plannerRole(),
+  );
+  crit('событие gathered — первая правка файла ожиданий (PreToolUse Edit/Write) в gathering', () =>
+    Machine.hook('gathering', 'edit', 'gathered'),
   );
 });
 
 planReview.state('composing', () => {
-  crit.todo('планер записывает в файл ожидания по собранному контексту только из блоков перечня');
-  crit.todo('ожидание без готовой проверки записывается заглушкой crit.todo или crit.wip');
+  warn('планер записывает в файл ожидания по собранному контексту только из блоков перечня', () =>
+    Machine.plannerRole(),
+  );
+  warn('ожидание без готовой проверки записывается заглушкой crit.todo или crit.wip', () =>
+    Machine.plannerRole(),
+  );
+  crit('планер правит только файл ожиданий: правка другого файла блокируется hook', () =>
+    Machine.onlyPlanFile(),
+  );
 });
 
 planReview.transition('composing', 'written', () => {
-  crit.todo(
+  crit(
     'ревью запускается на файле, который собирается без ошибок: typecheck и сбор ожиданий чистые',
+    () => Machine.reviewOnBuild(),
+  );
+  crit(
+    'файл не собирается — Stop показывает планеру ошибки не больше limits.build раз подряд, затем отпускает',
+    () => Machine.buildLimit(),
   );
 });
 
 planReview.transition('composing', 'unclear', () => {
-  crit.todo(
+  warn(
     'если блок для ожиданий выбрать нельзя, планер спрашивает пользователя, каким его строить',
+    () => Machine.plannerRole(),
+  );
+  crit('событие unclear — вопрос AskUserQuestion (PreToolUse) в состоянии composing', () =>
+    Machine.hook('composing', 'ask', 'unclear'),
   );
 });
 
 planReview.state('clarify_form', () => {
-  crit.todo('ответ пользователя о форме ожиданий передаётся планеру дословно');
+  crit('ответ пользователя о форме ожиданий передаётся планеру дословно', () =>
+    Machine.answerVerbatim(),
+  );
 });
 
 planReview.transition('clarify_form', 'answered', () => {
-  crit.todo('после ответа планер записывает ожидания выбранным блоком');
+  warn('после ответа планер записывает ожидания выбранным блоком', () => Machine.plannerRole());
+  crit('событие answered — ответ на AskUserQuestion (PostToolUse) в состоянии clarify_form', () =>
+    Machine.hook('clarify_form', 'answer', 'answered'),
+  );
 });
 
 planReview.state('review', () => {
-  crit.todo(
+  crit(
     'ревью проверяет ожидания как судья: противоречия и неизмеримые заголовки, crit, warn и info по бюджету файла',
+    () => Machine.judgeAsJudge(),
   );
-  crit.todo('ревьюер не правит файл ожиданий; результат ревью возвращается планеру');
+  crit('ревьюер не правит файл ожиданий; результат ревью возвращается планеру', () =>
+    Machine.judgeReadOnly(),
+  );
+  crit('судья — headless без сети и без права записи; правит файл только планер', () =>
+    Machine.judgeTools(),
+  );
 });
 
 planReview.transition('review', 'reviewed', () => {
-  crit.todo('результат ревью — замечания с уровнем crit, warn или info и пояснением к каждому');
+  crit('результат ревью — замечания с уровнем crit, warn или info и пояснением к каждому', () =>
+    Machine.reviewLines(),
+  );
 });
 
 planReview.state('analyze', () => {
-  crit.todo(
+  crit(
     'если у файла есть замечания, а info.remarks нет, планер пишет об этом пользователю в сессии и просит добавить блок',
+    () => Machine.remarksHint(),
   );
 });
 
@@ -231,7 +258,9 @@ planReview.transition(
   'analyze',
   'remarks',
   () => {
-    crit.todo('crit или warn сверх бюджета возвращают планера к правке ожиданий');
+    crit('crit или warn сверх бюджета возвращают планера к правке ожиданий', () =>
+      Machine.remarksBack(),
+    );
   },
   'composing',
 );
@@ -240,16 +269,18 @@ planReview.transition(
   'analyze',
   'remarks',
   () => {
-    crit.todo(
+    crit(
       'после 3 циклов без чистого ревью планер возвращается к пользователю и объясняет, где зациклился и что не может разрешить',
+      () => Machine.cyclesExhausted(),
     );
   },
   'awaiting_input',
 );
 
 planReview.transition('analyze', 'clean', () => {
-  crit.todo(
+  crit(
     'при чистом ревью планер возвращается к пользователю с пояснениями и ждёт следующего запроса',
+    () => Machine.cleanBack(),
   );
 });
 
@@ -274,6 +305,10 @@ describe('[harness] plan-review start', () => {
 });
 
 describe('[harness] plan-review', () => {
+  crit(
+    'команды планера: harness plan-review start | open | list | status | validate | graph | hook',
+    () => Check.commands(),
+  );
   crit('сессии лежат в ~/.config/harness; каталог переопределяется параметром', () => Check.home());
   warn(
     'переходами управляет автомат из harness.yaml; модель работает только внутри состояний',
@@ -292,162 +327,579 @@ describe('[harness] plan-review', () => {
 });
 
 const NOW = new Date('2026-10-14T12:00:00Z');
+const ARTIFACTS = '.claude/artifacts/plan-review';
+const TMP = (): string => path.join(repoRoot(), 'packages/harness/test/.tmp');
 
-const PLAN = `---
-harness: plan-review
-session: SESSION
-status: draft
-revision: 1
----
-# Демо
-
-## Цель
-
-Проверить планер.
-
-## Пункты
-
-### S1. Какой парсер?
-- Тип: spike
-- Вопрос: какой парсер взять
-- Ожидаемое решение: выбор библиотеки
-- Таймбокс: полдня
-
-### T1. Каркас
-- Тип: task
-- Зависит от: —
-- Мотивация: точка входа.
-- DoD:
-  - [ ] команда запускается
-
-### T2. Разбор
-- Тип: task
-- Зависит от: S1
-- Мотивация: модель плана.
-- DoD:
-  - [ ] разбор обратим
-
-## За горизонтом
-
-- Исполнение плана.
+const GOOD = `import { describe } from 'vitest';
+import { budget, crit, info, plan } from '@shahimat/harness/expect';
+budget({ crit: 0, warn: 0 });
+plan({ name: 'демо' });
+info.remarks();
+describe('раздел', () => {
+  crit('ожидание выполнено', () => {});
+});
 `;
 
-type HeadlessRun = Parameters<ModelRunner['headless']>[0];
-type InteractiveRun = Parameters<ModelRunner['interactive']>[0];
+const RED = GOOD.replace(
+  "crit('ожидание выполнено', () => {});",
+  "crit('ожидание не выполнено', () => { throw new Error('нет'); });",
+);
 
-interface Script {
-  answers: string[];
+const BROKEN = `${GOOD}\nconst = ;\n`;
+
+const EXIT_FLAG = { last_assistant_message: 'Файл записан.\n[plan-review: exit]' };
+
+const NO_REMARKS = `import { budget, plan, step, steps } from '@shahimat/harness/expect';
+budget({ crit: 0, warn: 0 });
+plan({ name: 'демо' });
+steps(() => { step('T1', { title: 'шаг', after: ['T9'] }, () => {}); });
+`;
+
+interface Step {
+  hook?: HookName;
+  input?: Record<string, unknown>;
+  write?: string;
+}
+
+interface Options {
+  steps?: Step[];
   plan?: string;
   request?: string;
+  files?: Record<string, string>;
+  cycles?: number;
+  judgeWrites?: boolean;
+  reopen?: boolean;
 }
 
-interface Flow {
+interface HookCall {
+  hook: HookName;
+  code: number;
+  message: string;
+}
+
+interface FlowResult {
+  id: string;
   home: string;
   project: string;
-  id: string;
-  dir: string;
-  interactive: InteractiveRun[];
-  headless: HeadlessRun[];
-  run: (...words: string[]) => Promise<number>;
+  state: string;
+  planFile: string;
+  title: string;
+  request: string;
+  transitions: string[];
+  hooks: HookCall[];
+  interactive: Parameters<ModelRunner['interactive']>[0][];
+  headless: Parameters<ModelRunner['headless']>[0][];
+  plan: string;
+  artifacts: string[];
+  files: Record<string, string>;
 }
 
-async function withFlow(
-  script: Script,
-  fn: (flow: Flow) => Promise<void>,
-  files: Record<string, string> = {},
-): Promise<void> {
-  const home = await mkdtemp(path.join(tmpdir(), 'plan-review-home-'));
-  const project = await mkdtemp(path.join(tmpdir(), 'plan-review-proj-'));
+const planAbs = (project: string, file: string): string => path.join(project, file);
+
+async function runFlow(options: Options): Promise<FlowResult> {
+  await mkdir(TMP(), { recursive: true });
+  const home = await mkdtemp(path.join(TMP(), 'plan-review-home-'));
+  const project = await mkdtemp(path.join(TMP(), 'plan-review-proj-'));
+  const planFile = options.plan ?? `${ARTIFACTS}/демо.expect.ts`;
   spawnSync('git', ['init', '-q'], { cwd: project });
   await mkdir(path.join(project, '.claude'), { recursive: true });
-  await writeFile(path.join(project, 'README.md'), '# проект\n');
-  for (const [rel, text] of Object.entries(files)) {
+  await writeFile(
+    path.join(project, 'package.json'),
+    '{"name":"fixture","private":true,"type":"module"}',
+  );
+  for (const [rel, text] of Object.entries(options.files ?? {})) {
     await mkdir(path.dirname(path.join(project, rel)), { recursive: true });
     await writeFile(path.join(project, rel), text);
   }
-  const saved = { runner: planIo.runner, prompter: planIo.prompter };
-  const flow: Flow = {
-    home,
-    project,
-    id: '',
-    dir: '',
-    interactive: [],
-    headless: [],
-    run: async (...words) => {
-      const outAt = words.indexOf('--out');
-      const positionals = outAt >= 0 ? words.slice(0, outAt) : words;
-      const match = findCommand(positionals);
-      if (match === undefined) throw new Error(`нет команды ${words.join(' ')}`);
-      return match.command.run({
-        root: project,
-        now: NOW,
-        home,
-        params: match.params,
-        request: script.request ?? 'спланируй',
-        ...(outAt >= 0 ? { out: words[outAt + 1] ?? '' } : {}),
-      });
-    },
+  if (options.cycles !== undefined) {
+    const own = path.join(home, 'harnesses/plan-review');
+    await mkdir(own, { recursive: true });
+    const builtin = await readFile(
+      path.join(BUILTIN_HARNESSES, 'plan-review/harness.yaml'),
+      'utf8',
+    );
+    await writeFile(
+      path.join(own, 'harness.yaml'),
+      builtin.replace('cycles: 3', `cycles: ${options.cycles}`),
+    );
+  }
+  const interactive: FlowResult['interactive'] = [];
+  const headless: FlowResult['headless'] = [];
+  const hooks: HookCall[] = [];
+  const queue = [...(options.steps ?? [])];
+  let id = '';
+  const run = (words: string[]) => {
+    const match = findCommand(words);
+    if (match === undefined) throw new Error(`нет команды ${words.join(' ')}`);
+    return match.command.run({
+      root: project,
+      now: NOW,
+      home,
+      params: match.params,
+      request: options.request ?? 'спланируй',
+    });
   };
+  const errors: string[] = [];
   const runner: ModelRunner = {
-    interactive: async (run) => {
-      flow.interactive.push(run);
-      const session = path.basename(run.addDirs[0] ?? '');
-      await writeFile(path.join(run.addDirs[0] ?? '', 'plan.md'), PLAN.replace('SESSION', session));
+    interactive: async (r) => {
+      interactive.push(r);
+      [id = ''] = await readdir(path.join(home, 'sessions'));
+      for (const step of queue.splice(0)) {
+        if (step.write !== undefined) await writeFile(planAbs(project, planFile), step.write);
+        if (step.hook === undefined) continue;
+        planIo.stdin = async () => JSON.stringify({ cwd: project, ...step.input });
+        const before = errors.length;
+        const code = await run(['plan-review', 'hook', id, step.hook]);
+        hooks.push({ hook: step.hook, code, message: errors.slice(before).join('\n') });
+      }
       return 0;
     },
-    headless: async (run) => {
-      flow.headless.push(run);
-      return {
-        text: '',
-        structured: run.schema === undefined ? undefined : { findings: [] },
-        sessionId: run.sessionId,
-        costUsd: 0,
-      };
+    headless: async (r) => {
+      headless.push(r);
+      if (options.judgeWrites === true) await writeFile(planAbs(project, planFile), 'испорчено');
+      const structured =
+        r.schema !== undefined && JSON.stringify(r.schema).includes('contradictions')
+          ? { contradictions: [], unmeasurable: [] }
+          : { answers: [] };
+      return { text: '', structured, sessionId: undefined, costUsd: 0 };
     },
   };
-  const prompter: Prompter = {
-    interactive: true,
-    say: () => undefined,
-    text: async () => script.answers.shift() ?? '',
-    choose: async () => script.answers.shift() ?? 'approve',
-  };
-  planIo.runner = () => runner;
-  planIo.prompter = () => prompter;
+  const saved = { runner: planIo.runner, stdin: planIo.stdin, terminal: planIo.terminal };
   const log = console.log;
+  const error = console.error;
+  planIo.runner = () => runner;
+  planIo.terminal = () => true;
   console.log = () => undefined;
+  console.error = (...a: unknown[]) => {
+    errors.push(a.join(' '));
+  };
   try {
-    await flow.run('plan-review', 'start', script.plan ?? `${ARTIFACTS}/демо.expect.ts`);
-    const [id = ''] = await readdir(path.join(home, 'sessions'));
-    flow.id = id;
-    flow.dir = path.join(home, 'sessions', id);
-    await fn(flow);
+    await run(['plan-review', 'start', planFile]);
+    [id = ''] = await readdir(path.join(home, 'sessions'));
+    if (options.reopen === true) await run(['plan-review', 'open', id]);
+    const s = await openSession(home, id);
+    const journal = await readFile(path.join(home, 'sessions', id, 'log.jsonl'), 'utf8');
+    const transitions = journal
+      .trim()
+      .split('\n')
+      .flatMap((line) => {
+        const e = parseJson(line);
+        if (
+          typeof e !== 'object' ||
+          e === null ||
+          !('from' in e) ||
+          !('to' in e) ||
+          !('event' in e)
+        )
+          return [];
+        return [`${String(e.from)} -${String(e.event)}-> ${String(e.to)}`];
+      });
+    const files: Record<string, string> = {};
+    for (const rel of Object.keys(options.files ?? {}))
+      files[rel] = await readFile(path.join(project, rel), 'utf8');
+    return {
+      id,
+      home,
+      project,
+      state: s.data.state,
+      planFile: s.data.planFile ?? '',
+      title: s.data.title,
+      request: s.data.request,
+      transitions,
+      hooks,
+      interactive,
+      headless,
+      plan: existsSync(planAbs(project, planFile))
+        ? await readFile(planAbs(project, planFile), 'utf8')
+        : '',
+      artifacts: existsSync(path.join(project, ARTIFACTS))
+        ? (await readdir(path.join(project, ARTIFACTS))).sort()
+        : [],
+      files,
+    };
   } finally {
     console.log = log;
+    console.error = error;
     planIo.runner = saved.runner;
-    planIo.prompter = saved.prompter;
+    planIo.stdin = saved.stdin;
+    planIo.terminal = saved.terminal;
     await rm(home, { recursive: true, force: true });
     await rm(project, { recursive: true, force: true });
   }
 }
 
+const once = <T>(make: () => Promise<T>): (() => Promise<T>) => {
+  let value: Promise<T> | undefined;
+  return () => (value ??= make());
+};
+
+const edit = (file = `${ARTIFACTS}/демо.expect.ts`): Step => ({
+  hook: 'edit',
+  input: { tool_name: 'Write', tool_input: { file_path: file } },
+});
+
+const Flows = {
+  idle: once(() => runFlow({})),
+  clean: once(() =>
+    runFlow({
+      steps: [
+        { hook: 'prompt' },
+        edit(),
+        { write: GOOD, hook: 'stop' },
+        { hook: 'stop' },
+        { hook: 'prompt', input: { prompt: 'выход' } },
+      ],
+    }),
+  ),
+  red: once(() =>
+    runFlow({
+      cycles: 1,
+      steps: [
+        { hook: 'prompt' },
+        edit(),
+        { write: RED, hook: 'stop' },
+        { write: `${RED}// 2\n`, hook: 'stop' },
+      ],
+    }),
+  ),
+  broken: once(() =>
+    runFlow({
+      steps: [
+        { hook: 'prompt' },
+        edit(),
+        { write: BROKEN, hook: 'stop' },
+        { hook: 'stop' },
+        { hook: 'stop' },
+        { hook: 'stop' },
+      ],
+    }),
+  ),
+  noRemarks: once(() =>
+    runFlow({ steps: [{ hook: 'prompt' }, edit(), { write: NO_REMARKS, hook: 'stop' }] }),
+  ),
+  exitFlag: once(() =>
+    runFlow({
+      steps: [{ hook: 'prompt' }, edit(), { write: GOOD, hook: 'stop', input: EXIT_FLAG }],
+    }),
+  ),
+  exitFlagRed: once(() =>
+    runFlow({
+      steps: [{ hook: 'prompt' }, edit(), { write: RED, hook: 'stop', input: EXIT_FLAG }],
+    }),
+  ),
+  paused: once(() =>
+    runFlow({
+      reopen: true,
+      steps: [
+        { hook: 'prompt' },
+        edit(),
+        { write: GOOD },
+        { hook: 'end', input: { reason: 'other' } },
+      ],
+    }),
+  ),
+  judgeWrites: once(() =>
+    runFlow({
+      judgeWrites: true,
+      steps: [{ hook: 'prompt' }, edit(), { write: GOOD, hook: 'stop' }],
+    }),
+  ),
+};
+
+const stops = (f: FlowResult): HookCall[] => f.hooks.filter((h) => h.hook === 'stop');
+
 async function builtinDef() {
-  const result = await loadHarness(path.join(tmpdir(), 'plan-review-no-home'), 'plan-review');
+  const result = await loadHarness(path.join(homedir(), '.no-such-harness-home'), 'plan-review');
   if (result.harness === undefined) throw new Error(result.errors.join('\n'));
   return result.harness;
 }
 
-class Check {
+class Machine {
+  static async cycles(): Promise<void> {
+    const { def } = await builtinDef();
+    expect(def.limits['cycles']).toBe(3);
+    const analyze = def.states.find((s) => s.name === 'analyze');
+    expect(analyze?.on['remarks']?.[0]?.count).toBe('cycles');
+  }
+
   static async sameAsFsm(): Promise<void> {
     const { def } = await builtinDef();
     Graph.sameAs(planReview, def);
   }
 
+  static async hooksDrive(): Promise<void> {
+    const run = (await Flows.idle()).interactive[0];
+    if (run === undefined) throw new Error('планер не запускался');
+    const settings = JSON.stringify(run.settings);
+    for (const event of ['UserPromptSubmit', 'PreToolUse', 'PostToolUse', 'Stop', 'SessionEnd'])
+      expect(settings).toContain(event);
+    expect(settings.match(/plan-review hook /g)?.length).toBe(6);
+    expect(run.allowedTools.filter((t) => t.includes('plan-review hook'))).toEqual([]);
+    const hookNode = findCommand(['plan-review', 'hook', 'x', 'stop']);
+    expect(hookNode?.command.path).toEqual(['plan-review', 'hook', '<id>', '<hook>']);
+  }
+
+  static async entry(): Promise<void> {
+    const f = await Flows.idle();
+    expect(f.planFile).toBe(`${ARTIFACTS}/демо.expect.ts`);
+    expect(f.state).toBe('awaiting_input');
+    expect(f.interactive[0]?.systemPrompt).toContain(f.planFile);
+  }
+
+  static awaitingReadOnly(): void {
+    const plan = '/p/plan.expect.ts';
+    expect(
+      hookEvent('awaiting_input', 'edit', { tool_name: 'Edit', file_path: plan }, plan).block,
+    ).toContain('не меняется');
+    expect(
+      hookEvent('awaiting_input', 'edit', { tool_name: 'Write', file_path: '/p/src/a.ts' }, plan)
+        .block,
+    ).toContain('только файл ожиданий');
+  }
+
+  static async blocksListed(): Promise<void> {
+    const prompt = (await Flows.idle()).interactive[0]?.systemPrompt ?? '';
+    for (const block of ['fsm(', 'steps(', 'Паттерны']) expect(prompt).toContain(block);
+  }
+
+  static async requestInteractive(): Promise<void> {
+    const f = await Flows.clean();
+    expect(f.interactive).toHaveLength(1);
+    expect(f.interactive[0]?.tools).toContain('Read');
+    expect(f.transitions[0]).toBe('awaiting_input -request-> gathering');
+  }
+
+  static hook(state: string, hook: HookName, event: string): void {
+    const plan = '/p/plan.expect.ts';
+    const input = { tool_name: 'Write', file_path: plan };
+    expect(hookEvent(state, hook, input, plan)).toEqual({ event });
+    for (const other of [
+      'awaiting_input',
+      'gathering',
+      'composing',
+      'clarify_form',
+      'review',
+      'analyze',
+    ])
+      if (other !== state) expect(hookEvent(other, hook, input, plan).event).not.toBe(event);
+  }
+
+  static async exitOnlyByUser(): Promise<void> {
+    const f = await Flows.clean();
+    expect(f.transitions).toContain('analyze -clean-> awaiting_input');
+    expect(f.transitions.at(-1)).toBe('awaiting_input -exit-> finished');
+    expect((await Flows.exitFlag()).state).toBe('finished');
+    expect((await Flows.paused()).state).toBe('composing');
+    const { def } = await builtinDef();
+    const intoFinal = def.states.flatMap((s) =>
+      Object.entries(s.on).flatMap(([event, list]) =>
+        list.filter((t) => t.to === 'finished').map(() => `${s.name}:${event}`),
+      ),
+    );
+    expect(intoFinal).toEqual(['awaiting_input:exit']);
+  }
+
+  static plannerRole = (): Promise<void> => judged(['@planner-role']);
+
+  static exitHook(): void {
+    const plan = '/p/plan.expect.ts';
+    for (const prompt of ['выход', ' Выход '])
+      expect(hookEvent('awaiting_input', 'prompt', { prompt }, plan)).toEqual({ event: 'exit' });
+    expect(hookEvent('awaiting_input', 'prompt', { prompt: 'выход из цикла' }, plan)).toEqual({
+      event: 'request',
+    });
+    for (const state of ['awaiting_input', 'gathering', 'composing', 'clarify_form'])
+      for (const reason of ['prompt_input_exit', 'other', 'clear'])
+        expect(hookEvent(state, 'end', { reason }, plan)).toEqual({});
+  }
+
+  static async exitWhenWritten(): Promise<void> {
+    const done = await Flows.exitFlag();
+    expect(done.transitions.slice(-2)).toEqual([
+      'analyze -clean-> awaiting_input',
+      'awaiting_input -exit-> finished',
+    ]);
+    expect(done.plan).toBe(GOOD);
+    const red = await Flows.exitFlagRed();
+    expect(red.state).toBe('composing');
+    expect(stops(red).at(-1)?.message).toContain('Выход отложен');
+  }
+
+  static async pause(): Promise<void> {
+    const f = await Flows.paused();
+    expect(f.state).toBe('composing');
+    expect(f.plan).toBe(GOOD);
+    expect(f.interactive.map((r) => r.resume)).toEqual([false, true]);
+    expect(f.interactive[1]?.sessionId).toBe(f.interactive[0]?.sessionId);
+    expect(f.hooks.find((h) => h.hook === 'end')?.code).toBe(0);
+  }
+
+  static async subagents(): Promise<void> {
+    const run = (await Flows.idle()).interactive[0];
+    expect(run?.tools).toContain('Agent');
+    expect(run?.allowedTools).toContain('Agent');
+  }
+
+  static gatheringReadOnly(): void {
+    const plan = '/p/plan.expect.ts';
+    const write = { tool_name: 'Write', file_path: plan };
+    expect(hookEvent('gathering', 'edit', write, plan)).toEqual({ event: 'gathered' });
+    expect(hookEvent('composing', 'edit', write, plan)).toEqual({});
+  }
+
+  static async onlyPlanFile(): Promise<void> {
+    const plan = '/p/plan.expect.ts';
+    for (const state of ['gathering', 'composing'])
+      expect(
+        hookEvent(state, 'edit', { tool_name: 'Edit', file_path: '/p/README.md' }, plan).block,
+      ).toContain('только файл ожиданий');
+    const run = (await Flows.idle()).interactive[0];
+    const writes = (run?.allowedTools ?? []).filter((t) => /^(Edit|Write)\(/.test(t));
+    expect(writes).toHaveLength(2);
+    for (const w of writes) expect(w).toMatch(/демо\.expect\.ts\)$/);
+  }
+
+  static async reviewOnBuild(): Promise<void> {
+    const broken = await Flows.broken();
+    expect(broken.headless).toEqual([]);
+    expect(broken.transitions).not.toContain('composing -written-> review');
+    expect(stops(broken)[0]?.message).toContain('не собирается');
+    const clean = await Flows.clean();
+    expect(clean.transitions).toContain('composing -written-> review');
+  }
+
+  static async buildLimit(): Promise<void> {
+    const f = await Flows.broken();
+    expect(stops(f).map((s) => s.code)).toEqual([2, 2, 2, 0]);
+    expect(f.state).toBe('composing');
+  }
+
+  static async answerVerbatim(): Promise<void> {
+    const settings = JSON.stringify((await Flows.idle()).interactive[0]?.settings ?? {});
+    expect(settings).toContain('"matcher":"AskUserQuestion"');
+    expect(settings).not.toContain('updatedInput');
+    expect(hookEvent('clarify_form', 'answer', {}, '/p/p.expect.ts')).toEqual({
+      event: 'answered',
+    });
+  }
+
+  static async judgeAsJudge(): Promise<void> {
+    const f = await Flows.clean();
+    const schemas = f.headless.map((r) => JSON.stringify(r.schema ?? {}));
+    expect(schemas.some((s) => s.includes('contradictions') && s.includes('unmeasurable'))).toBe(
+      true,
+    );
+    expect(stops(f)[0]?.message).toMatch(/crit 0\/0 · warn 0\/0 · info \d+/);
+    const red = await Flows.red();
+    expect(red.transitions).toContain('analyze -remarks-> composing');
+  }
+
+  static async judgeReadOnly(): Promise<void> {
+    const f = await Flows.judgeWrites();
+    expect(f.plan).toBe(GOOD);
+    expect(stops(f)[0]?.code).toBe(2);
+    expect(stops(f)[0]?.message).toContain('Ревью 1');
+  }
+
+  static judgeTools(): void {
+    expect(JUDGE_TOOLS).toEqual(['Read', 'Glob', 'Grep']);
+    const args = headlessArgs({
+      cwd: '.',
+      model: 'opus',
+      addDirs: [],
+      systemPrompt: '',
+      tools: JUDGE_TOOLS,
+      allowedTools: JUDGE_TOOLS,
+      prompt: 'p',
+      persist: false,
+      maxTurns: 1,
+    });
+    expect(args[args.indexOf('--disallowedTools') + 1]).toBe('WebSearch,WebFetch');
+    expect(args[args.indexOf('--tools') + 1]).toBe('Read,Glob,Grep');
+  }
+
+  static reviewLines(): void {
+    const lines = reviewText({
+      round: 1,
+      pass: false,
+      rejected: [],
+      summary: {
+        blocked: true,
+        count: { crit: 1, warn: 1, info: 0, pending: 0 },
+        budget: { crit: 0, warn: 0 },
+        failures: [
+          { level: 'crit', title: 'а', message: 'нет' },
+          { level: 'warn', title: 'б', message: 'размыто' },
+        ],
+        remarks: [{ text: 'противоречие', detail: 'а ↔ б' }],
+        remarksDeclared: true,
+      },
+    });
+    expect(lines).toEqual([
+      'crit 1/0 · warn 1/0 · info 0',
+      '- crit «а» — нет',
+      '- warn «б» — размыто',
+      '- противоречие — а ↔ б',
+    ]);
+  }
+
+  static async remarksHint(): Promise<void> {
+    const f = await Flows.noRemarks();
+    expect(stops(f)[0]?.message).toContain('info.remarks()');
+    const clean = await Flows.clean();
+    expect(stops(clean)[0]?.message).not.toContain('info.remarks()');
+  }
+
+  static async remarksBack(): Promise<void> {
+    const f = await Flows.red();
+    expect(f.transitions.filter((t) => t.startsWith('analyze'))[0]).toBe(
+      'analyze -remarks-> composing',
+    );
+    expect(stops(f)[0]?.code).toBe(2);
+    expect(stops(f)[0]?.message).toContain('ожидание не выполнено');
+  }
+
+  static async cyclesExhausted(): Promise<void> {
+    const f = await Flows.red();
+    expect(f.transitions.filter((t) => t.startsWith('analyze'))).toEqual([
+      'analyze -remarks-> composing',
+      'analyze -remarks-> awaiting_input',
+    ]);
+    expect(f.state).toBe('awaiting_input');
+    expect(stops(f)[1]?.message).toContain('где зациклился');
+  }
+
+  static async cleanBack(): Promise<void> {
+    const f = await Flows.clean();
+    expect(f.transitions).toContain('analyze -clean-> awaiting_input');
+    expect(stops(f)[0]?.code).toBe(2);
+    expect(stops(f)[0]?.message).toContain('поясни пользователю');
+    expect(stops(f)[1]?.code).toBe(0);
+  }
+}
+
+class Check {
+  static commands(): void {
+    const lines = [
+      'plan-review start f.expect.ts',
+      'plan-review open s',
+      'plan-review list',
+      'plan-review status s',
+      'plan-review validate',
+      'plan-review graph',
+      'plan-review hook s stop',
+    ];
+    expect(lines.filter((l) => findCommand(l.split(' ')) === undefined)).toEqual([]);
+    for (const old of ['check', 'render', 'read', 'clone'])
+      expect(findCommand(['plan-review', old, 's'])).toBeUndefined();
+  }
+
   static async home(): Promise<void> {
     expect(harnessHome()).toBe(path.join(homedir(), '.config', 'harness'));
     expect(harnessHome('/tmp/elsewhere')).toBe(path.resolve('/tmp/elsewhere'));
-    await withFlow({ answers: ['approve'] }, async (flow) => {
-      expect(flow.dir.startsWith(path.join(flow.home, 'sessions'))).toBe(true);
-    });
+    const f = await Flows.idle();
+    expect(f.id).toMatch(/^[0-9a-f]{64}$/);
+    expect(path.relative(f.project, f.home).startsWith('..')).toBe(true);
   }
 
   static fsmDrives = (): Promise<void> => judged(['@fsm-drive']);
@@ -456,14 +908,14 @@ class Check {
     const { def, registry } = await builtinDef();
     expect(staticErrors(def, registry, 'h')).toEqual([]);
     const yaml = (on: string) =>
-      `harness: t-t\ninitial: a\nstates:\n  a:\n    action: plan-check\n    on:\n${on}\n  z:\n    final: true\n`;
-    const parsed = parseMachine(yaml('      ok: a\n      broken: a\n      exhausted: a'), 'h');
+      `harness: t-t\ninitial: a\nstates:\n  a:\n    action: plan-analyze\n    on:\n${on}\n  z:\n    final: true\n`;
+    const parsed = parseMachine(yaml('      remarks: a\n      clean: a'), 'h');
     if (parsed.def === undefined) throw new Error(parsed.errors.join('\n'));
     const errors = staticErrors(parsed.def, registry, 'h').join('\n');
     expect(errors).toContain('недостижимо');
     expect(errors).toContain('цикл без лимита');
     const dead = parseMachine(
-      'harness: t-t\ninitial: a\nstates:\n  a:\n    action: plan-check\n',
+      'harness: t-t\ninitial: a\nstates:\n  a:\n    action: plan-analyze\n',
       'h',
     );
     if (dead.def === undefined) throw new Error(dead.errors.join('\n'));
@@ -473,8 +925,11 @@ class Check {
   static async noExpressions(): Promise<void> {
     const text = await readFile(path.join(BUILTIN_HARNESSES, 'plan-review/harness.yaml'), 'utf8');
     expect(parseMachine(text, 'h').errors).toEqual([]);
-    const expr = text.replace('pass: awaiting_user', "pass: 'crit == 0 ? awaiting_user : fix'");
-    expect(parseMachine(expr, 'h').errors.join('\n')).toContain('h/states/review/on/pass');
+    const expr = text.replace(
+      'clean: awaiting_input',
+      "clean: 'crit == 0 ? awaiting_input : composing'",
+    );
+    expect(parseMachine(expr, 'h').errors.join('\n')).toContain('h/states/analyze/on/clean');
     const { def } = await builtinDef();
     const registry = planReviewRegistry();
     expect(
@@ -507,65 +962,43 @@ class Check {
   }
 }
 
-const ARTIFACTS = '.claude/artifacts/plan-review';
-
-const artifactsOf = async (project: string): Promise<string[]> =>
-  existsSync(path.join(project, ARTIFACTS))
-    ? (await readdir(path.join(project, ARTIFACTS))).sort()
-    : [];
-
 class Start {
   static async file(): Promise<void> {
-    await withFlow({ answers: ['approve'] }, async (flow) => {
-      expect(await artifactsOf(flow.project)).toEqual(['демо.expect.ts']);
-      expect(
-        await readFile(path.join(flow.project, ARTIFACTS, 'демо.expect.ts'), 'utf8'),
-      ).toContain("plan({ name: 'демо' })");
-      expect((await openSession(flow.home, flow.id)).data.planFile).toBe(
-        `${ARTIFACTS}/демо.expect.ts`,
-      );
-    });
+    const f = await Flows.idle();
+    expect(f.artifacts).toEqual(['демо.expect.ts']);
+    expect(f.plan).toContain("plan({ name: 'демо' })");
+    expect(f.planFile).toBe(`${ARTIFACTS}/демо.expect.ts`);
     const existing =
       "import { plan } from '@shahimat/harness/expect';\nplan({ name: 'Текущее состояние' });\n";
-    await withFlow(
-      { answers: ['approve'], plan: 'expectations/own.expect.ts' },
-      async (flow) => {
-        expect(await readFile(path.join(flow.project, 'expectations/own.expect.ts'), 'utf8')).toBe(
-          existing,
-        );
-      },
-      { 'expectations/own.expect.ts': existing },
-    );
+    const own = await runFlow({
+      plan: 'expectations/own.expect.ts',
+      files: { 'expectations/own.expect.ts': existing },
+    });
+    expect(own.files['expectations/own.expect.ts']).toBe(existing);
   }
 
   static async name(): Promise<void> {
-    await withFlow(
-      { answers: ['approve'], plan: 'expectations/own.expect.ts' },
-      async (flow) => {
-        expect((await openSession(flow.home, flow.id)).data.title).toBe('Текущее состояние');
-      },
-      { 'expectations/own.expect.ts': "plan({ name: 'Текущее состояние' });\n" },
-    );
-    await withFlow({ answers: ['approve'], plan: 'plans/новый-план.expect.ts' }, async (flow) => {
-      expect((await openSession(flow.home, flow.id)).data.title).toBe('новый-план');
+    const own = await runFlow({
+      plan: 'expectations/own.expect.ts',
+      files: { 'expectations/own.expect.ts': "plan({ name: 'Текущее состояние' });\n" },
     });
+    expect(own.title).toBe('Текущее состояние');
+    const fresh = await runFlow({ plan: 'plans/новый-план.expect.ts' });
+    expect(fresh.title).toBe('новый-план');
   }
 
   static async request(): Promise<void> {
-    await withFlow({ answers: ['approve'], request: '' }, async (flow) => {
-      expect((await openSession(flow.home, flow.id)).data.request).toBe('');
-      expect(flow.interactive.map((r) => r.prompt)).toEqual(['']);
-      expect(flow.interactive[0]?.systemPrompt).toContain('дождись запроса');
-    });
-    await withFlow({ answers: ['approve'], request: 'одной строкой' }, async (flow) => {
-      expect(flow.interactive.map((r) => r.prompt)).toEqual(['одной строкой']);
-    });
+    const empty = await runFlow({ request: '' });
+    expect(empty.request).toBe('');
+    expect(empty.interactive.map((r) => r.prompt)).toEqual(['']);
+    expect(empty.interactive[0]?.systemPrompt).toContain('дождись запроса');
+    const line = await runFlow({ request: 'одной строкой' });
+    expect(line.interactive.map((r) => r.prompt)).toEqual(['одной строкой']);
   }
 
   static async htmlHeader(): Promise<void> {
-    const base = path.join(repoRoot(), 'packages/harness/test/.tmp');
-    await mkdir(base, { recursive: true });
-    const dir = await mkdtemp(path.join(base, 'plan-header-'));
+    await mkdir(TMP(), { recursive: true });
+    const dir = await mkdtemp(path.join(TMP(), 'plan-header-'));
     try {
       const file = `${ARTIFACTS}/demo-plan.expect.ts`;
       await mkdir(path.join(dir, ARTIFACTS), { recursive: true });

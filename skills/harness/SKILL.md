@@ -62,10 +62,10 @@ npx -y @shahimat/harness@<version> <команда> --root .
   skills `docs-keeper` и `source-sync`: в состоянии агента harness
   останавливается с заданием, `harness <имя> open <id>`
   продолжает.
-- `harness plan-review start` — план большой задачи: диалог с планером,
-  ревью в два уровня, правки, решение пользователя в терминале. Сессия
-  живёт в `~/.config/harness`, проект не меняется; план в проект —
-  `harness plan-review clone <id> md --out <path>`. Команда user scope:
+- `harness plan-review start <file>` — план в файле ожиданий: диалог с
+  планером в терминале, ревью судьёй по бюджету файла, правки до лимита
+  циклов. Сессия живёт в `~/.config/harness`, планер меняет только файл
+  ожиданий; смотреть — `harness expect serve <file>`. Команда user scope:
   запускает пользователь из глобальной установки
   (`npm i -g @shahimat/harness`), не агент из задачи.
 <!-- /expect:skill-runs -->

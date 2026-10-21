@@ -2,6 +2,11 @@
 
 Дата: 2026-10-06, сверено с репозиторием 2026-10-14.
 
+> **Устарело 2026-10-16.** Документ описывает первую схему с `plan.md`,
+> стадиями 1a/1b/2 и меню решения. Текущая схема — блок `fsm` и ожидания
+> в `expectations/harness-plan-review.expect.ts`, описание — раздел
+> `plan-review` в `packages/harness/README.md`.
+
 Статус на 2026-10-14: S1–S3 закрыты, T1–T8 реализованы в
 `@shahimat/harness` (`packages/harness/src/harnesses/plan-review/`,
 ядро — `src/harnesses/core/`). Открыт T9 — сквозной

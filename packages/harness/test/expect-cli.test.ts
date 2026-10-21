@@ -32,7 +32,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   vi.restoreAllMocks();
-  await rm(TMP, { recursive: true, force: true });
+  await rm(ROOT, { recursive: true, force: true });
 });
 
 describe('harness expect report | lint | judge', () => {

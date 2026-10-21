@@ -1,35 +1,47 @@
-import { spawn } from 'node:child_process';
-import { createHash } from 'node:crypto';
-import { existsSync, statSync } from 'node:fs';
-import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { CommandArgs } from '#shared/args';
 import { UsageError } from '#shared/diagnostics';
-import { errorCode, isRecord } from '#shared/guards';
+import { errorMessage, isOneOf } from '#shared/guards';
 import {
   ClaudeRunner,
   createSession,
   driveSession,
   HOME,
   homeOf,
+  openSession,
+  param,
   requireProject,
   sessionOf as sessionOfHarness,
-  terminalPrompter,
+  type DriveResult,
   type HarnessModule,
   type ModelRunner,
-  type Prompter,
   type Session,
 } from '#harnesses/core/index';
-import { readReview, startCycle, type PlanContext } from './actions.ts';
+import { HOOKS, planFileOf, type PlanContext } from './actions.ts';
+import { hookInputOf, runHook } from './hook.ts';
 import { loadHarness, loadHarnessOrFail, type LoadedHarness } from './load.ts';
-import { formalCheck, formatFinding } from './plan/formal.ts';
-import { renderPlanHtml } from './plan/render.ts';
+import { readPlanState, readReview, reviewText } from './review.ts';
 
-export const io: { runner: () => ModelRunner; prompter: () => Prompter } = {
+export const io: {
+  runner: () => ModelRunner;
+  stdin: () => Promise<string>;
+  terminal: () => boolean;
+} = {
   runner: () => new ClaudeRunner(),
-  prompter: terminalPrompter,
+  stdin: readStdin,
+  terminal: () => process.stdin.isTTY && process.stdout.isTTY,
 };
+
+async function readStdin(): Promise<string> {
+  if (process.stdin.isTTY) return '';
+  const chunks: Buffer[] = [];
+  for await (const chunk of process.stdin)
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk)));
+  return Buffer.concat(chunks).toString('utf8');
+}
 
 export function selfCommand(): string[] {
   const bin = fileURLToPath(import.meta.resolve('#bin'));
@@ -38,16 +50,36 @@ export function selfCommand(): string[] {
     : [process.execPath, bin];
 }
 
-function context(session: Session, home: string, harness: LoadedHarness): PlanContext {
+function context(
+  session: Session,
+  home: string,
+  harness: LoadedHarness,
+  hook: boolean,
+): PlanContext {
   return {
     session,
     home,
     def: harness.def,
-    criteria: harness.criteria,
     runner: io.runner(),
-    prompter: io.prompter(),
     self: selfCommand(),
+    hook,
+    terminal: io.terminal(),
   };
+}
+
+async function drive(session: Session, home: string, event?: string): Promise<DriveResult> {
+  const harness = await loadHarnessOrFail(home, session.data.harness);
+  const result = await driveSession(
+    harness.def,
+    harness.registry,
+    session,
+    context(session, home, harness, false),
+    event,
+  );
+  const now = await openSession(home, session.id);
+  if (harness.def.states.find((s) => s.name === now.data.state)?.final === true)
+    return { final: now.data.state };
+  return 'paused' in result ? { paused: now.data.state, message: result.message } : result;
 }
 
 export const PLAN_REVIEW: HarnessModule = {
@@ -60,75 +92,62 @@ export const PLAN_REVIEW: HarnessModule = {
     if (result.harness === undefined) return { errors: result.errors, plugins: [] };
     return { errors: [], plugins: result.harness.plugins, def: result.harness.def };
   },
-  drive: async (session, home, event) => {
-    const harness = await loadHarnessOrFail(home, session.data.harness);
-    const ctx = context(session, home, harness);
-    return driveSession(harness.def, harness.registry, session, ctx, event);
-  },
+  drive,
   status: async (s) => {
     const counters = Object.entries(s.data.counters)
       .map(([k, v]) => `${k} ${v}`)
       .join(', ');
+    const { round } = await readPlanState(s);
     const lines = [
-      `план: ${s.planPath}${existsSync(s.planPath) ? '' : ' (ещё нет)'}`,
-      `ревью: ${s.data.round}${counters === '' ? '' : ` · счётчики: ${counters}`}`,
+      `план: ${planFileOf(s)}`,
+      `ревью: ${round}${counters === '' ? '' : ` · счётчики: ${counters}`}`,
     ];
-    if (s.data.round > 0) {
-      const last = await readReview(s, s.data.round);
-      lines.push(
-        `последнее ревью: ${last.pass ? 'пройдено' : 'провал'}, замечаний ${last.findings.length}`,
-      );
-    }
+    const last = round > 0 ? await readReview(s, round) : undefined;
+    if (last !== undefined)
+      lines.push(`последнее ревью: ${last.pass ? 'чистое' : 'сверх бюджета'}`, ...reviewText(last));
     return lines;
   },
-  beforeRetry: startCycle,
   nodes: [
     {
-      path: ['plan-review', 'check', '<id>'],
-      kind: 'harness',
-      effect: 'query',
-      effects: { hook: 'mutation' },
-      options: `[--hook] ${HOME}`,
-      run: (args) => runCheck(args),
-    },
-    {
-      path: ['plan-review', 'render', '<id>'],
+      path: ['plan-review', 'hook', '<id>', '<hook>'],
       kind: 'harness',
       effect: 'mutation',
-      options: `[--out <file>] ${HOME}`,
-      run: (args) => runRender(args),
-    },
-    {
-      path: ['plan-review', 'read', '<id>'],
-      kind: 'harness',
-      effect: 'query',
       options: HOME,
-      run: (args) => runRead(args),
-    },
-    {
-      path: ['plan-review', 'clone', '<id>'],
-      kind: 'harness',
-      effect: 'mutation',
-      options: `[--out <dir>] ${HOME}`,
-      run: (args) => runClone('all', args),
-    },
-    {
-      path: ['plan-review', 'clone', '<id>', 'md'],
-      kind: 'harness',
-      effect: 'mutation',
-      options: `[--out <path>] ${HOME}`,
-      run: (args) => runClone('md', args),
+      run: (args) => runHookCommand(args),
     },
   ],
 };
+
+async function runHookCommand(args: CommandArgs): Promise<number> {
+  const hook = param(args, 'hook');
+  if (!isOneOf(HOOKS, hook)) throw new UsageError(`hook — одно из ${HOOKS.join(', ')}: ${hook}`);
+  const home = homeOf(args);
+  const session = await sessionOfHarness(args, 'plan-review');
+  const harness = await loadHarnessOrFail(home, session.data.harness);
+  let raw: unknown = {};
+  const text = await io.stdin();
+  try {
+    raw = text.trim() === '' ? {} : JSON.parse(text);
+  } catch (error) {
+    console.error(`plan-review hook: вход не JSON: ${errorMessage(error)}`);
+  }
+  const outcome = await runHook(
+    context(session, home, harness, true),
+    harness,
+    hook,
+    hookInputOf(raw),
+  );
+  if (outcome.message !== undefined) console.error(outcome.message);
+  return outcome.code;
+}
 
 async function start(args: CommandArgs): Promise<Session> {
   requireProject(args.root);
   const home = homeOf(args);
   const harness = await loadHarnessOrFail(home, 'plan-review');
-  const planFile = await planFileOf(args);
+  const planFile = await planFileArg(args);
   const title = await planNameOf(path.join(args.root, planFile));
-  io.prompter().say(`план: ${planFile}`);
+  console.log(`план: ${planFile}`);
   const session = await createSession(home, {
     harness: harness.name,
     title,
@@ -156,7 +175,7 @@ const planSkeleton = (name: string): string =>
 
 const baseName = (file: string): string => path.basename(file).replace(/\.expect\.ts$/, '');
 
-async function planFileOf(args: CommandArgs): Promise<string> {
+async function planFileArg(args: CommandArgs): Promise<string> {
   const file = args.params?.['file'];
   if (file === undefined) throw new UsageError('нужен путь к файлу плана: <file>');
   const abs = path.resolve(args.root, file);
@@ -176,125 +195,4 @@ const PLAN_NAME = /\bplan\(\{\s*name:\s*'((?:[^'\\]|\\.)*)'/;
 async function planNameOf(file: string): Promise<string> {
   const found = PLAN_NAME.exec(await readFile(file, 'utf8'))?.[1];
   return found === undefined ? baseName(file) : found.replace(/\\(.)/g, '$1');
-}
-
-const sessionOf = (args: CommandArgs): Promise<Session> => sessionOfHarness(args, 'plan-review');
-
-interface HookState {
-  hash: string;
-  blocks: number;
-}
-
-async function readHookState(file: string): Promise<HookState> {
-  try {
-    const data: unknown = JSON.parse(await readFile(file, 'utf8'));
-    if (isRecord(data) && typeof data['hash'] === 'string' && typeof data['blocks'] === 'number')
-      return { hash: data['hash'], blocks: data['blocks'] };
-  } catch (error) {
-    if (errorCode(error) !== 'ENOENT') throw error;
-  }
-  return { hash: '', blocks: 0 };
-}
-
-async function runCheck(args: CommandArgs): Promise<number> {
-  const s = await sessionOf(args);
-  const text = await s.readPlan();
-  if (args.hook !== true) {
-    if (text === undefined) throw new UsageError(`нет ${s.planPath}`);
-    const findings = formalCheck(text, s.id);
-    for (const f of findings) console.error(formatFinding(f));
-    console.log(findings.length === 0 ? 'check: ok' : `check: нарушений ${findings.length}`);
-    return findings.length === 0 ? 0 : 1;
-  }
-  if (text === undefined) return 0;
-  const stateFile = s.file('hook.json');
-  const state = await readHookState(stateFile);
-  const hash = createHash('sha256').update(text).digest('hex');
-  if (hash === state.hash) return 0;
-  const findings = formalCheck(text, s.id);
-  if (findings.length === 0) {
-    await writeFile(stateFile, JSON.stringify({ hash, blocks: 0 }));
-    return 0;
-  }
-  const harness = await loadHarnessOrFail(homeOf(args), s.data.harness);
-  const limit = harness.def.limits['formal'] ?? 3;
-  const blocks = state.blocks + 1;
-  await writeFile(stateFile, JSON.stringify({ hash: state.hash, blocks }));
-  if (blocks > limit) {
-    s.data.formalExhausted = true;
-    await s.save();
-    console.error(`plan.md не проходит проверку структуры после ${limit} блокировок — отпускаю`);
-    return 0;
-  }
-  console.error(
-    [
-      'plan.md не проходит проверку структуры (1a):',
-      ...findings.map(formatFinding),
-      'Исправь plan.md и снова запусти проверку.',
-    ].join('\n'),
-  );
-  return 2;
-}
-
-async function render(s: Session, out?: string): Promise<string> {
-  const text = await s.readPlan();
-  if (text === undefined) throw new UsageError(`нет ${s.planPath}`);
-  const file = out === undefined ? s.file('plan.html') : path.resolve(out);
-  await mkdir(path.dirname(file), { recursive: true });
-  await writeFile(file, renderPlanHtml(text), 'utf8');
-  return file;
-}
-
-async function runRender(args: CommandArgs): Promise<number> {
-  console.log(await render(await sessionOf(args), args.out));
-  return 0;
-}
-
-function openerFor(file: string): string[] {
-  const browser = process.env['BROWSER'];
-  if (browser !== undefined && browser !== '') return [browser, file];
-  if (process.platform === 'darwin') return ['open', file];
-  if (process.platform === 'win32') return ['cmd', '/c', 'start', '', file];
-  return ['xdg-open', file];
-}
-
-async function runRead(args: CommandArgs): Promise<number> {
-  const s = await sessionOf(args);
-  const html = s.file('plan.html');
-  const stale = !existsSync(html) || statSync(html).mtimeMs < statSync(s.planPath).mtimeMs;
-  if (stale) await render(s);
-  const [cmd = 'open', ...rest] = openerFor(html);
-  await new Promise<void>((resolve, reject) => {
-    const child = spawn(cmd, rest, { stdio: 'ignore', detached: true });
-    child.on('error', reject);
-    child.on('spawn', () => {
-      child.unref();
-      resolve();
-    });
-  });
-  console.log(html);
-  return 0;
-}
-
-const EXPORTS = ['plan.md', 'context.md', 'plan.html', 'failure-report.md'];
-
-async function runClone(what: 'all' | 'md', args: CommandArgs): Promise<number> {
-  const s = await sessionOf(args);
-  if (!existsSync(s.planPath)) throw new UsageError(`нет ${s.planPath}`);
-  if (what === 'md') {
-    let target = path.resolve(args.root, args.out ?? 'plan.md');
-    if (existsSync(target) && statSync(target).isDirectory()) target = path.join(target, 'plan.md');
-    await mkdir(path.dirname(target), { recursive: true });
-    await copyFile(s.planPath, target);
-    console.log(target);
-    return 0;
-  }
-  const dir = path.resolve(args.root, args.out ?? '.');
-  await mkdir(dir, { recursive: true });
-  for (const name of EXPORTS) {
-    if (!existsSync(s.file(name))) continue;
-    await copyFile(s.file(name), path.join(dir, name));
-    console.log(path.join(dir, name));
-  }
-  return 0;
 }

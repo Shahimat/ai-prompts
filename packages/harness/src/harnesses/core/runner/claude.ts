@@ -5,6 +5,7 @@ export interface InteractiveRun {
   cwd: string;
   model: string;
   sessionId: string;
+  resume?: boolean;
   name: string;
   addDirs: string[];
   systemPrompt: string;
@@ -49,8 +50,7 @@ export function interactiveArgs(r: InteractiveRun): string[] {
     ...BASE,
     '--model',
     r.model,
-    '--session-id',
-    r.sessionId,
+    ...(r.resume === true ? ['--resume', r.sessionId] : ['--session-id', r.sessionId]),
     '--name',
     r.name,
     ...r.addDirs.flatMap((d) => ['--add-dir', d]),

@@ -4,6 +4,19 @@
 
 ## 0.4.0
 
+- `plan-review` — планер ожиданий: результат — файл ожиданий `<file>`.
+  Автомат `awaiting_input → gathering → composing (↔ clarify_form) →
+  review → analyze`; события выводит новая команда
+  `plan-review hook <id> <hook>` из hooks интерактивной сессии планера
+  (UserPromptSubmit, PreToolUse, PostToolUse, Stop, SessionEnd), модель
+  событий не объявляет. Ревью — `expect judge` по файлу, судья headless
+  без сети и записи, итог по бюджету файла; лимиты `cycles` и `build`.
+  Выход — сообщение «выход» в `awaiting_input` или флаг
+  `[plan-review: exit]` в ответе планера после чистого ревью; Ctrl+C и
+  `/exit` — пауза
+  в любом состоянии, `open <id>` продолжает через `--resume`.
+  В `harness.yaml` модели — `planner` и `judge`; сессия ядра не хранит
+  полей конкретного harness.
 - Страница плана: `info.title`, `info.subtitle`, `info.text` — заголовок,
   подзаголовки и текст в порядке объявления; `info.stats('crit' | 'warn')`
   — виджет «пройдено · заглушки · не пройдено · всего»;
@@ -105,11 +118,10 @@
   ключи API, токены, пароли, приватные ключи в отслеживаемых файлах или
   в файле по пути. В `harness check` включена по умолчанию, выключается
   `secrets: false`; исключения — `checks.secrets.allow` с `reason`.
-- Планер `plan-review`: `harness plan-review start` и общие команды
-  harness, свои — `check <id> [--hook] | render <id> | read <id> |
-  clone <id> [md]`. Автомат из
-  `harness.yaml` (схема `harness-fsm`), критерии `criteria.yaml`,
-  плагины `handlers/`, сессии в `~/.config/harness`. Модель в любом
+- Планер `plan-review`: `harness plan-review start <file>` и общие
+  команды harness, своя — `hook <id> <hook>`. Автомат из `harness.yaml`
+  (схема `harness-fsm`), плагины `handlers/`, сессии в
+  `~/.config/harness`. Модель в любом
   состоянии, включая интерактивного планера, — без skills
   (`--disable-slash-commands`) и только с перечисленными инструментами
   (`--tools`).

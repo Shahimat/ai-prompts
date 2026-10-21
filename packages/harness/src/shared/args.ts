@@ -11,5 +11,4 @@ export interface CommandArgs {
   home?: string;
   name?: string;
   request?: string;
-  hook?: boolean;
 }

@@ -14,6 +14,7 @@ import {
   findCommand,
   headlessArgs,
   interactiveArgs,
+  JUDGE_TOOLS,
   KNOWN_ADAPTERS,
   KNOWN_CHECKS,
   loadHarness,
@@ -22,7 +23,6 @@ import {
   planIo,
   plannerTools,
   renderUsage,
-  REVIEW_TOOLS,
   runOutdated,
   selfCommand,
   splitWords,
@@ -93,9 +93,6 @@ describe('[harness] common', () => {
   warn(
     'задание проверяющей модели содержит только вопросы и доказательства, без контекста автора',
     () => Check.cleanContext(),
-  );
-  crit('уровни замечаний общие для ожиданий и критериев плана: crit, warn, info', () =>
-    Check.sharedLevels(),
   );
   crit(
     'harness живёт в одном каталоге src/harnesses/<имя>: harness.yaml, критерии и промпты рядом с кодом',
@@ -631,11 +628,7 @@ const DECLARED_COMMANDS = [
     `${p} validate`,
     `${p} graph`,
   ]),
-  'plan-review check <id>',
-  'plan-review render <id>',
-  'plan-review read <id>',
-  'plan-review clone <id>',
-  'plan-review clone <id> md',
+  'plan-review hook <id> <hook>',
 ];
 
 class Check {
@@ -871,15 +864,6 @@ class Check {
   }
 
   static cleanContext = (): Promise<void> => judged(['@judge-clean-context']);
-
-  static async sharedLevels(): Promise<void> {
-    const schema = parseJson(await readRepo(`${SCHEMAS}/plan-criteria.schema.json`));
-    expect(at(schema, 'properties', 'criteria', 'items', 'properties', 'level', 'enum')).toEqual([
-      'crit',
-      'warn',
-      'info',
-    ]);
-  }
 
   static lintOnTitleChange = (): Promise<void> => judged(['@expect-cycles']);
   static judgeOnlyStale = (): Promise<void> => judged(['@expect-cycles']);
@@ -1180,9 +1164,6 @@ function harnessWords(line: string): string[] | undefined {
   return end < 0 ? rest : rest.slice(0, end);
 }
 
-const PLAN_SAMPLE =
-  '---\nharness: plan-review\nsession: s\nstatus: draft\nrevision: 1\n---\n# План\n\n## Цель\n\nцель\n\n## Пункты\n\n### T1. Пункт\n\n- Тип: task\n- Зависит от: —\n- Мотивация: м\n- DoD:\n  - [ ] д\n';
-
 class Layers {
   static async downward(): Promise<void> {
     const files = await srcFiles();
@@ -1317,11 +1298,9 @@ class Layers {
           title: 'демо',
           request: 'запрос',
           project: dir,
-          initial: 'awaiting_user',
+          initial: 'awaiting_input',
           now: new Date(),
         });
-        await writeFile(path.join(session.dir, 'plan.md'), PLAN_SAMPLE);
-        expect(cli(['plan-review', 'render', session.id, '--home', home])).toBe(0);
 
         const query = COMMANDS.filter((n) => effectOf(n) === 'query');
         expect(query.length).toBeGreaterThan(10);
@@ -1365,19 +1344,20 @@ class Layers {
         title: 'демо',
         request: 'запрос',
         project: home,
-        initial: 'draft',
+        initial: 'awaiting_input',
         now: new Date(),
       });
+      session.data.planFile = 'plans/p.expect.ts';
       const { harness } = await loadHarness(home, 'plan-review');
       if (harness === undefined) throw new Error('plan-review не загрузился');
       const ctx: PlanContext = {
         session,
         home,
         def: harness.def,
-        criteria: harness.criteria,
         runner: planIo.runner(),
-        prompter: planIo.prompter(),
         self: selfCommand(),
+        hook: false,
+        terminal: false,
       };
       const planner = plannerTools(ctx);
       const bash = planner.allowed.flatMap((r) => /^Bash\((.*)\)$/.exec(r)?.[1] ?? []);
@@ -1398,7 +1378,7 @@ class Layers {
         allowedTools: planner.allowed,
         prompt: '',
       });
-      const headless = [planner.tools, ...Object.values(REVIEW_TOOLS)].map((tools) =>
+      const headless = [planner.tools, JUDGE_TOOLS].map((tools) =>
         headlessArgs({
           cwd: home,
           model: 'opus',
@@ -1416,7 +1396,7 @@ class Layers {
         expect(args).toContain('--tools');
         expect(toolsOf(args)).not.toContain('Skill');
       }
-      for (const tools of Object.values(REVIEW_TOOLS)) expect(tools).not.toContain('Bash');
+      expect(JUDGE_TOOLS).not.toContain('Bash');
     } finally {
       await rm(home, { recursive: true, force: true });
     }
@@ -1624,7 +1604,7 @@ class Processes {
     expect(
       dirs.filter((d) => !existsSync(path.join(repoRoot(), HARNESSES, d, 'harness.yaml'))),
     ).toEqual([]);
-    for (const f of ['criteria.yaml', 'prompts'])
+    for (const f of ['prompts'])
       expect({ f, ok: existsSync(path.join(repoRoot(), HARNESSES, 'plan-review', f)) }).toEqual({
         f,
         ok: true,
