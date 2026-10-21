@@ -1,5 +1,5 @@
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, watch } from 'node:fs';
 import { mkdtemp, readdir, readFile, realpath, rm, writeFile, mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -460,6 +460,10 @@ describe('[harness] expect plan', () => {
   crit(
     'HTML отмечает новые и удалённые относительно HEAD ожидания; замена в том же разделе — изменение',
     () => Plan.htmlDiff(),
+  );
+  crit(
+    'сравнение с HEAD не пишет в проект: HEAD-версия файла ожиданий не появляется рядом с ним даже на время сборки',
+    () => Plan.headInMemory(),
   );
 });
 
@@ -2230,6 +2234,30 @@ M.state('c', () => { crit.todo('c впереди'); });
       expect(find('новое один')?.cls).toMatch(/diff-changed/);
       expect(find('новое один')?.text).toContain('старое один');
       expect(find('остаётся')?.cls).not.toMatch(/diff-/);
+    });
+  }
+
+  static async headInMemory(): Promise<void> {
+    const v1 = `describe('X', () => {\n  crit('было', () => {});\n});\n`;
+    const v2 = `describe('X', () => {\n  crit('стало', () => {});\n});\n`;
+    await withPlanFixture(planFile(v1), async (dir, run) => {
+      gitCommitAll(dir);
+      await writeFile(
+        path.join(dir, 'expectations/plan.expect.ts'),
+        planFile(v2)['expectations/plan.expect.ts'] ?? '',
+      );
+      const created: string[] = [];
+      const watcher = watch(dir, { recursive: true }, (_event, file) => {
+        if (file !== null && file.endsWith('.expect.ts') && !file.endsWith('plan.expect.ts'))
+          created.push(file);
+      });
+      try {
+        const { html } = await run();
+        expect(listItems(html).find((i) => i.text.includes('стало'))?.cls).toMatch(/diff-changed/);
+      } finally {
+        watcher.close();
+      }
+      expect(created).toEqual([]);
     });
   }
 }

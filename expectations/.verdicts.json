@@ -105,13 +105,13 @@
     "1db1d3ca45dd": {
       "question": "[harness] expect > смысловая проверка заголовков файла запускается только при изменении его заголовков",
       "evidence": {
-        "@expect-cycles": "69d7741f5811e3cf42dccb31332270d167a6a07022adea597a7f400d77d89634"
+        "@expect-cycles": "a9b024d075c16195ec029a363b23288b576428bc113de2d4fdda25cb41e1ec28"
       },
       "verdict": true,
       "quote": "if (store.lint[file]?.titles === sha) continue;",
       "ref": "@expect-cycles",
-      "reason": "Задание проверки заголовков создаётся только при изменении sha заголовков файла.",
-      "at": "2026-10-16"
+      "reason": "Задание проверки заголовков создаётся только для файла, у которого SHA заголовков отличается от сохранённого.",
+      "at": "2026-10-21"
     },
     "1e94c71faacc": {
       "question": "поведение ключевых skills > workflow: блокирующий вопрос — нумерованные варианты, дефолт с обоснованием, стоп до ответа",
@@ -361,13 +361,13 @@
     "694f0f4b5141": {
       "question": "[harness] expect > в кэше вердиктов только вердикты живых ожиданий",
       "evidence": {
-        "@verdict-prune": "4fb298719491fc8bc175d0d0066565246869e67c78bba3b851ce3018850fb2d2"
+        "@verdict-prune": "804d60ed36cd91926e547d5a8c4dc277eee346c2ba848ea4d4190b63caa60515"
       },
       "verdict": true,
-      "quote": "if (!liveIds.has(id)) {",
+      "quote": "const removed = pruneStore(store, seen, new Set(byFile(results).keys()));",
       "ref": "@verdict-prune",
-      "reason": "pruneStore удаляет вердикты не встреченных в прогоне ожиданий и lint-записи несуществующих файлов.",
-      "at": "2026-10-16"
+      "reason": "pruneStore удаляет вердикты с id вне множества увиденных в прогоне ожиданий и lint-записи для неживых файлов.",
+      "at": "2026-10-21"
     },
     "6a7682557244": {
       "question": "тикет — задача, техзадача или бага: последовательность шагов-коммитов > вклинившийся refactor доводится до конца отдельным шагом, затем работа возвращается к прерванному типу",
@@ -563,13 +563,13 @@
     "9d95d48cd2c2": {
       "question": "[harness] common > итог прогона считает код по бюджету и ответам модели, а не модель",
       "evidence": {
-        "@verdict-by-code": "105691f0887d3b0f35bec64055c6ee604c365071942c39ab236aca95d14d4941"
+        "@verdict-by-code": "b7334d41429083fc7a0ececa156ca60a2cde88292284e06116b85b6624600de3"
       },
       "verdict": true,
       "quote": "const over = count.crit > budget.crit || count.warn > budget.warn || count.pending > 0;",
       "ref": "@verdict-by-code",
-      "reason": "Блокировка вычисляется кодом из счётчиков crit/warn/pending против бюджета; модель только поставляет вердикты.",
-      "at": "2026-10-16"
+      "reason": "Блокировку вычисляет код по счётчикам и бюджету; ответы модели только записываются как вердикты и влияют на счётчики.",
+      "at": "2026-10-21"
     },
     "a5651202c571": {
       "question": "виды контракта > ядро контракта перечисляет виды и что каждый включает; неподходящий вид — ручной выбор в том же чеклисте",
@@ -778,13 +778,13 @@
     "de808fdc116f": {
       "question": "[harness] expect > судья вызывается только для вердиктов, у которых изменились заголовок или доказательства",
       "evidence": {
-        "@expect-cycles": "69d7741f5811e3cf42dccb31332270d167a6a07022adea597a7f400d77d89634"
+        "@expect-cycles": "a9b024d075c16195ec029a363b23288b576428bc113de2d4fdda25cb41e1ec28"
       },
       "verdict": true,
       "quote": "refs.every((r) => cached.evidence[r.ref] === r.sha);",
       "ref": "@expect-cycles",
-      "reason": "Вердикт свежий при совпадении вопроса и sha всех доказательств; в задание судье попадают только несвежие.",
-      "at": "2026-10-16"
+      "reason": "Вердикт свежий при совпадении вопроса и SHA всех доказательств; в задание судье попадают только несвежие.",
+      "at": "2026-10-21"
     },
     "dfed5ff72504": {
       "question": "приоритетные правила модулей > privacy: в документации, коммитах и журнале нет реальных персональных данных",
@@ -890,10 +890,10 @@
       "at": "2026-10-21"
     },
     "expectations/harness.expect.ts": {
-      "titles": "b1497bff101f3dc5d403a0f6969e0423a1f51506b754559e6bd7d2c03bdc1486",
+      "titles": "ec0c188afbcbca754b9b764f1eec49f141dc03fa556cbf0ba9cc1ec3a252a1f8",
       "contradictions": [],
       "unmeasurable": [],
-      "at": "2026-10-16"
+      "at": "2026-10-21"
     },
     "expectations/presets.expect.ts": {
       "titles": "64e4a5400f6cc17662aa0803796de07cadca271bf818427f0f174fc3e38deb9e",

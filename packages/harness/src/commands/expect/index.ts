@@ -340,8 +340,8 @@ export function expectBuild(root: string, file: string): ExpectBuild {
 
 async function pageHtml(args: CommandArgs, reports: FileReport[]): Promise<string> {
   for (const r of reports) {
-    const head = headTitles(args.root, r.file, (rel) =>
-      visible(runVitest(args.root, rel, {}, ['-t', NOTHING])).filter((t) => t.file === rel),
+    const head = headTitles(args.root, r.file, (env) =>
+      visible(runVitest(args.root, r.file, env, ['-t', NOTHING])).filter((t) => t.file === r.file),
     );
     if (head !== undefined) r.head = head;
   }

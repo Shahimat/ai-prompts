@@ -1,6 +1,9 @@
 import { spawnSync } from 'node:child_process';
-import { rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
+
+export const HEAD_SOURCE_ENV = 'HARNESS_EXPECT_HEAD_SOURCE';
 
 export interface Titled {
   path: string[];
@@ -20,7 +23,7 @@ const git = (cwd: string, args: string[]) =>
 export function headTitles(
   root: string,
   file: string,
-  collect: (rel: string) => Titled[],
+  collect: (env: Record<string, string>) => Titled[],
 ): Titled[] | undefined {
   const top = git(root, ['rev-parse', '--show-toplevel']);
   if (top.status !== 0) return undefined;
@@ -28,16 +31,15 @@ export function headTitles(
   const rel = path.relative(top.stdout.trim(), abs).split(path.sep).join('/');
   const shown = git(root, ['show', `HEAD:${rel}`]);
   if (shown.status !== 0) return undefined;
-  const copy = abs.replace(/\.expect\.ts$/, `.head-${process.pid}.expect.ts`);
-  writeFileSync(copy, shown.stdout, 'utf8');
+  const dir = mkdtempSync(path.join(tmpdir(), 'harness-head-'));
+  const source = path.join(dir, path.basename(abs));
+  writeFileSync(source, shown.stdout, 'utf8');
   try {
-    return collect(path.relative(root, copy).split(path.sep).join('/'));
+    return collect({ [HEAD_SOURCE_ENV]: source });
   } finally {
-    rmSync(copy, { force: true });
+    rmSync(dir, { recursive: true, force: true });
   }
 }
-
-export const HEAD_COPY = /\.head-\d+\.expect\.ts$/;
 
 const keyOf = (t: Titled): string => [...t.path, t.title].join('\u0000');
 const pathOf = (t: Titled): string => t.path.join('\u0000');
