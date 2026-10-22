@@ -2,7 +2,8 @@ import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promis
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { main } from '#cli';
-import { io } from '#harnesses/plan-review/cli';
+import { io, selfCommand } from '#harnesses/plan-review/cli';
+import { openerFor, servePage } from '#harnesses/plan-review/page';
 import { hookEvent } from '#harnesses/plan-review/hook';
 import {
   interactiveArgs,
@@ -12,6 +13,7 @@ import {
   type ModelRunner,
 } from '#harnesses/core/runner/claude';
 import { openSession } from '#harnesses/core/store/session';
+import { isRecord } from '#shared/guards';
 
 const NOW = new Date('2026-10-14T12:00:00Z');
 const PLAN_FILE = 'plans/демо.expect.ts';
@@ -37,8 +39,9 @@ let home: string;
 let project: string;
 let out: string[];
 let err: string[];
-let codes: { hook: string; code: number; message: string }[];
+let codes: { hook: string; code: number; raw: number; message: string }[];
 let session: () => string;
+let pages: { root: string; file: string; stopped: boolean }[];
 
 type Step = { hook: string; input?: Record<string, unknown>; write?: string };
 
@@ -52,11 +55,32 @@ let fake: Fake;
 
 const planPath = (): string => path.join(project, PLAN_FILE);
 
+function blockReason(lines: string[]): string | undefined {
+  for (const line of lines) {
+    let data: unknown;
+    try {
+      data = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    if (isRecord(data) && data['decision'] === 'block' && typeof data['reason'] === 'string')
+      return data['reason'];
+  }
+  return undefined;
+}
+
 async function hook(name: string, input: Record<string, unknown> = {}): Promise<void> {
   io.stdin = async () => JSON.stringify({ cwd: project, ...input });
   const before = err.length;
-  const code = await main(['plan-review', 'hook', session(), name, '--home', home], NOW);
-  codes.push({ hook: name, code, message: err.slice(before).join('\n') });
+  const outBefore = out.length;
+  const raw = await main(['plan-review', 'hook', session(), name, '--home', home], NOW);
+  const reason = blockReason(out.slice(outBefore));
+  codes.push({
+    hook: name,
+    raw,
+    code: reason === undefined ? raw : 2,
+    message: reason ?? err.slice(before).join('\n'),
+  });
 }
 
 const runner: ModelRunner = {
@@ -94,6 +118,17 @@ beforeEach(async () => {
   session = () => '';
   io.runner = () => runner;
   io.terminal = () => true;
+  pages = [];
+  io.page = async (root, file) => {
+    const page = { root, file, stopped: false };
+    pages.push(page);
+    return {
+      url: 'http://127.0.0.1:1/',
+      stop: async () => {
+        page.stopped = true;
+      },
+    };
+  };
   vi.spyOn(console, 'log').mockImplementation((...a: unknown[]) => {
     out.push(a.join(' '));
   });
@@ -200,6 +235,7 @@ describe('plan-review: сквозной прогон', { timeout: 120_000 }, () 
     const stops = codes.filter((c) => c.hook === 'stop');
     expect(stops.map((c) => c.code)).toEqual([2, 0]);
     expect(stops[0]?.message).toContain('чистое');
+    expect(stops[0]?.raw).toBe(0);
     expect(codes.filter((c) => c.hook === 'prompt').map((c) => c.code)).toEqual([0, 2, 2]);
     expect(codes.at(-1)?.message).toContain('завершена');
     expect(out.join('\n')).toContain('finished');
@@ -229,6 +265,51 @@ describe('plan-review: сквозной прогон', { timeout: 120_000 }, () 
     expect(codes.at(-1)?.message).toContain('Выход отложен');
   });
 
+  it('ответ без записи файла: gathering → replied → awaiting_input; просьба выйти без правок закрывает сессию', async () => {
+    const flag = { last_assistant_message: 'Выхожу.\n[plan-review: exit]' };
+    const id = await start([
+      { hook: 'prompt' },
+      edit(),
+      { hook: '', write: GOOD },
+      { hook: 'stop' },
+      { hook: 'prompt', input: { prompt: 'что ещё?' } },
+      { hook: 'stop' },
+      { hook: 'prompt', input: { prompt: 'выйди из плана' } },
+      { hook: 'stop', input: flag },
+    ]);
+    expect((await transitions(id)).slice(-5)).toEqual([
+      'awaiting_input -request-> gathering',
+      'gathering -replied-> awaiting_input',
+      'awaiting_input -request-> gathering',
+      'gathering -replied-> awaiting_input',
+      'awaiting_input -exit-> finished',
+    ]);
+    expect(codes.at(-1)?.code).toBe(0);
+  });
+
+  it('флаг выхода после ревью с замечаниями — выход отложен и из awaiting_input', async () => {
+    const flag = { last_assistant_message: 'Выхожу.\n[plan-review: exit]' };
+    const own = path.join(home, 'harnesses/plan-review');
+    await mkdir(own, { recursive: true });
+    const builtin = await readFile(
+      path.join(import.meta.dirname, '../src/harnesses/plan-review/harness.yaml'),
+      'utf8',
+    );
+    await writeFile(path.join(own, 'harness.yaml'), builtin.replace('cycles: 3', 'cycles: 1'));
+    const id = await start([
+      { hook: 'prompt' },
+      edit(),
+      { hook: '', write: RED },
+      { hook: 'stop' },
+      { hook: '', write: `${RED}// 2\n` },
+      { hook: 'stop' },
+      { hook: 'prompt', input: { prompt: 'выйди' } },
+      { hook: 'stop', input: flag },
+    ]);
+    expect((await openSession(home, id)).data.state).toBe('awaiting_input');
+    expect(codes.at(-1)?.message).toContain('Выход отложен');
+  });
+
   it('Ctrl+C в любом состоянии — пауза: автомат на месте, open продолжает через --resume', async () => {
     const id = await start([
       { hook: 'prompt' },
@@ -248,6 +329,7 @@ describe('plan-review: сквозной прогон', { timeout: 120_000 }, () 
     const run = fake.interactive[0];
     if (run === undefined) throw new Error('планер не запускался');
     expect(run.cwd).toBe(project);
+    expect(run.name).toBe('plan-review · демо');
     expect(run.prompt).toBe('спланируй демо');
     expect(run.systemPrompt).toContain(PLAN_FILE);
     const settings = JSON.stringify(run.settings);
@@ -316,6 +398,63 @@ describe('plan-review: сквозной прогон', { timeout: 120_000 }, () 
       expect(r.persist).toBe(false);
     }
     expect(await readFile(planPath(), 'utf8')).toBe(GOOD);
+  });
+});
+
+describe('plan-review: страница плана', () => {
+  it('сессия планера поднимает страницу своего файла и гасит её при закрытии; адрес — в промпте и в ответе чистого ревью', async () => {
+    await start([{ hook: 'prompt' }, edit(), { hook: '', write: GOOD }, { hook: 'stop' }]);
+    expect(pages).toEqual([{ root: project, file: PLAN_FILE, stopped: true }]);
+    expect(fake.interactive[0]?.systemPrompt).toContain('http://127.0.0.1:1/');
+    expect(codes.find((c) => c.hook === 'stop')?.message).toContain('http://127.0.0.1:1/');
+    expect(out.join('\n')).toContain('страница плана: http://127.0.0.1:1/');
+  });
+
+  it('servePage: настоящий expect serve на свободном порту, BROWSER=none не открывает браузер', async () => {
+    vi.stubEnv('BROWSER', 'none');
+    expect(openerFor('http://x/')).toBeUndefined();
+    await mkdir(path.join(project, 'plans'), { recursive: true });
+    await writeFile(planPath(), GOOD, 'utf8');
+    const page = await servePage(selfCommand(), project, PLAN_FILE);
+    try {
+      expect(page.url).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/$/);
+      expect(page.url).not.toContain(':4173/');
+      const res = await fetch(page.url);
+      expect(res.status).toBe(200);
+      expect(await res.text()).toContain('ожидание выполнено');
+    } finally {
+      await page.stop();
+      vi.unstubAllEnvs();
+    }
+    await expect(fetch(page.url)).rejects.toThrow();
+  });
+
+  it('страница не поднялась — планер всё равно запускается', async () => {
+    io.page = async () => {
+      throw new Error('нет порта');
+    };
+    await start([]);
+    expect(fake.interactive).toHaveLength(1);
+    expect(err.join('\n')).toContain('страница плана не поднялась: нет порта');
+  });
+});
+
+describe('plan-review: Bash в сессии планера', () => {
+  it('Bash — только expect report своего файла; остальное блокируется hook', async () => {
+    const id = await start([]);
+    const run = fake.interactive[0];
+    const report = (run?.allowedTools ?? [])
+      .map((t) => /^Bash\((.*)\)$/.exec(t)?.[1])
+      .find((c) => c !== undefined);
+    if (report === undefined) throw new Error('нет разрешённой команды Bash');
+    session = () => id;
+    for (const command of [report, `  ${report}  `])
+      await hook('bash', { tool_input: { command } });
+    for (const command of ['ls', 'echo x > a.txt', `cd /tmp && ${report}`, `${report}; rm -rf .`])
+      await hook('bash', { tool_input: { command } });
+    expect(codes.map((c) => c.code)).toEqual([0, 0, 2, 2, 2, 2]);
+    expect(codes.at(-1)?.message).toContain('Read, Glob и Grep');
+    expect(JSON.stringify(run?.settings)).toMatch(/"matcher":"Bash".*plan-review hook \S+ bash/);
   });
 });
 

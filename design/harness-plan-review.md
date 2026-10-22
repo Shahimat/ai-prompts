@@ -30,6 +30,7 @@ stateDiagram-v2
     awaiting_input --> gathering: request
     awaiting_input --> finished: exit
     gathering --> composing: gathered
+    gathering --> awaiting_input: replied
     composing --> review: written
     composing --> clarify_form: unclear
     clarify_form --> composing: answered
@@ -43,7 +44,7 @@ stateDiagram-v2
 | Состояние | Кто работает | Что происходит |
 | --- | --- | --- |
 | `awaiting_input` | пользователь | Планер ждёт запроса; файл ожиданий не меняется |
-| `gathering` | планер | Сбор контекста, большие обзоры — субагентами (`Agent`) |
+| `gathering` | планер | Сбор контекста, большие обзоры — субагентами (`Agent`); ход без записи файла возвращает в `awaiting_input` |
 | `composing` | планер | Запись ожиданий только из блоков механизма; без проверки — заглушка |
 | `clarify_form` | пользователь | Выбор блока, которым строить ожидания (`AskUserQuestion`) |
 | `review` | судья | `expect judge` по файлу плана; итог — по бюджету файла |
@@ -62,10 +63,11 @@ analyze` без чистого ревью (3), `build` — блокировки 
 | Кто переключает | Автомат. Планер — часть автомата и состояния не меняет: события выводит команда `hook` из действий планера, которые видны через hooks его сессии. |
 | Выход | Слово «выход» от пользователя в `awaiting_input`, или флаг `[plan-review: exit]` последней строкой ответа планера. Флаг автомат читает на `Stop` после стадии и выходит только при чистом ревью; иначе выход отложен. |
 | Пауза | Ctrl+C и `/exit` в любом состоянии: автомат остаётся на месте, файл — в последнем записанном виде, `open <id>` продолжает ту же сессию через `--resume`. Ctrl+C не выход: по нему не отличить «закончил» от «закрыл окно». |
+| Страница плана | Сессия планера поднимает `expect serve <file>` на свободном порту и открывает её в браузере; сервер гаснет с сессией. Адрес — в промпте планера и в ответе чистого ревью. |
 | Без терминала | `start` и `open` встают на паузу с подсказкой `open`; интерактивный планер запускается только в терминале. |
 | Ревью | Судья — headless без сети и без записи (`Read`, `Glob`, `Grep`), ответ по `--json-schema`; harness сам пишет ответ, применяет вердикты и считает итог по бюджету файла. Правка файла судьёй откатывается. |
 | Сборка перед ревью | Сбор ожиданий vitest и `tsc` ближайшего `tsconfig.json`. Не собирается — `Stop` возвращает планеру ошибки, не больше `limits.build` раз подряд. |
-| Права планера | Чтение проекта, запись только файла ожиданий (`Edit`/`Write` по пути и hook `PreToolUse`), Bash — только `expect report` своего файла, субагенты, `AskUserQuestion`. |
+| Права планера | Чтение проекта, запись только файла ожиданий (`Edit`/`Write` по пути и hook `PreToolUse`), Bash — только `expect report` своего файла (hook `PreToolUse` на Bash: режим auto его не обходит), субагенты, `AskUserQuestion`. Справочник блоков с примером — в промпте: исходники harness планеру не нужны. |
 | Модели | `models.planner` и `models.judge` в `harness.yaml`, по умолчанию `opus`. |
 | Размещение | Сессии — `~/.config/harness/sessions/<sha256>/` (`--home`, `HARNESS_HOME`); в проект пишутся только файл ожиданий, кэш вердиктов и задания судьи (`.judge/`) рядом с ним. |
 
@@ -78,13 +80,15 @@ analyze` без чистого ревью (3), `build` — блокировки 
 | --- | --- | --- |
 | `UserPromptSubmit` | `prompt` | `awaiting_input`: «выход» — `exit`, иначе `request` |
 | `PreToolUse` Edit/Write | `edit` | `gathering` — `gathered`; другой файл или правка вне `gathering`/`composing` — блок |
+| `PreToolUse` Bash | `bash` | Только `expect report` своего файла, остальное — блок |
 | `PreToolUse` AskUserQuestion | `ask` | `composing` — `unclear` |
 | `PostToolUse` AskUserQuestion | `answer` | `clarify_form` — `answered`; ответ доходит до планера дословно |
-| `Stop` | `stop` | `composing`: сборка → `written` → ревью → разбор; флаг выхода после стадии; `awaiting_input` с флагом — `exit` |
+| `Stop` | `stop` | `gathering` — `replied`; `composing`: сборка → `written` → ревью → разбор; флаг выхода после стадии: в `awaiting_input` — `exit`, если последнее ревью чистое |
 | `SessionEnd` | `end` | Событий нет: пауза, запись в журнал сессии |
 
-Ответ hook планеру — код 2 и текст в stderr: замечания ревью, ошибки
-сборки, «выход отложен». После `finished` сообщения и правки
+Ответ hook планеру: на `Stop` — JSON `{"decision": "block", "reason"}`
+с кодом 0 (замечания ревью, ошибки сборки, «выход отложен»), на
+остальных — код 2 и текст в stderr. После `finished` сообщения и правки
 блокируются с подсказкой закрыть сессию.
 
 ## Размещение
@@ -96,12 +100,13 @@ packages/harness/src/harnesses/plan-review/
   prompts/judge.md    # роль судьи
   actions.ts          # действия состояний, hooks в --settings, права планера
   hook.ts             # hook → событие, Stop: сборка, ревью, флаг выхода
+  page.ts             # страница плана: expect serve на время сессии планера
   review.ts           # судья поверх expect judge, сводка по бюджету
   cli.ts, load.ts
 
 ~/.config/harness/sessions/<sha256>/
   session.json        # состояние автомата, файл плана, сессия планера
-  plan-review.json    # номер ревью, хеш проверенного файла, блокировки сборки
+  plan-review.json    # номер ревью, хеш проверенного файла, блокировки сборки, адрес страницы
   review/<n>.json     # итог ревью: счётчики, провалы, замечания
   log.jsonl           # переходы, паузы, ревью
 ```
@@ -119,11 +124,19 @@ plan-review — в его каталоге.
 - Headless — подпроцесс `claude -p --output-format json --json-schema`;
   вход — подписка из `/login`, API-ключ не нужен.
 
+Проверено пробными сессиями 2026-10-21: начальный промпт из `--request`
+вызывает hook `UserPromptSubmit`; закрытие сессии даёт `SessionEnd` с
+`reason: prompt_input_exit`; в режиме auto Bash планера проходит мимо списка
+разрешений — отсюда hook на Bash; ответ `Stop` Claude Code подписывает
+«Stop hook error» и при JSON `decision: block`. Просьба выйти без правки
+файла застревала в `gathering` — отсюда переход `replied`.
+
 По документации (https://code.claude.com/docs/en/hooks), вживую не
 проверено:
 
 - `last_assistant_message` в JSON hook `Stop` — источник флага выхода.
-- Вызывает ли начальный промпт из `--request` hook `UserPromptSubmit`.
+- Жёлтые предупреждения о разрешениях при интерактивном запуске
+  планера: в `-p` с теми же флагами их нет, текст не снят.
 - `SessionEnd` по умолчанию даёт hook 1,5 с — у нас явный `timeout`.
 
 ## Открытые вопросы

@@ -3,7 +3,9 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { ActionDef, MachineDef, ModelRunner, Registry, Session } from '#harnesses/core/index';
 import { harnessFile } from '#harnesses/core/index';
-import { judge, readPlanState, readReview } from './review.ts';
+import { errorMessage } from '#shared/guards';
+import type { PlanPage } from './page.ts';
+import { judge, readPlanState, readReview, savePlanState } from './review.ts';
 
 export interface PlanContext {
   session: Session;
@@ -13,9 +15,10 @@ export interface PlanContext {
   self: string[];
   hook: boolean;
   terminal: boolean;
+  page: (root: string, file: string) => Promise<PlanPage>;
 }
 
-export const HOOKS = ['prompt', 'edit', 'ask', 'answer', 'stop', 'end'] as const;
+export const HOOKS = ['prompt', 'edit', 'bash', 'ask', 'answer', 'stop', 'end'] as const;
 export type HookName = (typeof HOOKS)[number];
 
 export const EDIT_TOOLS = ['Edit', 'Write', 'MultiEdit', 'NotebookEdit'];
@@ -65,6 +68,7 @@ export function hookSettings(ctx: PlanContext): object {
       UserPromptSubmit: [{ hooks: [run('prompt', 30)] }],
       PreToolUse: [
         { matcher: EDIT_TOOLS.join('|'), hooks: [run('edit', 30)] },
+        { matcher: 'Bash', hooks: [run('bash', 30)] },
         { matcher: 'AskUserQuestion', hooks: [run('ask', 30)] },
       ],
       PostToolUse: [{ matcher: 'AskUserQuestion', hooks: [run('answer', 30)] }],
@@ -103,13 +107,27 @@ export async function template(
   return text.replace(/\{\{(\w+)\}\}/g, (m: string, key: string) => vars[key] ?? m);
 }
 
-const plannerVars = (ctx: PlanContext): Record<string, string> => ({
+const plannerVars = (ctx: PlanContext, page: string): Record<string, string> => ({
+  page,
   title: ctx.session.data.title,
   project: ctx.session.data.project,
   plan: planFileOf(ctx.session),
   report: reportCommand(ctx),
   cycles: String(ctx.def.limits['cycles'] ?? 0),
 });
+
+async function openPage(ctx: PlanContext): Promise<PlanPage | undefined> {
+  const s = ctx.session;
+  try {
+    const page = await ctx.page(s.data.project, planFileOf(s));
+    console.log(`страница плана: ${page.url}`);
+    await savePlanState(s, { ...(await readPlanState(s)), page: page.url });
+    return page;
+  } catch (error) {
+    console.error(`страница плана не поднялась: ${errorMessage(error)}`);
+    return undefined;
+  }
+}
 
 async function runPlanner(ctx: PlanContext): Promise<string> {
   const s = ctx.session;
@@ -120,19 +138,27 @@ async function runPlanner(ctx: PlanContext): Promise<string> {
     await s.save();
   }
   const { tools, allowed } = plannerTools(ctx);
-  await ctx.runner.interactive({
-    cwd: s.data.project,
-    model: ctx.def.models.planner,
-    sessionId,
-    resume,
-    name: s.id,
-    addDirs: [],
-    systemPrompt: await template(ctx, 'planner', plannerVars(ctx)),
-    settings: hookSettings(ctx),
-    tools,
-    allowedTools: allowed,
-    prompt: resume ? '' : s.data.request,
-  });
+  const page = await openPage(ctx);
+  try {
+    await ctx.runner.interactive({
+      cwd: s.data.project,
+      model: ctx.def.models.planner,
+      sessionId,
+      resume,
+      name: `plan-review · ${s.data.title}`,
+      addDirs: [],
+      systemPrompt: await template(ctx, 'planner', plannerVars(ctx, page?.url ?? 'не поднялась')),
+      settings: hookSettings(ctx),
+      tools,
+      allowedTools: allowed,
+      prompt: resume ? '' : s.data.request,
+    });
+  } finally {
+    await page?.stop();
+    const state = await readPlanState(s);
+    delete state.page;
+    await savePlanState(s, state);
+  }
   return `сессия планера закрыта; продолжить — harness plan-review open ${s.short}`;
 }
 
@@ -177,7 +203,7 @@ export function planReviewRegistry(): Registry<PlanContext> {
   return {
     actions: new Map<string, ActionDef<PlanContext>>([
       ['planner-await', planner(['request', 'exit'])],
-      ['planner-gather', planner(['gathered'])],
+      ['planner-gather', planner(['gathered', 'replied'])],
       ['planner-compose', planner(['written', 'unclear'])],
       ['planner-clarify', planner(['answered'])],
       ['plan-judge', judgeAction],

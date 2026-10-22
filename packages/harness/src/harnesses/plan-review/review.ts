@@ -18,6 +18,7 @@ export interface PlanState {
   round: number;
   reviewedHash?: string;
   buildBlocks: number;
+  page?: string;
 }
 
 const stateFile = (s: Session): string => s.file('plan-review.json');
@@ -31,6 +32,7 @@ export async function readPlanState(s: Session): Promise<PlanState> {
         buildBlocks: typeof data['buildBlocks'] === 'number' ? data['buildBlocks'] : 0,
       };
       if (typeof data['reviewedHash'] === 'string') state.reviewedHash = data['reviewedHash'];
+      if (typeof data['page'] === 'string') state.page = data['page'];
       return state;
     }
   } catch (error) {

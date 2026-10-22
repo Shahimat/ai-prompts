@@ -94,12 +94,12 @@
     "192de8470552": {
       "question": "plan-review › переход composing —unclear→ > если блок для ожиданий выбрать нельзя, планер спрашивает пользователя, каким его строить",
       "evidence": {
-        "@planner-role": "5b4f49c8df155fa37c9691465b79292b6eff0acd1d012fd4cb5b9eafff25b6fd"
+        "@planner-role": "c21ade87b63d558ebdf44de87baac61b862b83b43a6872ee4e21dd47f784ef24"
       },
       "verdict": true,
       "quote": "Если блок для ожиданий выбрать нельзя — спроси пользователя",
       "ref": "@planner-role",
-      "reason": "Шаг 4 прямо велит спросить пользователя через AskUserQuestion, каким строить блок",
+      "reason": "Шаг 4 прямо велит спросить пользователя, каким строить блок (AskUserQuestion).",
       "at": "2026-10-21"
     },
     "1db1d3ca45dd": {
@@ -317,12 +317,12 @@
     "5459013b47ab": {
       "question": "plan-review › переход awaiting_input —exit→ > на просьбу о выходе планер ставит последней строкой ответа флаг [plan-review: exit]",
       "evidence": {
-        "@planner-role": "5b4f49c8df155fa37c9691465b79292b6eff0acd1d012fd4cb5b9eafff25b6fd"
+        "@planner-role": "c21ade87b63d558ebdf44de87baac61b862b83b43a6872ee4e21dd47f784ef24"
       },
       "verdict": true,
       "quote": "чтобы он собирался, и закончи ход ответом, последняя строка которого —",
       "ref": "@planner-role",
-      "reason": "Шаг 6: на просьбу о выходе последняя строка ответа — [plan-review: exit]",
+      "reason": "Шаг 6: на просьбу о выходе последняя строка ответа — [plan-review: exit].",
       "at": "2026-10-21"
     },
     "59df1d74a41f": {
@@ -607,12 +607,12 @@
     "adf8e806fe58": {
       "question": "plan-review › состояние composing > планер записывает в файл ожидания по собранному контексту только из блоков перечня",
       "evidence": {
-        "@planner-role": "5b4f49c8df155fa37c9691465b79292b6eff0acd1d012fd4cb5b9eafff25b6fd"
+        "@planner-role": "c21ade87b63d558ebdf44de87baac61b862b83b43a6872ee4e21dd47f784ef24"
       },
       "verdict": true,
-      "quote": "Запиши ожидания в `{{plan}}` — только из блоков перечня ниже.",
+      "quote": "4. Запиши ожидания в `{{plan}}` — только из блоков перечня ниже.",
       "ref": "@planner-role",
-      "reason": "После сбора контекста (шаг 3) ожидания пишутся только из блоков перечня",
+      "reason": "После сбора контекста (шаг 3) ожидания пишутся только из блоков перечня.",
       "at": "2026-10-21"
     },
     "b067fbbab481": {
@@ -641,12 +641,12 @@
     "beb079d7b30b": {
       "question": "plan-review › состояние composing > ожидание без готовой проверки записывается заглушкой crit.todo или crit.wip",
       "evidence": {
-        "@planner-role": "5b4f49c8df155fa37c9691465b79292b6eff0acd1d012fd4cb5b9eafff25b6fd"
+        "@planner-role": "c21ade87b63d558ebdf44de87baac61b862b83b43a6872ee4e21dd47f784ef24"
       },
       "verdict": true,
       "quote": "Ожидание без готовой проверки — заглушка `crit.todo` / `crit.wip`.",
       "ref": "@planner-role",
-      "reason": "Прямо задано правилом шага 4",
+      "reason": "Прямо указано: ожидание без проверки — заглушка crit.todo / crit.wip.",
       "at": "2026-10-21"
     },
     "c1f32eea1838": {
@@ -833,12 +833,12 @@
     "f7310dcbc6e4": {
       "question": "plan-review › переход clarify_form —answered→ > после ответа планер записывает ожидания выбранным блоком",
       "evidence": {
-        "@planner-role": "5b4f49c8df155fa37c9691465b79292b6eff0acd1d012fd4cb5b9eafff25b6fd"
+        "@planner-role": "c21ade87b63d558ebdf44de87baac61b862b83b43a6872ee4e21dd47f784ef24"
       },
       "verdict": true,
       "quote": "запиши ожидания тем блоком, который выбрал пользователь.",
       "ref": "@planner-role",
-      "reason": "После ответа пользователя ожидания пишутся выбранным блоком",
+      "reason": "После ответа пользователя ожидания пишутся выбранным им блоком.",
       "at": "2026-10-21"
     },
     "fea56d1882e8": {
@@ -855,12 +855,12 @@
     "ff81d6f20d87": {
       "question": "plan-review › переход gathering —gathered→ > планер переходит к записи ожиданий, когда список его открытых вопросов к пользователю пуст",
       "evidence": {
-        "@planner-role": "5b4f49c8df155fa37c9691465b79292b6eff0acd1d012fd4cb5b9eafff25b6fd"
+        "@planner-role": "c21ade87b63d558ebdf44de87baac61b862b83b43a6872ee4e21dd47f784ef24"
       },
       "verdict": true,
       "quote": "записать, задай пользователю. Пока список открытых вопросов не пуст,",
       "ref": "@planner-role",
-      "reason": "Файл не трогается, пока есть открытые вопросы; запись (шаг 4) идёт после их закрытия",
+      "reason": "Пока открытые вопросы есть, файл не трогается; запись (шаг 4) следует, когда список пуст.",
       "at": "2026-10-21"
     }
   },
@@ -884,7 +884,7 @@
       "at": "2026-10-14"
     },
     "expectations/harness-plan-review.expect.ts": {
-      "titles": "c64971945fed1d0433e93dddae82d8c371595d3bb6eef2f7a595cd2799a4f7df",
+      "titles": "7e408ecd1d4c35cd2eb9d3e273725b976e163487c0b82883c35895fbe0814189",
       "contradictions": [],
       "unmeasurable": [],
       "at": "2026-10-21"

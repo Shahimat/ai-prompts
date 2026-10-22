@@ -71,8 +71,11 @@ export {
 export { FSM_SCHEMA } from './harnesses/index.ts';
 export { loadHarness, type LoadedHarness } from './harnesses/index.ts';
 export {
+  bashDecision,
   hookEvent,
   hookSettings,
+  openerFor,
+  servePage,
   JUDGE_TOOLS,
   plannerTools,
   planReviewRegistry,

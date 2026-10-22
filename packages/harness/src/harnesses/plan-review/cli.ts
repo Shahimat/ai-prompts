@@ -22,6 +22,7 @@ import {
 } from '#harnesses/core/index';
 import { HOOKS, planFileOf, type PlanContext } from './actions.ts';
 import { hookInputOf, runHook } from './hook.ts';
+import { servePage, type PlanPage } from './page.ts';
 import { loadHarness, loadHarnessOrFail, type LoadedHarness } from './load.ts';
 import { readPlanState, readReview, reviewText } from './review.ts';
 
@@ -29,10 +30,12 @@ export const io: {
   runner: () => ModelRunner;
   stdin: () => Promise<string>;
   terminal: () => boolean;
+  page: (root: string, file: string) => Promise<PlanPage>;
 } = {
   runner: () => new ClaudeRunner(),
   stdin: readStdin,
   terminal: () => process.stdin.isTTY && process.stdout.isTTY,
+  page: (root, file) => servePage(selfCommand(), root, file),
 };
 
 async function readStdin(): Promise<string> {
@@ -64,6 +67,7 @@ function context(
     self: selfCommand(),
     hook,
     terminal: io.terminal(),
+    page: io.page,
   };
 }
 
@@ -137,6 +141,10 @@ async function runHookCommand(args: CommandArgs): Promise<number> {
     hook,
     hookInputOf(raw),
   );
+  if (hook === 'stop' && outcome.code === 2) {
+    console.log(JSON.stringify({ decision: 'block', reason: outcome.message ?? '' }));
+    return 0;
+  }
   if (outcome.message !== undefined) console.error(outcome.message);
   return outcome.code;
 }

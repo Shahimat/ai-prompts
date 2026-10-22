@@ -4,7 +4,14 @@ import path from 'node:path';
 import { expectBuild } from '#commands/expect/index';
 import { isRecord } from '#shared/guards';
 import { driveSession } from '#harnesses/core/index';
-import { EDIT_TOOLS, planFileOf, planPathOf, type HookName, type PlanContext } from './actions.ts';
+import {
+  EDIT_TOOLS,
+  planFileOf,
+  planPathOf,
+  reportCommand,
+  type HookName,
+  type PlanContext,
+} from './actions.ts';
 import type { LoadedHarness } from './load.ts';
 import { readPlanState, readReview, reviewText, savePlanState } from './review.ts';
 
@@ -15,6 +22,7 @@ export interface HookInput {
   reason?: string;
   prompt?: string;
   message?: string;
+  command?: string;
 }
 
 export function hookInputOf(raw: unknown): HookInput {
@@ -30,6 +38,7 @@ export function hookInputOf(raw: unknown): HookInput {
   if (isRecord(tool)) {
     const file = tool['file_path'] ?? tool['notebook_path'];
     if (typeof file === 'string') input.file_path = file;
+    if (typeof tool['command'] === 'string') input.command = tool['command'];
   }
   return input;
 }
@@ -48,6 +57,13 @@ export const hasExitFlag = (message: string | undefined): boolean =>
 
 export const isExitWord = (prompt: string | undefined): boolean =>
   (prompt ?? '').trim().toLowerCase() === EXIT_WORD;
+
+export function bashDecision(command: string | undefined, allowed: string): HookDecision {
+  if ((command ?? '').trim() === allowed) return {};
+  return {
+    block: `в сессии планера Bash — только прогон файла ожиданий: ${allowed}. Читай проект инструментами Read, Glob и Grep.`,
+  };
+}
 
 export function hookEvent(
   state: string,
@@ -104,11 +120,14 @@ async function afterReview(ctx: PlanContext, harness: LoadedHarness): Promise<Ho
         ...hint,
       ].join('\n'),
     };
+  const { page } = await readPlanState(s);
+  const link = page === undefined ? [] : [`Страница плана: ${page} — дай пользователю эту ссылку.`];
   if (record.pass)
     return {
       code: 2,
       message: [
         `Ревью ${round} чистое. Кратко поясни пользователю, что записано и что осталось заглушками, и жди его следующего запроса.`,
+        ...link,
         ...lines,
         ...hint,
       ].join('\n'),
@@ -131,6 +150,11 @@ async function exitNow(ctx: PlanContext, harness: LoadedHarness): Promise<HookOu
 
 const stateNow = (s: PlanContext['session']): string => s.data.state;
 
+async function lastReviewClean(s: PlanContext['session']): Promise<boolean> {
+  const { round } = await readPlanState(s);
+  return round === 0 || (await readReview(s, round))?.pass === true;
+}
+
 const POSTPONED =
   'Выход отложен: последнее ревью с замечаниями сверх бюджета. Исправь их и снова поставь флаг выхода.';
 
@@ -141,8 +165,13 @@ async function onStop(
 ): Promise<HookOutcome> {
   const s = ctx.session;
   const flag = hasExitFlag(input.message);
-  if (s.data.state === 'awaiting_input') return flag ? exitNow(ctx, harness) : { code: 0 };
-  if (s.data.state !== 'composing') return { code: 0 };
+  if (s.data.state === 'gathering')
+    await driveSession(harness.def, harness.registry, s, ctx, 'replied');
+  if (stateNow(s) === 'awaiting_input') {
+    if (!flag) return { code: 0 };
+    return (await lastReviewClean(s)) ? exitNow(ctx, harness) : { code: 2, message: POSTPONED };
+  }
+  if (stateNow(s) !== 'composing') return { code: 0 };
   const text = await readFile(planPathOf(s), 'utf8');
   const hash = sha(text);
   const state = await readPlanState(s);
@@ -187,6 +216,10 @@ export async function runHook(
   if (hook === 'end') {
     await s.log({ pause: s.data.state, reason: input.reason ?? '' });
     return { code: 0 };
+  }
+  if (hook === 'bash') {
+    const decision = bashDecision(input.command, reportCommand(ctx));
+    return decision.block === undefined ? { code: 0 } : { code: 2, message: decision.block };
   }
   if (finished())
     return hook === 'prompt' || hook === 'edit' ? { code: 2, message: FINISHED } : { code: 0 };

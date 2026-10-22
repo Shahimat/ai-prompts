@@ -1362,6 +1362,7 @@ class Layers {
         self: selfCommand(),
         hook: false,
         terminal: false,
+        page: planIo.page,
       };
       const planner = plannerTools(ctx);
       const bash = planner.allowed.flatMap((r) => /^Bash\((.*)\)$/.exec(r)?.[1] ?? []);

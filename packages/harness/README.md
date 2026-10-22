@@ -237,17 +237,26 @@ harness <имя> validate | graph  # определение и Mermaid авто�
   без `--request` запрос пишется в этой сессии (текст, файлы,
   картинки), с `--request` текст уходит планеру первым сообщением. Без
   терминала `start` встаёт на паузу, `open <id>` продолжает (`--resume`
-  той же сессии планера).
+  той же сессии планера). Вместе с сессией планера поднимается страница
+  плана — `expect serve <file>` на свободном порту: адрес печатается,
+  страница открывается в браузере (`BROWSER`; `BROWSER=none` — не
+  открывать), сервер гаснет с сессией; адрес — в промпте планера и в
+  ответе чистого ревью.
 - Автомат: `awaiting_input` → `gathering` → `composing` (↔
   `clarify_form`) → `review` → `analyze` → `composing` или
+  `awaiting_input`; ход без записи файла — `gathering` → `replied` →
   `awaiting_input`; `exit` → `finished`. Схема — блок `fsm` в
   `expectations/harness-plan-review.expect.ts`, `harness.yaml` с ней
   совпадает (`Graph.sameAs`).
 - События выводит `harness plan-review hook <id> <hook>` из hooks сессии
   планера, модель их не объявляет: `prompt` (UserPromptSubmit) в
-  `awaiting_input` — `request`; `edit` (PreToolUse Edit/Write) — `gathered`, правка другого
-  файла или правка вне `gathering`/`composing` блокируется; `ask` и
-  `answer` (AskUserQuestion) — `unclear` и `answered`; `stop` — сборка
+  `awaiting_input` — `request`; `edit` (PreToolUse Edit/Write) —
+  `gathered`, правка другого файла или правка вне
+  `gathering`/`composing` блокируется; `bash` (PreToolUse Bash)
+  пропускает только `expect report` своего файла при любом режиме
+  разрешений; `ask` и `answer` (AskUserQuestion) — `unclear` и
+  `answered`; `stop` в `gathering` — `replied`, в `composing` (ответ
+  планеру — JSON `decision: block`) — сборка
   файла (сбор ожиданий и `tsc` ближайшего `tsconfig.json`; не собирается
   — блок не больше `limits.build` раз), затем ревью судьёй и разбор;
   `prompt` со словом «выход» в `awaiting_input` — `exit`; флаг

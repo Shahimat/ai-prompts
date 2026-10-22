@@ -10,8 +10,10 @@ import {
   FSM_SCHEMA,
   harnessHome,
   headlessArgs,
+  bashDecision,
   hookEvent,
   JUDGE_TOOLS,
+  openerFor,
   loadHarness,
   openSession,
   parseMachine,
@@ -68,7 +70,10 @@ const planReview = fsm('plan-review', {
     gathering: {
       actor: 'model',
       description: 'Сбор контекста, в том числе параллельными подзадачами',
-      on: { gathered: { to: 'composing', label: 'контекст собран' } },
+      on: {
+        gathered: { to: 'composing', label: 'контекст собран' },
+        replied: { to: 'awaiting_input', label: 'ответ без записи' },
+      },
     },
     composing: {
       actor: 'model',
@@ -119,12 +124,27 @@ planReview.whole(() => {
   crit('переходы выводит команда hook из событий сессии планера; модель событий не объявляет', () =>
     Machine.hooksDrive(),
   );
+  crit(
+    'в сессии планера Bash — только expect report своего файла: другие команды блокирует hook при любом режиме разрешений',
+    () => Machine.bashOnlyReport(),
+  );
+  crit('ответ harness планеру на Stop — JSON decision block, а не код ошибки hook', () =>
+    Machine.stopJson(),
+  );
 });
 
 planReview.entry(() => {
   crit(
     'вход — harness plan-review start <file>: сессия открывается на конкретном файле ожиданий',
     () => Machine.entry(),
+  );
+  crit(
+    'при запуске сессии планера harness поднимает страницу плана и открывает её в браузере; сервер живёт, пока открыта сессия планера',
+    () => Machine.pageWithSession(),
+  );
+  crit(
+    'адрес страницы — в промпте планера; на чистом ревью планер даёт ссылку вместе с пояснениями',
+    () => Machine.pageLink(),
   );
 });
 
@@ -135,6 +155,9 @@ planReview.state('awaiting_input', () => {
   crit(
     'при запуске планер получает перечень блоков, из которых строит ожидания: fsm, steps, паттерны',
     () => Machine.blocksListed(),
+  );
+  crit('промпт планера содержит справочник блоков и пример, который собирается без ошибок', () =>
+    Machine.promptExample(),
   );
 });
 
@@ -179,6 +202,12 @@ planReview.transition('gathering', 'gathered', () => {
   );
   crit('событие gathered — первая правка файла ожиданий (PreToolUse Edit/Write) в gathering', () =>
     Machine.hook('gathering', 'edit', 'gathered'),
+  );
+});
+
+planReview.transition('gathering', 'replied', () => {
+  crit('событие replied — Stop в gathering без правки файла: планер ответил и ждёт ввода', () =>
+    Machine.replied(),
   );
 });
 
@@ -374,7 +403,26 @@ interface Options {
 interface HookCall {
   hook: HookName;
   code: number;
+  raw: number;
+  json: boolean;
   message: string;
+}
+
+const PAGE_URL = 'http://127.0.0.1:1/';
+
+function blockReason(lines: string[]): string | undefined {
+  for (const line of lines) {
+    let data: unknown;
+    try {
+      data = parseJson(line);
+    } catch {
+      continue;
+    }
+    if (typeof data !== 'object' || data === null || !('decision' in data) || !('reason' in data))
+      continue;
+    if (data.decision === 'block' && typeof data.reason === 'string') return data.reason;
+  }
+  return undefined;
 }
 
 interface FlowResult {
@@ -392,6 +440,8 @@ interface FlowResult {
   plan: string;
   artifacts: string[];
   files: Record<string, string>;
+  pages: { file: string; stopped: boolean }[];
+  logs: string[];
 }
 
 const planAbs = (project: string, file: string): string => path.join(project, file);
@@ -440,6 +490,8 @@ async function runFlow(options: Options): Promise<FlowResult> {
     });
   };
   const errors: string[] = [];
+  const logs: string[] = [];
+  const pages: { file: string; stopped: boolean }[] = [];
   const runner: ModelRunner = {
     interactive: async (r) => {
       interactive.push(r);
@@ -449,8 +501,16 @@ async function runFlow(options: Options): Promise<FlowResult> {
         if (step.hook === undefined) continue;
         planIo.stdin = async () => JSON.stringify({ cwd: project, ...step.input });
         const before = errors.length;
+        const logBefore = logs.length;
         const code = await run(['plan-review', 'hook', id, step.hook]);
-        hooks.push({ hook: step.hook, code, message: errors.slice(before).join('\n') });
+        const reason = blockReason(logs.slice(logBefore));
+        hooks.push({
+          hook: step.hook,
+          raw: code,
+          json: reason !== undefined,
+          code: reason === undefined ? code : 2,
+          message: reason ?? errors.slice(before).join('\n'),
+        });
       }
       return 0;
     },
@@ -464,12 +524,29 @@ async function runFlow(options: Options): Promise<FlowResult> {
       return { text: '', structured, sessionId: undefined, costUsd: 0 };
     },
   };
-  const saved = { runner: planIo.runner, stdin: planIo.stdin, terminal: planIo.terminal };
+  const saved = {
+    runner: planIo.runner,
+    stdin: planIo.stdin,
+    terminal: planIo.terminal,
+    page: planIo.page,
+  };
   const log = console.log;
   const error = console.error;
   planIo.runner = () => runner;
   planIo.terminal = () => true;
-  console.log = () => undefined;
+  planIo.page = async (_root, file) => {
+    const page = { file, stopped: false };
+    pages.push(page);
+    return {
+      url: PAGE_URL,
+      stop: async () => {
+        page.stopped = true;
+      },
+    };
+  };
+  console.log = (...a: unknown[]) => {
+    logs.push(a.join(' '));
+  };
   console.error = (...a: unknown[]) => {
     errors.push(a.join(' '));
   };
@@ -516,6 +593,8 @@ async function runFlow(options: Options): Promise<FlowResult> {
         ? (await readdir(path.join(project, ARTIFACTS))).sort()
         : [],
       files,
+      pages,
+      logs,
     };
   } finally {
     console.log = log;
@@ -523,6 +602,7 @@ async function runFlow(options: Options): Promise<FlowResult> {
     planIo.runner = saved.runner;
     planIo.stdin = saved.stdin;
     planIo.terminal = saved.terminal;
+    planIo.page = saved.page;
     await rm(home, { recursive: true, force: true });
     await rm(project, { recursive: true, force: true });
   }
@@ -577,6 +657,17 @@ const Flows = {
   noRemarks: once(() =>
     runFlow({ steps: [{ hook: 'prompt' }, edit(), { write: NO_REMARKS, hook: 'stop' }] }),
   ),
+  exitAsk: once(() =>
+    runFlow({
+      steps: [
+        { hook: 'prompt' },
+        edit(),
+        { write: GOOD, hook: 'stop' },
+        { hook: 'prompt', input: { prompt: 'выйди из плана' } },
+        { hook: 'stop', input: EXIT_FLAG },
+      ],
+    }),
+  ),
   exitFlag: once(() =>
     runFlow({
       steps: [{ hook: 'prompt' }, edit(), { write: GOOD, hook: 'stop', input: EXIT_FLAG }],
@@ -622,6 +713,83 @@ class Machine {
     expect(analyze?.on['remarks']?.[0]?.count).toBe('cycles');
   }
 
+  static async bashOnlyReport(): Promise<void> {
+    const run = (await Flows.idle()).interactive[0];
+    const report = (run?.allowedTools ?? [])
+      .map((t) => /^Bash\((.*)\)$/.exec(t)?.[1])
+      .find((c) => c !== undefined);
+    if (report === undefined) throw new Error('нет разрешённой команды Bash');
+    expect(report).toMatch(/ expect report \S+ --root /);
+    expect(bashDecision(report, report)).toEqual({});
+    for (const command of ['ls', 'cat x', 'echo x > a.ts', `cd /tmp && ${report}`])
+      expect(bashDecision(command, report).block).toContain('Read, Glob и Grep');
+    expect(JSON.stringify(run?.settings)).toMatch(
+      /"matcher":"Bash","hooks":\[\{[^}]*plan-review hook \S+ bash/,
+    );
+  }
+
+  static async stopJson(): Promise<void> {
+    const f = await Flows.clean();
+    const stop = stops(f)[0];
+    expect(stop?.json).toBe(true);
+    expect(stop?.raw).toBe(0);
+    const broken = await Flows.broken();
+    expect(
+      stops(broken)
+        .slice(0, 3)
+        .every((s) => s.json && s.raw === 0),
+    ).toBe(true);
+  }
+
+  static async pageWithSession(): Promise<void> {
+    const f = await Flows.idle();
+    expect(f.pages).toEqual([{ file: f.planFile, stopped: true }]);
+    expect(f.logs.join('\n')).toContain(`страница плана: ${PAGE_URL}`);
+    const browser = process.env['BROWSER'];
+    delete process.env['BROWSER'];
+    try {
+      expect(openerFor('http://x/')?.at(-1)).toBe('http://x/');
+    } finally {
+      if (browser !== undefined) process.env['BROWSER'] = browser;
+    }
+  }
+
+  static async pageLink(): Promise<void> {
+    expect((await Flows.idle()).interactive[0]?.systemPrompt).toContain(PAGE_URL);
+    expect(stops(await Flows.clean())[0]?.message).toContain(PAGE_URL);
+  }
+
+  static async promptExample(): Promise<void> {
+    const prompt = (await Flows.idle()).interactive[0]?.systemPrompt ?? '';
+    const code = /```ts\n([\s\S]*?)```/.exec(prompt)?.[1];
+    if (code === undefined) throw new Error('в промпте планера нет примера');
+    await mkdir(TMP(), { recursive: true });
+    const dir = await mkdtemp(path.join(TMP(), 'planner-example-'));
+    try {
+      await writeFile(
+        path.join(dir, 'package.json'),
+        '{"name":"fixture","private":true,"type":"module"}',
+      );
+      await writeFile(path.join(dir, 'example.expect.ts'), code);
+      const run = spawnSync(
+        process.execPath,
+        [
+          path.join(repoRoot(), 'packages/harness/dist/bin.js'),
+          'expect',
+          'report',
+          'example.expect.ts',
+          '--root',
+          dir,
+        ],
+        { cwd: dir, encoding: 'utf8' },
+      );
+      expect(run.stdout).not.toContain('файл не собран');
+      expect(run.stdout).toMatch(/ожиданий [1-9]\d*:/);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  }
+
   static async sameAsFsm(): Promise<void> {
     const { def } = await builtinDef();
     Graph.sameAs(planReview, def);
@@ -633,7 +801,7 @@ class Machine {
     const settings = JSON.stringify(run.settings);
     for (const event of ['UserPromptSubmit', 'PreToolUse', 'PostToolUse', 'Stop', 'SessionEnd'])
       expect(settings).toContain(event);
-    expect(settings.match(/plan-review hook /g)?.length).toBe(6);
+    expect(settings.match(/plan-review hook /g)?.length).toBe(7);
     expect(run.allowedTools.filter((t) => t.includes('plan-review hook'))).toEqual([]);
     const hookNode = findCommand(['plan-review', 'hook', 'x', 'stop']);
     expect(hookNode?.command.path).toEqual(['plan-review', 'hook', '<id>', '<hook>']);
@@ -723,6 +891,22 @@ class Machine {
     const red = await Flows.exitFlagRed();
     expect(red.state).toBe('composing');
     expect(stops(red).at(-1)?.message).toContain('Выход отложен');
+    const ask = await Flows.exitAsk();
+    expect(ask.transitions.slice(-3)).toEqual([
+      'awaiting_input -request-> gathering',
+      'gathering -replied-> awaiting_input',
+      'awaiting_input -exit-> finished',
+    ]);
+    expect(ask.plan).toBe(GOOD);
+  }
+
+  static async replied(): Promise<void> {
+    const f = await Flows.exitAsk();
+    expect(f.transitions).toContain('gathering -replied-> awaiting_input');
+    const { def } = await builtinDef();
+    expect(def.states.find((s) => s.name === 'gathering')?.on['replied']?.[0]?.to).toBe(
+      'awaiting_input',
+    );
   }
 
   static async pause(): Promise<void> {

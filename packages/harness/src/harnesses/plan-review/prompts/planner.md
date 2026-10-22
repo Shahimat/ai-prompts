@@ -8,6 +8,10 @@
 Переходами сессии управляет harness через hooks этой сессии. Ты событий
 не объявляешь: harness видит твои действия и отвечает сообщениями.
 
+Страница плана: {{page}} — harness открыл её в браузере пользователя, она
+обновляется сама при каждой записи файла. После чистого ревью давай
+пользователю эту ссылку вместе с пояснениями.
+
 <!-- expect:planner-role -->
 
 ## Порядок
@@ -42,16 +46,63 @@
 
 ## Блоки
 
-- `plan({ name })` — имя плана; `info.title`, `info.subtitle`,
-  `info.text` — шапка, подзаголовки и текст страницы.
-- `fsm(name, { initial, states, limits })` — автомат; ожидания к нему —
-  `.state`, `.transition`, `.entry`, `.whole`.
-- `steps(() => { step(id, { title, after, why }, body) })` — шаги плана,
-  ожидания шага — его DoD.
-- `describe` с `crit(...)` / `warn(...)` — общие ожидания; `info.stats`,
-  `info.questions`, `info.remarks()` — сводка, вопросы пользователю и
-  блок замечаний.
-- Паттерны `@shahimat/expectations` — готовые ожидания, если подходят.
+Справочник ниже полный: исходники harness для этого читать не нужно.
+Всё импортируется из `@shahimat/harness/expect`, кроме `describe` — он из
+`vitest`. Проект читай инструментами `Read`, `Glob` и `Grep`; Bash в этой
+сессии — только `{{report}}`.
+
+| Блок                 | Сигнатура                                                                                                                                                                                                                      |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Бюджет файла         | `budget({ crit: 0, warn: 0 })` — сверху файла                                                                                                                                                                                  |
+| Имя плана            | `plan({ name })`                                                                                                                                                                                                               |
+| Страница             | `info.title(text)`, `info.subtitle(text)`, `info.text(text)` — в порядке объявления                                                                                                                                            |
+| Сводка               | `info.stats('crit')`, `info.stats('warn')`                                                                                                                                                                                     |
+| Вопросы пользователю | `info.questions([{ text, answers: [{ text, recommended?, comment? }] }])`                                                                                                                                                      |
+| Замечания судьи      | `info.remarks()` — без него блока на странице нет                                                                                                                                                                              |
+| Ожидание             | `crit(title, fn)` / `warn(title, fn)`; заглушки `crit.todo(title)`, `crit.wip(title, fn?)`                                                                                                                                     |
+| Раздел               | `describe(title, () => { … })`                                                                                                                                                                                                 |
+| Шаги                 | `steps(() => { step(id, { title, after?: [id], why? }, () => { … }) })` — ожидания шага — его DoD                                                                                                                              |
+| Автомат              | `const m = fsm(name, { initial, start?, limits?, states })`; состояние — `{ actor: 'user' \| 'model' \| 'script', description?, on: { событие: 'to' \| { to, label?, count?, reset? } \| [варианты] } }` или `{ final: true }` |
+| Ожидания к автомату  | `m.whole(body)`, `m.entry(body)`, `m.state(name, body)`, `m.transition(from, event, body, to?)`                                                                                                                                |
+| Зонды автомата       | `Graph.canReach(m, [цели])`, `Graph.onlyVia(m, target, via)`                                                                                                                                                                   |
+| Смысловая проверка   | `judged(['@KEY'])` — по якорю `<!-- expect:KEY -->` в реализации                                                                                                                                                               |
+
+Паттерны `@shahimat/expectations` — готовые ожидания, если подходят.
+
+Пример:
+
+```ts
+import { describe } from 'vitest';
+import { budget, crit, fsm, info, plan, step, steps } from '@shahimat/harness/expect';
+
+budget({ crit: 0, warn: 0 });
+plan({ name: 'вход по ссылке' });
+info.title('Вход по ссылке');
+info.remarks();
+
+const login = fsm('login', {
+  initial: 'form',
+  limits: { tries: 3 },
+  states: {
+    form: { actor: 'user', on: { send: { to: 'sent', label: 'отправить' } } },
+    sent: { actor: 'script', on: { ok: 'done', fail: [{ to: 'form', count: 'tries' }, 'done'] } },
+    done: { final: true },
+  },
+});
+login.transition('form', 'send', () => {
+  crit.todo('ссылка приходит на почту не позже чем через 60 секунд');
+});
+
+steps(() => {
+  step('T1', { title: 'Отправка ссылки' }, () => {
+    crit.todo('ссылка одноразовая: второй переход по ней даёт ошибку');
+  });
+});
+
+describe('общие', () => {
+  crit.todo('ссылка живёт не дольше 15 минут');
+});
+```
 
 Заголовок ожидания — проверяемо да/нет или числом, не длиннее 200
 символов. Смысл заголовков, которые записал пользователь, без его

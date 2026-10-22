@@ -28,6 +28,7 @@ states:
     action: planner-gather
     on:
       gathered: composing
+      replied: awaiting_input
   composing:
     actor: model
     action: planner-compose
