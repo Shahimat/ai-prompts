@@ -1,21 +1,10 @@
-import { readFile } from 'node:fs/promises';
 import { UsageError } from '#shared/diagnostics';
-import { errorMessage } from '#shared/guards';
-import {
-  definitionWhere,
-  harnessFile,
-  loadMachine,
-  type MachineDef,
-  type Registry,
-} from '#harnesses/core/index';
+import { loadMachine, type MachineDef, type Registry } from '#harnesses/core/index';
 import { planReviewRegistry, type PlanContext } from './actions.ts';
-import { parseCriteria, type Criterion } from './plan/criteria.ts';
-import { FORMAL_CRITERIA } from './plan/formal.ts';
 
 export interface LoadedHarness {
   name: string;
   def: MachineDef;
-  criteria: Criterion[];
   registry: Registry<PlanContext>;
   plugins: string[];
 }
@@ -25,34 +14,10 @@ export interface LoadResult {
   errors: string[];
 }
 
-async function loadCriteria(
-  home: string,
-  name: string,
-): Promise<{ criteria: Criterion[]; errors: string[] }> {
-  const where = definitionWhere(home, name, 'criteria.yaml');
-  let criteria: Criterion[];
-  try {
-    criteria = parseCriteria(
-      await readFile(harnessFile(home, name, 'criteria.yaml'), 'utf8'),
-      where,
-    );
-  } catch (error) {
-    return { criteria: [], errors: [errorMessage(error)] };
-  }
-  const errors = criteria
-    .filter((c) => c.stage === '1a' && !FORMAL_CRITERIA.some((f) => f === c.id))
-    .map(
-      (c) => `${where}: критерий 1a ${c.id} не реализован скриптом (${FORMAL_CRITERIA.join(', ')})`,
-    );
-  return { criteria, errors };
-}
-
 export async function loadHarness(home: string, name: string): Promise<LoadResult> {
-  const { criteria, errors } = await loadCriteria(home, name);
   const loaded = await loadMachine(home, name, planReviewRegistry());
-  const all = [...errors, ...loaded.errors];
-  if (loaded.machine === undefined || all.length > 0) return { errors: all };
-  return { harness: { ...loaded.machine, criteria }, errors: [] };
+  if (loaded.machine === undefined) return { errors: loaded.errors };
+  return { harness: loaded.machine, errors: [] };
 }
 
 export async function loadHarnessOrFail(home: string, name: string): Promise<LoadedHarness> {

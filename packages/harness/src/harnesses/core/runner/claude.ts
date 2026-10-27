@@ -5,6 +5,7 @@ export interface InteractiveRun {
   cwd: string;
   model: string;
   sessionId: string;
+  resume?: boolean;
   name: string;
   addDirs: string[];
   systemPrompt: string;
@@ -12,6 +13,7 @@ export interface InteractiveRun {
   tools: string[];
   allowedTools: string[];
   prompt: string;
+  close?: AbortSignal;
 }
 
 export interface HeadlessRun {
@@ -49,8 +51,7 @@ export function interactiveArgs(r: InteractiveRun): string[] {
     ...BASE,
     '--model',
     r.model,
-    '--session-id',
-    r.sessionId,
+    ...(r.resume === true ? ['--resume', r.sessionId] : ['--session-id', r.sessionId]),
     '--name',
     r.name,
     ...r.addDirs.flatMap((d) => ['--add-dir', d]),
@@ -137,6 +138,7 @@ export class ClaudeRunner implements ModelRunner {
         cwd: run.cwd,
         stdio: 'inherit',
       });
+      run.close?.addEventListener('abort', () => child.kill('SIGTERM'), { once: true });
       child.on('error', reject);
       child.on('close', (code) => resolve(code ?? 1));
     });

@@ -247,16 +247,101 @@ async function collect(
     if (declared !== undefined) report.plan = declared;
     reports.push(report);
   }
+  const remarks = reports.reduce((n, r) => n + r.issues.length, 0);
+  const declared = reports.some((r) => r.all.some((t) => t.doc?.kind === 'remarks'));
+  const titled = reports.some((r) => r.all.some((t) => t.doc?.kind === 'title'));
+  const planned = reports.find((r) => r.plan !== undefined)?.plan;
+  if (planned !== undefined && !titled)
+    log(`\nу плана «${planned.name}» нет шапки: добавьте info.title()`);
+  if (remarks > 0 && !declared)
+    log(
+      `\nзамечаний ${remarks}, блока info.remarks нет — на странице их не видно: добавьте info.remarks()`,
+    );
   log(
     `\nожиданий ${total.tests}: crit ${total.crit} · warn ${total.warn} · info ${total.info} · ? ${total.pending} — ${blocked ? 'бюджет превышен' : 'в бюджете'}`,
   );
   return { reports, blocked };
 }
 
+export interface ExpectSummary {
+  blocked: boolean;
+  count: { crit: number; warn: number; info: number; pending: number };
+  budget: { crit: number; warn: number };
+  remarks: Remark[];
+  failures: { level: 'crit' | 'warn'; title: string; message: string }[];
+  remarksDeclared: boolean;
+}
+
+export async function expectSummary(root: string, file: string): Promise<ExpectSummary> {
+  process.env['HARNESS_EXPECT_ROOT'] = root;
+  const args: CommandArgs = { root, now: new Date(), params: { file } };
+  const { reports, blocked } = await collect(args, () => undefined);
+  const own = reports.find((r) => r.file === entryOf(args));
+  const failures = reports.flatMap((r) =>
+    r.tests
+      .filter((t) => t.status === 'failed' && !t.wip && !isPending(t))
+      .map((t) => ({
+        level: t.level === 'warn' ? ('warn' as const) : ('crit' as const),
+        title: fullName(t),
+        message: t.message,
+      })),
+  );
+  const sum = (key: 'crit' | 'warn' | 'info' | 'pending'): number =>
+    reports.reduce((n, r) => n + r.count[key], 0);
+  return {
+    blocked,
+    count: { crit: sum('crit'), warn: sum('warn'), info: sum('info'), pending: sum('pending') },
+    budget: own?.budget ?? { crit: 0, warn: 0 },
+    remarks: reports.flatMap((r) => r.issues),
+    failures,
+    remarksDeclared: reports.some((r) => r.all.some((t) => t.doc?.kind === 'remarks')),
+  };
+}
+
+export interface ExpectBuild {
+  ok: boolean;
+  errors: string[];
+}
+
+function nearestTsconfig(root: string, file: string): string | undefined {
+  let dir = path.dirname(path.join(root, file));
+  for (;;) {
+    const candidate = path.join(dir, 'tsconfig.json');
+    if (existsSync(candidate)) return candidate;
+    if (path.relative(root, dir) === '' || dir === path.dirname(dir)) return undefined;
+    dir = path.dirname(dir);
+  }
+}
+
+function tscErrors(root: string, file: string): string[] {
+  const config = nearestTsconfig(root, file);
+  if (config === undefined) return [];
+  let tsc: string;
+  try {
+    tsc = createRequire(path.join(root, 'package.json')).resolve('typescript/bin/tsc');
+  } catch {
+    return [];
+  }
+  const r = spawnSync(process.execPath, [tsc, '--noEmit', '--pretty', 'false', '-p', config], {
+    cwd: root,
+    encoding: 'utf8',
+  });
+  if (r.status === 0) return [];
+  return r.stdout.split('\n').filter((line) => line.includes(file) && line.includes('error'));
+}
+
+export function expectBuild(root: string, file: string): ExpectBuild {
+  const loadErrors = runVitest(root, file)
+    .filter((t) => t.title.startsWith('файл не собран'))
+    .map((t) => t.title);
+  const errors = [...loadErrors, ...tscErrors(root, file)];
+  return { ok: errors.length === 0, errors };
+}
+
 async function pageHtml(args: CommandArgs, reports: FileReport[]): Promise<string> {
   for (const r of reports) {
-    const head = headTitles(args.root, r.file, (rel) =>
-      visible(runVitest(args.root, rel, {}, ['-t', NOTHING])).filter((t) => t.file === rel),
+    const head = headTitles(args.root, r.file, (env) =>
+      visible(runVitest(args.root, r.file, env, ['-t', NOTHING])).filter((t) => t.file === r.file),
     );
     if (head !== undefined) r.head = head;
   }

@@ -71,36 +71,19 @@ export {
 export { FSM_SCHEMA } from './harnesses/index.ts';
 export { loadHarness, type LoadedHarness } from './harnesses/index.ts';
 export {
-  failureReport,
+  bashDecision,
+  hookEvent,
   hookSettings,
+  openerFor,
+  servePage,
+  JUDGE_TOOLS,
   plannerTools,
   planReviewRegistry,
-  REVIEW_TOOLS,
+  reviewText,
+  type HookName,
   type PlanContext,
 } from './harnesses/index.ts';
-export {
-  acceptFindings,
-  CRITERIA_SCHEMA,
-  findingsSchema,
-  parseCriteria,
-  verdict,
-  type Criterion,
-  type Finding,
-} from './harnesses/index.ts';
-export { FORMAL_CRITERIA, formalCheck } from './harnesses/index.ts';
-export {
-  changedParts,
-  parsePlan,
-  replaceSection,
-  serializeBlocks,
-  setFrontmatter,
-  withDependents,
-  type PlanItem,
-  type PlanModel,
-} from './harnesses/index.ts';
-export { renderPlanHtml } from './harnesses/index.ts';
 export { headlessArgs, interactiveArgs, type ModelRunner } from './harnesses/index.ts';
-export { type Prompter } from './harnesses/index.ts';
 export { BUILTIN_HARNESSES, createSession, harnessHome, openSession } from './harnesses/index.ts';
 export {
   checkDelta,

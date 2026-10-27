@@ -1,5 +1,5 @@
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, watch } from 'node:fs';
 import { mkdtemp, readdir, readFile, realpath, rm, writeFile, mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -14,6 +14,7 @@ import {
   findCommand,
   headlessArgs,
   interactiveArgs,
+  JUDGE_TOOLS,
   KNOWN_ADAPTERS,
   KNOWN_CHECKS,
   loadHarness,
@@ -22,7 +23,6 @@ import {
   planIo,
   plannerTools,
   renderUsage,
-  REVIEW_TOOLS,
   runOutdated,
   selfCommand,
   splitWords,
@@ -93,9 +93,6 @@ describe('[harness] common', () => {
   warn(
     'задание проверяющей модели содержит только вопросы и доказательства, без контекста автора',
     () => Check.cleanContext(),
-  );
-  crit('уровни замечаний общие для ожиданий и критериев плана: crit, warn, info', () =>
-    Check.sharedLevels(),
   );
   crit(
     'harness живёт в одном каталоге src/harnesses/<имя>: harness.yaml, критерии и промпты рядом с кодом',
@@ -430,7 +427,7 @@ describe('[harness] expect plan', () => {
     'блоки и ожидания из импортированных файлов попадают на страницу; у ожидания из другого модуля видно, где оно определено',
     () => Plan.importedBlocks(),
   );
-  crit.wip(
+  crit(
     'на странице только объявленное в файле: тексты info, блоки и ожидания; своих заголовков и сводок рендер не добавляет, кроме разделов fsm «Состояния» и «Переходы»',
     () => Plan.onlyDeclared(),
   );
@@ -450,8 +447,12 @@ describe('[harness] expect plan', () => {
     () => Plan.questions(),
   );
   crit(
-    'замечания — один блок «Замечания» на странице: находка и пояснение; на месте info.remarks, без него — в начале страницы',
+    'замечания — один блок «Замечания» на месте info.remarks: находка и пояснение; без info.remarks блока на странице нет',
     () => Plan.remarks(),
+  );
+  crit(
+    'замечания есть, а info.remarks нет — отчёт в терминале называет их число и просит добавить info.remarks()',
+    () => Plan.remarksHint(),
   );
   warn('цвет узла на схеме — статус его ожиданий: todo, пройдено, провал', () =>
     Plan.htmlStatuses(),
@@ -459,6 +460,10 @@ describe('[harness] expect plan', () => {
   crit(
     'HTML отмечает новые и удалённые относительно HEAD ожидания; замена в том же разделе — изменение',
     () => Plan.htmlDiff(),
+  );
+  crit(
+    'сравнение с HEAD не пишет в проект: HEAD-версия файла ожиданий не появляется рядом с ним даже на время сборки',
+    () => Plan.headInMemory(),
   );
 });
 
@@ -627,11 +632,7 @@ const DECLARED_COMMANDS = [
     `${p} validate`,
     `${p} graph`,
   ]),
-  'plan-review check <id>',
-  'plan-review render <id>',
-  'plan-review read <id>',
-  'plan-review clone <id>',
-  'plan-review clone <id> md',
+  'plan-review hook <id> <hook>',
 ];
 
 class Check {
@@ -867,15 +868,6 @@ class Check {
   }
 
   static cleanContext = (): Promise<void> => judged(['@judge-clean-context']);
-
-  static async sharedLevels(): Promise<void> {
-    const schema = parseJson(await readRepo(`${SCHEMAS}/plan-criteria.schema.json`));
-    expect(at(schema, 'properties', 'criteria', 'items', 'properties', 'level', 'enum')).toEqual([
-      'crit',
-      'warn',
-      'info',
-    ]);
-  }
 
   static lintOnTitleChange = (): Promise<void> => judged(['@expect-cycles']);
   static judgeOnlyStale = (): Promise<void> => judged(['@expect-cycles']);
@@ -1176,9 +1168,6 @@ function harnessWords(line: string): string[] | undefined {
   return end < 0 ? rest : rest.slice(0, end);
 }
 
-const PLAN_SAMPLE =
-  '---\nharness: plan-review\nsession: s\nstatus: draft\nrevision: 1\n---\n# План\n\n## Цель\n\nцель\n\n## Пункты\n\n### T1. Пункт\n\n- Тип: task\n- Зависит от: —\n- Мотивация: м\n- DoD:\n  - [ ] д\n';
-
 class Layers {
   static async downward(): Promise<void> {
     const files = await srcFiles();
@@ -1313,11 +1302,9 @@ class Layers {
           title: 'демо',
           request: 'запрос',
           project: dir,
-          initial: 'awaiting_user',
+          initial: 'awaiting_input',
           now: new Date(),
         });
-        await writeFile(path.join(session.dir, 'plan.md'), PLAN_SAMPLE);
-        expect(cli(['plan-review', 'render', session.id, '--home', home])).toBe(0);
 
         const query = COMMANDS.filter((n) => effectOf(n) === 'query');
         expect(query.length).toBeGreaterThan(10);
@@ -1361,19 +1348,21 @@ class Layers {
         title: 'демо',
         request: 'запрос',
         project: home,
-        initial: 'draft',
+        initial: 'awaiting_input',
         now: new Date(),
       });
+      session.data.planFile = 'plans/p.expect.ts';
       const { harness } = await loadHarness(home, 'plan-review');
       if (harness === undefined) throw new Error('plan-review не загрузился');
       const ctx: PlanContext = {
         session,
         home,
         def: harness.def,
-        criteria: harness.criteria,
         runner: planIo.runner(),
-        prompter: planIo.prompter(),
         self: selfCommand(),
+        hook: false,
+        terminal: false,
+        page: planIo.page,
       };
       const planner = plannerTools(ctx);
       const bash = planner.allowed.flatMap((r) => /^Bash\((.*)\)$/.exec(r)?.[1] ?? []);
@@ -1394,7 +1383,7 @@ class Layers {
         allowedTools: planner.allowed,
         prompt: '',
       });
-      const headless = [planner.tools, ...Object.values(REVIEW_TOOLS)].map((tools) =>
+      const headless = [planner.tools, JUDGE_TOOLS].map((tools) =>
         headlessArgs({
           cwd: home,
           model: 'opus',
@@ -1412,7 +1401,7 @@ class Layers {
         expect(args).toContain('--tools');
         expect(toolsOf(args)).not.toContain('Skill');
       }
-      for (const tools of Object.values(REVIEW_TOOLS)) expect(tools).not.toContain('Bash');
+      expect(JUDGE_TOOLS).not.toContain('Bash');
     } finally {
       await rm(home, { recursive: true, force: true });
     }
@@ -1620,7 +1609,7 @@ class Processes {
     expect(
       dirs.filter((d) => !existsSync(path.join(repoRoot(), HARNESSES, d, 'harness.yaml'))),
     ).toEqual([]);
-    for (const f of ['criteria.yaml', 'prompts'])
+    for (const f of ['prompts'])
       expect({ f, ok: existsSync(path.join(repoRoot(), HARNESSES, 'plan-review', f)) }).toEqual({
         f,
         ok: true,
@@ -2056,7 +2045,18 @@ describe('счёт', () => {
     );
     await withPlanFixture(planFile(`info.title('Т');\n${broken}`), async (_dir, run) => {
       const { html } = await run();
-      expect(html).toMatch(/<h1>Т<\/h1>\s*<section class="block remarks">/);
+      expect(html).not.toContain('block remarks');
+    });
+  }
+
+  static async remarksHint(): Promise<void> {
+    const broken = `steps(() => { step('T1', { title: 'a', after: ['T9'] }, () => {}); });\n`;
+    const hint = /замечаний \d+, блока info\.remarks нет[^\n]*info\.remarks\(\)/;
+    await withPlanFixture(planFile(broken), async (_dir, run) => {
+      expect((await run()).out).toMatch(hint);
+    });
+    await withPlanFixture(planFile(`info.remarks();\n${broken}`), async (_dir, run) => {
+      expect((await run()).out).not.toMatch(hint);
     });
   }
 
@@ -2235,6 +2235,30 @@ M.state('c', () => { crit.todo('c впереди'); });
       expect(find('новое один')?.cls).toMatch(/diff-changed/);
       expect(find('новое один')?.text).toContain('старое один');
       expect(find('остаётся')?.cls).not.toMatch(/diff-/);
+    });
+  }
+
+  static async headInMemory(): Promise<void> {
+    const v1 = `describe('X', () => {\n  crit('было', () => {});\n});\n`;
+    const v2 = `describe('X', () => {\n  crit('стало', () => {});\n});\n`;
+    await withPlanFixture(planFile(v1), async (dir, run) => {
+      gitCommitAll(dir);
+      await writeFile(
+        path.join(dir, 'expectations/plan.expect.ts'),
+        planFile(v2)['expectations/plan.expect.ts'] ?? '',
+      );
+      const created: string[] = [];
+      const watcher = watch(dir, { recursive: true }, (_event, file) => {
+        if (file !== null && file.endsWith('.expect.ts') && !file.endsWith('plan.expect.ts'))
+          created.push(file);
+      });
+      try {
+        const { html } = await run();
+        expect(listItems(html).find((i) => i.text.includes('стало'))?.cls).toMatch(/diff-changed/);
+      } finally {
+        watcher.close();
+      }
+      expect(created).toEqual([]);
     });
   }
 }

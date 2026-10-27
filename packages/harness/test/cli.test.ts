@@ -272,7 +272,10 @@ describe('дерево команд: уровни, list, help, оболочка'
   it('параметры пути и приоритет литералов', () => {
     expect(findCommand(['plan-review', 'list'])?.params).toEqual({});
     expect(findCommand(['plan-review', 'status', '0d57'])?.params).toEqual({ id: '0d57' });
-    expect(findCommand(['plan-review', 'clone', '0d57', 'md'])?.command.path.at(-1)).toBe('md');
+    expect(findCommand(['plan-review', 'hook', '0d57', 'stop'])?.params).toEqual({
+      id: '0d57',
+      hook: 'stop',
+    });
     expect(findCommand(['check', 'extra'])).toBeUndefined();
   });
 
@@ -283,7 +286,7 @@ describe('дерево команд: уровни, list, help, оболочка'
     expect(await main(['docs-delta', 'help'], NOW)).toBe(0);
     expect(out.at(-1)).toContain('harness docs-delta open <id>');
     expect(out.at(-1)).not.toContain('harness check');
-    expect(childrenOf(['plan-review', 'clone', 'x'])).toEqual(['md']);
+    expect(childrenOf(['plan-review', 'hook', 'x'])).toEqual(['<hook>']);
     expect(await run(['plan-review'])).toBe(2);
   });
 
@@ -305,8 +308,8 @@ describe('дерево команд: уровни, list, help, оболочка'
       cwd: ['plan-review'],
       run: ['plan-review', 'list'],
     });
-    expect(shellStep(['plan-review', 'clone'], '0d57')).toEqual({
-      cwd: ['plan-review', 'clone', '0d57'],
+    expect(shellStep(['plan-review', 'hook'], '0d57')).toEqual({
+      cwd: ['plan-review', 'hook', '0d57'],
     });
     expect(shellStep([], 'exit').exit).toBe(true);
     expect(promptOf(['plan-review'])).toBe('/harness/plan-review> ');

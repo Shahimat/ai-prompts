@@ -21,7 +21,6 @@ export interface HarnessModule {
   validate: (home: string) => Promise<{ errors: string[]; plugins: string[]; def?: MachineDef }>;
   drive: (session: Session, home: string, event?: string) => Promise<DriveResult>;
   status?: (session: Session) => Promise<string[]>;
-  beforeRetry?: (session: Session) => Promise<void>;
   nodes?: readonly CommandNode[];
 }
 
@@ -73,7 +72,6 @@ export function report(session: Session, result: DriveResult): number {
 
 async function open(m: HarnessModule, session: Session, home: string): Promise<number> {
   if (session.data.state !== 'failed') return report(session, await m.drive(session, home));
-  await m.beforeRetry?.(session);
   return report(session, await m.drive(session, home, 'retry'));
 }
 

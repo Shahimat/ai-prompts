@@ -36,29 +36,12 @@ export const FSM_SCHEMA = {
       propertyNames: { $ref: '#/$defs/name' },
       additionalProperties: { type: 'integer', minimum: 1 },
     },
-    review: {
-      type: 'object',
-      additionalProperties: false,
-      properties: {
-        mode: { enum: ['collect', 'sequential'] },
-        budget: {
-          type: 'object',
-          additionalProperties: false,
-          required: ['crit', 'warn'],
-          properties: {
-            crit: { type: 'integer', minimum: 0 },
-            warn: { type: 'integer', minimum: 0 },
-          },
-        },
-      },
-    },
     models: {
       type: 'object',
       additionalProperties: false,
       properties: {
         planner: { type: 'string', minLength: 1 },
-        '1b': { type: 'string', minLength: 1 },
-        '2': { type: 'string', minLength: 1 },
+        judge: { type: 'string', minLength: 1 },
       },
     },
     states: {

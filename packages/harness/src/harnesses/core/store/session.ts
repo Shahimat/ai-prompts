@@ -5,7 +5,7 @@ import { homedir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { UsageError } from '#shared/diagnostics';
-import { errorCode, isOneOf, isRecord, isStringArray } from '#shared/guards';
+import { errorCode, isRecord } from '#shared/guards';
 
 export function harnessHome(option?: string): string {
   const fromEnv = process.env['HARNESS_HOME'];
@@ -40,10 +40,6 @@ export const harnessExists = (home: string, harness: string): boolean =>
   existsSync(path.join(BUILTIN_HARNESSES, harness, 'harness.yaml')) ||
   existsSync(path.join(home, 'harnesses', harness, 'harness.yaml'));
 
-export type FixInput =
-  | { source: 'review'; round: number }
-  | { source: 'user'; mode: 'revise' | 'rework'; items: string[]; comment: string };
-
 export interface SessionData {
   id: string;
   harness: string;
@@ -54,28 +50,8 @@ export interface SessionData {
   state: string;
   counters: Record<string, number>;
   plannerSession?: string;
-  round: number;
-  cycleStart: number;
-  fix?: FixInput;
-  question?: string;
-  formalExhausted?: boolean;
   handoff?: string;
   planFile?: string;
-}
-
-function parseFix(value: unknown): FixInput | undefined {
-  if (!isRecord(value)) return undefined;
-  if (value['source'] === 'review' && typeof value['round'] === 'number')
-    return { source: 'review', round: value['round'] };
-  const { mode, items, comment } = value;
-  if (
-    value['source'] === 'user' &&
-    isOneOf(['revise', 'rework'], mode) &&
-    isStringArray(items) &&
-    typeof comment === 'string'
-  )
-    return { source: 'user', mode, items, comment };
-  return undefined;
 }
 
 export function parseSession(text: string, where: string): SessionData {
@@ -84,11 +60,6 @@ export function parseSession(text: string, where: string): SessionData {
   const str = (key: string): string => {
     const v = data[key];
     if (typeof v !== 'string') throw new UsageError(`${where}: ${key} должно быть строкой`);
-    return v;
-  };
-  const num = (key: string): number => {
-    const v = data[key];
-    if (typeof v !== 'number') throw new UsageError(`${where}: ${key} должно быть числом`);
     return v;
   };
   const counters: Record<string, number> = {};
@@ -104,14 +75,8 @@ export function parseSession(text: string, where: string): SessionData {
     created: str('created'),
     state: str('state'),
     counters,
-    round: num('round'),
-    cycleStart: num('cycleStart'),
   };
   if (typeof data['plannerSession'] === 'string') session.plannerSession = data['plannerSession'];
-  const fix = parseFix(data['fix']);
-  if (fix !== undefined) session.fix = fix;
-  if (typeof data['question'] === 'string') session.question = data['question'];
-  if (data['formalExhausted'] === true) session.formalExhausted = true;
   if (typeof data['handoff'] === 'string') session.handoff = data['handoff'];
   if (typeof data['planFile'] === 'string') session.planFile = data['planFile'];
   return session;
@@ -138,14 +103,6 @@ export class Session {
     return path.join(this.dir, rel);
   }
 
-  get planPath(): string {
-    return this.file('plan.md');
-  }
-
-  get contextPath(): string {
-    return this.file('context.md');
-  }
-
   async save(): Promise<void> {
     await writeFile(this.file('session.json'), `${JSON.stringify(this.data, null, 2)}\n`, 'utf8');
   }
@@ -156,15 +113,6 @@ export class Session {
       `${JSON.stringify({ at: new Date().toISOString(), ...entry })}\n`,
       'utf8',
     );
-  }
-
-  async readPlan(): Promise<string | undefined> {
-    try {
-      return await readFile(this.planPath, 'utf8');
-    } catch (error) {
-      if (errorCode(error) === 'ENOENT') return undefined;
-      throw error;
-    }
   }
 }
 
@@ -198,15 +146,8 @@ export async function createSession(home: string, opts: NewSession): Promise<Ses
     created: opts.now.toISOString(),
     state: opts.initial,
     counters: {},
-    round: 0,
-    cycleStart: 1,
   });
   await session.save();
-  await writeFile(
-    session.contextPath,
-    `# Контекст: ${opts.title}\n\n## Запрос\n\n${opts.request}\n`,
-    'utf8',
-  );
   await session.log({ event: 'start', to: opts.initial });
   return session;
 }

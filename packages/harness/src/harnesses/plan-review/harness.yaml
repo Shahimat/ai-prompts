@@ -1,81 +1,57 @@
-# Автомат plan-review: переходами управляет скрипт, модель работает только
-# внутри состояний. Действия и guards — имена из реестра, выражений нет.
-# Схема — expectations/schemas/harness-fsm.schema.json.
+# Автомат plan-review: события выводит команда hook из событий сессии
+# планера, модель их не объявляет. Действия — имена из реестра, выражений нет.
+# Схема — expectations/schemas/harness-fsm.schema.json; граф совпадает с блоком
+# fsm в expectations/harness-plan-review.expect.ts.
 harness: plan-review
-description: Планирование задачи — диалог, ревью в два уровня, правки, решение человека
-initial: draft
+description: Планер ожиданий — запрос, сбор контекста, запись ожиданий, ревью судьёй
+initial: awaiting_input
 
 limits:
-  # formal — formal.max_blocks: блокировки Stop-hook подряд и возобновления 1a.
-  formal: 3
-  # fix — правки на цикл ревью; четвёртый провал — справка.
-  fix: 3
-
-review:
-  mode: collect
-  budget:
-    crit: 0
-    warn: 3
+  # cycles — полные циклы composing → review → analyze без чистого ревью.
+  cycles: 3
+  # build — блокировки Stop подряд, пока файл ожиданий не собирается.
+  build: 3
 
 models:
   planner: opus
-  1b: haiku
-  '2': opus
+  judge: opus
 
 states:
-  draft:
+  awaiting_input:
     actor: user
-    action: planner-draft
+    action: planner-await
     on:
-      done: formal
-  formal:
-    actor: script
-    action: plan-check
-    on:
-      ok: { to: review, reset: [formal] }
-      broken:
-        - { to: repair, count: formal }
-        - failed
-      exhausted: failed
-  repair:
+      request: { to: gathering, reset: [cycles] }
+      exit: finished
+  gathering:
     actor: model
-    action: planner-repair
+    action: planner-gather
     on:
-      done: formal
+      gathered: composing
+      replied: awaiting_input
+  composing:
+    actor: model
+    action: planner-compose
+    on:
+      written: review
+      unclear: clarify_form
+  clarify_form:
+    actor: user
+    action: planner-clarify
+    on:
+      answered: composing
   review:
     actor: model
-    action: plan-review
+    action: plan-judge
     on:
-      pass: awaiting_user
-      fail:
-        - { to: fix, count: fix }
-        - failed
-  fix:
+      reviewed: analyze
+  analyze:
     actor: model
-    action: planner-fix
+    action: plan-analyze
     on:
-      done: formal
-      rejected:
-        - { to: fix, count: fix }
-        - failed
-  awaiting_user:
-    actor: user
-    action: user-menu
-    on:
-      approve: approved
-      revise: { to: fix, reset: [fix] }
-      rework: { to: fix, reset: [fix] }
-      ask: answer
-  answer:
-    actor: model
-    action: planner-answer
-    on:
-      done: awaiting_user
-  failed:
-    actor: user
-    action: report-failure
-    on:
-      retry: { to: fix, reset: [fix, formal] }
-  approved:
+      remarks:
+        - { to: composing, count: cycles }
+        - awaiting_input
+      clean: awaiting_input
+  finished:
     final: true
-    action: plan-approve

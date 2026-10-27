@@ -5,7 +5,6 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { UsageError } from '#shared/diagnostics';
 import { errorMessage } from '#shared/guards';
-import { HEAD_COPY } from './head.ts';
 
 export const DEFAULT_PORT = 4173;
 
@@ -96,7 +95,7 @@ export function serveHtml(options: ServeOptions): Promise<number> {
   let watcher: FSWatcher | undefined;
   try {
     watcher = watch(options.root, { recursive: true }, (_event, file) => {
-      if (file !== null && (IGNORED.test(file) || HEAD_COPY.test(file))) return;
+      if (file !== null && IGNORED.test(file)) return;
       if (timer !== undefined) clearTimeout(timer);
       timer = setTimeout(refresh, DEBOUNCE_MS);
     });

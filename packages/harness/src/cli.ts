@@ -32,7 +32,6 @@ export async function main(argv: string[], now: Date = new Date()): Promise<numb
       home: { type: 'string' },
       name: { type: 'string' },
       request: { type: 'string' },
-      hook: { type: 'boolean' },
       help: { type: 'boolean', short: 'h' },
     },
   });
@@ -57,7 +56,6 @@ export async function main(argv: string[], now: Date = new Date()): Promise<numb
   if (values.home !== undefined) args.home = values.home;
   if (values.name !== undefined) args.name = values.name;
   if (values.request !== undefined) args.request = values.request;
-  if (values.hook === true) args.hook = true;
 
   if (match !== undefined) return match.command.run({ ...args, params: match.params });
 

@@ -61,43 +61,15 @@
         "minimum": 1
       }
     },
-    "review": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "mode": {
-          "enum": ["collect", "sequential"]
-        },
-        "budget": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["crit", "warn"],
-          "properties": {
-            "crit": {
-              "type": "integer",
-              "minimum": 0
-            },
-            "warn": {
-              "type": "integer",
-              "minimum": 0
-            }
-          }
-        }
-      }
-    },
     "models": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "2": {
-          "type": "string",
-          "minLength": 1
-        },
         "planner": {
           "type": "string",
           "minLength": 1
         },
-        "1b": {
+        "judge": {
           "type": "string",
           "minLength": 1
         }

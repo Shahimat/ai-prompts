@@ -72,8 +72,8 @@ describe('harness.yaml: форма и статическая проверка', 
   it('встроенный plan-review проходит статическую проверку', async () => {
     const result = await loadHarness(path.join(tmpdir(), 'нет-такого-home'), 'plan-review');
     expect(result.errors).toEqual([]);
-    expect(result.harness?.def.limits).toEqual({ formal: 3, fix: 3 });
-    expect(result.harness?.def.review).toEqual({ mode: 'collect', budget: { crit: 0, warn: 3 } });
+    expect(result.harness?.def.limits).toEqual({ cycles: 3, build: 3 });
+    expect(result.harness?.def.models).toEqual({ planner: 'opus', judge: 'opus' });
   });
 
   it('ошибка формы называет путь до поля', () => {
@@ -220,11 +220,8 @@ describe('плагины', () => {
       path.join(BUILTIN_HARNESSES, 'plan-review/harness.yaml'),
       'utf8',
     );
-    await writeFile(
-      path.join(own, 'harness.yaml'),
-      builtin.replace('mode: collect', 'mode: parallel'),
-    );
+    await writeFile(path.join(own, 'harness.yaml'), builtin.replace('judge: opus', 'judge: ""'));
     const result = await loadHarness(home, 'plan-review');
-    expect(result.errors.join('\n')).toContain('harnesses/plan-review/harness.yaml/review/mode');
+    expect(result.errors.join('\n')).toContain('harnesses/plan-review/harness.yaml/models/judge');
   });
 });
