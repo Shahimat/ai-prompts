@@ -17,7 +17,7 @@ import {
   skill,
   warn,
 } from '@shahimat/harness/expect';
-import { attention, ticketCommits } from '@shahimat/expectations';
+import { attention } from '@shahimat/expectations';
 import { parse } from 'yaml';
 import { anyContract } from './shared/any-contract.expect.ts';
 import { at, parseJson, recordOrEmpty, stringList, unknownList } from './shared/guards.ts';
@@ -112,8 +112,6 @@ describe('журнал решений', () => {
   crit('CHANGELOG.md сливается через merge=union в .gitattributes ядра', () => Check.mergeUnion());
 });
 
-ticketCommits('ticket-commits');
-
 describe('источник', () => {
   warn('источники скачиваются только curl, WebFetch запрещён', () => Check.curlOnly());
   warn('обновление из источника предупреждает о deprecated-контракте и называет замену', () =>
@@ -182,8 +180,10 @@ const SCHEMAS = 'expectations/schemas';
 
 const template = async (): Promise<string> => (await contract(KEY)).agentsMdTemplate ?? '';
 const v3Modules = async (): Promise<Awaited<ReturnType<typeof modules>>> =>
-  (await modules()).filter((m) =>
-    stringList(m.frontmatter?.['applicable_to'], `${m.key}: applicable_to`).includes(KEY),
+  (await modules()).filter(
+    (m) =>
+      m.frontmatter?.['deprecated'] === undefined &&
+      stringList(m.frontmatter?.['applicable_to'], `${m.key}: applicable_to`).includes(KEY),
   );
 const feature = async (key: string): Promise<Record<string, unknown>> =>
   recordOrEmpty((await module(key)).frontmatter?.['feature'], `${key}: feature`);

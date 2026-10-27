@@ -6,6 +6,7 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { main } from '#cli';
 import { openSession } from '#harnesses/core/store/session';
+import { FAKE_CLAUDE } from './fake-claude.ts';
 
 const NOW = new Date('2026-10-14T12:00:00Z');
 
@@ -46,6 +47,7 @@ beforeEach(async () => {
 
 afterEach(async () => {
   vi.restoreAllMocks();
+  vi.unstubAllEnvs();
   await rm(root, { recursive: true, force: true });
   await rm(home, { recursive: true, force: true });
 });
@@ -69,8 +71,16 @@ describe('harness docs delta', () => {
     expect(out.join('\n')).toContain('apply --> verify');
   });
 
-  it('start выдаёт задание; open проверяет и закрывает дельту', async () => {
+  it('start выдаёт задание; open проверяет, судья ревьюит, дельта закрывается', async () => {
     await project();
+    await put(
+      '.agents/agents/judge.md',
+      '---\nname: judge\ndescription: Судья для теста процесса docs-delta\noutput: verdict\n---\n\nСудья.\n',
+    );
+    const fake = path.join(home, 'fake-claude.mjs');
+    await writeFile(fake, FAKE_CLAUDE, 'utf8');
+    vi.stubEnv('HARNESS_CLAUDE', fake);
+    vi.stubEnv('FAKE_SUBMIT', JSON.stringify({ verdict: { conflicts: [] } }));
     const args = ['--root', root, '--home', home];
     expect(await main(['docs-delta', 'start', '--name', 'naming', ...args], NOW)).toBe(0);
     expect(await state()).toBe('apply');

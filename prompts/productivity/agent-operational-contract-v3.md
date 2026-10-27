@@ -82,17 +82,18 @@ context/
 .agents/
   skills/
     contract-setup/                ← чеклист возможностей, add/remove
-    workflow/                      ← сценарии, блокирующий вопрос, тикеты и коммиты
+    workflow/                      ← сценарии, блокирующий вопрос
     docs-keeper/                   ← правила записи в документацию
     source-sync/                   ← обновление из источника
     source-feedback/               ← предложения из проекта в источник
   agents/
-    docs-keeper.md                 ← субагент записи (канон)
+    docs-keeper.md                 ← роль записи в документацию (канон)
+    judge.md                       ← роль судьи: проверка доки на противоречия
 ```
 
-Skills и субагент берутся из индекса: skills `contract-setup`,
-`workflow`, `docs-keeper`, `source-sync`, `source-feedback`, агент
-`docs-keeper`. Кладутся в проект байт в байт, их SHA записываются в
+Skills и роли берутся из индекса: skills `contract-setup`, `workflow`,
+`docs-keeper`, `source-sync`, `source-feedback`, роли `docs-keeper` и
+`judge`. Кладутся в проект байт в байт, их SHA записываются в
 `sync.contract.parts`.
 
 Канон для всех агентов — `AGENTS.md` и `.agents/`. Файлы под конкретный
@@ -125,7 +126,7 @@ sync:
     synced_sha: <hex>
     parts:
       skills: {contract-setup: <hex>, workflow: <hex>, docs-keeper: <hex>, source-sync: <hex>, source-feedback: <hex>}
-      agents: {docs-keeper: <hex>}
+      agents: {docs-keeper: <hex>, judge: <hex>}
 ```
 
 Новый namespace — только с явного «да» пользователя: иначе список
@@ -214,7 +215,7 @@ CHANGELOG.md merge=union
 
 ## Skills
 
-- `workflow` — сценарии, формат вопроса, тикеты и коммиты;
+- `workflow` — сценарии, формат вопроса;
 - `docs-keeper` — правила записи в документацию;
 - `source-sync` — обновление из источника, «что нового»;
 - `source-feedback` — предложения из проекта в источник;
@@ -305,7 +306,7 @@ feature:
 Контракт собирается под вид проекта — пресетом:
 
 - `operational` — операционный проект со своим кодом: domain, manuals,
-  goals, ticket-commits, harness;
+  goals, harness;
 - `external` — внешний операционный контекст поверх чужого живого
   проекта: своего кода нет, источник правды — целевые системы
   (`external-context`);
@@ -416,8 +417,8 @@ domain, manuals и goals.
 8. `sync.contract.key` → `agent-operational-contract-v3`, SHA — из
    индекса.
 
-Миграция — тикет: шаги-коммиты по типам, после каждого шага — отчёт
-(skill `workflow`, «Тикеты и коммиты»).
+Миграция — тикет; нарезка на коммиты — по глобальным правилам
+пользователя.
 
 ### brownfield
 

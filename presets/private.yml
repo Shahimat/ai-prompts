@@ -7,9 +7,6 @@ modules:
   - key: domain
   - key: manuals
   - key: goals
-  - key: ticket-commits
-    answers:
-      mode: "on"
   - key: harness
     answers:
       checks: [changelog, context-index, adapters]

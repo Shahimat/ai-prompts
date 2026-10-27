@@ -224,14 +224,18 @@ harness <имя> validate | graph  # определение и Mermaid авто�
 Работу в них делает агент, вызвавший harness: в его состоянии harness
 останавливается с заданием, `harness <имя> open <id>` продолжает.
 
-- `harness docs-delta start --name <дельта> [--file <намерения>]` —
+- `harness docs-delta start --name <дельта> [--file <намерения | ->]` —
   запись в документацию (skill docs-keeper): `apply` (с `--file` —
-  роль `docs-keeper` headless по файлу намерений; без него или при
-  провале роли — пауза с заданием агенту; собирается и применяется
+  роль `docs-keeper` headless; намерения — из файла или stdin, по
+  схеме `intents`, хранятся в сессии; без `--file` или при провале роли
+  — пауза с заданием агенту; собирается и применяется
   `context/.delta/<дельта>.yml`) → `verify` (`context index`,
-  `adapters sync`, `delta check`, шаги `check`) → `close`
-  (`delta close`). Провал `verify` или `close` возвращает в `apply` не
-  больше 3 раз, затем `failed`.
+  `adapters sync`, `delta check`, шаги `check`) → `review` (роль
+  `judge`: противоречия изменённых файлов с остальной документацией,
+  цитаты сверяются дословно, без цитаты находка отклоняется) → `close`
+  (`delta close`). Провал `verify`, противоречия в `review` или провал
+  `close` возвращают в `apply` (находки судьи — в задании) не больше 3
+  раз, затем `failed`.
 - `harness source-sync start` — синхронизация с источниками (skill
   source-sync): `outdated` (версия harness и журнал, без `version` в
   конфиге — пропуск) → `update` (агент обновляет файлы) → `refresh`.
@@ -312,8 +316,13 @@ headless-исполнителем в harness.
   `submit_result`, режим `dontAsk`, задание — на stdin. Ответ текстом
   harness не читает: нет вызова `submit_result` с валидным ответом —
   ошибка роли.
+- Вход роли docs-keeper — схема `INTENTS_SCHEMA`: намерения `kind`
+  (`decision`, `fact`, `rule`, `behavior-change`, `task`, `manual`),
+  `summary`, `evidence`. Ответ судьи о документации — `verdict` с полем
+  `conflicts` (`file_a`, `quote_a`, `file_b`, `quote_b`, `reason`).
 - Роли пакета используют: `expect judge --run` (роль `judge`),
-  `docs-delta start --file` (роль `docs-keeper`).
+  `docs-delta` (роль `docs-keeper` в `apply` с `--file`, роль `judge` в
+  `review`).
 
 Коды выхода: `0` — ok, `1` — нарушения, `2` — ошибка вызова или
 конфигурации.

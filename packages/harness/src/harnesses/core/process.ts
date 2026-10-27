@@ -7,8 +7,6 @@ import type { ScriptDef } from '#shared/node';
 import { driveSession, homeOf, requireProject, type HarnessModule } from './catalog.ts';
 import type { ActionDef, Registry } from './fsm/machine.ts';
 import { loadMachine } from './load.ts';
-import { readFile } from 'node:fs/promises';
-import path from 'node:path';
 import { createSession, type Session } from './store/session.ts';
 
 export interface ProcessContext {
@@ -50,12 +48,11 @@ export function roleOrHandoff<C extends ProcessContext>(
     run: async (ctx) => {
       const s = ctx.session;
       if (s.data.request === '' || s.data.handoff === s.data.state) return manual.run(ctx);
-      const input = await readFile(path.resolve(s.data.project, s.data.request), 'utf8');
       try {
         const { data } = await askRole(
           s.data.project,
           role,
-          `${task(ctx)}.\n\nНамерения (${s.data.request}):\n\n${input}`,
+          `${task(ctx)}.\n\nНамерения (JSON по схеме intents):\n\n${s.data.request}`,
         );
         await s.log({ role, result: data });
         return { event: 'done' };
@@ -63,7 +60,9 @@ export function roleOrHandoff<C extends ProcessContext>(
         await s.log({ role, error: errorMessage(error) });
         const paused = await manual.run(ctx);
         return 'pause' in paused
-          ? { pause: `роль ${role}: ${errorMessage(error)} — сделай вручную: ${paused.pause}` }
+          ? {
+              pause: `роль ${role}: ${errorMessage(error)} — сделай вручную: ${paused.pause}\nНамерения: ${s.data.request}`,
+            }
           : paused;
       }
     },
@@ -115,7 +114,7 @@ export function processModule(
   start: {
     options?: string;
     title: (args: CommandArgs) => string;
-    request?: (args: CommandArgs) => string;
+    request?: (args: CommandArgs) => Promise<string>;
   },
 ): HarnessModule {
   const load = async (home: string) => {
@@ -143,7 +142,7 @@ export function processModule(
       return createSession(home, {
         harness: name,
         title: start.title(args),
-        request: start.request?.(args) ?? '',
+        request: (await start.request?.(args)) ?? '',
         project: args.root,
         initial: machine.def.initial,
         now: args.now,

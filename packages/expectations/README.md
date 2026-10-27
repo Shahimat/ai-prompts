@@ -7,19 +7,19 @@
 
 ```ts
 import { budget } from '@shahimat/harness/expect';
-import { ticketCommits } from '@shahimat/expectations';
+import { attention } from '@shahimat/expectations';
 
 budget({ crit: 0, warn: 0 });
-ticketCommits('ticket-commits');
+attention('attention');
 ```
 
 В реализации правила размечаются якорем — привязку держит реализация, а
 не ожидания:
 
 ```markdown
-<!-- expect:ticket-commits -->
+<!-- expect:attention -->
 …текст правила…
-<!-- /expect:ticket-commits -->
+<!-- /expect:attention -->
 ```
 
 ## Наборы
@@ -30,9 +30,6 @@ ticketCommits('ticket-commits');
 ключ паттерна. Цели паттерна входят в заголовок, якоря доказательств —
 только параметром.
 
-- `ticketCommits(...keys)` — тикет из шагов-коммитов по типам karma,
-  `--amend` для подряд идущей работы одного типа, режим «пройти
-  целиком», git-запись только по просьбе пользователя.
 - `attention(...keys)` — внимание пользователя — самый дорогой ресурс:
   вопрос только там, где без решения нельзя продолжить или откатить;
   основная сессия — на доменной области, документация и проверки — на

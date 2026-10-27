@@ -22,7 +22,7 @@ describe('состав skills', () => {
     Check.coreSkills(),
   );
   crit(
-    'skills модулей, по имени модуля: domain, manuals, goals, harness, worktrees, ticket-commits, app-loop, data-access',
+    'skills модулей, по имени модуля: domain, manuals, goals, harness, worktrees, app-loop, data-access',
     () =>
       Check.moduleSkills([
         'domain',
@@ -30,7 +30,6 @@ describe('состав skills', () => {
         'goals',
         'harness',
         'worktrees',
-        'ticket-commits',
         'app-loop',
         'data-access',
       ]),
@@ -48,7 +47,7 @@ describe('состав skills', () => {
         'knowledge-external-gui',
       ]),
   );
-  crit('других skills нет — всего 20', () => Check.skillCount());
+  crit('других skills нет — всего 19', () => Check.skillCount());
   crit('субагенты-роли: только docs-keeper и judge', () => Check.onlyRoles());
 });
 
@@ -156,7 +155,7 @@ class Check {
   }
 
   static async skillCount(): Promise<void> {
-    expect((await skills()).length).toBe(20);
+    expect((await skills()).length).toBe(19);
   }
 
   static async onlyRoles(): Promise<void> {

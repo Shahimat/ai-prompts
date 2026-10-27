@@ -55,7 +55,7 @@ harness/            — пакеты (TS, npm workspaces, Node ≥ 24):
                      @shahimat/harness — сборка index.yml этого репо,
                      проверки, генерация и механизм ожиданий для проектов;
                      @shahimat/expectations — общие наборы ожиданий к
-                     правилам работы агента (ticketCommits и др.).
+                     правилам работы агента (attention и др.).
 ```
 
 Подробнее — `patterns/README.md`, `prompts/modules/README.md`,

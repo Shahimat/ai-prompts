@@ -21,9 +21,7 @@ describe('виды контракта', () => {
     'ядро контракта перечисляет виды и что каждый включает; неподходящий вид — ручной выбор в том же чеклисте',
     () => Check.kindsDeclared(),
   );
-  crit('каждый пресет включает goals, harness и ticket-commits с mode on', () =>
-    Check.commonCore(),
-  );
+  crit('каждый пресет включает goals и harness', () => Check.commonCore());
 });
 
 describe('operational — операционный проект со своим кодом', () => {
@@ -106,14 +104,10 @@ class Check {
       const keys = keysOf(p);
       expect({
         preset: p.key,
-        missing: ['goals', 'harness', 'ticket-commits'].filter((k) => !keys.includes(k)),
+        missing: ['goals', 'harness'].filter((k) => !keys.includes(k)),
       }).toEqual({
         preset: p.key,
         missing: [],
-      });
-      expect({ preset: p.key, mode: answer(p, 'ticket-commits', 'mode') }).toEqual({
-        preset: p.key,
-        mode: 'on',
       });
     }
   }

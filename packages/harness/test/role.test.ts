@@ -12,43 +12,16 @@ import { advertisedSchema, serveChannel } from '#lib/mcp';
 import { PROTOCOL, SUBMIT_TOOL, SUBMIT_TOOL_ID } from '#lib/protocol';
 import { findRole, roleArgs } from '#lib/role';
 import { isRecord } from '#shared/guards';
+import { FAKE_CLAUDE } from './fake-claude.ts';
 
 const NOW = new Date('2026-10-28T12:00:00Z');
-
-const FAKE_CLAUDE = `import { spawn } from 'node:child_process';
-import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs';
-import path from 'node:path';
-import { createInterface } from 'node:readline';
-const args = process.argv.slice(2);
-let prompt = '';
-for await (const chunk of process.stdin) prompt += chunk;
-if (process.env.FAKE_ARGS) writeFileSync(process.env.FAKE_ARGS, JSON.stringify({ args, prompt }));
-for (const [rel, text] of Object.entries(JSON.parse(process.env.FAKE_FILES ?? '{}'))) {
-  mkdirSync(path.dirname(rel), { recursive: true });
-  writeFileSync(rel, text);
-}
-const done = () => process.stdout.write(JSON.stringify({ type: 'result', is_error: false, result: 'ok', session_id: 's', total_cost_usd: 0 }));
-const submit = process.env.FAKE_SUBMIT;
-if (submit === undefined) { done(); process.exit(0); }
-const config = JSON.parse(args[args.indexOf('--mcp-config') + 1]).mcpServers.harness;
-const server = spawn(config.command, config.args, { stdio: ['pipe', 'pipe', 'inherit'] });
-const rl = createInterface({ input: server.stdout });
-const send = (m) => server.stdin.write(JSON.stringify(m) + '\\n');
-rl.on('line', (line) => {
-  const m = JSON.parse(line);
-  if (process.env.FAKE_LOG) appendFileSync(process.env.FAKE_LOG, line + '\\n');
-  if (m.id === 1) send({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: '${SUBMIT_TOOL}', arguments: JSON.parse(submit) } });
-  if (m.id === 2) { server.stdin.end(); done(); }
-});
-send({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18' } });
-`;
 
 const RESULT = { status: 'done', changed: [], failed: [], questions: [], report: 'ok' };
 
 let root: string;
 let home: string;
 let fake: string;
-const ENV = ['HARNESS_CLAUDE', 'FAKE_SUBMIT', 'FAKE_ARGS', 'FAKE_FILES', 'FAKE_LOG'];
+const ENV = ['HARNESS_CLAUDE', 'FAKE_SUBMIT', 'FAKE_ARGS', 'FAKE_FILES'];
 let saved: [string, string | undefined][];
 
 async function put(rel: string, content: string): Promise<void> {
@@ -141,8 +114,8 @@ describe('роль: запуск', () => {
   it('role run: ответ через submit_result попадает в --out', async () => {
     await put('agents/judge.md', roleFile('judge', 'verdict'));
     await put('task.md', 'Задание судье');
-    process.env['FAKE_SUBMIT'] = JSON.stringify({ answers: [] });
-    process.env['FAKE_ARGS'] = path.join(home, 'args.json');
+    process.env['FAKE_SUBMIT'] = JSON.stringify({ verdict: { answers: [] } });
+    process.env['FAKE_ARGS'] = path.join(home, 'args.jsonl');
     expect(
       await main(
         ['role', 'run', 'judge', '--file', 'task.md', '--out', 'a.json', '--root', root],
@@ -150,7 +123,7 @@ describe('роль: запуск', () => {
       ),
     ).toBe(0);
     expect(JSON.parse(await readFile(path.join(root, 'a.json'), 'utf8'))).toEqual({ answers: [] });
-    const seen: unknown = JSON.parse(await readFile(path.join(home, 'args.json'), 'utf8'));
+    const seen: unknown = JSON.parse(await readFile(path.join(home, 'args.jsonl'), 'utf8'));
     expect(isRecord(seen) ? seen['prompt'] : undefined).toBe('Задание судье');
   });
 
@@ -223,47 +196,118 @@ describe('роль: канал', () => {
   });
 });
 
-describe('docs-delta: роль docs-keeper', () => {
+describe('docs-delta: роли docs-keeper и judge', () => {
   const git = (...args: string[]) => spawnSync('git', args, { cwd: root, encoding: 'utf8' });
+  const DELTA =
+    'summary: s\nitems:\n  - op: add\n    kind: rule\n    target: other\n    summary: новое\n    evidence: e\n';
+  const KEEPER_FILES = {
+    'context/.delta/naming.yml': DELTA,
+    'context/conventions/other.yml': 'key: other\nsummary: snake_case\nrule: y\n',
+  };
+  const CONFLICT = {
+    file_a: 'context/conventions/other.yml',
+    quote_a: 'summary: snake_case',
+    file_b: 'context/conventions/naming.yml',
+    quote_b: 'summary: kebab-case',
+    reason: 'два правила именования',
+  };
 
   async function project(): Promise<void> {
     await put('context/harness.yml', 'checks:\n  context-index: {}\n');
     await put('context/project.yml', 'name: demo\nnamespaces:\n  core: ядро\n');
     await put('context/conventions/naming.yml', 'key: naming\nsummary: kebab-case\nrule: x\n');
     await put('.agents/agents/docs-keeper.md', roleFile('docs-keeper', 'result'));
+    await put('.agents/agents/judge.md', roleFile('judge', 'verdict'));
     await put('intents.yml', '- kind: rule\n  summary: новое\n  evidence: e\n');
     git('init', '-q');
     git('add', '.');
     git('-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-qm', 'init');
   }
 
-  const state = async (): Promise<string> => {
+  const session = async () => {
     const id = (await readdir(path.join(home, 'sessions')))[0] ?? '';
-    return (await openSession(home, id)).data.state;
+    return openSession(home, id);
   };
 
-  it('start --file: apply выполняет роль, дальше verify и close без handoff', async () => {
-    await project();
-    process.env['FAKE_SUBMIT'] = JSON.stringify(RESULT);
-    process.env['FAKE_FILES'] = JSON.stringify({
-      'context/.delta/naming.yml':
-        'summary: s\nitems:\n  - op: add\n    kind: rule\n    target: other\n    summary: новое\n    evidence: e\n',
-      'context/conventions/other.yml': 'key: other\nsummary: новое\nrule: y\n',
-    });
-    const args = ['--root', root, '--home', home, '--file', 'intents.yml'];
-    expect(await main(['docs-delta', 'start', '--name', 'naming', ...args], NOW)).toBe(0);
-    expect(await state()).toBe('done');
+  const calls = async (): Promise<{ message: string; prompt: string }[]> =>
+    (await readFile(path.join(home, 'args.jsonl'), 'utf8'))
+      .split('\n')
+      .filter((l) => l !== '')
+      .map((l) => {
+        const v: unknown = JSON.parse(l);
+        return isRecord(v) && typeof v['message'] === 'string' && typeof v['prompt'] === 'string'
+          ? { message: v['message'], prompt: v['prompt'] }
+          : { message: '', prompt: '' };
+      });
+
+  const start = (...extra: string[]) =>
+    main(
+      ['docs-delta', 'start', '--name', 'naming', '--root', root, '--home', home, ...extra],
+      NOW,
+    );
+
+  beforeEach(() => {
+    process.env['FAKE_ARGS'] = path.join(home, 'args.jsonl');
+    process.env['FAKE_FILES'] = JSON.stringify(KEEPER_FILES);
   });
 
-  it('роль не вернула результат — пауза в apply с заданием для ручного handoff', async () => {
+  it('start --file: намерения по схеме хранятся в сессии; apply — docs-keeper, review — judge по изменённым файлам', async () => {
+    await project();
+    process.env['FAKE_SUBMIT'] = JSON.stringify({ result: RESULT, verdict: { conflicts: [] } });
+    expect(await start('--file', 'intents.yml')).toBe(0);
+    const s = await session();
+    expect(s.data.state).toBe('done');
+    expect(JSON.parse(s.data.request)).toEqual({
+      intents: [{ kind: 'rule', summary: 'новое', evidence: 'e' }],
+    });
+    const [keeper, judge] = await calls();
+    expect(keeper?.message).toBe('result');
+    expect(keeper?.prompt).toContain('"summary":"новое"');
+    expect(judge?.message).toBe('verdict');
+    expect(judge?.prompt).toContain('- context/conventions/other.yml');
+    expect(judge?.prompt).toContain('target: other');
+  });
+
+  it('намерения не по схеме intents — start отказывает и сессию не создаёт', async () => {
+    await project();
+    await put('bad.yml', '- kind: idea\n  summary: x\n');
+    await expect(start('--file', 'bad.yml')).rejects.toThrow('не по схеме intents');
+    expect(existsSync(path.join(home, 'sessions'))).toBe(false);
+  });
+
+  it('противоречие с дословными цитатами — возврат в apply с находками судьи, после трёх — failed', async () => {
+    await project();
+    process.env['FAKE_SUBMIT'] = JSON.stringify({
+      result: RESULT,
+      verdict: { conflicts: [CONFLICT] },
+    });
+    expect(await start('--file', 'intents.yml')).toBe(0);
+    expect((await session()).data.state).toBe('failed');
+    const keepers = (await calls()).filter((c) => c.message === 'result');
+    expect(keepers).toHaveLength(4);
+    expect(keepers[1]?.prompt).toContain('судья нашёл противоречия');
+    expect(keepers[1]?.prompt).toContain('«summary: kebab-case»');
+  });
+
+  it('противоречие без дословной цитаты отклоняется — правка проходит', async () => {
+    await project();
+    process.env['FAKE_SUBMIT'] = JSON.stringify({
+      result: RESULT,
+      verdict: { conflicts: [{ ...CONFLICT, quote_b: 'summary: camelCase' }] },
+    });
+    expect(await start('--file', 'intents.yml')).toBe(0);
+    expect((await session()).data.state).toBe('done');
+  });
+
+  it('роль не вернула результат — пауза в apply с заданием и намерениями для ручного handoff', async () => {
     await project();
     const lines: string[] = [];
     vi.spyOn(console, 'log').mockImplementation((...a: unknown[]) => {
       lines.push(a.join(' '));
     });
-    const args = ['--root', root, '--home', home, '--file', 'intents.yml'];
-    expect(await main(['docs-delta', 'start', '--name', 'naming', ...args], NOW)).toBe(0);
-    expect(await state()).toBe('apply');
+    expect(await start('--file', 'intents.yml')).toBe(0);
+    expect((await session()).data.state).toBe('apply');
     expect(lines.join('\n')).toMatch(/роль docs-keeper: .*не вернула результат.*docs-delta open/s);
+    expect(lines.join('\n')).toContain('Намерения: {"intents"');
   });
 });

@@ -38,9 +38,23 @@ const ANSWER = {
   },
 };
 
+const CONFLICT = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['file_a', 'quote_a', 'file_b', 'quote_b', 'reason'],
+  properties: {
+    file_a: { type: 'string', minLength: 1 },
+    quote_a: { type: 'string', minLength: 1 },
+    file_b: { type: 'string', minLength: 1 },
+    quote_b: { type: 'string', minLength: 1 },
+    reason: { type: 'string', minLength: 1 },
+  },
+};
+
 const VERDICT = {
   $schema: 'https://json-schema.org/draft/2020-12/schema',
-  title: 'verdict — ответ судьи: вердикты пакета или проверка заголовков',
+  title:
+    'verdict — ответ судьи: вердикты пакета, проверка заголовков или противоречия в документации',
   type: 'object',
   additionalProperties: false,
   properties: {
@@ -63,8 +77,13 @@ const VERDICT = {
         properties: { id: { type: 'string' }, reason: { type: 'string' } },
       },
     },
+    conflicts: { type: 'array', items: CONFLICT },
   },
-  oneOf: [{ required: ['answers'] }, { required: ['contradictions', 'unmeasurable'] }],
+  oneOf: [
+    { required: ['answers'] },
+    { required: ['contradictions', 'unmeasurable'] },
+    { required: ['conflicts'] },
+  ],
 };
 
 const QUESTION = {
@@ -87,6 +106,39 @@ const QUESTION = {
     },
     default: { type: 'string', minLength: 1 },
     reason: { type: 'string', minLength: 1 },
+  },
+};
+
+export const INTENT_KINDS = [
+  'decision',
+  'fact',
+  'rule',
+  'behavior-change',
+  'task',
+  'manual',
+] as const;
+
+export const INTENTS_SCHEMA = {
+  $schema: 'https://json-schema.org/draft/2020-12/schema',
+  title: 'intents — вход роли docs-keeper: намерения записи в документацию',
+  type: 'object',
+  additionalProperties: false,
+  required: ['intents'],
+  properties: {
+    intents: {
+      type: 'array',
+      minItems: 1,
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['kind', 'summary'],
+        properties: {
+          kind: { enum: INTENT_KINDS },
+          summary: { type: 'string', minLength: 1, pattern: '^[^\\n]+$' },
+          evidence: { type: 'string' },
+        },
+      },
+    },
   },
 };
 

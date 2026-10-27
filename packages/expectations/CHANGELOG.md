@@ -4,6 +4,8 @@
 
 ## 0.2.0
 
+- `ticketCommits` удалён: правила тикетов и коммитов живут в глобальных
+  правилах пользователя (`claude-config`), набор к ним — там же.
 - Паттерны harness: `harnessCommands({ harness })` — общие команды
   harness `start | open | list | status | validate | graph`;
   `harnessChain({ harness, chain, fails, back, limit })` — автомат-цепочка

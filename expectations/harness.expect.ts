@@ -197,9 +197,10 @@ describe('[harness] docs-delta', () => {
     chain: [
       { state: 'apply', event: 'done' },
       { state: 'verify', event: 'ok' },
+      { state: 'review', event: 'ok' },
       { state: 'close', event: 'ok' },
     ],
-    fails: ['verify', 'close'],
+    fails: ['verify', 'review', 'close'],
     back: 'apply',
     limit: 3,
   });
@@ -390,7 +391,7 @@ describe('[harness] expect plan', () => {
     () => Plan.stubs(),
   );
   crit(
-    'статус шага выводится из его ожиданий: все todo — не начат, все без заглушек и зелёные — готов, иначе — в работе',
+    'статус шага выводится из его собственных ожиданий: все todo — не начат, все без заглушек и зелёные — готов, иначе — в работе; порядок по after — отдельная проверка',
     () => Plan.derivedStatus(),
   );
   crit('шаг не бывает готов, пока не готовы все шаги из after; граф шагов без циклов', () =>
@@ -445,8 +446,9 @@ describe('[harness] expect plan', () => {
     'info.stats(crit | warn) — виджет из четырёх чисел: пройдено, заглушки, не пройдено, всего; ненулевые подсвечены цветом',
     () => Plan.stats(),
   );
-  crit('у fsm вход — яркая точка с подписью start, выход — конечные состояния яркого цвета', () =>
-    Plan.entryExit(),
+  crit(
+    'у fsm вход — точка с подписью start, выход — конечные состояния; у обоих свой цвет, которого нет у обычных состояний',
+    () => Plan.entryExit(),
   );
   crit(
     'info.questions — вопросы и варианты ответа, не больше двух уровней; рекомендуемый вариант выделен, комментарий — во всплывающей подсказке',
@@ -917,10 +919,7 @@ class Check {
     const files = (await readdir(path.join(repoRoot(), 'expectations'), { recursive: true }))
       .filter((f) => f.endsWith('.expect.ts'))
       .map((f) => `expectations/${f.split(path.sep).join('/')}`)
-      .concat(
-        'packages/expectations/src/ticket-commits.ts',
-        'packages/expectations/src/attention.ts',
-      );
+      .concat('packages/expectations/src/attention.ts');
     const paths: string[] = [];
     for (const f of files) {
       for (const m of (await readRepo(f)).matchAll(/judged\(\[([^\]]*)\]\)/g)) {

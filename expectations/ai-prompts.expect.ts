@@ -1,11 +1,10 @@
 import { describe, expect } from 'vitest';
 import { budget, crit, readRepo } from '@shahimat/harness/expect';
-import { attention, ticketCommits } from '@shahimat/expectations';
+import { attention } from '@shahimat/expectations';
 import { at, parseJson, recordOrEmpty, stringAt } from './shared/guards.ts';
 
 budget({ crit: 0, warn: 0 });
 
-ticketCommits('ticket-commits', 'ticket-commits:repo');
 attention('attention:repo');
 
 describe('публичные npm-пакеты', () => {

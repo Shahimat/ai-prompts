@@ -124,8 +124,7 @@ class Check {
   }
 
   static deltaByKeeper = (): Promise<void> => judged(['@docs-delta']);
-  static reviseTrace = (): Promise<void> =>
-    judged(['@docs-delta', '@docs-keeper-report', '@ticket-commits-revise']);
+  static reviseTrace = (): Promise<void> => judged(['@docs-delta', '@docs-keeper-report']);
   static recover = (): Promise<void> => judged(['@recover']);
   static ownVoice = (): Promise<void> => judged(['@own-voice']);
 }

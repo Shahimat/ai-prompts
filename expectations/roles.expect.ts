@@ -1,6 +1,9 @@
 import { describe, expect } from 'vitest';
 import {
   COMMANDS,
+  INTENT_KINDS,
+  INTENTS_SCHEMA,
+  parseIntents,
   PROTOCOL,
   PROTOCOL_MESSAGES,
   roleArgs,
@@ -36,6 +39,10 @@ describe('[roles] протокол', () => {
     Check.protocolClosed(),
   );
   crit(
+    'вход docs-keeper — схема intents: kind из decision, fact, rule, behavior-change, task, manual, summary в одну строку, evidence; YAML-список принимается',
+    () => Check.intentsSchema(),
+  );
+  crit(
     'роль запускается изолированно: claude -p без настроек пользователя, единственный MCP — канал harness с submit_result',
     () => Check.isolatedRun(),
   );
@@ -47,6 +54,9 @@ describe('[roles] процессы', () => {
   );
   crit('docs-delta start --file <намерения> — apply выполняет роль docs-keeper без handoff', () =>
     Check.optionOf('docs-delta start', '--file'),
+  );
+  crit('ядро контракта v3 ставит роли docs-keeper и judge: judge проверяет доку в docs-delta', () =>
+    Check.coreRoles(),
   );
   crit('harness plan-review заморожен: дизайн объявляет статус «заморожен»', () =>
     Check.planReviewFrozen(),
@@ -83,6 +93,27 @@ class Check {
         m,
         closed: false,
       });
+  }
+
+  static intentsSchema(): void {
+    expect([...INTENT_KINDS]).toEqual([
+      'decision',
+      'fact',
+      'rule',
+      'behavior-change',
+      'task',
+      'manual',
+    ]);
+    expect(recordOrEmpty(INTENTS_SCHEMA, 'INTENTS_SCHEMA')['additionalProperties']).toBe(false);
+    expect(JSON.parse(parseIntents('- kind: fact\n  summary: s\n  evidence: e\n', 't'))).toEqual({
+      intents: [{ kind: 'fact', summary: 's', evidence: 'e' }],
+    });
+    expect(() => parseIntents('- kind: fact\n  summary: "a\\nb"\n', 't')).toThrow('intents');
+  }
+
+  static async coreRoles(): Promise<void> {
+    const contract = await readRepo('prompts/productivity/agent-operational-contract-v3.md');
+    expect(contract).toContain('agents: {docs-keeper: <hex>, judge: <hex>}');
   }
 
   static isolatedRun(): void {

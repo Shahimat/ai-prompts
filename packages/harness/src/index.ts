@@ -113,8 +113,11 @@ export {
   PROTOCOL_MESSAGES,
   SUBMIT_TOOL,
   SUBMIT_TOOL_ID,
+  INTENT_KINDS,
+  INTENTS_SCHEMA,
   type ProtocolMessage,
 } from './lib/protocol.ts';
+export { parseIntents } from './lib/intents.ts';
 export { advertisedSchema, serveChannel, type Channel } from './lib/mcp.ts';
 export {
   askRole,
