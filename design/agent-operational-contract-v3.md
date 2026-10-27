@@ -575,6 +575,9 @@ ticket-commits, harness), `external.yml`, `private.yml`,
 
 ## 10. Отложенные задачи
 
+Роли (субагенты с `output` протокола) и runner harness — отдельный
+документ `design/roles.md`; `plan-review` заморожен.
+
 - Свести `personal-project`, `analytical-project`,
   `external-project-context-v2` к пресетам возможностей поверх ядра v3 —
   вернуться после выхода v3; до этого контракты остаются отдельными.

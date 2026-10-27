@@ -3,7 +3,7 @@ import type { CommandArgs } from '#shared/args';
 import {
   commandAction,
   failureAction,
-  handoff,
+  roleOrHandoff,
   processModule,
   scriptAction,
   type ProcessContext,
@@ -15,9 +15,10 @@ function registry(): Registry<ProcessContext> {
     actions: new Map([
       [
         'delta-apply',
-        handoff<ProcessContext>(
+        roleOrHandoff<ProcessContext>(
+          'docs-keeper',
           (ctx) =>
-            `собери дельту context/.delta/${ctx.session.data.title}.yml из намерений и примени её пункты по skill docs-keeper`,
+            `собери дельту context/.delta/${ctx.session.data.title}.yml из намерений и примени её пункты по skill docs-keeper; процесс docs-delta уже идёт — сам его не запускай, verify и close сделает harness`,
         ),
       ],
       ['docs-verify', scriptAction<ProcessContext>(DOCS_VERIFY)],
@@ -29,6 +30,7 @@ function registry(): Registry<ProcessContext> {
 }
 
 export const DOCS_DELTA = processModule('docs-delta', registry, {
-  options: '[--name <дельта>]',
+  options: '[--name <дельта>] [--file <намерения>]',
   title: (args: CommandArgs) => args.name ?? 'delta',
+  request: (args: CommandArgs) => args.file ?? '',
 });

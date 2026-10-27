@@ -1,11 +1,14 @@
 import { COMMAND_NODES, runScript } from '#scripts/index';
 import type { CommandArgs } from '#shared/args';
 import { UsageError } from '#shared/diagnostics';
+import { askRole } from '#lib/role';
 import { errorMessage } from '#shared/guards';
 import type { ScriptDef } from '#shared/node';
 import { driveSession, homeOf, requireProject, type HarnessModule } from './catalog.ts';
 import type { ActionDef, Registry } from './fsm/machine.ts';
 import { loadMachine } from './load.ts';
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
 import { createSession, type Session } from './store/session.ts';
 
 export interface ProcessContext {
@@ -33,6 +36,36 @@ export function handoff<C extends ProcessContext>(task: (ctx: C) => string): Act
       s.data.handoff = s.data.state;
       await s.save();
       return { pause: `${task(ctx)}; затем ${resume(s)}` };
+    },
+  };
+}
+
+export function roleOrHandoff<C extends ProcessContext>(
+  role: string,
+  task: (ctx: C) => string,
+): ActionDef<C> {
+  const manual = handoff(task);
+  return {
+    events: ['done'],
+    run: async (ctx) => {
+      const s = ctx.session;
+      if (s.data.request === '' || s.data.handoff === s.data.state) return manual.run(ctx);
+      const input = await readFile(path.resolve(s.data.project, s.data.request), 'utf8');
+      try {
+        const { data } = await askRole(
+          s.data.project,
+          role,
+          `${task(ctx)}.\n\nНамерения (${s.data.request}):\n\n${input}`,
+        );
+        await s.log({ role, result: data });
+        return { event: 'done' };
+      } catch (error) {
+        await s.log({ role, error: errorMessage(error) });
+        const paused = await manual.run(ctx);
+        return 'pause' in paused
+          ? { pause: `роль ${role}: ${errorMessage(error)} — сделай вручную: ${paused.pause}` }
+          : paused;
+      }
     },
   };
 }
@@ -79,7 +112,11 @@ export const failureAction = <C extends ProcessContext>(): ActionDef<C> => ({
 export function processModule(
   name: string,
   registry: () => Registry<ProcessContext>,
-  start: { options?: string; title: (args: CommandArgs) => string },
+  start: {
+    options?: string;
+    title: (args: CommandArgs) => string;
+    request?: (args: CommandArgs) => string;
+  },
 ): HarnessModule {
   const load = async (home: string) => {
     const { machine, errors } = await loadMachine(home, name, registry());
@@ -106,7 +143,7 @@ export function processModule(
       return createSession(home, {
         harness: name,
         title: start.title(args),
-        request: '',
+        request: start.request?.(args) ?? '',
         project: args.root,
         initial: machine.def.initial,
         now: args.now,

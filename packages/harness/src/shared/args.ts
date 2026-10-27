@@ -6,6 +6,7 @@ export interface CommandArgs {
   port?: string;
   rawBase?: string;
   apply?: boolean;
+  run?: boolean;
   now: Date;
   params?: Record<string, string>;
   home?: string;

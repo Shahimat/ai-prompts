@@ -4,4 +4,5 @@ import './docs-flow.expect.ts';
 import './harness.expect.ts';
 import './harness-plan-review.expect.ts';
 import './presets.expect.ts';
+import './roles.expect.ts';
 import './skills.expect.ts';

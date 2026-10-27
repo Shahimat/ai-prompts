@@ -160,7 +160,7 @@ describe('readSources', () => {
     await put('.agents/agents/empty.md', '---\nname: empty\ndescription: d\n---\n\n');
     await put(
       '.agents/agents/extra.md',
-      '---\nname: extra\ndescription: d\nmodel: opus\nskills: [missing]\n---\nтело\n',
+      '---\nname: extra\ndescription: d\ncolor: blue\nskills: [missing]\n---\nтело\n',
     );
     await put(
       '.agents/agents/bad-list.md',
@@ -174,7 +174,7 @@ describe('readSources', () => {
       '.agents/skills/no-skill-md: нет SKILL.md — не skill, пропущен',
       '.agents/agents/bad-list.md: tools должно быть списком строк',
       '.agents/agents/empty.md: пустое тело: инструкции субагента',
-      '.agents/agents/extra.md: неизвестные поля frontmatter: model',
+      '.agents/agents/extra.md: неизвестные поля frontmatter: color',
       '.agents/agents/extra.md: skill «missing» не найден в .agents/skills',
       '.agents/agents/no-desc.md: нет поля description',
       '.agents/agents/no-fm.md: нет frontmatter (--- name, description ---)',

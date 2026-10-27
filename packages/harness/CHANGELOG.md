@@ -4,6 +4,17 @@
 
 ## 0.4.0
 
+- Роли: субагент `agents/<name>.md` получает поля `model` и `output`
+  (сообщение протокола `result` / `verdict` / `question`, JSON Schema —
+  `PROTOCOL`). `role run <name> --file <задание>` — роль headless через
+  `claude -p` пользователя: без его настроек, единственный MCP — канал
+  `role channel` с инструментом `submit_result`, ответ проверяется по
+  схеме, невалидный возвращается модели с путём к полю.
+- `expect judge --run` — задания судьи отвечает роль `judge`, затем
+  `--apply`. `docs-delta start --file <намерения>` — `apply` выполняет
+  роль `docs-keeper`; без файла или при провале роли — handoff агенту,
+  как раньше. `adapters sync` переносит `model` роли в `.claude/agents/`.
+- `plan-review` заморожен: работает как есть, не развивается.
 - `plan-review` — планер ожиданий: результат — файл ожиданий `<file>`.
   Автомат `awaiting_input → gathering → composing (↔ clarify_form) →
   review → analyze`; события выводит новая команда

@@ -43,8 +43,8 @@ npx -y @shahimat/harness@<version> <команда> --root .
 ## Команды
 
 Mutation — `context index`, `adapters sync`, `delta close`,
-`expect init`, `expect judge`, `expect report --html`, `index build`;
-остальные — query.
+`expect init`, `expect judge`, `expect report --html`, `index build`,
+`role run`, `role channel`; остальные — query.
 
 - `harness secrets scan [--file <path>]` — секреты (ключи API, токены,
   пароли, приватные ключи) в отслеживаемых git файлах проекта или в
@@ -65,9 +65,12 @@ Mutation — `context index`, `adapters sync`, `delta close`,
 - `harness expect init` — каркас ожиданий в проекте: точка входа
   `expectations/index.expect.ts`, пример файла с бюджетом, npm-скрипты,
   `.gitignore`.
-- `harness expect report | lint | judge [--apply] <file>` — ожидания в
+- `harness expect report | lint | judge [--apply | --run] <file>` — ожидания в
   форме vitest: дерево со статусами, проверка заголовков, пакетная
-  смысловая проверка судьёй-агентом с кэшем вердиктов. `<file>` — одна
+  смысловая проверка судьёй-агентом с кэшем вердиктов. `judge` пишет
+  задания в `.judge/` для субагента-судьи, `--apply` применяет ответы;
+  `--run` отвечает на задания ролью `judge` (см. «Роли») и сразу
+  применяет. `<file>` — одна
   точка входа `*.expect.ts`; остальные файлы ожиданий попадают в прогон
   только через `import` в ней. Конфиг vitest — из пакета, проекту свой
   не нужен. Отчёт, бюджет и проверка заголовков — по модулю, где
@@ -94,6 +97,14 @@ Mutation — `context index`, `adapters sync`, `delta close`,
   без пункта `revise` — нарушение. `close` после приёмки (check чист,
   пункты выполнены) удаляет дельту и печатает строки `revise` для тела
   коммита.
+- `harness role run <name> --file <задание> [--out <ответ>]` — роль из
+  `.agents/agents/<name>.md` (в источнике — `agents/<name>.md`)
+  headless: текст задания — на stdin, итог — сообщением протокола в
+  `--out` или stdout (см. «Роли»).
+- `harness role channel <message> --out <файл>` — MCP-сервер (stdio)
+  канала роли с одним инструментом `submit_result`: проверяет ответ по
+  схеме сообщения, невалидный возвращает модели ошибкой с путём к полю,
+  валидный пишет в `--out`. Запускает его `role run`, не человек.
 - `harness outdated` — версия из `context/harness.yml` против последней
   в npm и записи `CHANGELOG.md` пакета между ними (код 1 — есть новее).
 - `harness index build | check --raw-base <url>` — индекс
@@ -213,8 +224,10 @@ harness <имя> validate | graph  # определение и Mermaid авто�
 Работу в них делает агент, вызвавший harness: в его состоянии harness
 останавливается с заданием, `harness <имя> open <id>` продолжает.
 
-- `harness docs-delta start --name <дельта>` — запись в документацию
-  (skill docs-keeper): `apply` (агент собирает и применяет
+- `harness docs-delta start --name <дельта> [--file <намерения>]` —
+  запись в документацию (skill docs-keeper): `apply` (с `--file` —
+  роль `docs-keeper` headless по файлу намерений; без него или при
+  провале роли — пауза с заданием агенту; собирается и применяется
   `context/.delta/<дельта>.yml`) → `verify` (`context index`,
   `adapters sync`, `delta check`, шаги `check`) → `close`
   (`delta close`). Провал `verify` или `close` возвращает в `apply` не
@@ -225,6 +238,10 @@ harness <имя> validate | graph  # определение и Mermaid авто�
   Провал `refresh` возвращает в `update` не больше 3 раз.
 
 ### `plan-review`
+
+Заморожен: работает как есть, не развивается (дизайн —
+`design/harness-plan-review.md`). Роли и протокол (см. «Роли») его
+пока не касаются: судья плана — свой промпт и `--json-schema`.
 
 Команда user scope: ставится глобально (`npm i -g @shahimat/harness`).
 
@@ -274,6 +291,29 @@ harness <имя> validate | graph  # определение и Mermaid авто�
 - Определение: `harness.yaml` (автомат, лимиты `cycles` и `build`,
   модели `planner` и `judge`), `prompts/` (`planner`, `judge`). Состояние
   ревью — `plan-review.json` и `review/<n>.json` в каталоге сессии.
+
+## Роли
+
+Роль — субагент из `agents/<name>.md` источника (в проекте —
+`.agents/agents/`): промпт, `tools`, `model` (`opus` по умолчанию,
+`sonnet`, `haiku`) и `output` — сообщение протокола, которым роль
+возвращает итог. Одна и та же роль работает субагентом в сессии агента
+(адаптеры генерируют `.claude/agents/`, `.codex/agents/`) и
+headless-исполнителем в harness.
+
+- Протокол — JSON Schema сообщений: `result` (итог работы: статус,
+  изменённое, не прошедшее, вопросы, отчёт), `verdict` (ответ судьи:
+  вердикты пакета или проверка заголовков), `question` (блокирующий
+  вопрос человеку; канала для него пока нет). Схемы — `PROTOCOL` из
+  пакета.
+- Запуск — `claude -p` из Claude Code пользователя (его вход):
+  `--setting-sources ""`, `--strict-mcp-config`, единственный MCP —
+  канал `role channel` с `submit_result`, права — `tools` роли и
+  `submit_result`, режим `dontAsk`, задание — на stdin. Ответ текстом
+  harness не читает: нет вызова `submit_result` с валидным ответом —
+  ошибка роли.
+- Роли пакета используют: `expect judge --run` (роль `judge`),
+  `docs-delta start --file` (роль `docs-keeper`).
 
 Коды выхода: `0` — ok, `1` — нарушения, `2` — ошибка вызова или
 конфигурации.

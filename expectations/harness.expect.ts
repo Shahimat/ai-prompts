@@ -57,7 +57,7 @@ budget({ crit: 0, warn: 0 });
 
 describe('[harness] common', () => {
   crit(
-    'состав harness: команды и скрипты check, refresh, changelog, context, adapters, delta, outdated, expect, index, secrets; harness plan-review, docs-delta, source-sync (команды harness — под его именем)',
+    'состав harness: команды и скрипты check, refresh, changelog, context, adapters, delta, outdated, expect, index, secrets, role; harness plan-review, docs-delta, source-sync — команды под его именем',
     () => Check.composition(),
   );
   crit(
@@ -279,6 +279,12 @@ describe('[harness] outdated', () => {
   );
   crit('harness outdated сообщает текущую и последнюю версию и записи журнала между ними', () =>
     Check.outdatedReport(),
+  );
+});
+
+describe('[harness] role', () => {
+  crit('команды harness role run <name> | channel <message> — роль headless и её MCP-канал', () =>
+    Check.commands(['role run <name>', 'role channel <message>']),
   );
 });
 
@@ -621,6 +627,8 @@ const DECLARED_COMMANDS = [
   'index build',
   'index check',
   'secrets scan',
+  'role run <name>',
+  'role channel <message>',
   'refresh',
   'plan-review start <file>',
   'docs-delta start',
@@ -725,6 +733,7 @@ class Check {
       'outdated',
       'plan-review',
       'refresh',
+      'role',
       'secrets',
       'source-sync',
     ]);

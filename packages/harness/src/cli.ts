@@ -29,6 +29,7 @@ export async function main(argv: string[], now: Date = new Date()): Promise<numb
       port: { type: 'string' },
       'raw-base': { type: 'string' },
       apply: { type: 'boolean' },
+      run: { type: 'boolean' },
       home: { type: 'string' },
       name: { type: 'string' },
       request: { type: 'string' },
@@ -53,6 +54,7 @@ export async function main(argv: string[], now: Date = new Date()): Promise<numb
   if (values.port !== undefined) args.port = values.port;
   if (values['raw-base'] !== undefined) args.rawBase = values['raw-base'];
   if (values.apply === true) args.apply = true;
+  if (values.run === true) args.run = true;
   if (values.home !== undefined) args.home = values.home;
   if (values.name !== undefined) args.name = values.name;
   if (values.request !== undefined) args.request = values.request;

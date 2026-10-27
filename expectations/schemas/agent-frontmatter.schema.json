@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Frontmatter роли — agents/<name>.md",
+  "type": "object",
+  "required": ["name", "description", "output"],
+  "additionalProperties": false,
+  "properties": {
+    "name": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+    "description": { "type": "string", "minLength": 20, "maxLength": 300, "pattern": "^[^\\n]+$" },
+    "skills": { "type": "array", "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" } },
+    "tools": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "model": {
+      "description": "Модель роли в harness и в субагенте Claude Code; по умолчанию opus",
+      "enum": ["opus", "sonnet", "haiku"]
+    },
+    "output": {
+      "description": "Сообщение протокола harness, которым роль возвращает итог",
+      "enum": ["result", "verdict", "question"]
+    }
+  }
+}

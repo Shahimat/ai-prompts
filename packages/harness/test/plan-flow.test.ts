@@ -11,7 +11,7 @@ import {
   type HeadlessRun,
   type InteractiveRun,
   type ModelRunner,
-} from '#harnesses/core/runner/claude';
+} from '#lib/claude';
 import { openSession } from '#harnesses/core/store/session';
 import { isRecord } from '#shared/guards';
 

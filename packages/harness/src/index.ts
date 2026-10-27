@@ -106,3 +106,24 @@ export {
 } from './shared/schema.ts';
 export type { CommandNode, Effect, ScriptDef, ScriptNode, ScriptStep } from './shared/node.ts';
 export { CHECK, DOCS_VERIFY, REFRESH } from './scripts/index.ts';
+export { parseAgent, ROLE_MODELS, type AgentDef, type RoleModel } from './lib/agent.ts';
+export {
+  isProtocolMessage,
+  PROTOCOL,
+  PROTOCOL_MESSAGES,
+  SUBMIT_TOOL,
+  SUBMIT_TOOL_ID,
+  type ProtocolMessage,
+} from './lib/protocol.ts';
+export { advertisedSchema, serveChannel, type Channel } from './lib/mcp.ts';
+export {
+  askRole,
+  findRole,
+  READ_ONLY_TOOLS,
+  ROLE_DIRS,
+  roleArgs,
+  roleSystemPrompt,
+  runRole,
+  type RoleOutcome,
+  type RoleRun,
+} from './lib/role.ts';

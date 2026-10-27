@@ -17,7 +17,8 @@ import {
 } from '#lib/expect/batch';
 import { readEvidence, shaOf } from '#lib/expect/evidence';
 import { COLLECT_ENV, idOf, isPendingItem, SEEN_ENV, type PendingItem } from '#lib/expect/judge';
-import { isRecord, isStringArray } from '#shared/guards';
+import { errorMessage, isRecord, isStringArray } from '#shared/guards';
+import { askRole } from '#lib/role';
 import { lintTitles, type Title } from '#lib/expect/lint';
 import {
   ENTRY_ENV,
@@ -475,10 +476,46 @@ async function judgePrepare(args: CommandArgs): Promise<number> {
     `expect judge: вопросов ${items.length} в пакетах ${plan.batches.length}, проверок заголовков ${plan.lint.length}`,
   );
   for (const t of [...plan.batches, ...plan.lint]) console.log(`  ${t.task} → ${t.answer}`);
-  console.log(
-    'Каждый файл — задание судье (субагенту), ответ — в указанный JSON. Затем: harness expect judge --apply',
-  );
+  if (args.run !== true)
+    console.log(
+      'Каждый файл — задание судье (субагенту), ответ — в указанный JSON. Затем: harness expect judge --apply',
+    );
   return 1;
+}
+
+async function judgeRun(args: CommandArgs): Promise<number> {
+  const prepared = await judgePrepare(args);
+  if (prepared === 0) return 0;
+  const JUDGE_DIR = judgeDir(entryOf(args));
+  const plan: unknown = JSON.parse(
+    await readFile(path.join(args.root, JUDGE_DIR, 'plan.json'), 'utf8'),
+  );
+  if (!isPlan(plan)) throw new Error(`${JUDGE_DIR}/plan.json: неверная форма`);
+  const tasks = [
+    ...plan.batches.map((t) => ({ ...t, kind: 'batch' as const })),
+    ...plan.lint.map((t) => ({ ...t, kind: 'lint' as const })),
+  ];
+  const failed = await Promise.all(
+    tasks.map(async (t) => {
+      const text = await readFile(path.join(args.root, t.task), 'utf8');
+      try {
+        const { data } = await askRole(
+          args.root,
+          'judge',
+          `${text}\nФайл ответа не пиши: верни ответ инструментом submit_result.`,
+        );
+        const answer = t.kind === 'batch' && isRecord(data) ? data['answers'] : data;
+        await writeFile(path.join(args.root, t.answer), JSON.stringify(answer, null, 2), 'utf8');
+        console.log(`  ${t.task}: ответ получен`);
+        return 0;
+      } catch (error) {
+        console.error(`  ${t.task}: ${errorMessage(error)}`);
+        return 1;
+      }
+    }),
+  );
+  const applied = await judgeApply(args);
+  return failed.some((f) => f !== 0) ? 1 : applied;
 }
 
 async function judgeApply(args: CommandArgs): Promise<number> {
@@ -609,7 +646,8 @@ export async function runExpect(command: string | undefined, args: CommandArgs):
     case 'lint':
       return lint(args);
     case 'judge':
-      return args.apply === true ? judgeApply(args) : judgePrepare(args);
+      if (args.apply === true) return judgeApply(args);
+      return args.run === true ? judgeRun(args) : judgePrepare(args);
     default:
       throw new UsageError(`неизвестная команда: expect ${command ?? ''}`.trimEnd());
   }

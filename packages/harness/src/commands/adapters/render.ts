@@ -18,6 +18,7 @@ export function claudeAgent(agent: AgentDef): string {
   const fields: Record<string, unknown> = { name: agent.name, description: agent.description };
   if (agent.tools.length > 0) fields['tools'] = agent.tools.join(', ');
   if (agent.skills.length > 0) fields['skills'] = agent.skills;
+  if (agent.model !== undefined) fields['model'] = agent.model;
   const yaml = stringify(fields, { lineWidth: 0 });
   return `---\n# ${GENERATED_MARK} from ${agent.source} — do not edit\n${yaml}---\n\n${agent.instructions}\n`;
 }

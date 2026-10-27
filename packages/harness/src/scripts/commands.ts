@@ -5,6 +5,7 @@ import { runDelta } from '#commands/delta/index';
 import { runExpect } from '#commands/expect/index';
 import { runOutdated } from '#commands/outdated/index';
 import { runIndex } from '#commands/prompt-index/index';
+import { runRoleCommand } from '#commands/role/index';
 import { runSecretsScan } from '#commands/secrets/index';
 import type { CommandNode } from '#shared/node';
 
@@ -53,6 +54,20 @@ export const COMMAND_NODES: readonly CommandNode[] = [
   },
   { path: ['outdated'], kind: 'command', effect: 'query', run: (args) => runOutdated(args) },
   {
+    path: ['role', 'run', '<name>'],
+    kind: 'command',
+    effect: 'mutation',
+    options: '--file <задание> [--out <ответ>]',
+    run: (args) => runRoleCommand('run', args),
+  },
+  {
+    path: ['role', 'channel', '<message>'],
+    kind: 'command',
+    effect: 'mutation',
+    options: '--out <файл>',
+    run: (args) => runRoleCommand('channel', args),
+  },
+  {
     path: ['expect', 'init'],
     kind: 'command',
     effect: 'mutation',
@@ -83,7 +98,7 @@ export const COMMAND_NODES: readonly CommandNode[] = [
     path: ['expect', 'judge', '<file>'],
     kind: 'command',
     effect: 'mutation',
-    options: '[--apply]',
+    options: '[--apply | --run]',
     run: (args) => runExpect('judge', args),
   },
   {

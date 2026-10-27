@@ -1,8 +1,10 @@
 import { access, readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { Diagnostic } from '#shared/diagnostics';
-import { errorCode, errorMessage } from '#shared/guards';
-import { normalizeEol, parseFrontmatter } from '#shared/frontmatter';
+import { parseAgent, type AgentDef } from '#lib/agent';
+import { errorCode } from '#shared/guards';
+
+export type { AgentDef } from '#lib/agent';
 
 export const AGENTS_MD = 'AGENTS.md';
 export const SKILLS_DIR = '.agents/skills';
@@ -18,23 +20,12 @@ export interface Skill {
   files: SkillFile[];
 }
 
-export interface AgentDef {
-  name: string;
-  source: string;
-  description: string;
-  skills: string[];
-  tools: string[];
-  instructions: string;
-}
-
 export interface Sources {
   hasAgentsMd: boolean;
   skills: Skill[];
   agents: AgentDef[];
   diagnostics: Diagnostic[];
 }
-
-const AGENT_KEYS = ['name', 'description', 'skills', 'tools'];
 
 async function listDir(dir: string): Promise<string[]> {
   try {
@@ -59,62 +50,6 @@ async function readSkill(root: string, name: string): Promise<Skill> {
   }
   files.sort((a, b) => (a.rel < b.rel ? -1 : a.rel > b.rel ? 1 : 0));
   return { name, files };
-}
-
-function stringList(value: unknown): string[] | null {
-  if (value === undefined || value === null) return [];
-  if (!Array.isArray(value) || !value.every((v): v is string => typeof v === 'string' && v !== ''))
-    return null;
-  return value;
-}
-
-function parseAgent(
-  file: string,
-  text: string,
-  report: (message: string) => void,
-): AgentDef | null {
-  let fm;
-  try {
-    fm = parseFrontmatter(text);
-  } catch (error) {
-    report(`невалидный frontmatter: ${errorMessage(error).split('\n')[0]}`);
-    return null;
-  }
-  if (fm === null) {
-    report('нет frontmatter (--- name, description ---)');
-    return null;
-  }
-  const extra = Object.keys(fm).filter((k) => !AGENT_KEYS.includes(k));
-  if (extra.length > 0) report(`неизвестные поля frontmatter: ${extra.join(', ')}`);
-
-  const expected = path.posix.basename(file, '.md');
-  const { name, description } = fm;
-  if (name !== expected) report(`name «${String(name)}» не совпадает с именем файла «${expected}»`);
-  if (typeof description !== 'string' || description.trim() === '') report('нет поля description');
-  const skills = stringList(fm['skills']);
-  if (skills === null) report('skills должно быть списком строк');
-  const tools = stringList(fm['tools']);
-  if (tools === null) report('tools должно быть списком строк');
-
-  const body = normalizeEol(text).split('\n');
-  const end = body.indexOf('---', 1);
-  const instructions = body
-    .slice(end + 1)
-    .join('\n')
-    .trim();
-  if (instructions === '') report('пустое тело: инструкции субагента');
-
-  if (name !== expected || typeof description !== 'string' || skills === null || tools === null)
-    return null;
-  if (description.trim() === '' || instructions === '') return null;
-  return {
-    name: expected,
-    source: file,
-    description: description.trim(),
-    skills,
-    tools,
-    instructions,
-  };
 }
 
 export async function readSources(root: string): Promise<Sources> {

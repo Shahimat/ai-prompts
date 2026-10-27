@@ -49,7 +49,7 @@ describe('состав skills', () => {
       ]),
   );
   crit('других skills нет — всего 20', () => Check.skillCount());
-  crit('субагенты: только docs-keeper', () => Check.onlyDocsKeeper());
+  crit('субагенты-роли: только docs-keeper и judge', () => Check.onlyRoles());
 });
 
 describe('skills — общее', () => {
@@ -159,9 +159,10 @@ class Check {
     expect((await skills()).length).toBe(20);
   }
 
-  static async onlyDocsKeeper(): Promise<void> {
+  static async onlyRoles(): Promise<void> {
     expect((await indexEntries()).filter((e) => e.kind === 'agent').map((e) => e.key)).toEqual([
       'docs-keeper',
+      'judge',
     ]);
   }
 
