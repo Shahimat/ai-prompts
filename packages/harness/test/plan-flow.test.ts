@@ -49,6 +49,8 @@ interface Fake {
   interactive: InteractiveRun[];
   headless: HeadlessRun[];
   steps: Step[];
+  waitClose: boolean;
+  closed: boolean;
 }
 
 let fake: Fake;
@@ -83,6 +85,22 @@ async function hook(name: string, input: Record<string, unknown> = {}): Promise<
   });
 }
 
+function closedWithin(signal: AbortSignal | undefined, ms: number): Promise<boolean> {
+  if (signal === undefined) return Promise.resolve(false);
+  if (signal.aborted) return Promise.resolve(true);
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(false), ms);
+    signal.addEventListener(
+      'abort',
+      () => {
+        clearTimeout(timer);
+        resolve(true);
+      },
+      { once: true },
+    );
+  });
+}
+
 const runner: ModelRunner = {
   interactive: async (run) => {
     fake.interactive.push(run);
@@ -90,6 +108,7 @@ const runner: ModelRunner = {
       if (step.write !== undefined) await writeFile(planPath(), step.write, 'utf8');
       else await hook(step.hook, step.input);
     }
+    if (fake.waitClose) fake.closed = await closedWithin(run.close, 3000);
     return 0;
   },
   headless: async (run): Promise<HeadlessResult> => {
@@ -114,7 +133,7 @@ beforeEach(async () => {
   out = [];
   err = [];
   codes = [];
-  fake = { interactive: [], headless: [], steps: [] };
+  fake = { interactive: [], headless: [], steps: [], waitClose: false, closed: false };
   session = () => '';
   io.runner = () => runner;
   io.terminal = () => true;
@@ -285,6 +304,22 @@ describe('plan-review: сквозной прогон', { timeout: 120_000 }, () 
       'awaiting_input -exit-> finished',
     ]);
     expect(codes.at(-1)?.code).toBe(0);
+  });
+
+  it('после выхода harness сам закрывает сессию планера; до выхода — не закрывает', async () => {
+    fake.waitClose = true;
+    const flag = { last_assistant_message: 'Готово.\n[plan-review: exit]' };
+    await start([
+      { hook: 'prompt' },
+      edit(),
+      { hook: '', write: GOOD },
+      { hook: 'stop', input: flag },
+    ]);
+    expect(fake.closed).toBe(true);
+    await rm(home, { recursive: true, force: true });
+    fake.closed = false;
+    await start([{ hook: 'prompt' }, edit(), { hook: '', write: GOOD }, { hook: 'stop' }]);
+    expect(fake.closed).toBe(false);
   });
 
   it('флаг выхода после ревью с замечаниями — выход отложен и из awaiting_input', async () => {

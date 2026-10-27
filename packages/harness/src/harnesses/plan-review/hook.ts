@@ -89,7 +89,7 @@ export function hookEvent(
 }
 
 export const FINISHED =
-  'Сессия plan-review завершена: файл ожиданий записан. Закройте сессию (/exit).';
+  'Сессия plan-review завершена: файл ожиданий записан, harness закрывает сессию планера.';
 
 export interface HookOutcome {
   code: number;

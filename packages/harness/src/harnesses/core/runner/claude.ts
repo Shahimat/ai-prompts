@@ -13,6 +13,7 @@ export interface InteractiveRun {
   tools: string[];
   allowedTools: string[];
   prompt: string;
+  close?: AbortSignal;
 }
 
 export interface HeadlessRun {
@@ -137,6 +138,7 @@ export class ClaudeRunner implements ModelRunner {
         cwd: run.cwd,
         stdio: 'inherit',
       });
+      run.close?.addEventListener('abort', () => child.kill('SIGTERM'), { once: true });
       child.on('error', reject);
       child.on('close', (code) => resolve(code ?? 1));
     });

@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { ActionDef, MachineDef, ModelRunner, Registry, Session } from '#harnesses/core/index';
-import { harnessFile } from '#harnesses/core/index';
+import { harnessFile, openSession } from '#harnesses/core/index';
 import { errorMessage } from '#shared/guards';
 import type { PlanPage } from './page.ts';
 import { judge, readPlanState, readReview, savePlanState } from './review.ts';
@@ -129,6 +129,25 @@ async function openPage(ctx: PlanContext): Promise<PlanPage | undefined> {
   }
 }
 
+const FINISH_POLL_MS = 500;
+
+function closeOnFinish(ctx: PlanContext): { signal: AbortSignal; stop: () => void } {
+  const controller = new AbortController();
+  const finished = async (): Promise<boolean> => {
+    const now = await openSession(ctx.home, ctx.session.id);
+    return ctx.def.states.find((st) => st.name === now.data.state)?.final === true;
+  };
+  const timer = setInterval(() => {
+    finished().then(
+      (done) => {
+        if (done) controller.abort();
+      },
+      () => undefined,
+    );
+  }, FINISH_POLL_MS);
+  return { signal: controller.signal, stop: () => clearInterval(timer) };
+}
+
 async function runPlanner(ctx: PlanContext): Promise<string> {
   const s = ctx.session;
   const resume = s.data.plannerSession !== undefined;
@@ -139,6 +158,7 @@ async function runPlanner(ctx: PlanContext): Promise<string> {
   }
   const { tools, allowed } = plannerTools(ctx);
   const page = await openPage(ctx);
+  const close = closeOnFinish(ctx);
   try {
     await ctx.runner.interactive({
       cwd: s.data.project,
@@ -152,8 +172,10 @@ async function runPlanner(ctx: PlanContext): Promise<string> {
       tools,
       allowedTools: allowed,
       prompt: resume ? '' : s.data.request,
+      close: close.signal,
     });
   } finally {
+    close.stop();
     await page?.stop();
     const state = await readPlanState(s);
     delete state.page;
