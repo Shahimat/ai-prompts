@@ -22,7 +22,7 @@ async function put(rel: string, content: string): Promise<void> {
 const git = (...args: string[]) => spawnSync('git', args, { cwd: root, encoding: 'utf8' });
 
 async function project(): Promise<void> {
-  await put('context/harness.yml', 'checks:\n  context-index: {}\n');
+  await put('context/ai-core.yml', 'checks:\n  context-index: {}\n');
   await put('context/project.yml', 'name: demo\nnamespaces:\n  core: ядро\n');
   await put('context/conventions/naming.yml', 'key: naming\nsummary: kebab-case\nrule: x\n');
   git('init', '-q');
@@ -50,18 +50,6 @@ afterEach(async () => {
   vi.unstubAllEnvs();
   await rm(root, { recursive: true, force: true });
   await rm(home, { recursive: true, force: true });
-});
-
-describe('harness refresh', () => {
-  it('пересобирает context/index.yml и проверяет проект', async () => {
-    await project();
-    expect(await main(['refresh', '--root', root], NOW)).toBe(0);
-    expect(existsSync(path.join(root, 'context/index.yml'))).toBe(true);
-  });
-
-  it('2 — нет harness.yml', async () => {
-    await expect(main(['refresh', '--root', root], NOW)).rejects.toThrow(/harness\.yml/);
-  });
 });
 
 describe('harness docs delta', () => {

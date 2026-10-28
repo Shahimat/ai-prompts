@@ -87,7 +87,7 @@ provides:
 3. Поставь skill `life` в `.agents/skills/life/`, добавь блок в
    `AGENTS.md`.
 4. Подключён harness — тег `life` в `checks.changelog.tags`
-   `context/harness.yml`.
+   `context/ai-core.yml`.
 5. Спроси, с чего начать: 1–3 факта или сигнала со слов человека —
    план → «да» → через docs-keeper. Значений в файлы не пишем.
 
@@ -131,7 +131,7 @@ Brownfield (заметки, дневники, трекеры) — классиф
 
 - `life/` с содержимым — вопрос: удалить или оставить обычными файлами;
 - namespaces из `areas` — вопрос: убрать или оставить;
-- skill, блок `AGENTS.md`, тег в `context/harness.yml` удаляются;
+- skill, блок `AGENTS.md`, тег в `context/ai-core.yml` удаляются;
   записи `[life]` в `CHANGELOG.md` остаются.
 
 ## Синхронизация

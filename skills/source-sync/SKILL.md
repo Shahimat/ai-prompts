@@ -63,7 +63,7 @@ Manifest каждого модуля — `context/modules/<key>.yml` со сво
    <!-- expect:skill-runs -->
    <!-- metadata.runs: source-sync -->
    Если подключён harness — сценарий ведёт `harness source-sync
-   start`. Он печатает текущую версию из `context/harness.yml`, последнюю
+   start`. Он печатает текущую версию из `context/ai-core.yml`, последнюю
    в npm и записи журнала пакета между ними (всегда, даже если индекс не
    менялся), и останавливается с заданием: шаги 3–8. После них —
    `harness source-sync open <id>`: harness пересоберёт адаптеры и
@@ -98,7 +98,7 @@ Manifest каждого модуля — `context/modules/<key>.yml` со сво
    `context/project.yml`; правки слоёв документации проекта — только
    через docs-keeper. Затем обнови `sync.index_sha`, `synced_sha`
    контракта и модулей, SHA в `parts`, `synced_at`; при обновлении
-   harness — `version` в `context/harness.yml`. Адаптеры и проверку с
+   harness — `version` в `context/ai-core.yml`. Адаптеры и проверку с
    harness делает resume процесса (шаг 2), без harness — вручную.
 <!-- /expect:sync-warns-deprecated -->
 

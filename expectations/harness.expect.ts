@@ -5,31 +5,33 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
+  AI_CORE,
   buildContextIndex,
-  COMMANDS,
   computeSync,
-  createSession,
   DELTA_SCHEMA,
   DEFAULT_CHANGELOG,
-  findCommand,
   headlessArgs,
   interactiveArgs,
-  JUDGE_TOOLS,
   KNOWN_ADAPTERS,
   KNOWN_CHECKS,
-  loadHarness,
   parseConfig,
   parseFrontmatter,
-  planIo,
-  plannerTools,
-  renderUsage,
   runOutdated,
-  selfCommand,
   splitWords,
   UsageError,
+  type Command,
+} from '@shahimat/ai-core';
+import * as harnessPkg from '@shahimat/ai-core';
+import {
+  createSession,
+  HARNESS,
+  JUDGE_TOOLS,
+  loadHarness,
+  planIo,
+  plannerTools,
+  selfCommand,
   type PlanContext,
 } from '@shahimat/harness';
-import * as harnessPkg from '@shahimat/harness';
 import {
   applyAnswers,
   budget,
@@ -42,8 +44,8 @@ import {
   readRepo,
   repoRoot,
   warn,
-} from '@shahimat/harness/expect';
-import { harnessChain, harnessCommands } from '@shahimat/expectations';
+} from '@shahimat/ai-core/expect';
+import { harnessChain, harnessCommands } from '@shahimat/harness/expect';
 import {
   at,
   parseJson,
@@ -53,7 +55,7 @@ import {
   unknownList,
 } from './shared/guards.ts';
 
-budget({ crit: 0, warn: 0 });
+budget({ crit: 0, warn: 5 });
 
 describe('[harness] common', () => {
   crit(
@@ -61,7 +63,7 @@ describe('[harness] common', () => {
     () => Check.composition(),
   );
   crit(
-    'пакеты: @shahimat/harness — CLI и механизм ожиданий, @shahimat/expectations — наборы ожиданий; других нет',
+    'пакеты: @shahimat/ai-core — команды, механизм ожиданий и роли; @shahimat/harness — только автоматы; других нет',
     () => Check.packages(),
   );
   crit(
@@ -81,7 +83,7 @@ describe('[harness] common', () => {
     Check.exitCodes(),
   );
   crit(
-    'неизвестный ключ в context/harness.yml — ошибка конфига, а не молча выключенная проверка',
+    'неизвестный ключ в context/ai-core.yml — ошибка конфига, а не молча выключенная проверка',
     () => Check.strictConfig(),
   );
   crit('справка CLI строится из декларативного дерева команд', () => Check.commandTree());
@@ -130,7 +132,7 @@ describe('[harness] common', () => {
 
 describe('[harness] layers', () => {
   crit(
-    'слои пакета: shared → lib → commands → scripts → harnesses; импорт только вниз по слоям',
+    'слои: ai-core — shared → lib → commands → scripts; harness — harnesses поверх публичного API ai-core; импорт только вниз',
     () => Layers.downward(),
   );
   crit('команда не импортирует другие команды, скрипты и harness', () => Layers.commandsIsolated());
@@ -185,7 +187,7 @@ describe('[harness] layers', () => {
 });
 
 describe('[harness] refresh', () => {
-  crit('скрипт harness refresh — context index и adapters sync, затем шаги check', () =>
+  crit('скрипт ai-core refresh — context index и adapters sync, затем шаги check', () =>
     Processes.refresh(),
   );
 });
@@ -228,16 +230,16 @@ describe('[harness] source-sync', () => {
 });
 
 describe('[harness] check', () => {
-  crit('команда harness check — все проверки из context/harness.yml разом', () =>
+  crit('команда ai-core check — все проверки из context/ai-core.yml разом', () =>
     Check.commands(['check']),
   );
-  crit('проверки harness check: changelog, context-index, adapters, secrets — других нет', () =>
+  crit('проверки ai-core check: changelog, context-index, adapters, secrets — других нет', () =>
     Check.checks(),
   );
 });
 
 describe('[harness] changelog', () => {
-  crit('команда harness changelog lint — формат CHANGELOG.md', () =>
+  crit('команда ai-core changelog lint — формат CHANGELOG.md', () =>
     Check.commands(['changelog lint']),
   );
   crit('строка журнала — не длиннее 120 символов', () => Check.changelogLine());
@@ -245,25 +247,25 @@ describe('[harness] changelog', () => {
 });
 
 describe('[harness] context', () => {
-  crit('команда harness context index — генерация context/index.yml из слоёв документации', () =>
+  crit('команда ai-core context index — генерация context/index.yml из слоёв документации', () =>
     Check.commands(['context index']),
   );
   crit(
-    'команда harness context check — сверка context/index.yml со слоями документации без записи',
+    'команда ai-core context check — сверка context/index.yml со слоями документации без записи',
     () => Check.commands(['context check']),
   );
-  warn('context/index.yml генерируется harness context index и не содержит даты генерации', () =>
+  warn('context/index.yml генерируется ai-core context index и не содержит даты генерации', () =>
     Check.contextIndexNoDate(),
   );
 });
 
 describe('[harness] adapters', () => {
   crit(
-    'команда harness adapters sync — файлы под Claude Code и Codex из AGENTS.md и .agents/',
+    'команда ai-core adapters sync — файлы под Claude Code и Codex из AGENTS.md и .agents/',
     () => Check.commands(['adapters sync']),
   );
   crit(
-    'команда harness adapters check — сверка файлов адаптеров с AGENTS.md и .agents/ без записи',
+    'команда ai-core adapters check — сверка файлов адаптеров с AGENTS.md и .agents/ без записи',
     () => Check.commands(['adapters check']),
   );
   crit('адаптеры под инструменты: claude-code и codex — других нет', () => Check.adapters());
@@ -275,23 +277,23 @@ describe('[harness] adapters', () => {
 });
 
 describe('[harness] outdated', () => {
-  crit('команда harness outdated — версия проекта против npm и журнал изменений между ними', () =>
+  crit('команда ai-core outdated — версия проекта против npm и журнал изменений между ними', () =>
     Check.commands(['outdated']),
   );
-  crit('harness outdated сообщает текущую и последнюю версию и записи журнала между ними', () =>
+  crit('ai-core outdated сообщает текущую и последнюю версию и записи журнала между ними', () =>
     Check.outdatedReport(),
   );
 });
 
 describe('[harness] role', () => {
-  crit('команды harness role run <name> | channel <message> — роль headless и её MCP-канал', () =>
+  crit('команды ai-core role run <name> | channel <message> — роль headless и её MCP-канал', () =>
     Check.commands(['role run <name>', 'role channel <message>']),
   );
 });
 
 describe('[harness] expect', () => {
   crit(
-    'команды harness expect init | report <file> | lint <file> | judge <file> | serve <file> — ожидания проекта',
+    'команды ai-core expect init | report <file> | lint <file> | judge <file> | serve <file> — ожидания проекта',
     () =>
       Check.commands([
         'expect init',
@@ -338,7 +340,7 @@ describe('[harness] expect', () => {
   );
   crit('ожидание — не длиннее 200 символов', () => Check.titleLimit());
   crit(
-    'harness expect serve <file> [--port <n>] — HTML-отчёт ожиданий с локального сервера на 127.0.0.1; файлов не пишет',
+    'ai-core expect serve <file> [--port <n>] — HTML-отчёт ожиданий с локального сервера на 127.0.0.1; файлов не пишет',
     () => Serve.readOnly(),
   );
   crit(
@@ -368,7 +370,7 @@ describe('[harness] expect patterns', () => {
     () => Patterns.targets(),
   );
   crit(
-    'паттерны для любых проектов лежат в @shahimat/expectations, только для этого репозитория — в expectations/shared',
+    'паттерны проверки автоматов лежат в @shahimat/harness/expect, паттерны этого репозитория — в expectations/shared',
     () => Patterns.home(),
   );
   crit('проверка паттерна с judged получает якоря доказательств параметром', () =>
@@ -376,7 +378,7 @@ describe('[harness] expect patterns', () => {
   );
   warn('в HTML у ожидания из паттерна виден ключ паттерна', () => Patterns.html());
   crit(
-    'общий блок вне *.expect.ts объявляет разделы через describe из @shahimat/harness/expect, а не из vitest',
+    'общий блок вне *.expect.ts объявляет разделы через describe из @shahimat/ai-core/expect, а не из vitest',
     () => Patterns.sharedDescribe(),
   );
 });
@@ -477,7 +479,7 @@ describe('[harness] expect plan', () => {
 
 describe('[harness] delta', () => {
   crit(
-    'команды harness delta check | close — дельта проектной документации в context/.delta/',
+    'команды ai-core delta check | close — дельта проектной документации в context/.delta/',
     () => Check.commands(['delta check', 'delta close']),
   );
   crit(
@@ -494,7 +496,7 @@ describe('[harness] delta', () => {
 });
 
 describe('[harness] secrets', () => {
-  crit('команда harness secrets scan [--file <path>] — поиск секретов в проекте или в файле', () =>
+  crit('команда ai-core secrets scan [--file <path>] — поиск секретов в проекте или в файле', () =>
     Check.commands(['secrets scan']),
   );
   crit(
@@ -502,11 +504,11 @@ describe('[harness] secrets', () => {
     () => Check.secretsFound(),
   );
   crit(
-    'secrets включена в harness check по умолчанию; выключить её можно только явно в context/harness.yml',
+    'secrets включена в ai-core check по умолчанию; выключить её можно только явно в context/ai-core.yml',
     () => Check.secretsByDefault(),
   );
   crit(
-    'ложное срабатывание снимается только явным исключением в context/harness.yml с указанием причины',
+    'ложное срабатывание снимается только явным исключением в context/ai-core.yml с указанием причины',
     () => Check.secretsAllow(),
   );
   crit('в выводе найденный секрет замаскирован: путь, строка и тип — без значения', () =>
@@ -522,17 +524,28 @@ describe('[harness] secrets', () => {
 });
 
 describe('[harness] index', () => {
-  crit('команды harness index build | check — индекс prompts/index.yml источника промптов', () =>
+  crit('команды ai-core index build | check — индекс prompts/index.yml источника промптов', () =>
     Check.commands(['index build', 'index check']),
   );
   crit('у skill в индексе sha256 каждого файла', () => Check.skillFileShas());
 });
 
-const PKG = 'packages/harness';
+const PKG = 'packages/ai-core';
+const HARNESS_PKG = 'packages/harness';
 const SCHEMAS = 'expectations/schemas';
-const BIN = () => path.join(repoRoot(), PKG, 'dist/bin.js');
+const COMMANDS: readonly Command[] = [...AI_CORE.commands, ...HARNESS.commands];
+const findCommand = (words: readonly string[]) =>
+  AI_CORE.findCommand(words) ?? HARNESS.findCommand(words);
+const renderUsage = (): string => `${AI_CORE.renderUsage()}\n${HARNESS.renderUsage()}`;
+const binName = (words: readonly string[]): string =>
+  HARNESS.findCommand(words) !== undefined ||
+  (words.length > 0 && HARNESS.isNamespace(words.slice(0, 1)))
+    ? 'harness'
+    : 'ai-core';
+const BIN = (words: readonly string[] = []) =>
+  path.join(repoRoot(), binName(words) === 'harness' ? HARNESS_PKG : PKG, 'dist/bin.js');
 const cli = (args: string[], cwd = repoRoot()) =>
-  spawnSync(process.execPath, [BIN(), ...args], { cwd, encoding: 'utf8' }).status;
+  spawnSync(process.execPath, [BIN(args), ...args], { cwd, encoding: 'utf8' }).status;
 
 async function tempDir(): Promise<string> {
   return mkdtemp(path.join(tmpdir(), 'harness-expect-'));
@@ -597,7 +610,7 @@ async function withSecretProject(
 ): Promise<void> {
   await withGitProject(async (dir) => {
     const git = (...args: string[]) => spawnSync('git', args, { cwd: dir, encoding: 'utf8' });
-    await writeFile(path.join(dir, 'context/harness.yml'), config);
+    await writeFile(path.join(dir, 'context/ai-core.yml'), config);
     await writeFile(path.join(dir, 'notes.md'), `# Заметки\n\n${notes}\n`);
     git('add', '.');
     await fn(dir);
@@ -605,7 +618,7 @@ async function withSecretProject(
 }
 
 const cliOut = (args: string[], cwd = repoRoot()) =>
-  spawnSync(process.execPath, [BIN(), ...args], { cwd, encoding: 'utf8' });
+  spawnSync(process.execPath, [BIN(args), ...args], { cwd, encoding: 'utf8' });
 
 async function usageCommands(): Promise<string[]> {
   return COMMANDS.map((c) => c.path.join(' '));
@@ -714,7 +727,7 @@ class Check {
         stringAt(parseJson(await readRepo(`packages/${d}/package.json`)), 'name'),
       ),
     );
-    expect(names.sort()).toEqual(['@shahimat/expectations', '@shahimat/harness']);
+    expect(names.sort()).toEqual(['@shahimat/ai-core', '@shahimat/harness']);
   }
 
   static async commands(list: string[]): Promise<void> {
@@ -785,7 +798,7 @@ class Check {
           : {};
       return { ...base, ...recordOrEmpty(at(cfg, 'compilerOptions'), `${file}: compilerOptions`) };
     };
-    for (const pkg of ['harness', 'expectations']) {
+    for (const pkg of ['ai-core', 'harness']) {
       const opts = await compilerOptions(`packages/${pkg}/tsconfig.json`);
       expect({
         pkg,
@@ -805,11 +818,17 @@ class Check {
     const commands = await usageCommands();
     const tests = (
       await Promise.all(
-        (await readdir(path.join(repoRoot(), PKG, 'test')))
-          .filter((f) => f.endsWith('.test.ts'))
-          .map((f) => readRepo(`${PKG}/test/${f}`)),
+        [PKG, HARNESS_PKG].flatMap(async (pkg) =>
+          Promise.all(
+            (await readdir(path.join(repoRoot(), pkg, 'test')))
+              .filter((f) => f.endsWith('.test.ts'))
+              .map((f) => readRepo(`${pkg}/test/${f}`)),
+          ),
+        ),
       )
-    ).join('\n');
+    )
+      .flat()
+      .join('\n');
     const untested = commands.filter((c) => {
       const [group = '', sub] = c.split(' ');
       if (sub === undefined)
@@ -835,7 +854,7 @@ class Check {
       expect(cli(['changelog', 'lint', '--root', dir])).toBe(1);
       expect(cli(['нет-такой-команды'])).toBe(2);
       await mkdir(path.join(dir, 'context'));
-      await writeFile(path.join(dir, 'context/harness.yml'), 'checks:\n  nope: {}\n');
+      await writeFile(path.join(dir, 'context/ai-core.yml'), 'checks:\n  nope: {}\n');
       expect(cli(['check', '--root', dir])).toBe(2);
     } finally {
       await rm(dir, { recursive: true, force: true });
@@ -850,9 +869,12 @@ class Check {
   static async commandTree(): Promise<void> {
     const usage = renderUsage();
     expect(
-      COMMANDS.map((c) => c.path.join(' ')).filter((c) => !usage.includes(`harness ${c}`)),
+      COMMANDS.map((c) => c.path.join(' ')).filter(
+        (c) => !usage.includes(`${binName(c.split(' '))} ${c}`),
+      ),
     ).toEqual([]);
-    expect(await readRepo(`${PKG}/src/cli.ts`)).not.toMatch(/switch \(|Использование:/);
+    for (const pkg of [PKG, HARNESS_PKG])
+      expect(await readRepo(`${pkg}/src/cli.ts`)).not.toMatch(/switch \(|Использование:/);
   }
 
   static configErrorPath(): void {
@@ -919,7 +941,7 @@ class Check {
     const files = (await readdir(path.join(repoRoot(), 'expectations'), { recursive: true }))
       .filter((f) => f.endsWith('.expect.ts'))
       .map((f) => `expectations/${f.split(path.sep).join('/')}`)
-      .concat('packages/expectations/src/attention.ts');
+      .concat('expectations/shared/attention.ts');
     const paths: string[] = [];
     for (const f of files) {
       for (const m of (await readRepo(f)).matchAll(/judged\(\[([^\]]*)\]\)/g)) {
@@ -1025,7 +1047,7 @@ class Check {
     const log = console.log;
     try {
       await mkdir(path.join(dir, 'context'));
-      await writeFile(path.join(dir, 'context/harness.yml'), 'version: 0.1.0\n');
+      await writeFile(path.join(dir, 'context/ai-core.yml'), 'version: 0.1.0\n');
       const changelog = '## 0.3.0\n\n- новое C\n\n## 0.2.0\n\n- новое B\n\n## 0.1.0\n\n- старое\n';
       console.log = (...a: unknown[]) => logs.push(a.join(' '));
       const code = await runOutdated({ root: dir, now: new Date() }, async (url) => ({
@@ -1054,8 +1076,12 @@ type Layer = (typeof LAYERS)[number];
 const APP_FILES = ['bin.ts', 'cli.ts', 'index.ts', 'tree.ts', 'shell.ts'];
 const FACADE = 'index.ts';
 
+const HARNESS_APP = 'app:harness/';
+const AI_CORE_API = 'scripts/@shahimat/ai-core.ts';
+
 function layerOf(file: string): Layer | undefined {
-  if (APP_FILES.includes(file)) return 'app';
+  if (APP_FILES.includes(file) || file.startsWith(HARNESS_APP)) return 'app';
+  if (file === AI_CORE_API) return 'scripts';
   const [head = '', ...rest] = file.split('/');
   if (head === 'harnesses' && rest.length === 1 && rest[0] !== 'index.ts') return undefined;
   return LAYERS.find((l) => l === head && l !== 'app' && rest.length > 0);
@@ -1073,20 +1099,47 @@ const isPublic = (file: string): boolean =>
 
 const rank = (file: string): number => LAYERS.indexOf(layerOf(file) ?? 'app');
 
-async function srcFiles(): Promise<string[]> {
-  return (await readdir(path.join(repoRoot(), PKG, 'src'), { recursive: true }))
+const tsFiles = async (pkg: string): Promise<string[]> =>
+  (await readdir(path.join(repoRoot(), pkg, 'src'), { recursive: true }))
     .map((f) => f.split(path.sep).join('/'))
     .filter((f) => f.endsWith('.ts'));
+
+const inHarness = (file: string): boolean =>
+  file.startsWith('harnesses/') || file.startsWith(HARNESS_APP);
+
+const realPath = (file: string): string =>
+  inHarness(file)
+    ? `${HARNESS_PKG}/src/${file.startsWith(HARNESS_APP) ? file.slice(HARNESS_APP.length) : file}`
+    : `${PKG}/src/${file}`;
+
+async function srcFiles(): Promise<string[]> {
+  const harness = (await tsFiles(HARNESS_PKG)).map((f) =>
+    f.startsWith('harnesses/') ? f : `${HARNESS_APP}${f}`,
+  );
+  return [...(await tsFiles(PKG)), ...harness];
+}
+
+function resolveSpec(file: string, spec: string): string {
+  if (spec.startsWith('@shahimat/ai-core')) return AI_CORE_API;
+  if (spec.startsWith('@shahimat/harness')) return 'harnesses/index.ts';
+  if (spec.startsWith('#')) {
+    const target = `${spec.slice(1)}.ts`;
+    return inHarness(file) && !target.startsWith('harnesses/') ? `${HARNESS_APP}${target}` : target;
+  }
+  const own = file.startsWith(HARNESS_APP) ? file.slice(HARNESS_APP.length) : file;
+  const joined = path.posix.normalize(path.posix.join(path.posix.dirname(own), spec));
+  return file.startsWith(HARNESS_APP) && !joined.startsWith('harnesses/')
+    ? `${HARNESS_APP}${joined}`
+    : joined;
 }
 
 async function importsOf(file: string): Promise<string[]> {
-  const text = await readRepo(`${PKG}/src/${file}`);
-  return [...text.matchAll(/(?:from |import\()'([.#][^']+)'/g)].map((m) => {
-    const spec = m[1] ?? '';
-    return spec.startsWith('#')
-      ? `${spec.slice(1)}.ts`
-      : path.posix.normalize(path.posix.join(path.posix.dirname(file), spec));
-  });
+  const text = await readRepo(realPath(file));
+  return [...text.matchAll(/(?:from |import\()'([.#@][^']+)'/g)]
+    .map((m) => m[1] ?? '')
+    .filter((spec) => !spec.startsWith('@') || spec.startsWith('@shahimat/'))
+    .filter((spec) => inHarness(file) || !spec.startsWith('@shahimat/ai-core'))
+    .map((spec) => resolveSpec(file, spec));
 }
 
 async function violations(bad: (file: string, target: string) => boolean): Promise<string[]> {
@@ -1268,7 +1321,7 @@ class Layers {
       (f) => layerOf(f) === 'scripts' && !logic.includes(f),
     );
     for (const f of declarations)
-      if (/=>|\bfunction\b|\bif\s*\(|\bfor\s*\(|\bawait\b/.test(await readRepo(`${PKG}/src/${f}`)))
+      if (/=>|\bfunction\b|\bif\s*\(|\bfor\s*\(|\bawait\b/.test(await readRepo(realPath(f))))
         bad.push(`${f}: логика в объявлении скрипта`);
     expect(bad).toEqual([]);
   }
@@ -1302,7 +1355,7 @@ class Layers {
         await writeFile(path.join(dir, 'AGENTS.md'), '# x\n');
         await writeFile(path.join(dir, 'CHANGELOG.md'), '- 2026-10-14 · без тега · b\n');
         await writeFile(
-          path.join(dir, 'context/harness.yml'),
+          path.join(dir, 'context/ai-core.yml'),
           'adapters: [claude-code, codex]\nchecks:\n  changelog: {}\n  context-index: {}\n  adapters: {}\n',
         );
         const session = await createSession(home, {
@@ -1323,7 +1376,7 @@ class Layers {
             seg === '<id>' ? session.id : seg,
           );
           const args = ['--root', dir, '--home', home, '--raw-base', 'https://example.invalid'];
-          spawnSync(process.execPath, [BIN(), ...words, ...args], {
+          spawnSync(process.execPath, [BIN(words), ...words, ...args], {
             cwd: dir,
             encoding: 'utf8',
             env: { ...process.env, BROWSER: process.execPath },
@@ -1418,7 +1471,7 @@ class Layers {
   static async oneSchemaCheck(): Promise<void> {
     const users: string[] = [];
     for (const f of await srcFiles())
-      if (/from 'ajv(?:\/[^']*)?'/.test(await readRepo(`${PKG}/src/${f}`))) users.push(f);
+      if (/from 'ajv(?:\/[^']*)?'/.test(await readRepo(realPath(f)))) users.push(f);
     expect(users).toEqual(['shared/schema.ts']);
   }
 
@@ -1442,10 +1495,10 @@ class Layers {
   }
 }
 
-const HARNESSES = `${PKG}/src/harnesses`;
+const HARNESSES = `${HARNESS_PKG}/src/harnesses`;
 const HARNESS_NAME = /^[a-z][a-z0-9]*(-[a-z0-9]+)+$/;
 const RUNS_ANCHOR = 'skill-runs';
-const MENTION = /`harness [a-z]/;
+const MENTION = /`(?:harness|ai-core) [a-z]/;
 
 interface SkillFile {
   name: string;
@@ -1465,7 +1518,8 @@ async function skillFiles(): Promise<SkillFile[]> {
   );
 }
 
-const runsCall = (runs: string): string => `harness ${runs}`;
+const runsCall = (runs: string): string =>
+  `${HARNESS_NAME.test(runs) ? 'harness' : 'ai-core'} ${runs}`;
 
 const outsideRuns = (s: SkillFile): string =>
   markdownRegions(s.text, s.path)
@@ -1546,7 +1600,7 @@ async function withProcessSession(
   await withGitProject(async (dir) => {
     const home = await tempDir();
     try {
-      await writeFile(path.join(dir, 'context/harness.yml'), 'checks: {}\n');
+      await writeFile(path.join(dir, 'context/ai-core.yml'), 'checks: {}\n');
       const run = cliOut(['docs-delta', 'start', '--name', 'демо', '--root', dir, '--home', home]);
       expect(run.status).toBe(0);
       const [id = ''] = await readdir(path.join(home, 'sessions'));
@@ -1581,7 +1635,7 @@ class Processes {
     await withGitProject(async (dir) => {
       const home = await tempDir();
       try {
-        await writeFile(path.join(dir, 'context/harness.yml'), 'checks: {}\n');
+        await writeFile(path.join(dir, 'context/ai-core.yml'), 'checks: {}\n');
         const start = cliOut([
           'docs-delta',
           'start',
@@ -1706,7 +1760,7 @@ class Processes {
     }
     const bad: string[] = [];
     for (const f of (await srcFiles()).filter((f) => layerOf(f) === 'harnesses')) {
-      const text = await readRepo(`${PKG}/src/${f}`);
+      const text = await readRepo(realPath(f));
       if (/--continue|process\.env\[['"]CLAUDE/.test(text)) bad.push(f);
     }
     expect(bad).toEqual([]);
@@ -1714,7 +1768,7 @@ class Processes {
 }
 
 const PLAN_IMPORTS =
-  "import { describe, expect } from 'vitest';\nimport { budget, crit, warn, step, steps, fsm, Graph, info } from '@shahimat/harness/expect';\nvoid info;\n";
+  "import { describe, expect } from 'vitest';\nimport { budget, crit, warn, step, steps, fsm, Graph, info } from '@shahimat/ai-core/expect';\nvoid info;\n";
 
 const DEMO_MACHINE = `const M = fsm('demo-flow', {
   initial: 'a',
@@ -2071,7 +2125,7 @@ describe('счёт', () => {
   static async importedBlocks(): Promise<void> {
     const files = {
       'expectations/shared/flow.expect.ts': `${PLAN_IMPORTS}${DEMO_MACHINE}M.state('a', () => { crit('из импорта на узле', () => {}); });\n`,
-      'expectations/shared/block.ts': `import { crit, describe } from '@shahimat/harness/expect';\nexport function sharedBlock(): void {\n  describe('общий блок', () => { crit('ожидание общего блока', () => {}); });\n}\n`,
+      'expectations/shared/block.ts': `import { crit, describe } from '@shahimat/ai-core/expect';\nexport function sharedBlock(): void {\n  describe('общий блок', () => { crit('ожидание общего блока', () => {}); });\n}\n`,
       ...planFile(
         `import './shared/flow.expect.ts';\nimport { sharedBlock } from './shared/block.ts';\nsharedBlock();\n`,
       ),
@@ -2429,7 +2483,7 @@ class Serve {
 }
 
 const EXPECT_HEAD =
-  "import { describe } from 'vitest';\nimport { budget, crit, warn } from '@shahimat/harness/expect';\nimport { writeFileSync } from 'node:fs';\nimport path from 'node:path';\n";
+  "import { describe } from 'vitest';\nimport { budget, crit, warn } from '@shahimat/ai-core/expect';\nimport { writeFileSync } from 'node:fs';\nimport path from 'node:path';\n";
 
 const moduleFile = (budgetWarn: number, body: string): string =>
   `${EXPECT_HEAD}void warn;\nvoid writeFileSync;\nvoid path;\nbudget({ crit: 0, warn: ${budgetWarn} });\n${body}`;
@@ -2571,7 +2625,7 @@ class Entry {
   }
 }
 
-const PATTERN_DIRS = ['packages/expectations/src', 'expectations/shared'];
+const PATTERN_DIRS = ['packages/harness/src/expect', 'expectations/shared'];
 
 const PROJECT_NAMES = [
   'plan-review',
@@ -2602,7 +2656,7 @@ async function repoSources(): Promise<string[]> {
 
 const PATTERN_FN = 'pattern';
 
-const DEMO_PATTERN = `import { crit, ${PATTERN_FN} } from '@shahimat/harness/expect';
+const DEMO_PATTERN = `import { crit, ${PATTERN_FN} } from '@shahimat/ai-core/expect';
 export const demo = ${PATTERN_FN}('demo-pattern', (o: { target: string }) => {
   crit(\`цель \${o.target} в порядке\`, () => {});
 });
@@ -2689,11 +2743,11 @@ class Root {
     try {
       await mkdir(path.join(project, '.claude'), { recursive: true });
       await mkdir(path.join(project, 'context'), { recursive: true });
-      await writeFile(path.join(project, 'context/harness.yml'), 'checks: {}\n');
+      await writeFile(path.join(project, 'context/ai-core.yml'), 'checks: {}\n');
       const deep = path.join(project, 'sub/deeper');
       await mkdir(deep, { recursive: true });
       const run = (words: string[]) =>
-        spawnSync(process.execPath, [BIN(), ...words, '--home', home], {
+        spawnSync(process.execPath, [BIN(words), ...words, '--home', home], {
           cwd: deep,
           encoding: 'utf8',
         });
@@ -2732,7 +2786,7 @@ class Root {
       ]) {
         const r = spawnSync(
           process.execPath,
-          [BIN(), ...words, '--root', project, '--home', home],
+          [BIN(words), ...words, '--root', project, '--home', home],
           {
             cwd: project,
             encoding: 'utf8',

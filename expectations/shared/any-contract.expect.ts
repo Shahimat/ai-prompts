@@ -1,5 +1,5 @@
 import { describe, expect } from 'vitest';
-import { contract, crit, expectAtMost, indexEntries } from '@shahimat/harness/expect';
+import { contract, crit, expectAtMost, indexEntries } from '@shahimat/ai-core/expect';
 import { stringList } from './guards.ts';
 
 export function anyContract(key: string): void {

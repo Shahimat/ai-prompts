@@ -1,8 +1,8 @@
 // expect:fsm-drive
 
 import { parse } from 'yaml';
-import { errorMessage, isOneOf, isRecord } from '#shared/guards';
-import { schemaErrors } from '#shared/schema';
+import { errorMessage, isOneOf, isRecord } from '@shahimat/ai-core';
+import { schemaErrors } from '@shahimat/ai-core';
 import { FSM_SCHEMA } from './schema.ts';
 
 export const ACTORS = ['script', 'model', 'user'] as const;

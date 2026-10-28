@@ -4,8 +4,8 @@ import { appendFile, mkdir, readdir, readFile, writeFile } from 'node:fs/promise
 import { homedir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { UsageError } from '#shared/diagnostics';
-import { errorCode, isRecord } from '#shared/guards';
+import { UsageError } from '@shahimat/ai-core';
+import { errorCode, isRecord } from '@shahimat/ai-core';
 
 export function harnessHome(option?: string): string {
   const fromEnv = process.env['HARNESS_HOME'];

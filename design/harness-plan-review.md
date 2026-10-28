@@ -25,7 +25,7 @@ harness plan-review start <file> [--request <запрос>]
 
 Существующий файл — план изменения его состояния; нового нет —
 создаётся каркас с `plan({ name })`. Смотреть план —
-`harness expect serve <file>`.
+`ai-core expect serve <file>`.
 
 ## Автомат
 

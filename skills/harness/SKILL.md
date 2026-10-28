@@ -2,21 +2,21 @@
 name: harness
 metadata:
   runs: refresh
-description: Как пользоваться @shahimat/harness в проекте — refresh и check, команды и процессы, конфиг context/harness.yml. Загружай перед завершением задачи, при правке сгенерированных файлов и при ошибках harness check.
+description: Как пользоваться @shahimat/harness в проекте — refresh и check, команды и процессы, конфиг context/ai-core.yml. Загружай перед завершением задачи, при правке сгенерированных файлов и при ошибках ai-core check.
 ---
 
 # harness
 
 `@shahimat/harness` — CLI, который делает механическую часть контракта:
-проверки и генерацию. Конфиг — `context/harness.yml`.
+проверки и генерацию. Конфиг — `context/ai-core.yml`.
 
 ## Запуск
 
 ```bash
-npx -y @shahimat/harness@<version> <команда> --root .
+npx -y @shahimat/ai-core@<version> <команда> --root .
 ```
 
-`<version>` — из `context/harness.yml` → `version`. В проекте на Node
+`<version>` — из `context/ai-core.yml` → `version`. В проекте на Node
 можно поставить пакет в `devDependencies` той же версии и звать
 `npx harness`.
 
@@ -27,35 +27,35 @@ npx -y @shahimat/harness@<version> <команда> --root .
 
 <!-- expect:skill-runs -->
 <!-- metadata.runs: refresh -->
-Сам skill запускает одно: `harness refresh` в конце каждой задачи и
+Сам skill запускает одно: `ai-core refresh` в конце каждой задачи и
 после записи docs-keeper — пересобрать производные файлы и проверить
 проект. Остальное — справка: что делает команда и кто её запускает.
 
-- `harness refresh` — `context index` и `adapters sync` (если включены в
-  `checks`), затем шаги `harness check`.
-- `harness check` — все проверки из `checks` в `context/harness.yml`:
+- `ai-core refresh` — `context index` и `adapters sync` (если включены в
+  `checks`), затем шаги `ai-core check`.
+- `ai-core check` — все проверки из `checks` в `context/ai-core.yml`:
   `changelog lint`, `context check`, `adapters check`, `secrets scan`.
-- `harness secrets scan` — секреты (ключи API, токены, пароли,
-  приватные ключи) в отслеживаемых файлах; в `harness check` включена
+- `ai-core secrets scan` — секреты (ключи API, токены, пароли,
+  приватные ключи) в отслеживаемых файлах; в `ai-core check` включена
   по умолчанию. `--file <path>` — один файл, в том числе вне проекта:
   её запускает skill `source-feedback` перед тем, как артефакт уходит
   наружу. В выводе — путь, строка и тип, без значения.
-- `harness changelog lint` — формат `CHANGELOG.md`: строка до
+- `ai-core changelog lint` — формат `CHANGELOG.md`: строка до
   `max_line`, три части через ` · `, тег из списка, дата, порядок.
-- `harness context index` — пересобрать `context/index.yml` из слоёв,
+- `ai-core context index` — пересобрать `context/index.yml` из слоёв,
   включая слои модулей из `provides.index_layers` их manifest'ов; шаг
-  `harness refresh`.
-- `harness adapters sync` — пересобрать файлы под инструменты
+  `ai-core refresh`.
+- `ai-core adapters sync` — пересобрать файлы под инструменты
   (`CLAUDE.md`, `.claude/`, `.codex/`) из `AGENTS.md` и `.agents/` и
   выключить memory агента: `autoMemoryEnabled: false` в
   `.claude/settings.json` (остальные ключи файла сохраняются),
   `.codex/config.toml` с выключенными memories. Ручной
   `.codex/config.toml` не трогает — только сообщает, каких ключей не
-  хватает. Шаг `harness refresh`.
-- `harness outdated` — версия из `context/harness.yml` против последней
+  хватает. Шаг `ai-core refresh`.
+- `ai-core outdated` — версия из `context/ai-core.yml` против последней
   в npm и записи журнала пакета между ними (код 1 — есть новее); первый
   шаг `harness source-sync`.
-- `harness delta check` и `harness delta close` — сверка слоёв
+- `ai-core delta check` и `ai-core delta close` — сверка слоёв
   документации с `HEAD` (знание без пункта `revise` — нарушение) и
   удаление принятой дельты; шаги `harness docs-delta`.
 - `harness docs-delta start` и `harness source-sync start` — harness
@@ -65,7 +65,7 @@ npx -y @shahimat/harness@<version> <команда> --root .
 - `harness plan-review start <file>` — план в файле ожиданий: диалог с
   планером в терминале, ревью судьёй по бюджету файла, правки до лимита
   циклов. Сессия живёт в `~/.config/harness`, планер меняет только файл
-  ожиданий; смотреть — `harness expect serve <file>`. Команда user scope:
+  ожиданий; смотреть — `ai-core expect serve <file>`. Команда user scope:
   запускает пользователь из глобальной установки
   (`npm i -g @shahimat/harness`), не агент из задачи.
 <!-- /expect:skill-runs -->
@@ -83,7 +83,7 @@ npx -y @shahimat/harness@<version> <команда> --root .
 `AGENTS.md` или `.agents/`, файл удалить.
 <!-- /expect:docs-readonly -->
 
-## `context/harness.yml`
+## `context/ai-core.yml`
 
 ```yaml
 version: <точная версия @shahimat/harness>
@@ -111,12 +111,12 @@ checks:
   docs-keeper: решение одной фразой, детали — в git log.
 - `docs/entities/x.yml: нет поля summary` — добавить однострочный
   `summary`, пересобрать индекс.
-- `context/index.yml: устарел` — `harness refresh`.
+- `context/index.yml: устарел` — `ai-core refresh`.
 - `notes.md:3: секрет: токен GitHub` — значение убрать, вместо него
   указатель на хранилище; секрет уже в истории git — сказать
   пользователю: его нужно отозвать. Ложное срабатывание — исключение в
   `checks.secrets.allow` с `reason`, только после «да».
-- `… отсутствует или устарел: запусти harness adapters sync` —
-  `harness refresh`; если копию правили руками — правку перенести в
+- `… отсутствует или устарел: запусти ai-core adapters sync` —
+  `ai-core refresh`; если копию правили руками — правку перенести в
   источник.
 <!-- /expect:skill-runs -->

@@ -4,5 +4,15 @@ export * from './fsm/schema.ts';
 export * from './load.ts';
 export * from './plugins.ts';
 export * from './process.ts';
-export * from '#lib/claude';
+export {
+  ClaudeRunner,
+  claudeBin,
+  headlessArgs,
+  interactiveArgs,
+  parseHeadless,
+  type HeadlessResult,
+  type HeadlessRun,
+  type InteractiveRun,
+  type ModelRunner,
+} from '@shahimat/ai-core';
 export * from './store/session.ts';

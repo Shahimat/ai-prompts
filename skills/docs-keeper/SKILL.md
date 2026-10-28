@@ -55,9 +55,9 @@ description: Правила записи в проектную документ�
 | `CHANGELOG.md` | docs-keeper |
 | слои ядра в `docs/` и слои модулей (`provides.layers`) | docs-keeper |
 | `context/.delta/` — создание и правка | docs-keeper |
-| `context/.delta/` — удаление после приёмки | `harness delta close`; шаг `close` harness `docs-delta`, без harness — docs-keeper |
-| `context/index.yml` | `harness context index`; шаг `verify` harness `docs-delta` |
-| адаптеры (`CLAUDE.md`, `.claude/`, `.codex/`) | `harness adapters sync`; шаг `verify` harness `docs-delta` |
+| `context/.delta/` — удаление после приёмки | `ai-core delta close`; шаг `close` harness `docs-delta`, без harness — docs-keeper |
+| `context/index.yml` | `ai-core context index`; шаг `verify` harness `docs-delta` |
+| адаптеры (`CLAUDE.md`, `.claude/`, `.codex/`) | `ai-core adapters sync`; шаг `verify` harness `docs-delta` |
 <!-- /expect:skill-runs -->
 
 Основная сессия в документацию не пишет.
@@ -118,7 +118,7 @@ items:
    нет — с harness это шаг `review` (роль `judge`).
 6. После приёмки дельта удаляется, строки `revise` — в отчёт:
    <!-- expect:skill-runs -->
-   с harness — шаг `close` процесса, `harness delta close`.
+   с harness — шаг `close` процесса, `ai-core delta close`.
    <!-- /expect:skill-runs -->
 
 Без harness — та же сверка вручную по `git diff HEAD` слоёв, дельту

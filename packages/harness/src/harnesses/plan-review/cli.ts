@@ -2,9 +2,9 @@ import { existsSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { CommandArgs } from '#shared/args';
-import { UsageError } from '#shared/diagnostics';
-import { errorMessage, isOneOf } from '#shared/guards';
+import type { CommandArgs } from '@shahimat/ai-core';
+import { UsageError } from '@shahimat/ai-core';
+import { aiCoreCommand, errorMessage, isOneOf } from '@shahimat/ai-core';
 import {
   ClaudeRunner,
   createSession,
@@ -35,7 +35,7 @@ export const io: {
   runner: () => new ClaudeRunner(),
   stdin: readStdin,
   terminal: () => process.stdin.isTTY && process.stdout.isTTY,
-  page: (root, file) => servePage(selfCommand(), root, file),
+  page: (root, file) => servePage(aiCoreCommand(), root, file),
 };
 
 async function readStdin(): Promise<string> {
@@ -173,7 +173,7 @@ const quoted = (s: string): string => `'${s.replace(/\\/g, '\\\\').replace(/'/g,
 
 const planSkeleton = (name: string): string =>
   [
-    "import { budget, plan } from '@shahimat/harness/expect';",
+    "import { budget, plan } from '@shahimat/ai-core/expect';",
     '',
     'budget({ crit: 0, warn: 0 });',
     '',

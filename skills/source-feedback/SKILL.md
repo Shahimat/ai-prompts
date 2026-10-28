@@ -183,7 +183,7 @@ description: Предложения проекта в источник ai-prompt
 
 <!-- expect:skill-runs -->
 <!-- metadata.runs: secrets scan -->
-- подключён harness — `harness secrets scan --file <путь>`;
+- подключён harness — `ai-core secrets scan --file <путь>`;
 <!-- /expect:skill-runs -->
 - без harness — сам, по тем же типам: ключи API, токены, пароли и
   секреты в присваиваниях, приватные ключи.

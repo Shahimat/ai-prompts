@@ -1,4 +1,4 @@
-import { SUBMIT_TOOL } from '#lib/protocol';
+import { SUBMIT_TOOL } from '@shahimat/ai-core';
 
 export const FAKE_CLAUDE = `import { spawn } from 'node:child_process';
 import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs';

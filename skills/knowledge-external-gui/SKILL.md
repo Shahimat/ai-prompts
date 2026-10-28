@@ -188,7 +188,7 @@ knowledge и в текущем скрине.
    `context/index.yml`:
    <!-- expect:skill-runs -->
    <!-- metadata.runs: context index -->
-   в v3 — пересборкой `harness context index`, если подключён harness.
+   в v3 — пересборкой `ai-core context index`, если подключён harness.
    <!-- /expect:skill-runs -->
 
 ## Проверки внутренней непротиворечивости

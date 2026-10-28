@@ -2,8 +2,8 @@ import { readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import type { ActionDef, ActionResult, Guard, Registry } from './fsm/machine.ts';
-import { UsageError } from '#shared/diagnostics';
-import { errorCode, isRecord, isStringArray } from '#shared/guards';
+import { UsageError } from '@shahimat/ai-core';
+import { errorCode, isRecord, isStringArray } from '@shahimat/ai-core';
 
 function asResult(value: unknown, where: string): ActionResult {
   if (isRecord(value) && typeof value['event'] === 'string') return { event: value['event'] };

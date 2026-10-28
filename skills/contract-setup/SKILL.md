@@ -95,7 +95,7 @@ skill — протокол их выбора, подключения и откл
      files: [<файлы>]
      skills: [<имена skills>]
      agents_md_block: true
-     harness_checks: [<ключи проверок в context/harness.yml>]
+     harness_checks: [<ключи проверок в context/ai-core.yml>]
      changelog_tags: [<теги журнала решений модуля>]
      gitignore: [<строки, добавленные в .gitignore>]
      extends:                       # поля в слоях других модулей
@@ -108,13 +108,13 @@ skill — протокол их выбора, подключения и откл
        <name>: <sha256 записи skill из индекса>
    ```
 
-5. `changelog_tags` модуля — допиши в `context/harness.yml` →
+5. `changelog_tags` модуля — допиши в `context/ai-core.yml` →
    `checks.changelog.tags`, если подключён harness (список ядра плюс
    теги модулей).
 6. Адаптеры, индекс и проверки:
    <!-- expect:skill-runs -->
    <!-- metadata.runs: refresh -->
-   `harness refresh`, если подключён harness; иначе обнови производные
+   `ai-core refresh`, если подключён harness; иначе обнови производные
    файлы сам (`AGENTS.md` → «Адаптеры» ядра).
    <!-- /expect:skill-runs -->
 <!-- /expect:module-tags -->
@@ -124,7 +124,7 @@ skill — протокол их выбора, подключения и откл
 
 1. Прочитай manifest, покажи всё из `provides`, что будет удалено:
    слои, файлы, skills, блок `AGENTS.md`, проверки и теги в
-   `context/harness.yml`, строки `gitignore` (если их не объявляет
+   `context/ai-core.yml`, строки `gitignore` (если их не объявляет
    другой модуль), поля `extends` в чужих слоях (записи в
    CHANGELOG с тегами модуля остаются — журнал не переписывается).
 2. Слой с содержимым проекта (entities, manuals, цели) — отдельный

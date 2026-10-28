@@ -51,11 +51,12 @@ expectations/       — ожидания к промптам в форме ав�
 design/             — спецификации будущих версий промптов (не промпты,
                      в индекс не попадают).
 
-harness/            — пакеты (TS, npm workspaces, Node ≥ 24):
-                     @shahimat/harness — сборка index.yml этого репо,
-                     проверки, генерация и механизм ожиданий для проектов;
-                     @shahimat/expectations — общие наборы ожиданий к
-                     правилам работы агента (attention и др.).
+packages/           — пакеты (TS, npm workspaces, Node ≥ 24):
+                     @shahimat/ai-core — команды (CLI ai-core): сборка
+                     index.yml этого репо, проверки, генерация, механизм
+                     ожиданий и роли для проектов;
+                     @shahimat/harness — автоматы (CLI harness) поверх
+                     ai-core: docs-delta, source-sync, plan-review.
 ```
 
 Подробнее — `patterns/README.md`, `prompts/modules/README.md`,

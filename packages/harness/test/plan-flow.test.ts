@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promis
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { main } from '#cli';
-import { io, selfCommand } from '#harnesses/plan-review/cli';
+import { io } from '#harnesses/plan-review/cli';
 import { openerFor, servePage } from '#harnesses/plan-review/page';
 import { hookEvent } from '#harnesses/plan-review/hook';
 import {
@@ -11,16 +11,16 @@ import {
   type HeadlessRun,
   type InteractiveRun,
   type ModelRunner,
-} from '#lib/claude';
+} from '@shahimat/ai-core';
 import { openSession } from '#harnesses/core/store/session';
-import { isRecord } from '#shared/guards';
+import { aiCoreCommand, isRecord } from '@shahimat/ai-core';
 
 const NOW = new Date('2026-10-14T12:00:00Z');
 const PLAN_FILE = 'plans/демо.expect.ts';
 const TMP = path.join(import.meta.dirname, '.tmp');
 
 const GOOD = `import { describe } from 'vitest';
-import { budget, crit, plan } from '@shahimat/harness/expect';
+import { budget, crit, plan } from '@shahimat/ai-core/expect';
 budget({ crit: 0, warn: 0 });
 plan({ name: 'демо' });
 describe('раздел', () => {
@@ -450,7 +450,7 @@ describe('plan-review: страница плана', () => {
     expect(openerFor('http://x/')).toBeUndefined();
     await mkdir(path.join(project, 'plans'), { recursive: true });
     await writeFile(planPath(), GOOD, 'utf8');
-    const page = await servePage(selfCommand(), project, PLAN_FILE);
+    const page = await servePage(aiCoreCommand(), project, PLAN_FILE);
     try {
       expect(page.url).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/$/);
       expect(page.url).not.toContain(':4173/');

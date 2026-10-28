@@ -2,12 +2,12 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { readIntents } from '#lib/intents';
-import { askRole } from '#lib/role';
-import { DOCS_VERIFY } from '#scripts/index';
-import type { CommandArgs } from '#shared/args';
-import { errorMessage, isRecord } from '#shared/guards';
-import { DELTA_DIR } from '#shared/layout';
+import { readIntents } from '@shahimat/ai-core';
+import { askRole } from '@shahimat/ai-core';
+import { DOCS_VERIFY } from '@shahimat/ai-core';
+import type { CommandArgs } from '@shahimat/ai-core';
+import { errorMessage, isRecord } from '@shahimat/ai-core';
+import { DELTA_DIR } from '@shahimat/ai-core';
 import {
   commandAction,
   failureAction,

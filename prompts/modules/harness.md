@@ -4,7 +4,7 @@ kind: module
 applicable_to: [agent-operational-contract-v3]
 patterns: [source-sync]
 title: Модуль harness — проверки и генерация через @shahimat/harness
-use_case: Возможность ядра v3. Подключает CLI @shahimat/harness (Node ≥ 24) — проверка CHANGELOG, поиск секретов, генерация context/index.yml, генерация адаптеров под Claude Code и Codex, общий harness check. Конфиг — context/harness.yml.
+use_case: Возможность ядра v3. Подключает CLI @shahimat/harness (Node ≥ 24) — проверка CHANGELOG, поиск секретов, генерация context/index.yml, генерация адаптеров под Claude Code и Codex, общий ai-core check. Конфиг — context/ai-core.yml.
 tags: [harness, automation, agent-contract, module]
 feature:
   summary: "@shahimat/harness — проверки CHANGELOG, генерация индекса и адаптеров (нужен Node ≥ 24)"
@@ -13,7 +13,7 @@ feature:
   conflicts: []
   asks:
     - key: checks
-      question: Какие проверки включить в harness check?
+      question: Какие проверки включить в ai-core check?
       multi: true
       options: [changelog, context-index, adapters]
     - key: adapters
@@ -34,7 +34,7 @@ feature:
 
 ## Вопросы при подключении
 
-- `checks` — проверки `harness check`. По умолчанию все три:
+- `checks` — проверки `ai-core check`. По умолчанию все три:
   - `changelog` — формат `CHANGELOG.md`;
   - `context-index` — `context/index.yml` актуален, у слоёв есть `id`,
     `namespace`, `summary` / `title`;
@@ -42,7 +42,7 @@ feature:
 
   `secrets` — поиск ключей, токенов, паролей и приватных ключей в
   отслеживаемых файлах — в вопрос не входит: включена всегда.
-  Выключается только явно, `secrets: false` в `context/harness.yml`.
+  Выключается только явно, `secrets: false` в `context/ai-core.yml`.
 - `adapters` — инструменты, под которые генерировать файлы. По
   умолчанию — те, что назвал пользователь при установке ядра.
 
@@ -51,7 +51,7 @@ feature:
 ```yaml
 provides:
   layers: []
-  files: [context/harness.yml, context/index.yml]
+  files: [context/ai-core.yml, context/index.yml]
   skills: [harness]
   agents_md_block: true
   harness_checks: [<из ответа checks>]
@@ -59,7 +59,7 @@ provides:
 
 `context/index.yml` ставится, только если выбран `context-index`.
 
-`context/harness.yml`:
+`context/ai-core.yml`:
 
 ```yaml
 version: <последняя версия @shahimat/harness>
@@ -78,7 +78,7 @@ checks:
 ## harness
 
 - карта id по namespace → `context/index.yml` (генерируется);
-- в конце задачи — `harness refresh`; команды и конфиг → skill `harness`;
+- в конце задачи — `ai-core refresh`; команды и конфиг → skill `harness`;
 - сгенерированные файлы руками не правятся.
 <!-- /module:harness -->
 ```
@@ -89,22 +89,22 @@ checks:
 1. Проверь `node --version` ≥ 24. Нет — скажи пользователю, модуль не
    подключай.
 2. Версию возьми из npm: `npm view @shahimat/harness version`.
-3. Создай `context/harness.yml` по ответам.
+3. Создай `context/ai-core.yml` по ответам.
 4. Поставь skill `harness`, добавь блок в `AGENTS.md`.
-5. Выбран `context-index` — `harness context index`; нарушения
+5. Выбран `context-index` — `ai-core context index`; нарушения
    (`нет поля summary` и т.п.) — план правок через docs-keeper.
-6. Выбран `adapters` — `harness adapters sync`. Файлы, которые агент
+6. Выбран `adapters` — `ai-core adapters sync`. Файлы, которые агент
    создал вручную при установке ядра, sync узнаёт по метке и
    перезаписывает.
-7. `harness check`. Нарушения — отчёт пользователю с планом.
+7. `ai-core check`. Нарушения — отчёт пользователю с планом.
 
 ## Отключение
 
-Удаляются `context/harness.yml`, skill и блок. `context/index.yml` —
+Удаляются `context/ai-core.yml`, skill и блок. `context/index.yml` —
 вопрос пользователю: удалить или вести дальше руками. Адаптеры
 остаются; их актуальность — снова на агенте.
 
 ## Синхронизация
 
 Через обновление из источника (skill `source-sync`). Версия CLI обновляется
-отдельно: правкой `version` в `context/harness.yml` после «да».
+отдельно: правкой `version` в `context/ai-core.yml` после «да».

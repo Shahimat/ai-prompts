@@ -1,6 +1,6 @@
 import { describe, expect } from 'vitest';
-import { budget, crit, readRepo } from '@shahimat/harness/expect';
-import { attention } from '@shahimat/expectations';
+import { budget, crit, readRepo } from '@shahimat/ai-core/expect';
+import { attention } from './shared/attention.ts';
 import { at, parseJson, recordOrEmpty, stringAt } from './shared/guards.ts';
 
 budget({ crit: 0, warn: 0 });
@@ -17,7 +17,7 @@ describe('публичные npm-пакеты', () => {
   );
 });
 
-const PACKAGES = ['harness', 'expectations'];
+const PACKAGES = ['ai-core', 'harness'];
 
 const localVersion = async (pkg: string): Promise<string> =>
   stringAt(parseJson(await readRepo(`packages/${pkg}/package.json`)), 'version');
@@ -33,6 +33,10 @@ class Check {
   static async oneUnpublishedVersion(): Promise<void> {
     for (const pkg of PACKAGES) {
       const response = await fetch(`https://registry.npmjs.org/@shahimat%2f${pkg}`);
+      if (response.status === 404) {
+        expect({ pkg, local: await localVersion(pkg) }).toEqual({ pkg, local: '0.1.0' });
+        continue;
+      }
       expect(response.ok, `npm: @shahimat/${pkg}`).toBe(true);
       const meta: unknown = await response.json();
       const versions = recordOrEmpty(at(meta, 'versions'), `npm: @shahimat/${pkg} versions`);

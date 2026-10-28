@@ -1,4 +1,4 @@
-import type { CommandNode } from '#shared/node';
+import type { CommandNode } from '@shahimat/ai-core';
 import { harnessNodes } from './core/index.ts';
 import { DOCS_DELTA } from './docs-delta/index.ts';
 import { PLAN_REVIEW } from './plan-review/index.ts';

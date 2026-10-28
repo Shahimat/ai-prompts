@@ -9,18 +9,18 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build -w @shahimat/harness && npm run build -w @shahimat/expectations",
-    "typecheck": "npm run build -w @shahimat/harness && npm run build -w @shahimat/expectations && npm run typecheck -w @shahimat/harness && npm run typecheck -w @shahimat/expectations && tsc -p expectations && tsc -p packages",
-    "test": "npm test -w @shahimat/harness",
+    "build": "npm run build -w @shahimat/ai-core && npm run build -w @shahimat/harness",
+    "typecheck": "npm run build -w @shahimat/ai-core && npm run build -w @shahimat/harness && npm run typecheck -w @shahimat/ai-core && npm run typecheck -w @shahimat/harness && tsc -p expectations && tsc -p packages",
+    "test": "npm test -w @shahimat/ai-core && npm test -w @shahimat/harness",
     "lint": "oxlint --type-aware --deny-warnings",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "index:build": "node packages/harness/dist/bin.js index build --root . --raw-base https://raw.githubusercontent.com/Shahimat/ai-prompts/main",
-    "index:check": "node packages/harness/dist/bin.js index check --root . --raw-base https://raw.githubusercontent.com/Shahimat/ai-prompts/main",
-    "expect": "node packages/harness/dist/bin.js expect report expectations/index.expect.ts --root .",
-    "expect:judge": "node packages/harness/dist/bin.js expect judge expectations/index.expect.ts --root .",
-    "expect:apply": "node packages/harness/dist/bin.js expect judge expectations/index.expect.ts --apply --root .",
-    "ci": "npm run format:check && npm run build -w @shahimat/harness && npm run build -w @shahimat/expectations && npm run typecheck -w @shahimat/harness && npm run typecheck -w @shahimat/expectations && tsc -p expectations && tsc -p packages && npm run lint && npm test && npm run index:check && npm run expect"
+    "index:build": "node packages/ai-core/dist/bin.js index build --root . --raw-base https://raw.githubusercontent.com/Shahimat/ai-prompts/main",
+    "index:check": "node packages/ai-core/dist/bin.js index check --root . --raw-base https://raw.githubusercontent.com/Shahimat/ai-prompts/main",
+    "expect": "node packages/ai-core/dist/bin.js expect report expectations/index.expect.ts --root .",
+    "expect:judge": "node packages/ai-core/dist/bin.js expect judge expectations/index.expect.ts --root .",
+    "expect:apply": "node packages/ai-core/dist/bin.js expect judge expectations/index.expect.ts --apply --root .",
+    "ci": "npm run format:check && npm run build -w @shahimat/ai-core && npm run build -w @shahimat/harness && npm run typecheck -w @shahimat/ai-core && npm run typecheck -w @shahimat/harness && tsc -p expectations && tsc -p packages && npm run lint && npm test -w @shahimat/ai-core && npm test -w @shahimat/harness && npm run index:check && npm run expect"
   },
   "devDependencies": {
     "oxlint": "^1.88.0",

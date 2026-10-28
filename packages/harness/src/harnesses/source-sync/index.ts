@@ -1,4 +1,4 @@
-import { REFRESH } from '#scripts/index';
+import { REFRESH } from '@shahimat/ai-core';
 import {
   failureAction,
   handoff,
@@ -17,7 +17,7 @@ function registry(): Registry<ProcessContext> {
         'source-update',
         handoff<ProcessContext>(
           () =>
-            'сверь источники по их index.yml и обнови подключённые файлы и version в context/harness.yml по skill source-sync',
+            'сверь источники по их index.yml и обнови подключённые файлы и version в context/ai-core.yml по skill source-sync',
         ),
       ],
       ['source-refresh', scriptAction<ProcessContext>(REFRESH)],

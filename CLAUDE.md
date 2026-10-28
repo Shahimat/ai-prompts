@@ -62,7 +62,7 @@ patterns: [source-sync, ...]
 тот же коммит. CI проверяет консистентность через `npm run index:check`
 и валит билд при рассинхроне.
 
-Индекс собирает harness (`packages/harness`, TS). Нужен
+Индекс собирает `ai-core` (`packages/ai-core`, TS). Нужен
 Node ≥ 24; перед первым запуском — `npm ci && npm run build`.
 
 После правки TS-кода (`packages/`, `expectations/`) — `npm run ci`:
@@ -92,8 +92,12 @@ shebang: пояснения — в именах, ожиданиях и README. �
 `local/no-comments` (`packages/oxlint-plugin.ts`), `oxlint --fix`
 удаляет лишние.
 
-**Слои harness** (`packages/harness/src`), импорт только вниз:
-`shared` → `lib` → `commands` → `scripts` → `harnesses`.
+**Слои пакетов**, импорт только вниз: `@shahimat/ai-core`
+(`packages/ai-core/src`) — `shared` → `lib` → `commands` → `scripts`;
+`@shahimat/harness` (`packages/harness/src`) — `harnesses` поверх
+публичного API `ai-core`. Из `harness` — только автоматы; `ai-core` от
+`harness` не зависит. CLI `ai-core` — команды и скрипты, CLI `harness`
+— только автоматы.
 
 - Команда — атомарная операция; другие команды, скрипты и harness не
   вызывает.
@@ -167,8 +171,8 @@ worktree — одна задача, одна ветка, один worktree.
 
 ## Публичные npm-пакеты
 
-`packages/*` публикуются в npm (`@shahimat/harness`,
-`@shahimat/expectations`); публикует пользователь, когда сам решит.
+`packages/*` публикуются в npm (`@shahimat/ai-core`,
+`@shahimat/harness`); публикует пользователь, когда сам решит.
 Неопубликованная версия — не блокер и не повод для напоминания: о
 публикации не напоминаешь и работу ею не обусловливаешь.
 
@@ -185,16 +189,15 @@ worktree — одна задача, одна ветка, один worktree.
 `expectations/<key>.expect.ts` — ожидания пользователя к промпту в форме
 vitest: заголовок `it` (≤ 200 символов, проверяемо да/нет или числом) —
 ожидание, тело — проверка. Общие ожидания этого репозитория —
-`expectations/shared/`; общие для всех проектов (правила работы агента,
-например `attention`) — пакет `@shahimat/expectations`
-(`packages/expectations`): единый текст, каждый проект проверяет
-им свои файлы. Каркас в другом проекте — `harness expect init`.
+`expectations/shared/` (например, `attention`); паттерны проверки
+автоматов — `@shahimat/harness/expect`. Каркас в другом проекте —
+`ai-core expect init`.
 
 Точка входа одна: `expectations/index.expect.ts` импортирует файлы
 ожиданий, `npm run expect`, CI и судья прогоняют только его
-(`harness expect report <file>`). Новый файл ожиданий подключается
+(`ai-core expect report <file>`). Новый файл ожиданий подключается
 строкой `import` в точке входа; общий блок вне `*.expect.ts` объявляет
-разделы через `describe` из `@shahimat/harness/expect`. Отчёт, бюджет и
+разделы через `describe` из `@shahimat/ai-core/expect`. Отчёт, бюджет и
 проверка заголовков — по модулю, где объявлено ожидание.
 
 - Форма файла: сверху `budget({ crit, warn })` и `describe` с
@@ -211,10 +214,10 @@ vitest: заголовок `it` (≤ 200 символов, проверяемо 
 - Пороги — из намерения пользователя, а не из текущей реализации:
   верхние границы («не больше N»), а не пересказ («ровно N»).
 - Форматы данных (пресеты, frontmatter, provides, manifest,
-  `context/harness.yml`) — JSON Schema в `expectations/schemas/`,
+  `context/ai-core.yml`) — JSON Schema в `expectations/schemas/`,
   проверка `expectSchema`.
 - Проверка предпочтительно детерминированная (зонды
-  `@shahimat/harness/expect`); смысловая — `judged(['@KEY'])`.
+  `@shahimat/ai-core/expect`); смысловая — `judged(['@KEY'])`.
 - Привязку к реализации держит реализация, а не ожидания: доказательство
   размечается якорем `<!-- expect:KEY -->` … `<!-- /expect:KEY -->`
   (markdown), строкой `# expect:KEY` (YAML) или `// expect:KEY` (TS).

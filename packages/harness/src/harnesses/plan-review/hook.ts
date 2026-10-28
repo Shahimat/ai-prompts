@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { expectBuild } from '#commands/expect/index';
-import { isRecord } from '#shared/guards';
+import { expectBuild } from '@shahimat/ai-core';
+import { isRecord } from '@shahimat/ai-core';
 import { driveSession } from '#harnesses/core/index';
 import {
   EDIT_TOOLS,

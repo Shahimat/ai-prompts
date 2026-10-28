@@ -91,7 +91,7 @@ provides:
 1. Поставь skill `privacy`, добавь блок в `AGENTS.md` с выбранной
    outbound-строкой.
 2. Если подключён harness — тег `privacy` в
-   `context/harness.yml` → `checks.changelog.tags`.
+   `context/ai-core.yml` → `checks.changelog.tags`.
 3. Проверь существующую документацию, `CHANGELOG.md` и последние
    коммиты на реальные данные: находки — списком пользователю с планом
    обфускации; правка истории git — его решение.

@@ -1,8 +1,8 @@
 import { existsSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { expectSummary, runExpect, type ExpectSummary } from '#commands/expect/index';
-import { errorCode, isRecord, isStringArray } from '#shared/guards';
+import { expectSummary, runExpect, type ExpectSummary } from '@shahimat/ai-core';
+import { errorCode, isRecord, isStringArray } from '@shahimat/ai-core';
 import type { MachineDef, ModelRunner, Session } from '#harnesses/core/index';
 
 export const JUDGE_TOOLS = ['Read', 'Glob', 'Grep'];

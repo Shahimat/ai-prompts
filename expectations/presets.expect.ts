@@ -7,7 +7,7 @@ import {
   presets,
   warn,
   type PresetDoc,
-} from '@shahimat/harness/expect';
+} from '@shahimat/ai-core/expect';
 import { stringList } from './shared/guards.ts';
 
 budget({ crit: 0, warn: 0 });

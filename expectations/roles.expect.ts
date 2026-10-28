@@ -1,6 +1,7 @@
 import { describe, expect } from 'vitest';
+import { HARNESS } from '@shahimat/harness';
 import {
-  COMMANDS,
+  AI_CORE,
   INTENT_KINDS,
   INTENTS_SCHEMA,
   parseIntents,
@@ -9,7 +10,7 @@ import {
   roleArgs,
   SUBMIT_TOOL_ID,
   type AgentDef,
-} from '@shahimat/harness';
+} from '@shahimat/ai-core';
 import {
   budget,
   crit,
@@ -18,7 +19,7 @@ import {
   frontmatters,
   indexEntries,
   readRepo,
-} from '@shahimat/harness/expect';
+} from '@shahimat/ai-core/expect';
 import { recordOrEmpty, stringList } from './shared/guards.ts';
 
 budget({ crit: 0, warn: 0 });
@@ -147,7 +148,9 @@ class Check {
   }
 
   static optionOf(command: string, option: string): void {
-    const node = COMMANDS.find((c) => c.path.join(' ') === command);
+    const node = [...AI_CORE.commands, ...HARNESS.commands].find(
+      (c) => c.path.join(' ') === command,
+    );
     expect(node?.options ?? '').toContain(option);
   }
 

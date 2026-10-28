@@ -6,8 +6,8 @@ import path from 'node:path';
 import { describe, expect } from 'vitest';
 import {
   BUILTIN_HARNESSES,
-  findCommand,
   FSM_SCHEMA,
+  HARNESS,
   harnessHome,
   headlessArgs,
   bashDecision,
@@ -34,7 +34,7 @@ import {
   readRepo,
   repoRoot,
   warn,
-} from '@shahimat/harness/expect';
+} from '@shahimat/ai-core/expect';
 import { parseJson } from './shared/guards.ts';
 
 budget({ crit: 0, warn: 0 });
@@ -360,7 +360,7 @@ const ARTIFACTS = '.claude/artifacts/plan-review';
 const TMP = (): string => path.join(repoRoot(), 'packages/harness/test/.tmp');
 
 const GOOD = `import { describe } from 'vitest';
-import { budget, crit, info, plan } from '@shahimat/harness/expect';
+import { budget, crit, info, plan } from '@shahimat/ai-core/expect';
 budget({ crit: 0, warn: 0 });
 plan({ name: 'демо' });
 info.remarks();
@@ -378,7 +378,7 @@ const BROKEN = `${GOOD}\nconst = ;\n`;
 
 const EXIT_FLAG = { last_assistant_message: 'Файл записан.\n[plan-review: exit]' };
 
-const NO_REMARKS = `import { budget, plan, step, steps } from '@shahimat/harness/expect';
+const NO_REMARKS = `import { budget, plan, step, steps } from '@shahimat/ai-core/expect';
 budget({ crit: 0, warn: 0 });
 plan({ name: 'демо' });
 steps(() => { step('T1', { title: 'шаг', after: ['T9'] }, () => {}); });
@@ -479,7 +479,7 @@ async function runFlow(options: Options): Promise<FlowResult> {
   const queue = [...(options.steps ?? [])];
   let id = '';
   const run = (words: string[]) => {
-    const match = findCommand(words);
+    const match = HARNESS.findCommand(words);
     if (match === undefined) throw new Error(`нет команды ${words.join(' ')}`);
     return match.command.run({
       root: project,
@@ -774,7 +774,7 @@ class Machine {
       const run = spawnSync(
         process.execPath,
         [
-          path.join(repoRoot(), 'packages/harness/dist/bin.js'),
+          path.join(repoRoot(), 'packages/ai-core/dist/bin.js'),
           'expect',
           'report',
           'example.expect.ts',
@@ -803,7 +803,7 @@ class Machine {
       expect(settings).toContain(event);
     expect(settings.match(/plan-review hook /g)?.length).toBe(7);
     expect(run.allowedTools.filter((t) => t.includes('plan-review hook'))).toEqual([]);
-    const hookNode = findCommand(['plan-review', 'hook', 'x', 'stop']);
+    const hookNode = HARNESS.findCommand(['plan-review', 'hook', 'x', 'stop']);
     expect(hookNode?.command.path).toEqual(['plan-review', 'hook', '<id>', '<hook>']);
   }
 
@@ -1073,9 +1073,9 @@ class Check {
       'plan-review graph',
       'plan-review hook s stop',
     ];
-    expect(lines.filter((l) => findCommand(l.split(' ')) === undefined)).toEqual([]);
+    expect(lines.filter((l) => HARNESS.findCommand(l.split(' ')) === undefined)).toEqual([]);
     for (const old of ['check', 'render', 'read', 'clone'])
-      expect(findCommand(['plan-review', old, 's'])).toBeUndefined();
+      expect(HARNESS.findCommand(['plan-review', old, 's'])).toBeUndefined();
   }
 
   static async home(): Promise<void> {
@@ -1153,7 +1153,7 @@ class Start {
     expect(f.plan).toContain("plan({ name: 'демо' })");
     expect(f.planFile).toBe(`${ARTIFACTS}/демо.expect.ts`);
     const existing =
-      "import { plan } from '@shahimat/harness/expect';\nplan({ name: 'Текущее состояние' });\n";
+      "import { plan } from '@shahimat/ai-core/expect';\nplan({ name: 'Текущее состояние' });\n";
     const own = await runFlow({
       plan: 'expectations/own.expect.ts',
       files: { 'expectations/own.expect.ts': existing },
@@ -1192,13 +1192,13 @@ class Start {
       );
       await writeFile(
         path.join(dir, file),
-        "import { describe } from 'vitest';\nimport { budget, crit, fsm, plan } from '@shahimat/harness/expect';\nbudget({ crit: 0, warn: 0 });\nplan({ name: 'Демо-план' });\nfsm('demo-flow', { initial: 'a', states: { a: { actor: 'model', on: { go: 'b' } }, b: { final: true } } });\ndescribe('раздел', () => { crit('ожидание плана', () => {}); });\n",
+        "import { describe } from 'vitest';\nimport { budget, crit, fsm, plan } from '@shahimat/ai-core/expect';\nbudget({ crit: 0, warn: 0 });\nplan({ name: 'Демо-план' });\nfsm('demo-flow', { initial: 'a', states: { a: { actor: 'model', on: { go: 'b' } }, b: { final: true } } });\ndescribe('раздел', () => { crit('ожидание плана', () => {}); });\n",
       );
       const out = path.join(dir, 'page.html');
       const run = spawnSync(
         process.execPath,
         [
-          path.join(repoRoot(), 'packages/harness/dist/bin.js'),
+          path.join(repoRoot(), 'packages/ai-core/dist/bin.js'),
           'expect',
           'report',
           file,

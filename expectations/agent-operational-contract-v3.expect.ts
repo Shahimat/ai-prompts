@@ -16,8 +16,8 @@ import {
   readRepo,
   skill,
   warn,
-} from '@shahimat/harness/expect';
-import { attention } from '@shahimat/expectations';
+} from '@shahimat/ai-core/expect';
+import { attention } from './shared/attention.ts';
 import { parse } from 'yaml';
 import { anyContract } from './shared/any-contract.expect.ts';
 import { at, parseJson, recordOrEmpty, stringList, unknownList } from './shared/guards.ts';
@@ -39,7 +39,7 @@ describe('AGENTS.md', () => {
   crit('строки блоков модулей обязательны наравне с жёсткими правилами ядра', () =>
     Check.moduleRulesBinding(),
   );
-  warn('CLAUDE.md для Claude Code — импорт @AGENTS.md, генерирует harness adapters sync', () =>
+  warn('CLAUDE.md для Claude Code — импорт @AGENTS.md, генерирует ai-core adapters sync', () =>
     Check.claudeMd(),
   );
 });
@@ -76,7 +76,7 @@ describe('форматы по схемам', () => {
   crit('шаблон manifest в skill contract-setup соответствует схеме manifest', () =>
     Check.manifestSchema(),
   );
-  crit('примеры context/harness.yml в skill harness и README пакета соответствуют схеме', () =>
+  crit('примеры context/ai-core.yml в skill harness и README пакета соответствуют схеме', () =>
     Check.harnessConfigSchema(),
   );
 });
@@ -160,7 +160,7 @@ describe('предложения в источник', () => {
     Check.driftBySha(),
   );
   crit(
-    'перед передачей файл предложения проходит harness secrets scan --file; без harness агент проверяет по тем же правилам сам',
+    'перед передачей файл предложения проходит ai-core secrets scan --file; без harness агент проверяет по тем же правилам сам',
     () => Check.feedbackSecrets(),
   );
   warn(
@@ -358,14 +358,14 @@ class Check {
   }
 
   static async harnessConfigSchema(): Promise<void> {
-    const sources = ['skills/harness/SKILL.md', 'packages/harness/README.md'];
+    const sources = ['skills/harness/SKILL.md', 'packages/ai-core/README.md'];
     const instances = await Promise.all(
       sources.map(async (s) => ({
         name: s,
         data: parseYaml(codeBlock(await readRepo(s), 'yaml', 'version:') ?? 'null'),
       })),
     );
-    await expectSchema(instances, `${SCHEMAS}/harness-config.schema.json`);
+    await expectSchema(instances, `${SCHEMAS}/ai-core-config.schema.json`);
   }
 
   static docsReadonly = (): Promise<void> => judged(['@docs-readonly']);

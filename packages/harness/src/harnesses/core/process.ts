@@ -1,9 +1,9 @@
-import { COMMAND_NODES, runScript } from '#scripts/index';
-import type { CommandArgs } from '#shared/args';
-import { UsageError } from '#shared/diagnostics';
-import { askRole } from '#lib/role';
-import { errorMessage, isRecord } from '#shared/guards';
-import type { ScriptDef } from '#shared/node';
+import { COMMAND_NODES, runScript } from '@shahimat/ai-core';
+import type { CommandArgs } from '@shahimat/ai-core';
+import { UsageError } from '@shahimat/ai-core';
+import { askRole } from '@shahimat/ai-core';
+import { errorMessage, isRecord } from '@shahimat/ai-core';
+import type { ScriptDef } from '@shahimat/ai-core';
 import { driveSession, homeOf, requireProject, type HarnessModule } from './catalog.ts';
 import type { ActionDef, Registry } from './fsm/machine.ts';
 import { loadMachine } from './load.ts';

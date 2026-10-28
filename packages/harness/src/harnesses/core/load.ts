@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { UsageError } from '#shared/diagnostics';
-import { errorMessage } from '#shared/guards';
+import { UsageError } from '@shahimat/ai-core';
+import { errorMessage } from '@shahimat/ai-core';
 import { parseMachine, staticErrors, type MachineDef, type Registry } from './fsm/machine.ts';
 import { loadPlugins } from './plugins.ts';
 import { harnessExists, harnessFile } from './store/session.ts';

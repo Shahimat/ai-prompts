@@ -4,6 +4,14 @@
 
 ## 0.4.0
 
+- Пакет — только автоматы (harness): `docs-delta`, `source-sync`,
+  `plan-review` и их ядро. Команды, скрипты, механизм ожиданий и роли
+  выделены в `@shahimat/ai-core` (CLI `ai-core`); `harness` зависит от
+  него. CLI `harness` знает только автоматы: `harness <автомат> start |
+  open | list | status | validate | graph`. Паттерны ожиданий автоматов
+  `harnessCommands` и `harnessChain` — в `@shahimat/harness/expect`
+  (пакет `@shahimat/expectations` упразднён). Записи ниже до этой
+  описывают команды, которые теперь живут в `ai-core`.
 - Роли: субагент `agents/<name>.md` получает поля `model` и `output`
   (сообщение протокола `result` / `verdict` / `question`, JSON Schema —
   `PROTOCOL`). `role run <name> --file <задание>` — роль headless через

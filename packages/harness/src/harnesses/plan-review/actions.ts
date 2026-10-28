@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { ActionDef, MachineDef, ModelRunner, Registry, Session } from '#harnesses/core/index';
 import { harnessFile, openSession } from '#harnesses/core/index';
-import { errorMessage } from '#shared/guards';
+import { aiCoreCommand, errorMessage } from '@shahimat/ai-core';
 import type { PlanPage } from './page.ts';
 import { judge, readPlanState, readReview, savePlanState } from './review.ts';
 
@@ -48,7 +48,7 @@ export function hookCommand(ctx: PlanContext, hook: HookName): string {
 
 export function reportCommand(ctx: PlanContext): string {
   return shell([
-    ...ctx.self,
+    ...aiCoreCommand(),
     'expect',
     'report',
     planFileOf(ctx.session),

@@ -1,5 +1,6 @@
 import { describe, expect } from 'vitest';
-import { COMMANDS, DELTA_DIR } from '@shahimat/harness';
+import { AI_CORE, DELTA_DIR } from '@shahimat/ai-core';
+import { HARNESS } from '@shahimat/harness';
 import {
   allAnchors,
   anchorEvidence,
@@ -11,7 +12,7 @@ import {
   judged,
   modules,
   warn,
-} from '@shahimat/harness/expect';
+} from '@shahimat/ai-core/expect';
 import { parse } from 'yaml';
 
 budget({ crit: 0, warn: 0 });
@@ -89,7 +90,9 @@ class Check {
       .map((l) => l.split('|').map((c) => c.trim()))
       .map(([, what = '', owner = '']) => ({ what, owner }));
     expect(OWNED.filter((o) => !rows.some((r) => r.what.includes(o)))).toEqual([]);
-    const commands = COMMANDS.map((c) => `harness ${c.path.join(' ')}`);
+    const commands = [AI_CORE, HARNESS].flatMap((t) =>
+      t.commands.map((c) => `${t.bin} ${c.path.join(' ')}`),
+    );
     const bad = rows.filter((r) => {
       const main = r.owner.split(';')[0]?.trim() ?? '';
       return main !== 'docs-keeper' && !commands.includes(main.replace(/`/g, ''));
@@ -113,7 +116,7 @@ class Check {
     expect(DELTA_DIR).toBe('context/.delta');
     const text = await anchorText('docs-delta');
     expect(text).toContain('context/.delta/<имя>.yml');
-    expect(text).toContain('harness delta close');
+    expect(text).toContain('ai-core delta close');
   }
 
   static async deltaOutOfContext(): Promise<void> {

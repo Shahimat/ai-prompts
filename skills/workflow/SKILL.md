@@ -51,14 +51,14 @@ description: Протоколы сценариев plan / execute / audit / chal
 5. В конце — намерения субагенту docs-keeper, проверка, отчёт:
    <!-- expect:skill-runs -->
    <!-- metadata.runs: check -->
-   `harness check`, если подключён harness.
+   `ai-core check`, если подключён harness.
    <!-- /expect:skill-runs -->
 
 ### `audit` — «проверь состояние», «прогони проверку»
 
 1. Проверка проекта:
    <!-- expect:skill-runs -->
-   `harness check`, если подключён harness.
+   `ai-core check`, если подключён harness.
    <!-- /expect:skill-runs -->
 2. Проверки подключённых возможностей по их skills (например,
    `verified` у behavior — skill `domain`).

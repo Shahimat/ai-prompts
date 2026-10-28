@@ -105,7 +105,7 @@ skill `analysis`.
 2. Добавь выбранные namespaces в `context/project.yml` (план → «да»).
 3. Поставь skill `analysis` в `.agents/skills/analysis/`.
 4. Добавь блок в `AGENTS.md`.
-5. Подключён harness с `context-index` — `harness context index`.
+5. Подключён harness с `context-index` — `ai-core context index`.
 6. Подключён `domain` и в проекте есть приложение — предложи стартовые
    behavior уровня приложения (раздел «Правило в двух уровнях» skill
    `analysis`): детекция непроверенной атрибуции, реакция «не выдавать

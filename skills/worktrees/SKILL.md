@@ -12,7 +12,7 @@ description: Параллельная работа в git worktree — где ж
 
 ## Где и как
 
-- Каталог — `worktrees.dir` из `context/harness.yml` или
+- Каталог — `worktrees.dir` из `context/ai-core.yml` или
   `.claude/worktrees/<name>` по умолчанию (совпадает с Claude Code
   `--worktree`). Каталог в `.gitignore`.
 - Создание: `claude --worktree <name>` в Claude Code, режим Worktree в
@@ -39,7 +39,7 @@ description: Параллельная работа в git worktree — где ж
 
 <!-- expect:skill-runs -->
 <!-- metadata.runs: refresh -->
-С harness после слияния — `harness refresh`: пересоберёт адаптеры и
+С harness после слияния — `ai-core refresh`: пересоберёт адаптеры и
 `context/index.yml` и проверит проект, в том числе порядок дат журнала.
 <!-- /expect:skill-runs -->
 

@@ -88,7 +88,7 @@ feature:
 В `provides` модуля v3 добавляются:
 
 - `skills`, `agents_md_block`, `harness_checks`;
-- `index_layers` — слои, которые `harness context index` включает в
+- `index_layers` — слои, которые `ai-core context index` включает в
   `context/index.yml`: `section`, `dir` и `format` — `md` (frontmatter
   `id`, `namespace`, строка индекса — первый `# …`) или `yml` (поля
   `id`, `namespace`, `summary`); `id` = путь внутри слоя без

@@ -1,8 +1,8 @@
 import { existsSync } from 'node:fs';
 import path from 'node:path';
-import type { CommandArgs } from '#shared/args';
-import { UsageError } from '#shared/diagnostics';
-import type { CommandNode } from '#shared/node';
+import type { CommandArgs } from '@shahimat/ai-core';
+import { UsageError } from '@shahimat/ai-core';
+import type { CommandNode } from '@shahimat/ai-core';
 import {
   drive,
   machineMermaid,

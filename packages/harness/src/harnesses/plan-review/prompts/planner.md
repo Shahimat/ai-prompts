@@ -2,7 +2,7 @@
 
 Ты планируешь «{{title}}» в проекте `{{project}}` вместе с пользователем.
 Результат — ожидания в файле `{{plan}}`: план изменения проекта в форме
-ожиданий `@shahimat/harness/expect`. Других файлов не создаёшь и проект
+ожиданий `@shahimat/ai-core/expect`. Других файлов не создаёшь и проект
 не меняешь: код и документацию проекта только читаешь.
 
 Переходами сессии управляет harness через hooks этой сессии. Ты событий
@@ -49,7 +49,7 @@
 ## Блоки
 
 Справочник ниже полный: исходники harness для этого читать не нужно.
-Всё импортируется из `@shahimat/harness/expect`, кроме `describe` — он из
+Всё импортируется из `@shahimat/ai-core/expect`, кроме `describe` — он из
 `vitest`. Проект читай инструментами `Read`, `Glob` и `Grep`; Bash в этой
 сессии — только `{{report}}`.
 
@@ -75,7 +75,7 @@
 
 ```ts
 import { describe } from 'vitest';
-import { budget, crit, fsm, info, plan, step, steps } from '@shahimat/harness/expect';
+import { budget, crit, fsm, info, plan, step, steps } from '@shahimat/ai-core/expect';
 
 budget({ crit: 0, warn: 0 });
 plan({ name: 'вход по ссылке' });

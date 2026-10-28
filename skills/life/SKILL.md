@@ -170,6 +170,6 @@ automated_by: [entity:<id>, behavior:<id>]  # только при app-loop
 
 <!-- expect:skill-runs -->
 <!-- metadata.runs: check -->
-С harness `id`, `namespace` и `summary` проверяет `harness check`
+С harness `id`, `namespace` и `summary` проверяет `ai-core check`
 (`context-index`): запусти его после записи.
 <!-- /expect:skill-runs -->

@@ -104,6 +104,6 @@ verified_note: <чем проверено или что мешает>
 
 <!-- expect:skill-runs -->
 <!-- metadata.runs: check -->
-С harness часть проверяет `harness check` (`context-index`): `id`,
+С harness часть проверяет `ai-core check` (`context-index`): `id`,
 namespace, `summary` / `title` — запусти его после правки.
 <!-- /expect:skill-runs -->

@@ -34,8 +34,8 @@
     },
     {
       "files": [
-        "packages/harness/src/lib/expect/levels.ts",
-        "packages/harness/src/lib/expect/plan.ts"
+        "packages/ai-core/src/lib/expect/levels.ts",
+        "packages/ai-core/src/lib/expect/plan.ts"
       ],
       "rules": {
         "vitest/valid-title": "off",
@@ -44,20 +44,26 @@
       }
     },
     {
-      "files": ["packages/harness/src/commands/delta/delta.ts"],
+      "files": ["packages/ai-core/src/commands/delta/delta.ts"],
       "rules": {
         "unicorn/no-thenable": "off"
       }
     },
     {
-      "files": ["packages/harness/src/shared/**/*.ts"],
+      "files": ["packages/ai-core/src/shared/**/*.ts"],
       "rules": {
         "no-restricted-imports": [
           "error",
           {
             "patterns": [
               {
-                "group": ["#lib/**", "#commands/**", "#scripts/**", "#harnesses/**"],
+                "group": [
+                  "#lib/**",
+                  "#commands/**",
+                  "#scripts/**",
+                  "@shahimat/harness",
+                  "@shahimat/harness/**"
+                ],
                 "message": "shared — нижний слой: импортирует только shared"
               }
             ]
@@ -66,14 +72,19 @@
       }
     },
     {
-      "files": ["packages/harness/src/lib/**/*.ts"],
+      "files": ["packages/ai-core/src/lib/**/*.ts"],
       "rules": {
         "no-restricted-imports": [
           "error",
           {
             "patterns": [
               {
-                "group": ["#commands/**", "#scripts/**", "#harnesses/**"],
+                "group": [
+                  "#commands/**",
+                  "#scripts/**",
+                  "@shahimat/harness",
+                  "@shahimat/harness/**"
+                ],
                 "message": "lib импортирует только shared и lib"
               }
             ]
@@ -82,14 +93,14 @@
       }
     },
     {
-      "files": ["packages/harness/src/commands/**/*.ts"],
+      "files": ["packages/ai-core/src/commands/**/*.ts"],
       "rules": {
         "no-restricted-imports": [
           "error",
           {
             "patterns": [
               {
-                "group": ["#scripts/**", "#harnesses/**"],
+                "group": ["#scripts/**", "@shahimat/harness", "@shahimat/harness/**"],
                 "message": "команда не вызывает скрипты и harness"
               }
             ]
@@ -98,14 +109,14 @@
       }
     },
     {
-      "files": ["packages/harness/src/scripts/**/*.ts"],
+      "files": ["packages/ai-core/src/scripts/**/*.ts"],
       "rules": {
         "no-restricted-imports": [
           "error",
           {
             "patterns": [
               {
-                "group": ["#harnesses/**"],
+                "group": ["@shahimat/harness", "@shahimat/harness/**"],
                 "message": "скрипт агрегирует только команды"
               }
             ]
@@ -132,7 +143,23 @@
           }
         ]
       }
+    },
+    {
+      "files": ["packages/ai-core/src/*.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["@shahimat/harness", "@shahimat/harness/**"],
+                "message": "ai-core не зависит от harness: автоматы — над командами"
+              }
+            ]
+          }
+        ]
+      }
     }
   ],
-  "ignorePatterns": ["**/dist/**", "packages/harness/test/.tmp/**"]
+  "ignorePatterns": ["**/dist/**", "packages/ai-core/test/.tmp/**", "packages/harness/test/.tmp/**"]
 }

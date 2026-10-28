@@ -1,7 +1,7 @@
 {
   "name": "@shahimat/harness",
   "version": "0.4.0",
-  "description": "Harness для проектов на контрактах ai-prompts: генераторы и проверки",
+  "description": "Автоматы (harness) для проектов на контрактах ai-prompts: docs-delta, source-sync, plan-review",
   "license": "MIT",
   "author": "Gevorg Nakhapetyan",
   "repository": {
@@ -15,12 +15,9 @@
   },
   "keywords": [
     "ai-agents",
-    "agents-md",
-    "claude-code",
-    "codex",
-    "docs-as-code",
-    "changelog",
-    "lint"
+    "harness",
+    "state-machine",
+    "claude-code"
   ],
   "type": "module",
   "engines": {
@@ -35,8 +32,8 @@
       "import": "./dist/index.js"
     },
     "./expect": {
-      "types": "./dist/lib/expect/index.d.ts",
-      "import": "./dist/lib/expect/index.js"
+      "types": "./dist/expect/index.d.ts",
+      "import": "./dist/expect/index.js"
     }
   },
   "imports": {
@@ -58,8 +55,7 @@
     "prepublishOnly": "npm run typecheck && npm test && npm run build"
   },
   "dependencies": {
-    "@hpcc-js/wasm-graphviz": "^1.29.2",
-    "ajv": "^8.20.0",
+    "@shahimat/ai-core": "0.1.0",
     "yaml": "^2.9.1"
   },
   "devDependencies": {

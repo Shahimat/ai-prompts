@@ -1,4 +1,4 @@
-import { UsageError } from '#shared/diagnostics';
+import { UsageError } from '@shahimat/ai-core';
 import { loadMachine, type MachineDef, type Registry } from '#harnesses/core/index';
 import { planReviewRegistry, type PlanContext } from './actions.ts';
 
