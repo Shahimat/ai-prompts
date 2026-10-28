@@ -44,7 +44,9 @@
   exit code 2 или `permissionDecision: "deny"`. Кроссплатформенный
   запуск — exec-форма `"command": "node", "args": [...]`, без shell.
 - **Вопрос с выбором нескольких вариантов.** Claude Code —
-  `AskUserQuestion` с `multiSelect`. Codex — `request_user_input`, не во
+  `AskUserQuestion` с `multiSelect`; в вопросе 2–4 варианта, за раз до 4
+  вопросов — длинный чеклист модулей в один вопрос не влезает
+  (проверено пробной установкой 2026-10-28). Codex — `request_user_input`, не во
   всех режимах, multi-select не подтверждён.
 - **Worktrees.** Claude Code — `--worktree`, `.claude/worktrees/`,
   `.worktreeinclude` (копирует только игнорируемые git файлы). Codex —
