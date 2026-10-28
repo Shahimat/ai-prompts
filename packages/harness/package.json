@@ -23,15 +23,14 @@
   "engines": {
     "node": ">=24"
   },
-  "bin": {
-    "harness": "dist/bin.js"
-  },
   "exports": {
     ".": {
+      "source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
     "./expect": {
+      "source": "./src/expect/index.ts",
       "types": "./dist/expect/index.d.ts",
       "import": "./dist/expect/index.js"
     }
@@ -61,7 +60,8 @@
   "devDependencies": {
     "@types/node": "^24.19.2",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.4"
+    "vitest": "^5.0.4",
+    "@shahimat/cli": "0.1.0"
   },
   "publishConfig": {
     "access": "public"

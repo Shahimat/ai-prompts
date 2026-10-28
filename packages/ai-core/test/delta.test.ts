@@ -6,7 +6,7 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildContextIndex } from '#commands/context/context-index';
 import { checkDelta, revisionLines } from '#commands/delta/delta';
-import { main, run } from '#cli';
+import { main, run } from '@shahimat/cli';
 
 const NOW = new Date('2026-10-14T12:00:00Z');
 
@@ -65,7 +65,7 @@ afterEach(async () => {
   await rm(root, { recursive: true, force: true });
 });
 
-describe('ai-core delta check', () => {
+describe('ai delta check', () => {
   it('0 — только добавления, без дельты', async () => {
     await put('context/conventions/new.yml', 'key: new\nsummary: новое\nrule: x\n');
     await put(
@@ -133,7 +133,7 @@ describe('ai-core delta check', () => {
   });
 });
 
-describe('ai-core delta close', () => {
+describe('ai delta close', () => {
   it('1 — пункт не выполнен: дельта остаётся', async () => {
     await put('context/.delta/naming.yml', REVISE);
     expect(await main(['delta', 'close', '--root', root], NOW)).toBe(1);

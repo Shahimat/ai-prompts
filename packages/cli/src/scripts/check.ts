@@ -1,4 +1,4 @@
-import type { ScriptDef } from '#shared/node';
+import type { ScriptDef } from '@shahimat/ai-core';
 
 export const CHECK: ScriptDef = {
   path: ['check'],

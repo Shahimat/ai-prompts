@@ -20,12 +20,12 @@
 реализация.
 
 ```text
-harness plan-review start <file> [--request <запрос>]
+ai plan-review start <file> [--request <запрос>]
 ```
 
 Существующий файл — план изменения его состояния; нового нет —
 создаётся каркас с `plan({ name })`. Смотреть план —
-`ai-core expect serve <file>`.
+`ai expect serve <file>`.
 
 ## Автомат
 
@@ -78,7 +78,7 @@ analyze` без чистого ревью (3), `build` — блокировки 
 
 ## Hooks сессии планера
 
-Команда `harness plan-review hook <id> <hook>` читает JSON hook со stdin
+Команда `ai plan-review hook <id> <hook>` читает JSON hook со stdin
 и решает по состоянию автомата.
 
 | Hook Claude Code | `<hook>` | Событие |
@@ -136,7 +136,7 @@ plan-review — в его каталоге.
 «Stop hook error» и при JSON `decision: block`. Просьба выйти без правки
 файла застревала в `gathering` — отсюда переход `replied`.
 
-Проверено пробой 2026-10-22: сквозной прогон `harness plan-review start`
+Проверено пробой 2026-10-22: сквозной прогон `ai plan-review start`
 в терминале — запрос, вопросы, запись, ревью, страница, `replied`;
 `last_assistant_message` в JSON hook `Stop` несёт флаг выхода, автомат
 уходит в `finished`. `--disable-slash-commands` отключает и встроенные

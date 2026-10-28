@@ -1,14 +1,6 @@
-import { CHECK, COMMAND_NODES, REFRESH, runScript } from './scripts/index.ts';
-import type { Command, ScriptDef } from './shared/node.ts';
+import type { Command } from '#shared/node';
 
-export type { Command } from './shared/node.ts';
-
-export const scriptCommand = (def: ScriptDef): Command => ({
-  path: def.path,
-  kind: 'script',
-  steps: def.steps,
-  run: (args) => runScript(def, args),
-});
+export type { Command } from '#shared/node';
 
 const isParam = (segment: string): boolean => segment.startsWith('<') && segment.endsWith('>');
 
@@ -79,16 +71,3 @@ export function commandTree(bin: string, commands: readonly Command[]): CommandT
       ].join('\n'),
   };
 }
-
-export const AI_CORE = commandTree('ai-core', [
-  scriptCommand(CHECK),
-  scriptCommand(REFRESH),
-  ...COMMAND_NODES,
-]);
-
-export const COMMANDS = AI_CORE.commands;
-export const findCommand = AI_CORE.findCommand;
-export const commandsUnder = AI_CORE.commandsUnder;
-export const isNamespace = AI_CORE.isNamespace;
-export const childrenOf = AI_CORE.childrenOf;
-export const renderUsage = AI_CORE.renderUsage;

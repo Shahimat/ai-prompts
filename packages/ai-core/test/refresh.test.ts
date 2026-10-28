@@ -4,7 +4,7 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { main } from '#cli';
+import { main } from '@shahimat/cli';
 
 const NOW = new Date('2026-10-14T12:00:00Z');
 let root: string;
@@ -27,7 +27,7 @@ afterEach(async () => {
   await rm(root, { recursive: true, force: true });
 });
 
-describe('ai-core refresh', () => {
+describe('ai refresh', () => {
   it('пересобирает context/index.yml и проверяет проект', async () => {
     await put('context/ai-core.yml', 'checks:\n  context-index: {}\n');
     await put('context/project.yml', 'name: demo\nnamespaces:\n  core: ядро\n');

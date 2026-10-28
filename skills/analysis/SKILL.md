@@ -264,7 +264,7 @@ synthesis: null                    # как система развилась, �
 3. Индекс обновлён и проект проверен:
    <!-- expect:skill-runs -->
    <!-- metadata.runs: refresh -->
-   `ai-core refresh`; без harness — у новых сущностей есть `summary`.
+   `ai refresh`; без harness — у новых сущностей есть `summary`.
    <!-- /expect:skill-runs -->
    Следующий виток видит добавленное.
 4. Новая фактура касается моих взглядов — `reconciled` и диалектика.

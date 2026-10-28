@@ -1,5 +1,5 @@
 import { createInterface } from 'node:readline/promises';
-import { AI_CORE, type CommandTree } from './tree.ts';
+import type { CommandTree } from '@shahimat/ai-core';
 
 export function splitWords(line: string): string[] {
   const words: string[] = [];
@@ -15,11 +15,7 @@ export interface ShellStep {
   exit?: boolean;
 }
 
-export function shellStep(
-  cwd: readonly string[],
-  line: string,
-  tree: CommandTree = AI_CORE,
-): ShellStep {
+export function shellStep(cwd: readonly string[], line: string, tree: CommandTree): ShellStep {
   const { childrenOf, findCommand, isNamespace, renderUsage } = tree;
   const words = splitWords(line);
   const here = [...cwd];
@@ -38,12 +34,12 @@ export function shellStep(
   return { cwd: here, run: full };
 }
 
-export const promptOf = (cwd: readonly string[], bin = AI_CORE.bin): string =>
+export const promptOf = (cwd: readonly string[], bin = 'ai'): string =>
   `/${[bin, ...cwd].join('/')}> `;
 
 export async function runShell(
   exec: (words: string[]) => Promise<number>,
-  tree: CommandTree = AI_CORE,
+  tree: CommandTree,
 ): Promise<number> {
   let cwd: string[] = [];
   for (;;) {

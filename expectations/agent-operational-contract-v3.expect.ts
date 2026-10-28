@@ -39,7 +39,7 @@ describe('AGENTS.md', () => {
   crit('строки блоков модулей обязательны наравне с жёсткими правилами ядра', () =>
     Check.moduleRulesBinding(),
   );
-  warn('CLAUDE.md для Claude Code — импорт @AGENTS.md, генерирует ai-core adapters sync', () =>
+  warn('CLAUDE.md для Claude Code — импорт @AGENTS.md, генерирует ai adapters sync', () =>
     Check.claudeMd(),
   );
 });
@@ -160,7 +160,7 @@ describe('предложения в источник', () => {
     Check.driftBySha(),
   );
   crit(
-    'перед передачей файл предложения проходит ai-core secrets scan --file; без harness агент проверяет по тем же правилам сам',
+    'перед передачей файл предложения проходит ai secrets scan --file; без harness агент проверяет по тем же правилам сам',
     () => Check.feedbackSecrets(),
   );
   warn(
@@ -358,11 +358,11 @@ class Check {
   }
 
   static async harnessConfigSchema(): Promise<void> {
-    const sources = ['skills/harness/SKILL.md', 'packages/ai-core/README.md'];
+    const sources = ['skills/cli/SKILL.md', 'packages/ai-core/README.md'];
     const instances = await Promise.all(
       sources.map(async (s) => ({
         name: s,
-        data: parseYaml(codeBlock(await readRepo(s), 'yaml', 'version:') ?? 'null'),
+        data: parseYaml(codeBlock(await readRepo(s), 'yaml', 'adapters:') ?? 'null'),
       })),
     );
     await expectSchema(instances, `${SCHEMAS}/ai-core-config.schema.json`);

@@ -4,12 +4,14 @@ import { mkdtemp, readdir, readFile, realpath, rm, writeFile, mkdir } from 'node
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
+import * as cliPkg from '@shahimat/cli';
+import { BUILTIN_TREE, splitWords } from '@shahimat/cli';
 import {
-  AI_CORE,
   buildContextIndex,
   computeSync,
   DELTA_SCHEMA,
   DEFAULT_CHANGELOG,
+  guardDecision,
   headlessArgs,
   interactiveArgs,
   KNOWN_ADAPTERS,
@@ -17,11 +19,9 @@ import {
   parseConfig,
   parseFrontmatter,
   runOutdated,
-  splitWords,
   UsageError,
   type Command,
 } from '@shahimat/ai-core';
-import * as harnessPkg from '@shahimat/ai-core';
 import {
   createSession,
   HARNESS,
@@ -59,11 +59,11 @@ budget({ crit: 0, warn: 5 });
 
 describe('[harness] common', () => {
   crit(
-    'состав harness: команды и скрипты check, refresh, changelog, context, adapters, delta, outdated, expect, index, secrets, role; harness plan-review, docs-delta, source-sync — команды под его именем',
+    'состав: команды ai-core — check, refresh, changelog, context, adapters, delta, docs, outdated, expect, index, secrets, role; автоматы harness — plan-review, docs-delta, source-sync',
     () => Check.composition(),
   );
   crit(
-    'пакеты: @shahimat/ai-core — команды, механизм ожиданий и роли; @shahimat/harness — только автоматы; других нет',
+    'пакеты: @shahimat/cli — точка входа ai и скрипты; @shahimat/ai-core — ядро: команды, ожидания, роли; @shahimat/harness — автоматы; других нет',
     () => Check.packages(),
   );
   crit(
@@ -187,7 +187,7 @@ describe('[harness] layers', () => {
 });
 
 describe('[harness] refresh', () => {
-  crit('скрипт ai-core refresh — context index и adapters sync, затем шаги check', () =>
+  crit('скрипт ai refresh — context index и adapters sync, затем шаги check', () =>
     Processes.refresh(),
   );
 });
@@ -230,42 +230,39 @@ describe('[harness] source-sync', () => {
 });
 
 describe('[harness] check', () => {
-  crit('команда ai-core check — все проверки из context/ai-core.yml разом', () =>
+  crit('команда ai check — все проверки из context/ai-core.yml разом', () =>
     Check.commands(['check']),
   );
-  crit('проверки ai-core check: changelog, context-index, adapters, secrets — других нет', () =>
+  crit('проверки ai check: changelog, context-index, adapters, secrets — других нет', () =>
     Check.checks(),
   );
 });
 
 describe('[harness] changelog', () => {
-  crit('команда ai-core changelog lint — формат CHANGELOG.md', () =>
-    Check.commands(['changelog lint']),
-  );
+  crit('команда ai changelog lint — формат CHANGELOG.md', () => Check.commands(['changelog lint']));
   crit('строка журнала — не длиннее 120 символов', () => Check.changelogLine());
   crit('теги ядра — ровно arch, stack, dep, milestone', () => Check.coreTags());
 });
 
 describe('[harness] context', () => {
-  crit('команда ai-core context index — генерация context/index.yml из слоёв документации', () =>
+  crit('команда ai context index — генерация context/index.yml из слоёв документации', () =>
     Check.commands(['context index']),
   );
   crit(
-    'команда ai-core context check — сверка context/index.yml со слоями документации без записи',
+    'команда ai context check — сверка context/index.yml со слоями документации без записи',
     () => Check.commands(['context check']),
   );
-  warn('context/index.yml генерируется ai-core context index и не содержит даты генерации', () =>
+  warn('context/index.yml генерируется ai context index и не содержит даты генерации', () =>
     Check.contextIndexNoDate(),
   );
 });
 
 describe('[harness] adapters', () => {
-  crit(
-    'команда ai-core adapters sync — файлы под Claude Code и Codex из AGENTS.md и .agents/',
-    () => Check.commands(['adapters sync']),
+  crit('команда ai adapters sync — файлы под Claude Code и Codex из AGENTS.md и .agents/', () =>
+    Check.commands(['adapters sync']),
   );
   crit(
-    'команда ai-core adapters check — сверка файлов адаптеров с AGENTS.md и .agents/ без записи',
+    'команда ai adapters check — сверка файлов адаптеров с AGENTS.md и .agents/ без записи',
     () => Check.commands(['adapters check']),
   );
   crit('адаптеры под инструменты: claude-code и codex — других нет', () => Check.adapters());
@@ -277,23 +274,37 @@ describe('[harness] adapters', () => {
 });
 
 describe('[harness] outdated', () => {
-  crit('команда ai-core outdated — версия проекта против npm и журнал изменений между ними', () =>
+  crit('команда ai outdated — версия проекта против npm и журнал изменений между ними', () =>
     Check.commands(['outdated']),
   );
-  crit('ai-core outdated сообщает текущую и последнюю версию и записи журнала между ними', () =>
+  crit('ai outdated сообщает текущую и последнюю версию и записи журнала между ними', () =>
     Check.outdatedReport(),
   );
 });
 
+describe('[ai-core] docs guard', () => {
+  crit(
+    'команда ai docs guard — hook PreToolUse: Edit или Write в документацию и генерируемые файлы — отказ, в код — пропуск',
+    () => Guard.decision(),
+  );
+  crit(
+    'adapters sync с hooks: [docs-guard] ставит hook ai docs guard в .claude/settings.json, свои hooks пользователя сохраняет',
+    () => Guard.installed(),
+  );
+  crit('версии пакетов — в package.json проекта: в context/ai-core.yml ключа version нет', () =>
+    Guard.noConfigVersion(),
+  );
+});
+
 describe('[harness] role', () => {
-  crit('команды ai-core role run <name> | channel <message> — роль headless и её MCP-канал', () =>
+  crit('команды ai role run <name> | channel <message> — роль headless и её MCP-канал', () =>
     Check.commands(['role run <name>', 'role channel <message>']),
   );
 });
 
 describe('[harness] expect', () => {
   crit(
-    'команды ai-core expect init | report <file> | lint <file> | judge <file> | serve <file> — ожидания проекта',
+    'команды ai expect init | report <file> | lint <file> | judge <file> | serve <file> — ожидания проекта',
     () =>
       Check.commands([
         'expect init',
@@ -340,7 +351,7 @@ describe('[harness] expect', () => {
   );
   crit('ожидание — не длиннее 200 символов', () => Check.titleLimit());
   crit(
-    'ai-core expect serve <file> [--port <n>] — HTML-отчёт ожиданий с локального сервера на 127.0.0.1; файлов не пишет',
+    'ai expect serve <file> [--port <n>] — HTML-отчёт ожиданий с локального сервера на 127.0.0.1; файлов не пишет',
     () => Serve.readOnly(),
   );
   crit(
@@ -478,9 +489,8 @@ describe('[harness] expect plan', () => {
 });
 
 describe('[harness] delta', () => {
-  crit(
-    'команды ai-core delta check | close — дельта проектной документации в context/.delta/',
-    () => Check.commands(['delta check', 'delta close']),
+  crit('команды ai delta check | close — дельта проектной документации в context/.delta/', () =>
+    Check.commands(['delta check', 'delta close']),
   );
   crit(
     'delta check: удалённая или изменённая относительно HEAD сущность слоёв документации без пункта revise — нарушение',
@@ -496,7 +506,7 @@ describe('[harness] delta', () => {
 });
 
 describe('[harness] secrets', () => {
-  crit('команда ai-core secrets scan [--file <path>] — поиск секретов в проекте или в файле', () =>
+  crit('команда ai secrets scan [--file <path>] — поиск секретов в проекте или в файле', () =>
     Check.commands(['secrets scan']),
   );
   crit(
@@ -504,7 +514,7 @@ describe('[harness] secrets', () => {
     () => Check.secretsFound(),
   );
   crit(
-    'secrets включена в ai-core check по умолчанию; выключить её можно только явно в context/ai-core.yml',
+    'secrets включена в ai check по умолчанию; выключить её можно только явно в context/ai-core.yml',
     () => Check.secretsByDefault(),
   );
   crit(
@@ -524,7 +534,7 @@ describe('[harness] secrets', () => {
 });
 
 describe('[harness] index', () => {
-  crit('команды ai-core index build | check — индекс prompts/index.yml источника промптов', () =>
+  crit('команды ai index build | check — индекс prompts/index.yml источника промптов', () =>
     Check.commands(['index build', 'index check']),
   );
   crit('у skill в индексе sha256 каждого файла', () => Check.skillFileShas());
@@ -533,17 +543,13 @@ describe('[harness] index', () => {
 const PKG = 'packages/ai-core';
 const HARNESS_PKG = 'packages/harness';
 const SCHEMAS = 'expectations/schemas';
-const COMMANDS: readonly Command[] = [...AI_CORE.commands, ...HARNESS.commands];
+const CLI_PKG = 'packages/cli';
+const COMMANDS: readonly Command[] = [...BUILTIN_TREE.commands, ...HARNESS.commands];
 const findCommand = (words: readonly string[]) =>
-  AI_CORE.findCommand(words) ?? HARNESS.findCommand(words);
-const renderUsage = (): string => `${AI_CORE.renderUsage()}\n${HARNESS.renderUsage()}`;
-const binName = (words: readonly string[]): string =>
-  HARNESS.findCommand(words) !== undefined ||
-  (words.length > 0 && HARNESS.isNamespace(words.slice(0, 1)))
-    ? 'harness'
-    : 'ai-core';
-const BIN = (words: readonly string[] = []) =>
-  path.join(repoRoot(), binName(words) === 'harness' ? HARNESS_PKG : PKG, 'dist/bin.js');
+  BUILTIN_TREE.findCommand(words) ?? HARNESS.findCommand(words);
+const renderUsage = (): string => `${BUILTIN_TREE.renderUsage()}\n${HARNESS.renderUsage()}`;
+const binName = (_words: readonly string[]): string => 'ai';
+const BIN = (_words: readonly string[] = []) => path.join(repoRoot(), CLI_PKG, 'dist/bin.js');
 const cli = (args: string[], cwd = repoRoot()) =>
   spawnSync(process.execPath, [BIN(args), ...args], { cwd, encoding: 'utf8' }).status;
 
@@ -642,6 +648,7 @@ const DECLARED_COMMANDS = [
   'index build',
   'index check',
   'secrets scan',
+  'docs guard',
   'role run <name>',
   'role channel <message>',
   'refresh',
@@ -672,7 +679,7 @@ class Check {
 
   static async secretsByDefault(): Promise<void> {
     const sample = SECRET_SAMPLES['api-key'] ?? '';
-    await withSecretProject('version: "0"\n', sample, async (dir) => {
+    await withSecretProject('adapters: []\n', sample, async (dir) => {
       expect(cli(['check', '--root', dir])).toBe(1);
     });
     await withSecretProject('checks:\n  secrets: false\n', sample, async (dir) => {
@@ -727,7 +734,7 @@ class Check {
         stringAt(parseJson(await readRepo(`packages/${d}/package.json`)), 'name'),
       ),
     );
-    expect(names.sort()).toEqual(['@shahimat/ai-core', '@shahimat/harness']);
+    expect(names.sort()).toEqual(['@shahimat/ai-core', '@shahimat/cli', '@shahimat/harness']);
   }
 
   static async commands(list: string[]): Promise<void> {
@@ -742,6 +749,7 @@ class Check {
       'check',
       'context',
       'delta',
+      'docs',
       'docs-delta',
       'expect',
       'index',
@@ -818,7 +826,7 @@ class Check {
     const commands = await usageCommands();
     const tests = (
       await Promise.all(
-        [PKG, HARNESS_PKG].flatMap(async (pkg) =>
+        [PKG, CLI_PKG, HARNESS_PKG].flatMap(async (pkg) =>
           Promise.all(
             (await readdir(path.join(repoRoot(), pkg, 'test')))
               .filter((f) => f.endsWith('.test.ts'))
@@ -873,8 +881,7 @@ class Check {
         (c) => !usage.includes(`${binName(c.split(' '))} ${c}`),
       ),
     ).toEqual([]);
-    for (const pkg of [PKG, HARNESS_PKG])
-      expect(await readRepo(`${pkg}/src/cli.ts`)).not.toMatch(/switch \(|Использование:/);
+    expect(await readRepo(`${CLI_PKG}/src/cli.ts`)).not.toMatch(/switch \(|Использование:/);
   }
 
   static configErrorPath(): void {
@@ -1046,8 +1053,10 @@ class Check {
     const logs: string[] = [];
     const log = console.log;
     try {
-      await mkdir(path.join(dir, 'context'));
-      await writeFile(path.join(dir, 'context/ai-core.yml'), 'version: 0.1.0\n');
+      await writeFile(
+        path.join(dir, 'package.json'),
+        JSON.stringify({ devDependencies: { '@shahimat/ai-core': '0.1.0' } }),
+      );
       const changelog = '## 0.3.0\n\n- новое C\n\n## 0.2.0\n\n- новое B\n\n## 0.1.0\n\n- старое\n';
       console.log = (...a: unknown[]) => logs.push(a.join(' '));
       const code = await runOutdated({ root: dir, now: new Date() }, async (url) => ({
@@ -1073,15 +1082,16 @@ class Check {
 
 const LAYERS = ['shared', 'lib', 'commands', 'scripts', 'harnesses', 'app'] as const;
 type Layer = (typeof LAYERS)[number];
-const APP_FILES = ['bin.ts', 'cli.ts', 'index.ts', 'tree.ts', 'shell.ts'];
+const APP_FILES = ['index.ts', 'registry.ts'];
 const FACADE = 'index.ts';
 
 const HARNESS_APP = 'app:harness/';
-const AI_CORE_API = 'scripts/@shahimat/ai-core.ts';
+const CLI_APP = 'app:cli/';
+const AI_CORE_API = 'lib/@shahimat/ai-core.ts';
 
 function layerOf(file: string): Layer | undefined {
-  if (APP_FILES.includes(file) || file.startsWith(HARNESS_APP)) return 'app';
-  if (file === AI_CORE_API) return 'scripts';
+  if (APP_FILES.includes(file) || file.startsWith(HARNESS_APP) || file.startsWith(CLI_APP))
+    return 'app';
   const [head = '', ...rest] = file.split('/');
   if (head === 'harnesses' && rest.length === 1 && rest[0] !== 'index.ts') return undefined;
   return LAYERS.find((l) => l === head && l !== 'app' && rest.length > 0);
@@ -1107,38 +1117,50 @@ const tsFiles = async (pkg: string): Promise<string[]> =>
 const inHarness = (file: string): boolean =>
   file.startsWith('harnesses/') || file.startsWith(HARNESS_APP);
 
+const inCli = (file: string): boolean => file.startsWith('scripts/') || file.startsWith(CLI_APP);
+
+const packageOf = (file: string): string =>
+  inHarness(file) ? HARNESS_PKG : inCli(file) ? CLI_PKG : PKG;
+
+const prefixOf = (file: string): string =>
+  file.startsWith(HARNESS_APP) ? HARNESS_APP : file.startsWith(CLI_APP) ? CLI_APP : '';
+
+const ownLayerDir = (file: string): string => (inHarness(file) ? 'harnesses/' : 'scripts/');
+
 const realPath = (file: string): string =>
-  inHarness(file)
-    ? `${HARNESS_PKG}/src/${file.startsWith(HARNESS_APP) ? file.slice(HARNESS_APP.length) : file}`
-    : `${PKG}/src/${file}`;
+  `${packageOf(file)}/src/${file.slice(prefixOf(file).length)}`;
 
 async function srcFiles(): Promise<string[]> {
-  const harness = (await tsFiles(HARNESS_PKG)).map((f) =>
-    f.startsWith('harnesses/') ? f : `${HARNESS_APP}${f}`,
-  );
-  return [...(await tsFiles(PKG)), ...harness];
+  const mapped = async (pkg: string, layerDir: string, app: string): Promise<string[]> =>
+    (await tsFiles(pkg)).map((f) => (f.startsWith(layerDir) ? f : `${app}${f}`));
+  return [
+    ...(await tsFiles(PKG)),
+    ...(await mapped(CLI_PKG, 'scripts/', CLI_APP)),
+    ...(await mapped(HARNESS_PKG, 'harnesses/', HARNESS_APP)),
+  ];
+}
+
+function rebase(file: string, rel: string): string {
+  const app = inHarness(file) ? HARNESS_APP : inCli(file) ? CLI_APP : '';
+  return app !== '' && !rel.startsWith(ownLayerDir(file)) ? `${app}${rel}` : rel;
 }
 
 function resolveSpec(file: string, spec: string): string {
   if (spec.startsWith('@shahimat/ai-core')) return AI_CORE_API;
   if (spec.startsWith('@shahimat/harness')) return 'harnesses/index.ts';
-  if (spec.startsWith('#')) {
-    const target = `${spec.slice(1)}.ts`;
-    return inHarness(file) && !target.startsWith('harnesses/') ? `${HARNESS_APP}${target}` : target;
-  }
-  const own = file.startsWith(HARNESS_APP) ? file.slice(HARNESS_APP.length) : file;
-  const joined = path.posix.normalize(path.posix.join(path.posix.dirname(own), spec));
-  return file.startsWith(HARNESS_APP) && !joined.startsWith('harnesses/')
-    ? `${HARNESS_APP}${joined}`
-    : joined;
+  if (spec.startsWith('@shahimat/cli')) return `${CLI_APP}index.ts`;
+  if (spec.startsWith('#')) return rebase(file, `${spec.slice(1)}.ts`);
+  const own = file.slice(prefixOf(file).length);
+  return rebase(file, path.posix.normalize(path.posix.join(path.posix.dirname(own), spec)));
 }
 
 async function importsOf(file: string): Promise<string[]> {
   const text = await readRepo(realPath(file));
+  const core = packageOf(file) === PKG;
   return [...text.matchAll(/(?:from |import\()'([.#@][^']+)'/g)]
     .map((m) => m[1] ?? '')
     .filter((spec) => !spec.startsWith('@') || spec.startsWith('@shahimat/'))
-    .filter((spec) => inHarness(file) || !spec.startsWith('@shahimat/ai-core'))
+    .filter((spec) => !core || !spec.startsWith('@shahimat/ai-core'))
     .map((spec) => resolveSpec(file, spec));
 }
 
@@ -1227,6 +1249,54 @@ function harnessWords(line: string): string[] | undefined {
   const rest = words.slice(start + 1);
   const end = rest.findIndex((w) => w.startsWith('--'));
   return end < 0 ? rest : rest.slice(0, end);
+}
+
+class Guard {
+  static async decision(): Promise<void> {
+    await Check.commands(['docs guard']);
+    const dir = await tempDir();
+    try {
+      const edit = (file: string, tool = 'Edit') => ({
+        tool_name: tool,
+        tool_input: { file_path: file },
+      });
+      const blocked = async (file: string, tool?: string) =>
+        (await guardDecision(dir, edit(file, tool))).block;
+      expect({
+        changelog: await blocked('CHANGELOG.md', 'Write'),
+        convention: await blocked('context/conventions/x.yml'),
+        index: await blocked('context/index.yml'),
+        adapter: await blocked('CLAUDE.md'),
+        code: await blocked('src/app.ts'),
+      }).toEqual({ changelog: true, convention: true, index: true, adapter: true, code: false });
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  }
+
+  static async installed(): Promise<void> {
+    const dir = await tempDir();
+    try {
+      await writeFile(path.join(dir, 'AGENTS.md'), '# x\n');
+      await mkdir(path.join(dir, '.claude'));
+      const own = { matcher: 'Bash', hooks: [{ type: 'command', command: 'echo own' }] };
+      await writeFile(
+        path.join(dir, '.claude/settings.json'),
+        JSON.stringify({ hooks: { PreToolUse: [own] } }),
+      );
+      const { actions } = await computeSync(dir, ['claude-code'], ['docs-guard']);
+      const settings = actions.find((a) => a.path === '.claude/settings.json');
+      const text = settings?.content?.toString('utf8') ?? '';
+      expect(text).toContain('docs guard');
+      expect(text).toContain('echo own');
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  }
+
+  static noConfigVersion(): void {
+    expect(() => parseConfig('version: 0.4.0\n')).toThrow(UsageError);
+  }
 }
 
 class Layers {
@@ -1498,7 +1568,7 @@ class Layers {
 const HARNESSES = `${HARNESS_PKG}/src/harnesses`;
 const HARNESS_NAME = /^[a-z][a-z0-9]*(-[a-z0-9]+)+$/;
 const RUNS_ANCHOR = 'skill-runs';
-const MENTION = /`(?:harness|ai-core) [a-z]/;
+const MENTION = /`(?:ai|npx ai) [a-z]/;
 
 interface SkillFile {
   name: string;
@@ -1518,8 +1588,7 @@ async function skillFiles(): Promise<SkillFile[]> {
   );
 }
 
-const runsCall = (runs: string): string =>
-  `${HARNESS_NAME.test(runs) ? 'harness' : 'ai-core'} ${runs}`;
+const runsCall = (runs: string): string => `ai ${runs}`;
 
 const outsideRuns = (s: SkillFile): string =>
   markdownRegions(s.text, s.path)
@@ -1623,7 +1692,7 @@ class Processes {
   }
 
   static docsVerify(): void {
-    expect(stepCommands(at(harnessPkg, 'DOCS_VERIFY', 'steps'))).toEqual([
+    expect(stepCommands(at(cliPkg, 'DOCS_VERIFY', 'steps'))).toEqual([
       'context index',
       'adapters sync',
       'delta check',

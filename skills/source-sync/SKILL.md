@@ -51,6 +51,11 @@ Manifest каждого модуля — `context/modules/<key>.yml` со сво
 `sha256` каждого файла, `sha256` записи меняется при правке любого
 файла.
 
+Свои расширения проекта в `.agents/` — роли, команды, скрипты,
+автоматы, которых нет в `parts`, — обновление не трогает и не удаляет.
+Совпало имя своей роли с новой ролью источника — стоп, вопрос
+пользователю.
+
 ## Обновление из источника
 
 <!-- expect:sync-warns-deprecated -->
@@ -62,11 +67,11 @@ Manifest каждого модуля — `context/modules/<key>.yml` со сво
 2. Процесс harness:
    <!-- expect:skill-runs -->
    <!-- metadata.runs: source-sync -->
-   Если подключён harness — сценарий ведёт `harness source-sync
+   Если подключён harness — сценарий ведёт `ai source-sync
    start`. Он печатает текущую версию из `context/ai-core.yml`, последнюю
    в npm и записи журнала пакета между ними (всегда, даже если индекс не
    менялся), и останавливается с заданием: шаги 3–8. После них —
-   `harness source-sync open <id>`: harness пересоберёт адаптеры и
+   `ai source-sync open <id>`: harness пересоберёт адаптеры и
    `context/index.yml` и проверит проект; провал вернёт задание.
    <!-- /expect:skill-runs -->
 3. `curl` тянет `index.yml`, считай SHA-256. Совпал с `sync.index_sha` и

@@ -1,10 +1,9 @@
 import { existsSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import type { CommandArgs } from '@shahimat/ai-core';
 import { UsageError } from '@shahimat/ai-core';
-import { aiCoreCommand, errorMessage, isOneOf } from '@shahimat/ai-core';
+import { cliCommand, errorMessage, isOneOf } from '@shahimat/ai-core';
 import {
   ClaudeRunner,
   createSession,
@@ -35,7 +34,7 @@ export const io: {
   runner: () => new ClaudeRunner(),
   stdin: readStdin,
   terminal: () => process.stdin.isTTY && process.stdout.isTTY,
-  page: (root, file) => servePage(aiCoreCommand(), root, file),
+  page: (root, file) => servePage(cliCommand(), root, file),
 };
 
 async function readStdin(): Promise<string> {
@@ -46,12 +45,7 @@ async function readStdin(): Promise<string> {
   return Buffer.concat(chunks).toString('utf8');
 }
 
-export function selfCommand(): string[] {
-  const bin = fileURLToPath(import.meta.resolve('#bin'));
-  return bin.endsWith('.ts')
-    ? [process.execPath, '--conditions=source', bin]
-    : [process.execPath, bin];
-}
+export const selfCommand = (): string[] => cliCommand();
 
 function context(
   session: Session,

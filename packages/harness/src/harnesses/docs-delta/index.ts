@@ -4,7 +4,6 @@ import { readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { readIntents } from '@shahimat/ai-core';
 import { askRole } from '@shahimat/ai-core';
-import { DOCS_VERIFY } from '@shahimat/ai-core';
 import type { CommandArgs } from '@shahimat/ai-core';
 import { errorMessage, isRecord } from '@shahimat/ai-core';
 import { DELTA_DIR } from '@shahimat/ai-core';
@@ -106,7 +105,7 @@ function reviewAction(): ActionDef<ProcessContext> {
       } catch (error) {
         await s.log({ review: 'error', error: errorMessage(error) });
         return {
-          pause: `review: роль judge не ответила — ${errorMessage(error)}; исправь причину и запусти harness docs-delta open ${s.short}`,
+          pause: `review: роль judge не ответила — ${errorMessage(error)}; исправь причину и запусти ai docs-delta open ${s.short}`,
         };
       }
       const { conflicts, rejected } = await quotedConflicts(root, data);
@@ -145,7 +144,7 @@ function registry(): Registry<ProcessContext> {
             `собери дельту context/.delta/${ctx.session.data.title}.yml из намерений и примени её пункты по skill docs-keeper; процесс docs-delta уже идёт — сам его не запускай, verify, review и close сделает harness${lastConflicts(ctx)}`,
         ),
       ],
-      ['docs-verify', scriptAction<ProcessContext>(DOCS_VERIFY)],
+      ['docs-verify', scriptAction<ProcessContext>(['docs', 'verify'])],
       ['docs-review', reviewAction()],
       ['delta-close', commandAction<ProcessContext>(['delta', 'close'])],
       ['report-failure', failureAction<ProcessContext>()],

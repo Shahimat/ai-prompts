@@ -1,5 +1,6 @@
 import { describe, expect } from 'vitest';
-import { AI_CORE, DELTA_DIR } from '@shahimat/ai-core';
+import { DELTA_DIR } from '@shahimat/ai-core';
+import { BUILTIN_TREE } from '@shahimat/cli';
 import { HARNESS } from '@shahimat/harness';
 import {
   allAnchors,
@@ -90,7 +91,7 @@ class Check {
       .map((l) => l.split('|').map((c) => c.trim()))
       .map(([, what = '', owner = '']) => ({ what, owner }));
     expect(OWNED.filter((o) => !rows.some((r) => r.what.includes(o)))).toEqual([]);
-    const commands = [AI_CORE, HARNESS].flatMap((t) =>
+    const commands = [BUILTIN_TREE, HARNESS].flatMap((t) =>
       t.commands.map((c) => `${t.bin} ${c.path.join(' ')}`),
     );
     const bad = rows.filter((r) => {
@@ -116,7 +117,7 @@ class Check {
     expect(DELTA_DIR).toBe('context/.delta');
     const text = await anchorText('docs-delta');
     expect(text).toContain('context/.delta/<имя>.yml');
-    expect(text).toContain('ai-core delta close');
+    expect(text).toContain('ai delta close');
   }
 
   static async deltaOutOfContext(): Promise<void> {

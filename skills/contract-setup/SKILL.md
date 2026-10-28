@@ -114,7 +114,7 @@ skill — протокол их выбора, подключения и откл
 6. Адаптеры, индекс и проверки:
    <!-- expect:skill-runs -->
    <!-- metadata.runs: refresh -->
-   `ai-core refresh`, если подключён harness; иначе обнови производные
+   `ai refresh`, если подключён harness; иначе обнови производные
    файлы сам (`AGENTS.md` → «Адаптеры» ядра).
    <!-- /expect:skill-runs -->
 <!-- /expect:module-tags -->

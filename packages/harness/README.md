@@ -8,12 +8,22 @@
 
 Node ≥ 24. macOS, Linux, Windows.
 
+## Запуск
+
+Пакет ставится в `devDependencies` проекта (модуль harness) рядом с
+`@shahimat/cli` и `@shahimat/ai-core`; своего бинаря нет — автоматы
+запускает `ai`:
+
+```bash
+npx ai <автомат> start | open <id> | list | status <id> | validate | graph
+```
+
 ## Harness
 
 Harness — автомат с сессией; его команды — под его именем:
 
 ```
-harness <имя> start [опции]     # новая сессия, печатает короткий id
+ai <имя> start [опции]     # новая сессия, печатает короткий id
 harness <имя> open <id>         # продолжить: заново выполнить действие текущего состояния
 harness <имя> list              # сессии этого harness
 harness <имя> status <id>
@@ -45,9 +55,9 @@ harness <имя> validate | graph  # определение и Mermaid авто�
 ### `docs-delta` и `source-sync`
 
 Работу в них делает агент, вызвавший harness: в его состоянии harness
-останавливается с заданием, `harness <имя> open <id>` продолжает.
+останавливается с заданием, `ai <имя> open <id>` продолжает.
 
-- `harness docs-delta start --name <дельта> [--file <намерения | ->]` —
+- `ai docs-delta start --name <дельта> [--file <намерения | ->]` —
   запись в документацию (skill docs-keeper): `apply` (с `--file` —
   роль `docs-keeper` headless; намерения — из файла или stdin, по
   схеме `intents`, хранятся в сессии; без `--file` или при провале роли
@@ -59,7 +69,7 @@ harness <имя> validate | graph  # определение и Mermaid авто�
   (`delta close`). Провал `verify`, противоречия в `review` или провал
   `close` возвращают в `apply` (находки судьи — в задании) не больше 3
   раз, затем `failed`.
-- `harness source-sync start` — синхронизация с источниками (skill
+- `ai source-sync start` — синхронизация с источниками (skill
   source-sync): `outdated` (версия harness и журнал, без `version` в
   конфиге — пропуск) → `update` (агент обновляет файлы) → `refresh`.
   Провал `refresh` возвращает в `update` не больше 3 раз.
@@ -72,11 +82,11 @@ harness <имя> validate | graph  # определение и Mermaid авто�
 
 Команда user scope: ставится глобально (`npm i -g @shahimat/harness`).
 
-- `harness plan-review start <file> [--request <запрос>]` — план в файле
+- `ai plan-review start <file> [--request <запрос>]` — план в файле
   ожиданий `<file>` (путь от корня проекта): существующий файл — план
   изменения его состояния, нового нет — создаётся каркас с
   `plan({ name })`. Имя плана — из `plan({ name })`, для нового файла —
-  из имени файла. План смотрится командой `ai-core expect serve <file>`.
+  из имени файла. План смотрится командой `ai expect serve <file>`.
   Дальше — интерактивный `claude` с ролью планера в каталоге проекта:
   без `--request` запрос пишется в этой сессии (текст, файлы,
   картинки), с `--request` текст уходит планеру первым сообщением. Без
@@ -92,7 +102,7 @@ harness <имя> validate | graph  # определение и Mermaid авто�
   `awaiting_input`; `exit` → `finished`. Схема — блок `fsm` в
   `expectations/harness-plan-review.expect.ts`, `harness.yaml` с ней
   совпадает (`Graph.sameAs`).
-- События выводит `harness plan-review hook <id> <hook>` из hooks сессии
+- События выводит `ai plan-review hook <id> <hook>` из hooks сессии
   планера, модель их не объявляет: `prompt` (UserPromptSubmit) в
   `awaiting_input` — `request`; `edit` (PreToolUse Edit/Write) —
   `gathered`, правка другого файла или правка вне

@@ -3,9 +3,10 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { main, projectOf, run } from '#cli';
+import { main, prepare, projectOf, run } from '#cli';
 import { promptOf, shellStep, splitWords } from '#shell';
-import { childrenOf, COMMANDS, findCommand, renderUsage } from '#tree';
+import { BUILTIN_TREE } from '#tree';
+const { childrenOf, commands: COMMANDS, findCommand } = BUILTIN_TREE;
 
 const NOW = new Date('2026-10-13T12:00:00Z');
 const GOOD = '# Журнал\n\n- 2026-10-13 · [arch] a · b\n';
@@ -33,7 +34,7 @@ afterEach(async () => {
   await rm(root, { recursive: true, force: true });
 });
 
-describe('ai-core changelog lint', () => {
+describe('ai changelog lint', () => {
   it('0 — журнал корректен, без ai-core.yml', async () => {
     await put('CHANGELOG.md', GOOD);
     expect(await main(['changelog', 'lint', '--root', root], NOW)).toBe(0);
@@ -57,14 +58,14 @@ describe('ai-core changelog lint', () => {
   });
 });
 
-describe('ai-core check', () => {
+describe('ai check', () => {
   it('2 — нет ai-core.yml', async () => {
     expect(await run(['check', '--root', root])).toBe(2);
     expect(stderr[0]).toMatch(/harness в проекте не настроен/);
   });
 
   it('0 — ни одной проверки не включено', async () => {
-    await put('context/ai-core.yml', 'version: 0.2.0\nchecks:\n  secrets: false\n');
+    await put('context/ai-core.yml', 'checks:\n  secrets: false\n');
     expect(await main(['check', '--root', root], NOW)).toBe(0);
   });
 
@@ -98,12 +99,12 @@ describe('справка', () => {
     });
     expect(await main(['--help'], NOW)).toBe(0);
     const usage = out.join('\n');
-    for (const c of COMMANDS) expect(usage).toContain(`ai-core ${c.path.join(' ')}`);
-    expect(renderUsage()).toBe(usage);
+    for (const c of COMMANDS) expect(usage).toContain(`ai ${c.path.join(' ')}`);
+    expect((await prepare([])).renderUsage()).toBe(usage);
   });
 });
 
-describe('ai-core context index', () => {
+describe('ai context index', () => {
   it('пишет индекс; check с context-index проходит', async () => {
     await put('context/project.yml', 'namespaces:\n  vpn: доступ\n');
     await put('docs/entities/srv.yml', 'id: srv\nnamespace: vpn\nsummary: сервер\n');
@@ -119,7 +120,7 @@ describe('ai-core context index', () => {
   });
 });
 
-describe('ai-core context check', () => {
+describe('ai context check', () => {
   it('сверяет индекс без записи: нет индекса — 1, после context index — 0', async () => {
     await put('context/project.yml', 'namespaces:\n  vpn: доступ\n');
     await put('docs/entities/srv.yml', 'id: srv\nnamespace: vpn\nsummary: сервер\n');
@@ -130,7 +131,7 @@ describe('ai-core context check', () => {
   });
 });
 
-describe('ai-core adapters sync', () => {
+describe('ai adapters sync', () => {
   it('2 — нет ai-core.yml', async () => {
     expect(await run(['adapters', 'sync', '--root', root])).toBe(2);
   });
@@ -147,7 +148,7 @@ describe('ai-core adapters sync', () => {
   });
 });
 
-describe('ai-core adapters check', () => {
+describe('ai adapters check', () => {
   it('2 — нет ai-core.yml', async () => {
     expect(await run(['adapters', 'check', '--root', root])).toBe(2);
   });
@@ -178,7 +179,7 @@ describe('корень проекта harness', () => {
   });
 });
 
-describe('ai-core expect init', () => {
+describe('ai expect init', () => {
   it('создаёт каркас, дописывает скрипты и .gitignore, повтор ничего не меняет', async () => {
     await put('package.json', '{"name":"demo","scripts":{"test":"x"}}');
     await put('.gitignore', 'node_modules/');
@@ -186,7 +187,7 @@ describe('ai-core expect init', () => {
     const { readFile } = await import('node:fs/promises');
     const pkg: unknown = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'));
     expect(pkg).toMatchObject({
-      scripts: { test: 'x', expect: 'ai-core expect report expectations/index.expect.ts --root .' },
+      scripts: { test: 'x', expect: 'ai expect report expectations/index.expect.ts --root .' },
     });
     expect(await readFile(path.join(root, 'expectations/index.expect.ts'), 'utf8')).toBe(
       `import './${path.basename(root)}.expect.ts';\n`,
@@ -209,9 +210,8 @@ describe('ai-core expect init', () => {
   });
 });
 
-describe('ai-core outdated', async () => {
-  const { changelogBetween, compareVersions, runOutdated } =
-    await import('#commands/outdated/index');
+describe('ai outdated', async () => {
+  const { changelogBetween, compareVersions, runOutdated } = await import('@shahimat/ai-core');
   const LOG = '# Журнал\n\n## 0.5.0\n\n- outdated\n\n## 0.4.0\n\n- якоря\n\n## 0.3.0\n\n- expect\n';
   const fetcher = (latest: string) => async (url: string) => ({
     ok: true,
@@ -234,20 +234,31 @@ describe('ai-core outdated', async () => {
     vi.spyOn(console, 'log').mockImplementation((...a: unknown[]) => {
       logs.push(a.join(' '));
     });
-    await put('context/ai-core.yml', 'version: 0.3.0\n');
+    await put(
+      'package.json',
+      JSON.stringify({
+        devDependencies: { '@shahimat/ai-core': '0.3.0', '@shahimat/harness': '^0.3.0' },
+      }),
+    );
     expect(await runOutdated({ root, now: NOW }, fetcher('0.3.0'))).toBe(0);
     expect(await runOutdated({ root, now: NOW }, fetcher('0.5.0'))).toBe(1);
-    expect(logs.join('\n')).toContain('harness: 0.3.0 → 0.5.0');
+    expect(logs.join('\n')).toContain('@shahimat/ai-core: 0.3.0 → 0.5.0');
+    expect(logs.join('\n')).toContain('@shahimat/harness: 0.3.0 → 0.5.0');
     expect(logs.join('\n')).toContain('- якоря');
   });
 
-  it('2 — нет version в ai-core.yml', async () => {
-    await put('context/ai-core.yml', 'checks: {}\n');
-    await expect(runOutdated({ root, now: NOW }, fetcher('0.5.0'))).rejects.toThrow(/нет version/);
+  it('2 — нет package.json или в нём нет @shahimat/ai-core', async () => {
+    await expect(runOutdated({ root, now: NOW }, fetcher('0.5.0'))).rejects.toThrow(
+      /нет package\.json/,
+    );
+    await put('package.json', '{"devDependencies":{}}');
+    await expect(runOutdated({ root, now: NOW }, fetcher('0.5.0'))).rejects.toThrow(
+      /нет @shahimat\/ai-core/,
+    );
   });
 });
 
-describe('ai-core index build | check', () => {
+describe('ai index build | check', () => {
   const RAW = 'https://raw.example/repo/main';
   it('build пишет индекс, check: 0 — актуален, 1 — устарел', async () => {
     await put('prompts/a.md', '---\nkey: a\nkind: prompt\n---\n');
@@ -281,19 +292,22 @@ describe('дерево команд: уровни, list, help, оболочка'
     expect(out.at(-1)).toContain('role');
     expect(await main(['role', 'list'], NOW)).toBe(0);
     expect(await main(['role', 'help'], NOW)).toBe(0);
-    expect(out.at(-1)).toContain('ai-core role run <name>');
-    expect(out.at(-1)).not.toContain('ai-core check');
+    expect(out.at(-1)).toContain('ai role run <name>');
+    expect(out.at(-1)).not.toContain('ai check');
     expect(childrenOf(['role'])).toEqual(['run', 'channel']);
     expect(await run(['role'])).toBe(2);
   });
 
   it('оболочка: вход в уровень, .., list, help, запуск команды относительно уровня', () => {
     expect(splitWords(`run --file "два слова" '*'`)).toEqual(['run', '--file', 'два слова', '*']);
-    expect(shellStep([], 'expect')).toEqual({ cwd: ['expect'] });
-    expect(shellStep(['expect'], '..')).toEqual({ cwd: [] });
-    expect(shellStep(['expect'], 'help').output).toContain('ai-core expect init');
-    expect(shellStep(['expect'], 'init')).toEqual({ cwd: ['expect'], run: ['expect', 'init'] });
-    expect(shellStep([], 'exit').exit).toBe(true);
-    expect(promptOf(['expect'])).toBe('/ai-core/expect> ');
+    expect(shellStep([], 'expect', BUILTIN_TREE)).toEqual({ cwd: ['expect'] });
+    expect(shellStep(['expect'], '..', BUILTIN_TREE)).toEqual({ cwd: [] });
+    expect(shellStep(['expect'], 'help', BUILTIN_TREE).output).toContain('ai expect init');
+    expect(shellStep(['expect'], 'init', BUILTIN_TREE)).toEqual({
+      cwd: ['expect'],
+      run: ['expect', 'init'],
+    });
+    expect(shellStep([], 'exit', BUILTIN_TREE).exit).toBe(true);
+    expect(promptOf(['expect'])).toBe('/ai/expect> ');
   });
 });

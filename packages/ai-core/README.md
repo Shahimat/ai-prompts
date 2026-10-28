@@ -1,28 +1,27 @@
 # @shahimat/ai-core
 
-CLI `ai-core` для проектов на контракте
+Ядро для проектов на контракте
 [`agent-operational-contract-v3`](https://github.com/Shahimat/ai-prompts/blob/main/prompts/productivity/agent-operational-contract-v3.md):
 механические проверки и генерация, механизм ожиданий и роли, чтобы агент
-не держал их в памяти. Автоматы поверх этих команд — пакет
-[`@shahimat/harness`](https://www.npmjs.com/package/@shahimat/harness).
+не держал их в памяти. Библиотека без бинаря: команды запускает CLI `ai`
+([`@shahimat/cli`](https://www.npmjs.com/package/@shahimat/cli)), автоматы
+поверх них — [`@shahimat/harness`](https://www.npmjs.com/package/@shahimat/harness).
 
 Node ≥ 24. macOS, Linux, Windows.
 
 ## Запуск
 
-```bash
-npx -y @shahimat/ai-core@<version> <команда> --root .
-```
-
-Версия проекта — `version` в `context/ai-core.yml`.
+Пакет ставится в `devDependencies` проекта рядом с `@shahimat/cli`,
+точные версии; команды — через `npx ai <команда>`.
 
 ## Устройство
 
 Пакет делится на слои, зависимости идут только вниз:
 
 - **команды** — атомарные операции: прочитали файлы, проверили или
-  сгенерировали, вернули код. Друг друга не вызывают;
-- **скрипты** — только последовательность команд, без своей логики.
+  сгенерировали, вернули код. Друг друга не вызывают.
+
+Скрипты (последовательности команд) — в `@shahimat/cli`.
 
 Под ними — общий `shared` (guards, конфиг, проверка JSON Schema) и
 библиотека `lib` (`@shahimat/ai-core/expect`, индекс промптов, роли).
@@ -34,40 +33,34 @@ npx -y @shahimat/ai-core@<version> <команда> --root .
 Эффект скрипта выводится из его шагов. CI и модель внутри состояния
 автомата получают только query.
 
-## Скрипты
-
-- `ai-core check` — все проверки, включённые в `context/ai-core.yml`:
-  `changelog lint`, `context check`, `adapters check`, `secrets scan`.
-  Каждая печатает свой итог; код выхода — худший из кодов шагов.
-- `ai-core refresh` — пересобрать производные файлы (`context index`,
-  `adapters sync` — если включены в `checks`) и затем шаги `check`.
-
 ## Команды
 
 Mutation — `context index`, `adapters sync`, `delta close`,
 `expect init`, `expect judge`, `expect report --html`, `index build`,
 `role run`, `role channel`; остальные — query.
 
-- `ai-core secrets scan [--file <path>]` — секреты (ключи API, токены,
+- `ai secrets scan [--file <path>]` — секреты (ключи API, токены,
   пароли, приватные ключи) в отслеживаемых git файлах проекта или в
   одном файле по пути; в выводе — путь, строка и тип, без значения. В
-  `ai-core check` включена по умолчанию.
-- `ai-core changelog lint` — `CHANGELOG.md`: строка
+  `ai check` включена по умолчанию.
+- `ai changelog lint` — `CHANGELOG.md`: строка
   `- YYYY-MM-DD · [tag] суть · почему` до 120 символов, тег из списка,
   порядок дат.
-- `ai-core context index` — генерация `context/index.yml` из слоёв
+- `ai context index` — генерация `context/index.yml` из слоёв
   документации (entities, behavior, manuals, conventions, слои модулей).
-- `ai-core context check` — сверка `context/index.yml` со слоями
+- `ai context check` — сверка `context/index.yml` со слоями
   документации без записи.
-- `ai-core adapters sync` — файлы под Claude Code и Codex из
+- `ai adapters sync` — файлы под Claude Code и Codex из
   `AGENTS.md` и `.agents/`: `CLAUDE.md`, копии skills, субагенты,
-  выключенная memory агента.
-- `ai-core adapters check` — сверка файлов адаптеров с `AGENTS.md` и
+  выключенная memory агента; при `hooks: [docs-guard]` — hook
+  `ai docs guard` в `.claude/settings.json` (свои hooks файла
+  сохраняются).
+- `ai adapters check` — сверка файлов адаптеров с `AGENTS.md` и
   `.agents/` без записи.
-- `ai-core expect init` — каркас ожиданий в проекте: точка входа
+- `ai expect init` — каркас ожиданий в проекте: точка входа
   `expectations/index.expect.ts`, пример файла с бюджетом, npm-скрипты,
   `.gitignore`.
-- `ai-core expect report | lint | judge [--apply | --run] <file>` — ожидания в
+- `ai expect report | lint | judge [--apply | --run] <file>` — ожидания в
   форме vitest: дерево со статусами, проверка заголовков, пакетная
   смысловая проверка судьёй-агентом с кэшем вердиктов. `judge` пишет
   задания в `.judge/` для субагента-судьи, `--apply` применяет ответы;
@@ -93,23 +86,31 @@ Mutation — `context index`, `adapters sync`, `delta close`,
   `report <file> --html <out>` — тот же отчёт HTML-файлом,
   `serve <file> [--port <n>]` — с локального сервера (см. «План в форме
   ожиданий»).
-- `ai-core delta check | close` — дельта проектной документации в
+- `ai delta check | close` — дельта проектной документации в
   `context/.delta/*.yml` (пункты `add` / `refine` / `revise`). `check`
   сверяет слои документации с `HEAD`: удалённое или изменённое знание
   без пункта `revise` — нарушение. `close` после приёмки (check чист,
   пункты выполнены) удаляет дельту и печатает строки `revise` для тела
   коммита.
-- `ai-core role run <name> --file <задание> [--out <ответ>]` — роль из
+- `ai role run <name> --file <задание> [--out <ответ>]` — роль из
   `.agents/agents/<name>.md` (в источнике — `agents/<name>.md`)
   headless: текст задания — на stdin, итог — сообщением протокола в
   `--out` или stdout (см. «Роли»).
-- `ai-core role channel <message> --out <файл>` — MCP-сервер (stdio)
+- `ai role channel <message> --out <файл>` — MCP-сервер (stdio)
   канала роли с одним инструментом `submit_result`: проверяет ответ по
   схеме сообщения, невалидный возвращает модели ошибкой с путём к полю,
   валидный пишет в `--out`. Запускает его `role run`, не человек.
-- `ai-core outdated` — версия из `context/ai-core.yml` против последней
-  в npm и записи `CHANGELOG.md` пакета между ними (код 1 — есть новее).
-- `ai-core index build | check --raw-base <url>` — индекс
+- `ai outdated` — версии `@shahimat/ai-core` и `@shahimat/harness` из
+  `package.json` проекта против последних в npm и записи их журналов
+  между ними (код 1 — есть новее).
+- `ai docs guard` — hook `PreToolUse` для Claude Code: JSON hook на
+  stdin; `Edit` / `Write` в документацию (`CHANGELOG.md`,
+  `context/project.yml`, `context/conventions/`, `docs/`, слои модулей
+  из `provides.layers`, `context/.delta/`) и в генерируемые файлы
+  (`context/index.yml`, `CLAUDE.md`, `.claude/skills/`, `.claude/agents/`,
+  `.codex/agents/`) — отказ, код 2 и подсказка про `ai docs-delta`;
+  остальное — 0. Ставит его `adapters sync` при `hooks: [docs-guard]`.
+- `ai index build | check --raw-base <url>` — индекс
   `prompts/index.yml` репозитория промптов.
 
 ## План в форме ожиданий
@@ -178,11 +179,11 @@ planReview.whole(() => {
   (`def` — результат `parseMachine`); `Graph.canReach(m, targets)` — из
   каждого состояния достижима цель; `Graph.onlyVia(m, target, via)` — в
   `target` из `initial` не попасть в обход `via`.
-- `ai-core expect report <file> --html <out>` — HTML без сети
+- `ai expect report <file> --html <out>` — HTML без сети
   и без JS: диаграммы блоков — SVG Graphviz (wasm, при генерации); узел и переход ведут к карточке, цвет — статус ожиданий;
   новые, изменённые и удалённые относительно HEAD ожидания отмечены.
   Файл — производный вид, источник — файл ожиданий.
-- `ai-core expect serve <file> [--port <n>]` — та же страница
+- `ai expect serve <file> [--port <n>]` — та же страница
   с `http://127.0.0.1:<port>/` (по умолчанию 4173): собирается при
   каждом запросе, правка файла ожиданий видна после перезагрузки, на
   диск ничего не пишется. Так артефакт плана — только файл ожиданий.
@@ -221,8 +222,8 @@ headless-исполнителем в harness.
 ## `context/ai-core.yml`
 
 ```yaml
-version: 0.4.0
 adapters: [claude-code, codex]
+hooks: [docs-guard]
 checks:
   changelog:
     max_line: 120

@@ -1,7 +1,7 @@
 import { describe, expect } from 'vitest';
+import { BUILTIN_TREE } from '@shahimat/cli';
 import { HARNESS } from '@shahimat/harness';
 import {
-  AI_CORE,
   INTENT_KINDS,
   INTENTS_SCHEMA,
   parseIntents,
@@ -63,7 +63,7 @@ describe('[roles] процессы', () => {
     'с harness основная сессия передаёт намерения процессу docs-delta напрямую (правило 4 шаблона AGENTS.md), без субагента docs-keeper',
     () => Check.intentsToHarness(),
   );
-  crit('harness plan-review заморожен: дизайн объявляет статус «заморожен»', () =>
+  crit('ai plan-review заморожен: дизайн объявляет статус «заморожен»', () =>
     Check.planReviewFrozen(),
   );
 });
@@ -124,7 +124,7 @@ class Check {
   static async intentsToHarness(): Promise<void> {
     const contract = await readRepo('prompts/productivity/agent-operational-contract-v3.md');
     const rule = (/^4\. [\s\S]*?(?=^5\. )/m.exec(contract)?.[0] ?? '').replace(/\s+/g, ' ');
-    expect(rule).toContain('`harness docs-delta start --name <имя> --file -`');
+    expect(rule).toContain('`npx ai docs-delta start --name <имя> --file -`');
   }
 
   static isolatedRun(): void {
@@ -148,7 +148,7 @@ class Check {
   }
 
   static optionOf(command: string, option: string): void {
-    const node = [...AI_CORE.commands, ...HARNESS.commands].find(
+    const node = [...BUILTIN_TREE.commands, ...HARNESS.commands].find(
       (c) => c.path.join(' ') === command,
     );
     expect(node?.options ?? '').toContain(option);

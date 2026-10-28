@@ -19,6 +19,7 @@ export {
   DEFAULT_CHANGELOG,
   KNOWN_ADAPTERS,
   KNOWN_CHECKS,
+  KNOWN_HOOKS,
   loadConfig,
   type AdapterName,
   parseConfig,
@@ -46,21 +47,9 @@ export {
   runOutdated,
   type Fetcher,
 } from './commands/outdated/index.ts';
-export {
-  AI_CORE,
-  childrenOf,
-  commandTree,
-  COMMANDS,
-  findCommand,
-  isNamespace,
-  renderUsage,
-  scriptCommand,
-  type Command,
-  type CommandTree,
-  type Match,
-} from './tree.ts';
-export { promptOf, runShell, shellStep, splitWords } from './shell.ts';
-export { cliMain, main, projectOf, run, runCli } from './cli.ts';
+export { commandTree, type Command, type CommandTree, type Match } from './lib/tree.ts';
+export { runtime, setRuntime, type Runtime } from './lib/runtime.ts';
+export { COMMAND_NODES } from './registry.ts';
 export {
   checkDelta,
   DELTA_SCHEMA,
@@ -81,7 +70,6 @@ export {
   type Validate,
 } from './shared/schema.ts';
 export type { CommandNode, Effect, ScriptDef, ScriptNode, ScriptStep } from './shared/node.ts';
-export { CHECK, COMMAND_NODES, DOCS_VERIFY, REFRESH, runScript } from './scripts/index.ts';
 export { parseAgent, ROLE_MODELS, type AgentDef, type RoleModel } from './lib/agent.ts';
 export {
   isProtocolMessage,
@@ -96,7 +84,7 @@ export {
 export { parseIntents } from './lib/intents.ts';
 export { advertisedSchema, serveChannel, type Channel } from './lib/mcp.ts';
 export {
-  aiCoreCommand,
+  cliCommand,
   askRole,
   findRole,
   READ_ONLY_TOOLS,
@@ -117,3 +105,12 @@ export {
   runExpect,
   type ExpectSummary,
 } from './commands/expect/index.ts';
+export {
+  DOCS_DIRS,
+  DOCS_FILES,
+  guardDecision,
+  guardedReason,
+  GUARDED_TOOLS,
+  moduleLayers,
+  type GuardDecision,
+} from './commands/docs/index.ts';

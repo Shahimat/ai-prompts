@@ -31,7 +31,7 @@ export async function runIndex(command: string | undefined, args: CommandArgs): 
   try {
     actual = await readFile(indexFile, 'utf8');
   } catch {
-    console.error(`ERROR: ${INDEX_PATH} не найден. Запусти ai-core index build`);
+    console.error(`ERROR: ${INDEX_PATH} не найден. Запусти ai index build`);
     return 1;
   }
   const diffs = diffIndex(expected, actual);
@@ -39,7 +39,7 @@ export async function runIndex(command: string | undefined, args: CommandArgs): 
     console.log(`${INDEX_PATH} is up to date`);
     return 0;
   }
-  console.error(`ERROR: ${INDEX_PATH} устарел. Запусти ai-core index build и закоммить результат.`);
+  console.error(`ERROR: ${INDEX_PATH} устарел. Запусти ai index build и закоммить результат.`);
   for (const d of diffs.slice(0, MAX_DIFF_LINES)) {
     console.error(`  строка ${d.line}:`);
     console.error(`    - ${d.actual ?? '<нет строки>'}`);

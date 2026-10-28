@@ -47,3 +47,29 @@ export async function loadMachine<C>(
   if (errors.length > 0) return { errors };
   return { machine: { name, def: parsed.def, registry, plugins }, errors: [] };
 }
+
+export async function loadMachineAt<C>(
+  dir: string,
+  name: string,
+  registry: Registry<C>,
+): Promise<MachineResult<C>> {
+  const where = `${name}/harness.yaml`;
+  let text: string;
+  try {
+    text = await readFile(path.join(dir, 'harness.yaml'), 'utf8');
+  } catch {
+    return { errors: [`${where}: нет файла`] };
+  }
+  const parsed = parseMachine(text, where);
+  if (parsed.def === undefined) return { errors: parsed.errors };
+  const errors: string[] = [];
+  let plugins: string[] = [];
+  try {
+    plugins = await loadPlugins(registry, path.join(dir, 'handlers'));
+  } catch (error) {
+    errors.push(errorMessage(error));
+  }
+  errors.push(...staticErrors(parsed.def, registry, where));
+  if (errors.length > 0) return { errors };
+  return { machine: { name, def: parsed.def, registry, plugins }, errors: [] };
+}

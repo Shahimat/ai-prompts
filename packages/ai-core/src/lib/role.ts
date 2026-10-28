@@ -3,11 +3,11 @@ import { existsSync } from 'node:fs';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { UsageError } from '#shared/diagnostics';
 import { compileSchema, issueText } from '#shared/schema';
 import { parseAgent, type AgentDef } from './agent.ts';
 import { claudeBin, parseHeadless } from './claude.ts';
+import { runtime } from './runtime.ts';
 import { CHANNEL_SERVER, PROTOCOL, SUBMIT_TOOL, SUBMIT_TOOL_ID } from './protocol.ts';
 
 export const ROLE_DIRS = ['.agents/agents', 'agents'] as const;
@@ -15,12 +15,7 @@ export const READ_ONLY_TOOLS = ['Read', 'Glob', 'Grep'];
 const DEFAULT_MODEL = 'opus';
 const MAX_TURNS = 60;
 
-export function aiCoreCommand(): string[] {
-  const bin = fileURLToPath(import.meta.resolve('#bin'));
-  return bin.endsWith('.ts')
-    ? [process.execPath, '--conditions=source', bin]
-    : [process.execPath, bin];
-}
+export const cliCommand = (): string[] => [...runtime().self];
 
 export async function findRole(root: string, name: string): Promise<AgentDef> {
   for (const dir of ROLE_DIRS) {
@@ -153,7 +148,7 @@ export async function askRole(root: string, name: string, task: string): Promise
       role,
       task,
       out: path.join(dir, 'out.json'),
-      self: aiCoreCommand(),
+      self: cliCommand(),
     });
   } finally {
     await rm(dir, { recursive: true, force: true });

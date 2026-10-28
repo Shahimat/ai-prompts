@@ -1,4 +1,6 @@
-export { HARNESS, main, run } from './cli.ts';
+export { HARNESS } from './cli.ts';
+export { HARNESS_NODES, harnessNodes, type HarnessModule } from './harnesses/index.ts';
+export { projectHarnessModule } from './harnesses/index.ts';
 export { io as planIo, selfCommand } from './harnesses/index.ts';
 export {
   drive,

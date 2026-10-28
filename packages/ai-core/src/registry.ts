@@ -2,6 +2,7 @@ import { runAdapters } from '#commands/adapters/index';
 import { runChangelog } from '#commands/changelog/index';
 import { runContext } from '#commands/context/index';
 import { runDelta } from '#commands/delta/index';
+import { runDocsGuard } from '#commands/docs/index';
 import { runExpect } from '#commands/expect/index';
 import { runOutdated } from '#commands/outdated/index';
 import { runIndex } from '#commands/prompt-index/index';
@@ -51,6 +52,12 @@ export const COMMAND_NODES: readonly CommandNode[] = [
     kind: 'command',
     effect: 'mutation',
     run: (args) => runDelta('close', args),
+  },
+  {
+    path: ['docs', 'guard'],
+    kind: 'command',
+    effect: 'query',
+    run: (args) => runDocsGuard(args),
   },
   { path: ['outdated'], kind: 'command', effect: 'query', run: (args) => runOutdated(args) },
   {

@@ -1,12 +1,12 @@
-import { COMMAND_NODES, runScript } from '@shahimat/ai-core';
+import { COMMAND_NODES, runtime } from '@shahimat/ai-core';
 import type { CommandArgs } from '@shahimat/ai-core';
 import { UsageError } from '@shahimat/ai-core';
 import { askRole } from '@shahimat/ai-core';
 import { errorMessage, isRecord } from '@shahimat/ai-core';
-import type { ScriptDef } from '@shahimat/ai-core';
 import { driveSession, homeOf, requireProject, type HarnessModule } from './catalog.ts';
 import type { ActionDef, Registry } from './fsm/machine.ts';
-import { loadMachine } from './load.ts';
+import path from 'node:path';
+import { loadMachine, loadMachineAt } from './load.ts';
 import { createSession, type Session } from './store/session.ts';
 
 export interface ProcessContext {
@@ -70,9 +70,13 @@ export function roleOrHandoff<C extends ProcessContext>(
   };
 }
 
-export const scriptAction = <C extends ProcessContext>(script: ScriptDef): ActionDef<C> => ({
+export const scriptAction = <C extends ProcessContext>(
+  script: readonly string[],
+): ActionDef<C> => ({
   events: ['ok', 'fail'],
-  run: async (ctx) => ({ event: (await runScript(script, argsOf(ctx))) === 0 ? 'ok' : 'fail' }),
+  run: async (ctx) => ({
+    event: (await runtime().runScript(script, argsOf(ctx))) === 0 ? 'ok' : 'fail',
+  }),
 });
 
 function commandOf(path: readonly string[]) {
@@ -109,6 +113,8 @@ export const failureAction = <C extends ProcessContext>(): ActionDef<C> => ({
   }),
 });
 
+type MachineLoader = (home: string) => ReturnType<typeof loadMachine<ProcessContext>>;
+
 export function processModule(
   name: string,
   registry: () => Registry<ProcessContext>,
@@ -117,9 +123,10 @@ export function processModule(
     title: (args: CommandArgs) => string;
     request?: (args: CommandArgs) => Promise<string>;
   },
+  loader: MachineLoader = (home) => loadMachine(home, name, registry()),
 ): HarnessModule {
   const load = async (home: string) => {
-    const { machine, errors } = await loadMachine(home, name, registry());
+    const { machine, errors } = await loader(home);
     if (machine === undefined) throw new UsageError(errors.join('\n'));
     return machine;
   };
@@ -130,7 +137,7 @@ export function processModule(
   const module: HarnessModule = {
     name,
     validate: async (home) => {
-      const { machine, errors } = await loadMachine(home, name, registry());
+      const { machine, errors } = await loader(home);
       return machine === undefined
         ? { errors, plugins: [] }
         : { errors: [], plugins: machine.plugins, def: machine.def };
@@ -152,4 +159,12 @@ export function processModule(
   };
   if (start.options !== undefined) module.startOptions = start.options;
   return module;
+}
+
+export function projectHarnessModule(dir: string): HarnessModule {
+  const name = path.basename(dir);
+  const registry = (): Registry<ProcessContext> => ({ actions: new Map(), guards: new Map() });
+  return processModule(name, registry, { title: (args) => args.name ?? name }, () =>
+    loadMachineAt(dir, name, registry()),
+  );
 }

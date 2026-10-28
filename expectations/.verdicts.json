@@ -4,12 +4,12 @@
       "question": "обновление > есть skill обновления: сверяет источник, показывает новые и устаревшие модули, пресеты, версию harness и предлагает включить или отключить возможности",
       "evidence": {
         "@update-report": "d10cc0171aedf7ec103b10797e79cf0039496f05e3f598aa66114dc72dc34a28",
-        "@sync-warns-deprecated": "4c90ccac4238e72366dadb40cb398d8742d2bf47a52b8c72535a0e4d45a12146"
+        "@sync-warns-deprecated": "608656c0ab64c89b8461d40e71baddd7432addfb86bc203b8cd9489913773d58"
       },
       "verdict": true,
-      "quote": "2. открыть чеклист `contract-setup` — включить новые или отключить",
+      "quote": "открыть чеклист `contract-setup` — включить новые или отключить ненужные возможности;",
       "ref": "@update-report",
-      "reason": "Отчёт покрывает модули, устаревшее, пресеты, harness; вариант 2 — включить/отключить возможности.",
+      "reason": "Отчёт содержит новые модули, устаревшие, пресеты, версию harness и вариант включить/отключить.",
       "at": "2026-10-28"
     },
     "0e48c53bde80": {
@@ -26,12 +26,12 @@
     "135dc96a2bfc": {
       "question": "источник > обновление из источника предупреждает о deprecated-контракте и называет замену",
       "evidence": {
-        "@sync-warns-deprecated": "4c90ccac4238e72366dadb40cb398d8742d2bf47a52b8c72535a0e4d45a12146"
+        "@sync-warns-deprecated": "608656c0ab64c89b8461d40e71baddd7432addfb86bc203b8cd9489913773d58"
       },
       "verdict": true,
-      "quote": "контракт или модуль помечен в индексе `deprecated` — предупреди и",
+      "quote": "помечен в индексе `deprecated` — предупреди и",
       "ref": "@sync-warns-deprecated",
-      "reason": "Предупреждение и название замены предписаны шагом 6.",
+      "reason": "Навык требует предупредить и назвать замену.",
       "at": "2026-10-28"
     },
     "1458ad2553ec": {
@@ -59,12 +59,12 @@
     "1db1d3ca45dd": {
       "question": "[harness] expect > смысловая проверка заголовков файла запускается только при изменении его заголовков",
       "evidence": {
-        "@expect-cycles": "baa5050aced8d6e335ae0764d0cf52ee28bd760ce9b07824d7a12da391504df7"
+        "@expect-cycles": "833e3e3e344ef0406081c24e37091dde089bab486972da4ca9adbda09fbbbf32"
       },
       "verdict": true,
       "quote": "if (store.lint[file]?.titles === sha) continue;",
       "ref": "@expect-cycles",
-      "reason": "Проверка заголовков пропускается, если sha заголовков не изменился.",
+      "reason": "Задание на проверку заголовков создаётся только если хэш заголовков изменился.",
       "at": "2026-10-28"
     },
     "1e94c71faacc": {
@@ -105,12 +105,12 @@
     "37f837d16e74": {
       "question": "[flow] delta > дельту ведёт docs-keeper: собирает из намерений, сверяет с текущей документацией, применяет",
       "evidence": {
-        "@docs-delta": "0efdbe312a5788d429d3f43865472fd40935e4fc805e5936b68a88cf48e4d92e"
+        "@docs-delta": "1b678db2a04acd26f311d6ce8903b5ca9f806a1767a06394d3535052d7491e9d"
       },
       "verdict": true,
-      "quote": "1. Собери дельту из намерений. Сверь каждый пункт с текущей",
+      "quote": "Собери дельту из намерений. Сверь каждый пункт с текущей",
       "ref": "@docs-delta",
-      "reason": "Навык docs-keeper: сборка, сверка, применение пунктов.",
+      "reason": "Шаги 1–4 выполняет docs-keeper: сборка, сверка, применение.",
       "at": "2026-10-28"
     },
     "386c4e8a4603": {
@@ -138,13 +138,13 @@
     "3c87c225937f": {
       "question": "документация проекта > в основной сессии файлы проектной документации только читаются; правки — только через docs-keeper, генерируемые файлы — через harness",
       "evidence": {
-        "@docs-readonly": "308866dd576d6a5f3d36a330a269b212e4f9518fe47b3956d264dc469f54fd03"
+        "@docs-readonly": "c71cb2fb287fd929cec246283521538224bbcc7b42a75a069172b8e1719c5940"
       },
       "verdict": true,
       "quote": "В основной сессии файлы проектной документации только читаются.",
       "ref": "@docs-readonly",
-      "reason": "Правки слоёв документации делает только docs-keeper, а генерируемые файлы при подключённом harness меняет только harness.",
-      "at": "2026-10-27"
+      "reason": "Правки только через docs-keeper, генерируемые файлы меняет только ai/harness.",
+      "at": "2026-10-28"
     },
     "42ca6f7057ad": {
       "question": "[harness] plan-review > переходами управляет автомат из harness.yaml; модель работает только внутри состояний",
@@ -171,12 +171,12 @@
     "533e8f9c8ae5": {
       "question": "предложения в источник > в предложении нет персональных данных и ссылок из external — только обезличенные выдержки",
       "evidence": {
-        "@feedback-sanitized": "fa523f9d6ef5ccb478538f30056949abb1bf7670cff25cfa8c6b61b361d3f83c"
+        "@feedback-sanitized": "55c619dc710371a3b69451cbbd4d01cbc82da67122a24bdc3d993ab6641ed0ce"
       },
       "verdict": true,
-      "quote": "- нет ссылок и указателей из `external` в `context/project.yml`, хостов",
+      "quote": "нет персональных данных, имён людей, почты, телефонов;",
       "ref": "@feedback-sanitized",
-      "reason": "Правила требуют обезличивания, ПД исключены.",
+      "reason": "Также нет ссылок из external; только обезличенное.",
       "at": "2026-10-28"
     },
     "5459013b47ab": {
@@ -193,12 +193,12 @@
     "59df1d74a41f": {
       "question": "журнал решений > свой тег журнала модуль добавляет только через provides.changelog_tags",
       "evidence": {
-        "@module-tags": "6efd4c62f0e1185917f22ffb0a0e715364c908966c2251d1c5ccfd470c46f6cb"
+        "@module-tags": "635f7d9acdad05a7171ade9a2f43456e3e34562050ede7019cb352f6ce327aa0"
       },
       "verdict": true,
       "quote": "теги из `provides.changelog_tags` подключённых модулей, со смыслом",
       "ref": "@module-tags",
-      "reason": "Теги модулей берутся из provides.changelog_tags и дописываются в конфиг.",
+      "reason": "Теги модулей берутся из provides.changelog_tags сверх базовых.",
       "at": "2026-10-28"
     },
     "5def1c64ae06": {
@@ -212,60 +212,93 @@
       "reason": "Источник реальности ядра — ключи external целевых систем, а не this-repo.",
       "at": "2026-10-13"
     },
+    "5e0ec67ca28f": {
+      "question": "предложения в источник > перед передачей файл предложения проходит ai secrets scan --file; без harness агент проверяет по тем же правилам сам",
+      "evidence": {
+        "@feedback-sanitized": "55c619dc710371a3b69451cbbd4d01cbc82da67122a24bdc3d993ab6641ed0ce"
+      },
+      "verdict": true,
+      "quote": "подключён harness — `ai secrets scan --file <путь>`;",
+      "ref": "@feedback-sanitized",
+      "reason": "Без harness проверка вручную по тем же типам.",
+      "at": "2026-10-28"
+    },
     "63aaccc6f834": {
       "question": "[harness] layers > skill запускает только то, что объявлено в metadata.runs; остальные команды harness лишь упоминает",
       "evidence": {
-        "@skill-runs": "fd3c9ffe3626f3bfa09140f4754adf79182669887d7d2eb6302ae0519beddc6a"
+        "@skill-runs": "c8ce9e1233882454732ac83f38e430926ded0c80e8506ca0fee9cdd02f5487b0"
       },
       "verdict": true,
-      "quote": "Сам skill запускает одно: `ai-core refresh` в конце каждой задачи и",
+      "quote": "Сам skill запускает одно: `ai refresh` в конце каждой задачи и",
       "ref": "@skill-runs",
-      "reason": "Skill harness запускает одну команду, остальное названо справкой.",
+      "reason": "У skill cli runs: refresh, и он запускает только это; остальные команды описаны как справка. Другие skills тоже объявляют runs, совпадающие с тем, что они запускают.",
       "at": "2026-10-28"
     },
     "694f0f4b5141": {
       "question": "[harness] expect > в кэше вердиктов только вердикты живых ожиданий",
       "evidence": {
-        "@verdict-prune": "e675a87082462eb7a276dd33801d0cdd5f6a500bbe75738e2541d991bf0f4d1f"
+        "@verdict-prune": "a2054bcfa7336d61c37e5c3ded365058a492588723ce884a938c0aeadfb9f69e"
       },
       "verdict": true,
       "quote": "if (!liveIds.has(id)) {",
       "ref": "@verdict-prune",
-      "reason": "pruneStore удаляет вердикты, которых нет среди живых ожиданий.",
+      "reason": "pruneStore удаляет вердикты, не виденные в прогоне.",
+      "at": "2026-10-28"
+    },
+    "6c3c787c9f87": {
+      "question": "[harness] context > context/index.yml генерируется ai context index и не содержит даты генерации",
+      "evidence": {
+        "@context-index-no-date": "43e94409a39dbeb054ace50c4fcf3cab4bd0830b117058c9cb053828ac5c1335"
+      },
+      "verdict": true,
+      "quote": "const HEADER = '# generated by ai context index — do not edit manually\\n';",
+      "ref": "@context-index-no-date",
+      "reason": "Заголовок без даты, документ строится только из conventions и namespaces.",
       "at": "2026-10-28"
     },
     "6c3d6298ef3f": {
       "question": "[flow] delta > приёмка: пункты дельты выполнены, прежние ожидания документации без revise не нарушены",
       "evidence": {
-        "@docs-delta": "0efdbe312a5788d429d3f43865472fd40935e4fc805e5936b68a88cf48e4d92e"
+        "@docs-delta": "1b678db2a04acd26f311d6ce8903b5ca9f806a1767a06394d3535052d7491e9d"
       },
       "verdict": true,
-      "quote": "5. Приёмка: пункты дельты выполнены, прежнее знание без `revise` не",
+      "quote": "прежнее знание без `revise` не",
       "ref": "@docs-delta",
-      "reason": "Приёмка включает оба условия.",
+      "reason": "Приёмка включает ненарушенность прежнего знания без revise.",
       "at": "2026-10-28"
     },
     "741df40f5b3c": {
       "question": "[harness] adapters > adapters sync выключает memory: autoMemoryEnabled false в Claude Code, memories false в Codex",
       "evidence": {
-        "@memory-off": "d0ec2f1fefc61d40f9eef0f9e7e44cf73d1304e4e34b2a15c78c5488dfb16917"
+        "@memory-off": "edc22ce17584412013a6a2766ddbf3776fc856f64023649fcb21947fd95182ef"
       },
       "verdict": true,
-      "quote": "'memories = false',",
+      "quote": "const next = { ...data, autoMemoryEnabled: false };",
       "ref": "@memory-off",
-      "reason": "Для Codex пишется memories = false, для Claude autoMemoryEnabled: false (claudeMemory).",
+      "reason": "Claude: autoMemoryEnabled false; Codex-конфиг ставит memories = false.",
       "at": "2026-10-28"
     },
     "7ba751f6d1ea": {
       "question": "документация проекта > docs-keeper меняет только слои документации проекта и не трогает код",
       "evidence": {
-        "@docs-readonly": "308866dd576d6a5f3d36a330a269b212e4f9518fe47b3956d264dc469f54fd03"
+        "@docs-readonly": "c71cb2fb287fd929cec246283521538224bbcc7b42a75a069172b8e1719c5940"
       },
       "verdict": true,
       "quote": "docs-keeper меняет только слои документации проекта — код, тесты,",
       "ref": "@docs-readonly",
-      "reason": "В skill docs-keeper прямо сказано: код, тесты и конфиги сборки он не трогает.",
-      "at": "2026-10-27"
+      "reason": "Код не трогает.",
+      "at": "2026-10-28"
+    },
+    "8ae3547551f3": {
+      "question": "AGENTS.md > CLAUDE.md для Claude Code — импорт @AGENTS.md, генерирует ai adapters sync",
+      "evidence": {
+        "@claude-md-import": "08b7ee0277766a1c673e3a3be0c1ca0efc1001829064fb02b393508386ce352a"
+      },
+      "verdict": true,
+      "quote": "return `<!-- ${GENERATED_MARK} — do not edit, правь AGENTS.md -->\\n@AGENTS.md\\n`;",
+      "ref": "@claude-md-import",
+      "reason": "CLAUDE.md генерируется как импорт @AGENTS.md, GENERATED_MARK указывает на ai adapters sync.",
+      "at": "2026-10-28"
     },
     "8de05cd21c91": {
       "question": "ядро > ядро ставится одной ссылкой на контракт, остальное агент берёт по индексу",
@@ -292,12 +325,12 @@
     "936b8919a329": {
       "question": "[flow] delta > add и refine не требуют внимания пользователя: строка в итоговом отчёте",
       "evidence": {
-        "@docs-delta": "0efdbe312a5788d429d3f43865472fd40935e4fc805e5936b68a88cf48e4d92e"
+        "@docs-delta": "1b678db2a04acd26f311d6ce8903b5ca9f806a1767a06394d3535052d7491e9d"
       },
       "verdict": true,
-      "quote": "2. `add` и `refine` вниманием пользователя не требуют — строка в отчёте.",
+      "quote": "`add` и `refine` вниманием пользователя не требуют — строка в отчёте.",
       "ref": "@docs-delta",
-      "reason": "Прямо сказано.",
+      "reason": "Прямое совпадение.",
       "at": "2026-10-28"
     },
     "93fa98f600b1": {
@@ -347,12 +380,12 @@
     "9d95d48cd2c2": {
       "question": "[harness] common > итог прогона считает код по бюджету и ответам модели, а не модель",
       "evidence": {
-        "@verdict-by-code": "e4740d37b52d5bbee272af981f259510b5461bd903b1f1bb504502ff1d5d8ba9"
+        "@verdict-by-code": "59f60a98d85588fea921855390b80870fbfde565b2cee7040e062927a287c719"
       },
       "verdict": true,
       "quote": "const over = count.crit > budget.crit || count.warn > budget.warn || count.pending > 0;",
       "ref": "@verdict-by-code",
-      "reason": "Блокировка считается кодом по бюджету и сохранённым вердиктам.",
+      "reason": "Итог blocked считает код по бюджету и сохранённым ответам судьи.",
       "at": "2026-10-28"
     },
     "a5651202c571": {
@@ -366,27 +399,16 @@
       "reason": "Ядро перечисляет виды operational, external, private, analytical с составом каждого и задаёт запасной ручной выбор",
       "at": "2026-10-27"
     },
-    "a64c9bc71299": {
-      "question": "AGENTS.md > CLAUDE.md для Claude Code — импорт @AGENTS.md, генерирует ai-core adapters sync",
-      "evidence": {
-        "@claude-md-import": "ea4851ba7daf576929ad2d0f34ea552594bcdcb825122e5bf23c027a52c4948b"
-      },
-      "verdict": true,
-      "quote": "**Claude Code** — `CLAUDE.md` (`@AGENTS.md`), копии skills в",
-      "ref": "@claude-md-import",
-      "reason": "CLAUDE.md импортирует @AGENTS.md; claudeMd() в render.ts его генерирует, контракт называет ai-core adapters sync.",
-      "at": "2026-10-28"
-    },
     "a6ff1ea8fcff": {
       "question": "[flow] delta > revise не блокирует работу: объявлен в дельте, попадает в отчёт и в тело сообщения коммита",
       "evidence": {
-        "@docs-delta": "0efdbe312a5788d429d3f43865472fd40935e4fc805e5936b68a88cf48e4d92e",
+        "@docs-delta": "1b678db2a04acd26f311d6ce8903b5ca9f806a1767a06394d3535052d7491e9d",
         "@docs-keeper-report": "f30a5351e552880d82de59fd015119f07dceb20c9e2fc6ec079f4be9ba6be412"
       },
       "verdict": true,
-      "quote": "3. `revise` работу не блокирует: он объявлен в дельте, попадает в отчёт",
+      "quote": "`revise` работу не блокирует: он объявлен в дельте, попадает в отчёт\n   и в тело сообщения коммита.",
       "ref": "@docs-delta",
-      "reason": "Далее «и в тело сообщения коммита»; отчёт подтверждает, что revise идёт в тело коммита.",
+      "reason": "Подтверждено skill; отчёт docs-keeper также направляет revise в тело коммита.",
       "at": "2026-10-28"
     },
     "ad846af081f3": {
@@ -422,27 +444,16 @@
       "reason": "Прямо сказано.",
       "at": "2026-10-28"
     },
-    "aef46b0bdeb3": {
-      "question": "[harness] context > context/index.yml генерируется ai-core context index и не содержит даты генерации",
-      "evidence": {
-        "@context-index-no-date": "e185ecd773692f97dfa3bf2d73ec9a65d0d41b5ca50506aac856e653eab848ee"
-      },
-      "verdict": true,
-      "quote": "const HEADER = '# generated by ai-core context index — do not edit manually\\n';",
-      "ref": "@context-index-no-date",
-      "reason": "Заголовок без даты, render собирает только conventions и namespaces; индекс генерируется командой.",
-      "at": "2026-10-28"
-    },
     "b067fbbab481": {
       "question": "документация проекта > при подключённом harness генерируемые файлы (context/index.yml, адаптеры под инструменты) меняет только harness, не агент и не docs-keeper",
       "evidence": {
-        "@docs-readonly": "308866dd576d6a5f3d36a330a269b212e4f9518fe47b3956d264dc469f54fd03"
+        "@docs-readonly": "c71cb2fb287fd929cec246283521538224bbcc7b42a75a069172b8e1719c5940"
       },
       "verdict": true,
-      "quote": "адаптеры под инструменты) при подключённом harness меняет только",
+      "quote": "при подключённом harness их меняет",
       "ref": "@docs-readonly",
-      "reason": "Контракт: генерируемые файлы при подключённом harness меняет только harness — не основной агент и не docs-keeper.",
-      "at": "2026-10-27"
+      "reason": "Генерируемые файлы меняет только harness.",
+      "at": "2026-10-28"
     },
     "beb079d7b30b": {
       "question": "plan-review › состояние composing > ожидание без готовой проверки записывается заглушкой crit.todo или crit.wip",
@@ -465,17 +476,6 @@
       "ref": "@own-voice",
       "reason": "Own — только в формулировке пользователя; вывод агента — разбор (analysis) или tension.",
       "at": "2026-10-14"
-    },
-    "c240d44266fa": {
-      "question": "предложения в источник > перед передачей файл предложения проходит ai-core secrets scan --file; без harness агент проверяет по тем же правилам сам",
-      "evidence": {
-        "@feedback-sanitized": "fa523f9d6ef5ccb478538f30056949abb1bf7670cff25cfa8c6b61b361d3f83c"
-      },
-      "verdict": true,
-      "quote": "- подключён harness — `ai-core secrets scan --file <путь>`;",
-      "ref": "@feedback-sanitized",
-      "reason": "Без harness проверка вручную по тем же типам.",
-      "at": "2026-10-28"
     },
     "ca5c9cebb854": {
       "question": "предложения в источник > агент только формирует файл предложения; передать его в источник решает пользователь",
@@ -535,12 +535,12 @@
     "de808fdc116f": {
       "question": "[harness] expect > судья вызывается только для вердиктов, у которых изменились заголовок или доказательства",
       "evidence": {
-        "@expect-cycles": "baa5050aced8d6e335ae0764d0cf52ee28bd760ce9b07824d7a12da391504df7"
+        "@expect-cycles": "833e3e3e344ef0406081c24e37091dde089bab486972da4ca9adbda09fbbbf32"
       },
       "verdict": true,
       "quote": "refs.every((r) => cached.evidence[r.ref] === r.sha);",
       "ref": "@expect-cycles",
-      "reason": "Вердикт свеж при совпадении вопроса и sha доказательств; иначе вопрос уходит судье.",
+      "reason": "Вердикт свежий при совпадении вопроса и sha доказательств; иначе вопрос уходит судье.",
       "at": "2026-10-28"
     },
     "dfed5ff72504": {
@@ -568,12 +568,12 @@
     "f586544d451f": {
       "question": "документация проекта > шаблон AGENTS.md и блоки модулей не содержат указаний основной сессии самой править документацию — только ссылки на skills и harness; guardrail о достоверности знания допустим",
       "evidence": {
-        "@agents-md-readonly": "134ef9aa0e08362e6f4b441ef04cf2a84a1fd00c877002b7a2711aa619fcb995"
+        "@agents-md-readonly": "6b6f6c5e157b3790498863b846cde92b8344a89f88c3a66c4d026dc312ac378d"
       },
       "verdict": true,
-      "quote": "Документация только читается; правки — намерениями (skill",
+      "quote": "Документация только читается; правки — намерениями (skill\n   `workflow`)",
       "ref": "@agents-md-readonly",
-      "reason": "Шаблон направляет правки через harness docs-delta или docs-keeper; блоки модулей только ссылаются на skills и каналы.",
+      "reason": "Шаблон и блоки модулей отсылают к docs-delta/docs-keeper, а не велят править самой сессии.",
       "at": "2026-10-28"
     },
     "f7310dcbc6e4": {
@@ -590,12 +590,12 @@
     "fea56d1882e8": {
       "question": "поведение ключевых skills > contract-setup: модули подключаются по одному, каждый — с manifest и отчётом",
       "evidence": {
-        "@module-install": "fe6e2b7e6abc95a93fa8f479185ad8c52dfa0f915b6fd4e52ac31261b935114a"
+        "@module-install": "fd4aecca9077acb483bad9ed9d650b84460e66c9b2d2e5e682f621874368d219"
       },
       "verdict": true,
       "quote": "По одному модулю; модуль — отдельный шаг с отчётом (skill `workflow`).",
       "ref": "@module-install",
-      "reason": "Подключение по одному модулю с отчётом; шаг 4 создаёт manifest context/modules/<key>.yml.",
+      "reason": "Шаг 4 задаёт manifest context/modules/<key>.yml для каждого модуля.",
       "at": "2026-10-28"
     },
     "ff81d6f20d87": {
@@ -612,20 +612,16 @@
   },
   "lint": {
     "expectations/agent-operational-contract-v3.expect.ts": {
-      "titles": "e4b9c2af72c43d6c37fdeb859957c25dc129b1179ea54b79bb4a26bef4b0fa24",
+      "titles": "e6307ed631a1f2479931b41ed37de70e6e42d37d78fedd8e67b26198283b8170",
       "contradictions": [],
       "unmeasurable": [
         {
           "id": "d1b5dfa33e69",
-          "reason": "Оценочно: «нельзя продолжить или откатить» не имеет порога и объективного критерия, по которому можно ответить да/нет."
+          "reason": "Критерий «без его решения нельзя продолжить или откатить» оценочный: нет порога или проверяемого признака, по которому вопрос признают лишним."
         },
         {
           "id": "1335d09ddc18",
-          "reason": "Размыто: нет порога доли контекста и определения «доменной области»; проверить «тратит» нельзя."
-        },
-        {
-          "id": "9ded9955d2de",
-          "reason": "«Обязательны наравне» не задаёт проверяемого условия: неясно, что именно считается нарушением (приоритет, лимит или наличие)."
+          "reason": "«Тратит контекст на доменную область» не имеет метрики или порога (доля контекста, число вызовов). Ответить да/нет или числом нельзя."
         }
       ],
       "at": "2026-10-28"
@@ -643,24 +639,30 @@
       "at": "2026-10-14"
     },
     "expectations/harness-plan-review.expect.ts": {
-      "titles": "7e408ecd1d4c35cd2eb9d3e273725b976e163487c0b82883c35895fbe0814189",
-      "contradictions": [],
-      "unmeasurable": [],
-      "at": "2026-10-21"
-    },
-    "expectations/harness.expect.ts": {
-      "titles": "fc0d281d56c4596b96e7b6fb36311dcfdd8f693e8adc5bc526f39cac1ab83b04",
+      "titles": "f627cfd4da0f7d639f3707e90386903c01ff9c03d7db9d66425395a71596f89d",
       "contradictions": [],
       "unmeasurable": [
         {
-          "id": "b0ae36a8ae5c",
-          "reason": "«Контекст автора» не определён, порога нет. Проверить, что задание не содержит контекста, нельзя ответом да/нет."
+          "id": "36fb5916f90a",
+          "reason": "«может идти» — допущение, а не требование: любое поведение (с подзадачами или без) его выполняет, да/нет не получить."
         },
         {
-          "id": "c7dfae164cd9",
-          "reason": "«Без своей логики» оценочно. Критерия, что считать логикой скрипта, нет."
+          "id": "d619708cea3e",
+          "reason": "«с пояснениями» не задаёт критерия: какие пояснения и сколько их достаточно, неясно."
         }
       ],
+      "at": "2026-10-28"
+    },
+    "expectations/harness.expect.ts": {
+      "titles": "4792395039074a23a44a14d3617d07141bc0712946fbfa58bc45a330d384b08c",
+      "contradictions": [
+        {
+          "a": "0ad455ca74a9",
+          "b": "6fe27bd2b677",
+          "reason": "0ad455ca74a9 говорит, что open заново выполняет действие текущего состояния, а в состоянии агента это приём задания. 6fe27bd2b677 говорит, что в состоянии агента open <id> продолжает со следующего состояния. Для одной ситуации заданы два разных поведения open."
+        }
+      ],
+      "unmeasurable": [],
       "at": "2026-10-28"
     },
     "expectations/presets.expect.ts": {
@@ -670,10 +672,10 @@
       "at": "2026-10-27"
     },
     "expectations/roles.expect.ts": {
-      "titles": "94bd929db5a79ceaed2ce8ad411ed41aa2fd22b98c824478456932c355677bb3",
+      "titles": "74478d6b016909403bdda1851e25dcbd19a022e18e7d1ea5d4ce9fd208fa2d55",
       "contradictions": [],
       "unmeasurable": [],
-      "at": "2026-10-27"
+      "at": "2026-10-28"
     },
     "expectations/shared/any-contract.expect.ts": {
       "titles": "c5f9a68bcba0dbca8e1c32c4b8665c90e6714c379af7c52d844250f634ae1413",
@@ -682,10 +684,15 @@
       "at": "2026-10-14"
     },
     "expectations/skills.expect.ts": {
-      "titles": "328a8ec73fae8e0ebcf80c3752ba7ebb208a861c8d183871c5acfe2f57c51b4b",
+      "titles": "fdd69bd2336b28db3d6c4b14e1ee4b9322f6953dc2a85eb13a1113a7b43316ba",
       "contradictions": [],
-      "unmeasurable": [],
-      "at": "2026-10-27"
+      "unmeasurable": [
+        {
+          "id": "c57fb558adc6",
+          "reason": "Нет критерия, по которому description «говорит, когда загружать». Это оценочное суждение без формального признака, например маркера «Use when» или шаблона."
+        }
+      ],
+      "at": "2026-10-28"
     }
   }
 }

@@ -3,72 +3,45 @@ key: harness
 kind: module
 applicable_to: [agent-operational-contract-v3]
 patterns: [source-sync]
-title: Модуль harness — проверки и генерация через @shahimat/harness
-use_case: Возможность ядра v3. Подключает CLI @shahimat/harness (Node ≥ 24) — проверка CHANGELOG, поиск секретов, генерация context/index.yml, генерация адаптеров под Claude Code и Codex, общий ai-core check. Конфиг — context/ai-core.yml.
+title: Модуль harness — автоматы через @shahimat/harness
+use_case: Возможность ядра v3. Добавляет в devDependencies проекта @shahimat/harness — автоматы docs-delta (запись в документацию ролями docs-keeper и judge) и source-sync (обновление из источника), а также исполнение своих автоматов проекта из .agents/harnesses/. Запуск — через CLI ai ядра.
 tags: [harness, automation, agent-contract, module]
 feature:
-  summary: "@shahimat/harness — проверки CHANGELOG, генерация индекса и адаптеров (нужен Node ≥ 24)"
+  summary: "@shahimat/harness — автоматы docs-delta и source-sync, свои автоматы проекта в .agents/harnesses/"
   default: true
   requires: []
   conflicts: []
-  asks:
-    - key: checks
-      question: Какие проверки включить в ai-core check?
-      multi: true
-      options: [changelog, context-index, adapters]
-    - key: adapters
-      question: Под какие инструменты генерировать файлы?
-      multi: true
-      options: [claude-code, codex]
 ---
 
-# Модуль harness — проверки и генерация через @shahimat/harness
+# Модуль harness — автоматы
 
 ## Назначение
 
-Всё, что можно проверить или сгенерировать механически, делает CLI, а
-не память агента: формат CHANGELOG, индекс `context/index.yml`, файлы
-под инструменты. Агенту остаётся смысловая часть.
+Автомат — последовательность состояний, где переходами управляет
+скрипт, а роли и агент работают внутри состояний. Модуль добавляет пакет
+`@shahimat/harness`, после чего CLI `ai` ядра знает автоматы:
 
-Требование к машине — Node ≥ 24. Работает на macOS, Linux, Windows.
+- `ai docs-delta` — запись в документацию: роль `docs-keeper` пишет,
+  `ai` проверяет, роль `judge` ищет противоречия, дельта закрывается;
+- `ai source-sync` — обновление из источника;
+- свои автоматы проекта из `.agents/harnesses/<name>/`.
 
-## Вопросы при подключении
-
-- `checks` — проверки `ai-core check`. По умолчанию все три:
-  - `changelog` — формат `CHANGELOG.md`;
-  - `context-index` — `context/index.yml` актуален, у слоёв есть `id`,
-    `namespace`, `summary` / `title`;
-  - `adapters` — сгенерированные файлы совпадают с источниками.
-
-  `secrets` — поиск ключей, токенов, паролей и приватных ключей в
-  отслеживаемых файлах — в вопрос не входит: включена всегда.
-  Выключается только явно, `secrets: false` в `context/ai-core.yml`.
-- `adapters` — инструменты, под которые генерировать файлы. По
-  умолчанию — те, что назвал пользователь при установке ядра.
+Без модуля всё остальное работает: команды и скрипты `ai` — ядро,
+запись в документацию — через субагента `docs-keeper`.
 
 ## Что ставит
 
 ```yaml
 provides:
   layers: []
-  files: [context/ai-core.yml, context/index.yml]
-  skills: [harness]
+  files: [package.json]
+  skills: []
   agents_md_block: true
-  harness_checks: [<из ответа checks>]
+  harness_checks: []
 ```
 
-`context/index.yml` ставится, только если выбран `context-index`.
-
-`context/ai-core.yml`:
-
-```yaml
-version: <последняя версия @shahimat/harness>
-adapters: [<из ответа adapters>]
-checks:
-  changelog: {}
-  context-index: {}
-  adapters: {}
-```
+`package.json` — только строка `@shahimat/harness` в `devDependencies`,
+точная версия.
 
 Блок `AGENTS.md`:
 
@@ -77,34 +50,29 @@ checks:
 <!-- module:harness -->
 ## harness
 
-- карта id по namespace → `context/index.yml` (генерируется);
-- в конце задачи — `ai-core refresh`; команды и конфиг → skill `harness`;
-- сгенерированные файлы руками не правятся.
+- запись в документацию — `npx ai docs-delta start --file -` (правило 4);
+- обновление из источника — `npx ai source-sync start`;
+- свои автоматы → `.agents/harnesses/`, справка — skill `cli`.
 <!-- /module:harness -->
 ```
 <!-- /expect:agents-md-readonly -->
 
 ## Установка
 
-1. Проверь `node --version` ≥ 24. Нет — скажи пользователю, модуль не
-   подключай.
-2. Версию возьми из npm: `npm view @shahimat/harness version`.
-3. Создай `context/ai-core.yml` по ответам.
-4. Поставь skill `harness`, добавь блок в `AGENTS.md`.
-5. Выбран `context-index` — `ai-core context index`; нарушения
-   (`нет поля summary` и т.п.) — план правок через docs-keeper.
-6. Выбран `adapters` — `ai-core adapters sync`. Файлы, которые агент
-   создал вручную при установке ядра, sync узнаёт по метке и
-   перезаписывает.
-7. `ai-core check`. Нарушения — отчёт пользователю с планом.
+1. Версию возьми из npm: `npm view @shahimat/harness version`.
+2. Добавь `@shahimat/harness` в `devDependencies` `package.json` с
+   точной версией; `npm install` — после «да».
+3. Добавь блок в `AGENTS.md`.
+4. `npx ai docs-delta validate` — автомат виден и пригоден.
 
 ## Отключение
 
-Удаляются `context/ai-core.yml`, skill и блок. `context/index.yml` —
-вопрос пользователю: удалить или вести дальше руками. Адаптеры
-остаются; их актуальность — снова на агенте.
+Удаляются строка `@shahimat/harness` из `devDependencies` и блок.
+Свои автоматы в `.agents/harnesses/` остаются — без модуля `ai`
+сообщает, что исполнять их нечем.
 
 ## Синхронизация
 
-Через обновление из источника (skill `source-sync`). Версия CLI обновляется
-отдельно: правкой `version` в `context/ai-core.yml` после «да».
+Через обновление из источника (skill `source-sync`). Версия пакета
+обновляется правкой `devDependencies` и `npm install` после «да»; что
+нового — `npx ai outdated`.

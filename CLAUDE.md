@@ -62,7 +62,7 @@ patterns: [source-sync, ...]
 тот же коммит. CI проверяет консистентность через `npm run index:check`
 и валит билд при рассинхроне.
 
-Индекс собирает `ai-core` (`packages/ai-core`, TS). Нужен
+Индекс собирает CLI `ai` (`packages/cli` поверх `packages/ai-core`, TS). Нужен
 Node ≥ 24; перед первым запуском — `npm ci && npm run build`.
 
 После правки TS-кода (`packages/`, `expectations/`) — `npm run ci`:
@@ -92,12 +92,13 @@ shebang: пояснения — в именах, ожиданиях и README. �
 `local/no-comments` (`packages/oxlint-plugin.ts`), `oxlint --fix`
 удаляет лишние.
 
-**Слои пакетов**, импорт только вниз: `@shahimat/ai-core`
-(`packages/ai-core/src`) — `shared` → `lib` → `commands` → `scripts`;
-`@shahimat/harness` (`packages/harness/src`) — `harnesses` поверх
-публичного API `ai-core`. Из `harness` — только автоматы; `ai-core` от
-`harness` не зависит. CLI `ai-core` — команды и скрипты, CLI `harness`
-— только автоматы.
+**Слои пакетов**, импорт только вниз (модель — `design/packages.md`):
+`@shahimat/ai-core` (`packages/ai-core/src`) — `shared` → `lib` →
+`commands`, библиотека без бинаря; `@shahimat/harness`
+(`packages/harness/src`) — `harnesses` поверх публичного API
+`ai-core`; `@shahimat/cli` (`packages/cli/src`) — `scripts` и бинарь
+`ai`, загружает `harness` динамически. `ai-core` не знает ни `cli`, ни
+`harness`; скрипты и команду CLI автоматы берут через `runtime`.
 
 - Команда — атомарная операция; другие команды, скрипты и harness не
   вызывает.
@@ -109,7 +110,7 @@ shebang: пояснения — в именах, ожиданиях и README. �
   Ядро `harnesses/core` не зависит ни от одного конкретного harness,
   harness не импортируют друг друга; каталог `harnesses/index.ts`
   регистрирует модули (`HarnessModule`).
-- CLI harness — под его именем: `harness <имя> start | open <id> | list
+- CLI harness — под его именем: `ai <имя> start | open <id> | list
   | status <id> | validate | graph`. id сессии — sha256, в выводе 7
   символов, команды принимают префикс от 4. Пауза — выход: `open` заново
   выполняет действие текущего состояния; в состоянии агента (`handoff`)
@@ -171,7 +172,7 @@ worktree — одна задача, одна ветка, один worktree.
 
 ## Публичные npm-пакеты
 
-`packages/*` публикуются в npm (`@shahimat/ai-core`,
+`packages/*` публикуются в npm (`@shahimat/cli`, `@shahimat/ai-core`,
 `@shahimat/harness`); публикует пользователь, когда сам решит.
 Неопубликованная версия — не блокер и не повод для напоминания: о
 публикации не напоминаешь и работу ею не обусловливаешь.
@@ -191,11 +192,11 @@ vitest: заголовок `it` (≤ 200 символов, проверяемо 
 ожидание, тело — проверка. Общие ожидания этого репозитория —
 `expectations/shared/` (например, `attention`); паттерны проверки
 автоматов — `@shahimat/harness/expect`. Каркас в другом проекте —
-`ai-core expect init`.
+`ai expect init`.
 
 Точка входа одна: `expectations/index.expect.ts` импортирует файлы
 ожиданий, `npm run expect`, CI и судья прогоняют только его
-(`ai-core expect report <file>`). Новый файл ожиданий подключается
+(`ai expect report <file>`). Новый файл ожиданий подключается
 строкой `import` в точке входа; общий блок вне `*.expect.ts` объявляет
 разделы через `describe` из `@shahimat/ai-core/expect`. Отчёт, бюджет и
 проверка заголовков — по модулю, где объявлено ожидание.

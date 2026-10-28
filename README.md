@@ -52,11 +52,12 @@ design/             — спецификации будущих версий п�
                      в индекс не попадают).
 
 packages/           — пакеты (TS, npm workspaces, Node ≥ 24):
-                     @shahimat/ai-core — команды (CLI ai-core): сборка
-                     index.yml этого репо, проверки, генерация, механизм
-                     ожиданий и роли для проектов;
-                     @shahimat/harness — автоматы (CLI harness) поверх
-                     ai-core: docs-delta, source-sync, plan-review.
+                     @shahimat/cli — бинарь ai и скрипты, точка входа;
+                     @shahimat/ai-core — ядро: команды (сборка index.yml
+                     этого репо, проверки, генерация), механизм ожиданий
+                     и роли;
+                     @shahimat/harness — автоматы поверх ai-core:
+                     docs-delta, source-sync, plan-review.
 ```
 
 Подробнее — `patterns/README.md`, `prompts/modules/README.md`,

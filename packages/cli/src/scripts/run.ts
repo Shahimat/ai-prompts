@@ -1,8 +1,8 @@
-import type { CommandArgs } from '#shared/args';
-import { CONFIG_PATH, loadConfig } from '#shared/config';
-import { UsageError } from '#shared/diagnostics';
-import type { ScriptDef } from '#shared/node';
-import { COMMAND_NODES } from './commands.ts';
+import type { CommandArgs } from '@shahimat/ai-core';
+import { CONFIG_PATH, loadConfig } from '@shahimat/ai-core';
+import { UsageError } from '@shahimat/ai-core';
+import type { ScriptDef } from '@shahimat/ai-core';
+import { COMMAND_NODES } from '@shahimat/ai-core';
 
 const commandOf = (path: readonly string[]) =>
   COMMAND_NODES.find((c) => c.path.length === path.length && c.path.every((p, i) => p === path[i]));

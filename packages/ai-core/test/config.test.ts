@@ -7,7 +7,11 @@ import { UsageError } from '#shared/diagnostics';
 
 describe('parseConfig', () => {
   it('пустой файл — включена только secrets', () => {
-    expect(parseConfig('')).toEqual({ adapters: [], checks: { secrets: { allow: [] } } });
+    expect(parseConfig('')).toEqual({
+      adapters: [],
+      hooks: [],
+      checks: { secrets: { allow: [] } },
+    });
   });
 
   it('secrets: false выключает проверку, allow читается с причиной', () => {
@@ -30,13 +34,15 @@ describe('parseConfig', () => {
     expect(parseConfig('checks:\n  changelog:\n').checks.changelog).toEqual(DEFAULT_CHANGELOG);
   });
 
-  it('читает version, adapters и параметры changelog', () => {
+  it('читает adapters, hooks и параметры changelog; version — неизвестный ключ', () => {
+    expect(() => parseConfig('version: 0.2.0\n')).toThrow(/неизвестные ключи в корне: version/);
+    expect(() => parseConfig('hooks: [memory]\n')).toThrow(/неизвестные hooks: memory/);
     const config = parseConfig(
-      'version: 0.2.0\nadapters: [claude-code, codex]\nchecks:\n  changelog:\n    max_line: 100\n    tags: [arch]\n',
+      'adapters: [claude-code, codex]\nhooks: [docs-guard]\nchecks:\n  changelog:\n    max_line: 100\n    tags: [arch]\n',
     );
     expect(config).toEqual({
-      version: '0.2.0',
       adapters: ['claude-code', 'codex'],
+      hooks: ['docs-guard'],
       checks: { changelog: { maxLine: 100, tags: ['arch'] }, secrets: { allow: [] } },
     });
   });

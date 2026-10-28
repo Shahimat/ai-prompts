@@ -1,0 +1,75 @@
+{
+  "name": "@shahimat/cli",
+  "version": "0.1.0",
+  "description": "CLI ai для проектов на контрактах ai-prompts: команды ai-core, скрипты, автоматы harness и расширения проекта",
+  "license": "MIT",
+  "author": "Gevorg Nakhapetyan",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Shahimat/ai-prompts.git",
+    "directory": "packages/cli"
+  },
+  "homepage": "https://github.com/Shahimat/ai-prompts/tree/main/packages/cli#readme",
+  "bugs": {
+    "url": "https://github.com/Shahimat/ai-prompts/issues"
+  },
+  "keywords": [
+    "ai-agents",
+    "cli",
+    "agents-md",
+    "claude-code"
+  ],
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "bin": {
+    "ai": "dist/bin.js"
+  },
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "imports": {
+    "#*": {
+      "source": "./src/*.ts",
+      "types": "./dist/*.d.ts",
+      "default": "./dist/*.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "build": "node ../build.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "prepublishOnly": "npm run typecheck && npm test && npm run build"
+  },
+  "dependencies": {
+    "@shahimat/ai-core": "0.1.0",
+    "yaml": "^2.9.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.4"
+  },
+  "peerDependencies": {
+    "@shahimat/harness": ">=0.4.0"
+  },
+  "peerDependenciesMeta": {
+    "@shahimat/harness": {
+      "optional": true
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

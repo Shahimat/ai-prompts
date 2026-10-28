@@ -4,7 +4,7 @@ import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promis
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { main } from '#cli';
+import { main } from '@shahimat/cli';
 import { openSession } from '#harnesses/core/store/session';
 import { FAKE_CLAUDE } from './fake-claude.ts';
 

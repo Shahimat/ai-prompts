@@ -39,7 +39,7 @@ description: Параллельная работа в git worktree — где ж
 
 <!-- expect:skill-runs -->
 <!-- metadata.runs: refresh -->
-С harness после слияния — `ai-core refresh`: пересоберёт адаптеры и
+С harness после слияния — `ai refresh`: пересоберёт адаптеры и
 `context/index.yml` и проверит проект, в том числе порядок дат журнала.
 <!-- /expect:skill-runs -->
 

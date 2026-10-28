@@ -8,6 +8,3 @@ modules:
   - key: manuals
   - key: goals
   - key: harness
-    answers:
-      checks: [changelog, context-index, adapters]
-      adapters: [claude-code]

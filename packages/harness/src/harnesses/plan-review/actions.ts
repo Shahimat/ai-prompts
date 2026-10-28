@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { ActionDef, MachineDef, ModelRunner, Registry, Session } from '#harnesses/core/index';
 import { harnessFile, openSession } from '#harnesses/core/index';
-import { aiCoreCommand, errorMessage } from '@shahimat/ai-core';
+import { cliCommand, errorMessage } from '@shahimat/ai-core';
 import type { PlanPage } from './page.ts';
 import { judge, readPlanState, readReview, savePlanState } from './review.ts';
 
@@ -48,7 +48,7 @@ export function hookCommand(ctx: PlanContext, hook: HookName): string {
 
 export function reportCommand(ctx: PlanContext): string {
   return shell([
-    ...aiCoreCommand(),
+    ...cliCommand(),
     'expect',
     'report',
     planFileOf(ctx.session),
@@ -181,7 +181,7 @@ async function runPlanner(ctx: PlanContext): Promise<string> {
     delete state.page;
     await savePlanState(s, state);
   }
-  return `сессия планера закрыта; продолжить — harness plan-review open ${s.short}`;
+  return `сессия планера закрыта; продолжить — ai plan-review open ${s.short}`;
 }
 
 const planner = (events: readonly string[]): ActionDef<PlanContext> => ({
@@ -190,7 +190,7 @@ const planner = (events: readonly string[]): ActionDef<PlanContext> => ({
     if (ctx.hook) return { pause: `ждёт события сессии планера в ${ctx.session.data.state}` };
     if (!ctx.terminal)
       return {
-        pause: `сессия планера идёт в терминале: harness plan-review open ${ctx.session.short}`,
+        pause: `сессия планера идёт в терминале: ai plan-review open ${ctx.session.short}`,
       };
     return { pause: await runPlanner(ctx) };
   },

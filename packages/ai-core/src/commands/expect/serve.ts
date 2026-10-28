@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process';
 import { watch, type FSWatcher } from 'node:fs';
 import { createServer, type ServerResponse } from 'node:http';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { cliCommand } from '#lib/role';
 import { UsageError } from '#shared/diagnostics';
 import { errorMessage } from '#shared/guards';
 
@@ -37,18 +37,13 @@ export const RELOAD_SCRIPT = `<script>
 export const withReload = (html: string): string =>
   html.replace('</body>', `${RELOAD_SCRIPT}\n</body>`);
 
-function selfBin(): string[] {
-  const bin = fileURLToPath(import.meta.resolve('#bin'));
-  return bin.endsWith('.ts') ? ['--conditions=source', bin] : [bin];
-}
-
 export function renderInChild(root: string, entry: string): Promise<string> {
   return new Promise((resolve, reject) => {
-    const child = spawn(
-      process.execPath,
-      [...selfBin(), 'expect', 'report', entry, '--root', root, '--html', '-'],
-      { cwd: root, stdio: ['ignore', 'pipe', 'pipe'] },
-    );
+    const [bin = process.execPath, ...pre] = cliCommand();
+    const child = spawn(bin, [...pre, 'expect', 'report', entry, '--root', root, '--html', '-'], {
+      cwd: root,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
     let out = '';
     let err = '';
     child.stdout.on('data', (d: Buffer) => {
@@ -150,7 +145,7 @@ export function serveHtml(options: ServeOptions): Promise<number> {
     server.listen(options.port, HOST, () => {
       const address = server.address();
       const port = typeof address === 'object' && address !== null ? address.port : options.port;
-      console.log(`ai-core expect serve: http://${HOST}:${port}/ — ${path.resolve(options.root)}`);
+      console.log(`ai expect serve: http://${HOST}:${port}/ — ${path.resolve(options.root)}`);
       console.log(
         'страница собирается при каждом запросе и обновляется сама при изменении файлов; остановка — Ctrl+C',
       );

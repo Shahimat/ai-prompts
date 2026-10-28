@@ -195,7 +195,7 @@ async function collect(
     const lint = store.lint[file];
     if (lint === undefined || lint.titles !== titlesSha(items)) {
       count.pending++;
-      log('  ? смысловая проверка заголовков устарела — ai-core expect judge');
+      log('  ? смысловая проверка заголовков устарела — ai expect judge');
     } else {
       const byId = new Map(items.map((t) => [idOf(fullName(t)), t]));
       const name = (id: string) => byId.get(id)?.title;
@@ -478,7 +478,7 @@ async function judgePrepare(args: CommandArgs): Promise<number> {
   for (const t of [...plan.batches, ...plan.lint]) console.log(`  ${t.task} → ${t.answer}`);
   if (args.run !== true)
     console.log(
-      'Каждый файл — задание судье (субагенту), ответ — в указанный JSON. Затем: ai-core expect judge --apply',
+      'Каждый файл — задание судье (субагенту), ответ — в указанный JSON. Затем: ai expect judge --apply',
     );
   return 1;
 }
@@ -521,10 +521,10 @@ async function judgeRun(args: CommandArgs): Promise<number> {
 async function judgeApply(args: CommandArgs): Promise<number> {
   const JUDGE_DIR = judgeDir(entryOf(args));
   const planFile = path.join(args.root, JUDGE_DIR, 'plan.json');
-  if (!existsSync(planFile)) throw new UsageError('нет плана: сначала ai-core expect judge');
+  if (!existsSync(planFile)) throw new UsageError('нет плана: сначала ai expect judge');
   const plan: unknown = JSON.parse(await readFile(planFile, 'utf8'));
   if (!isPlan(plan))
-    throw new UsageError(`${JUDGE_DIR}/plan.json: неверная форма — заново ai-core expect judge`);
+    throw new UsageError(`${JUDGE_DIR}/plan.json: неверная форма — заново ai expect judge`);
   const store = await loadVerdicts();
   const rejected: string[] = [];
   const readJson = async (rel: string): Promise<unknown> => {
@@ -616,9 +616,9 @@ async function init(args: CommandArgs): Promise<number> {
     const current = pkg['scripts'] ?? {};
     if (!isRecord(current)) throw new UsageError('package.json: scripts должно быть объектом');
     const scripts = {
-      expect: `ai-core expect report ${INDEX_ENTRY} --root .`,
-      'expect:judge': `ai-core expect judge ${INDEX_ENTRY} --root .`,
-      'expect:apply': `ai-core expect judge ${INDEX_ENTRY} --apply --root .`,
+      expect: `ai expect report ${INDEX_ENTRY} --root .`,
+      'expect:judge': `ai expect judge ${INDEX_ENTRY} --root .`,
+      'expect:apply': `ai expect judge ${INDEX_ENTRY} --apply --root .`,
     };
     const added = Object.entries(scripts).filter(([k]) => current[k] === undefined);
     if (added.length > 0) {

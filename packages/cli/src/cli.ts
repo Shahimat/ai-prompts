@@ -3,10 +3,13 @@ import { homedir } from 'node:os';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { runShell } from './shell.ts';
-import { AI_CORE, type CommandTree } from './tree.ts';
-import type { CommandArgs } from './shared/args.ts';
-import { UsageError } from './shared/diagnostics.ts';
-import { errorCode, errorMessage } from './shared/guards.ts';
+import { fileURLToPath } from 'node:url';
+import { setRuntime, type CommandTree } from '@shahimat/ai-core';
+import { runScript } from './scripts/index.ts';
+import { loadTree } from './tree.ts';
+import type { CommandArgs } from '@shahimat/ai-core';
+import { UsageError } from '@shahimat/ai-core';
+import { errorCode, errorMessage } from '@shahimat/ai-core';
 
 export function projectOf(start: string): string | undefined {
   const home = path.resolve(homedir());
@@ -83,8 +86,34 @@ export async function cliMain(
   throw new UsageError(`неизвестная команда: ${positionals.join(' ') || '<пусто>'}`);
 }
 
-export const main = (argv: string[], now: Date = new Date()): Promise<number> =>
-  cliMain(AI_CORE, argv, now);
+export function selfCommand(): string[] {
+  const bin = fileURLToPath(import.meta.resolve('#bin'));
+  return bin.endsWith('.ts')
+    ? [process.execPath, '--conditions=source', bin]
+    : [process.execPath, bin];
+}
+
+function rootOf(argv: readonly string[]): string {
+  const i = argv.indexOf('--root');
+  const given = i >= 0 ? argv[i + 1] : argv.find((a) => a.startsWith('--root='))?.slice(7);
+  return given !== undefined ? path.resolve(given) : (projectOf(process.cwd()) ?? process.cwd());
+}
+
+export async function prepare(argv: readonly string[]): Promise<CommandTree> {
+  const { tree, scripts } = await loadTree(rootOf(argv));
+  setRuntime({
+    self: selfCommand(),
+    runScript: (scriptPath, args) => {
+      const def = scripts.find((s) => s.path.join(' ') === scriptPath.join(' '));
+      if (def === undefined) throw new UsageError(`нет скрипта ${scriptPath.join(' ')}`);
+      return runScript(def, args);
+    },
+  });
+  return tree;
+}
+
+export const main = async (argv: string[], now: Date = new Date()): Promise<number> =>
+  cliMain(await prepare(argv), argv, now);
 
 export async function runCli(tree: CommandTree, argv: string[]): Promise<number> {
   const again = (words: string[]): Promise<number> => runCli(tree, words);
@@ -102,4 +131,13 @@ export async function runCli(tree: CommandTree, argv: string[]): Promise<number>
   }
 }
 
-export const run = (argv: string[]): Promise<number> => runCli(AI_CORE, argv);
+export async function run(argv: string[]): Promise<number> {
+  let tree: CommandTree;
+  try {
+    tree = await prepare(argv);
+  } catch (error) {
+    console.error(`ERROR: ${errorMessage(error)}`);
+    return 2;
+  }
+  return runCli(tree, argv);
+}

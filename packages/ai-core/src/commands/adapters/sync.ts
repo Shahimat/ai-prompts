@@ -1,6 +1,6 @@
 import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import type { AdapterName } from '#shared/config';
+import type { AdapterName, HookKey } from '#shared/config';
 import type { Diagnostic } from '#shared/diagnostics';
 import { errorCode } from '#shared/guards';
 import { claudeMemory, CODEX_CONFIG, codexMemory } from './memory.ts';
@@ -154,6 +154,7 @@ async function staleActions(root: string, planned: Set<string>): Promise<Action[
 export async function computeSync(
   root: string,
   adapters: readonly AdapterName[],
+  hooks: readonly HookKey[] = [],
 ): Promise<SyncResult> {
   const { units, diagnostics } = await plan(root, adapters);
   const actions: Action[] = [];
@@ -188,7 +189,7 @@ export async function computeSync(
 
   const planned = new Set(units.map((u) => u.path));
   for (const [adapter, apply] of [
-    ['claude-code', claudeMemory],
+    ['claude-code', (r: string) => claudeMemory(r, hooks)],
     ['codex', codexMemory],
   ] as const) {
     if (!adapters.includes(adapter)) continue;
@@ -217,11 +218,12 @@ export async function applyActions(root: string, actions: Action[]): Promise<voi
 export async function checkAdapters(
   root: string,
   adapters: readonly AdapterName[],
+  hooks: readonly HookKey[] = [],
 ): Promise<Diagnostic[]> {
-  const { actions, diagnostics } = await computeSync(root, adapters);
+  const { actions, diagnostics } = await computeSync(root, adapters, hooks);
   for (const action of actions) {
     const what = action.op === 'write' ? 'отсутствует или устарел' : 'лишний';
-    diagnostics.push({ file: action.path, message: `${what}: запусти ai-core adapters sync` });
+    diagnostics.push({ file: action.path, message: `${what}: запусти ai adapters sync` });
   }
   return diagnostics;
 }

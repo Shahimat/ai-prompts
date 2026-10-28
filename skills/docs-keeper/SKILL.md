@@ -55,9 +55,9 @@ description: Правила записи в проектную документ�
 | `CHANGELOG.md` | docs-keeper |
 | слои ядра в `docs/` и слои модулей (`provides.layers`) | docs-keeper |
 | `context/.delta/` — создание и правка | docs-keeper |
-| `context/.delta/` — удаление после приёмки | `ai-core delta close`; шаг `close` harness `docs-delta`, без harness — docs-keeper |
-| `context/index.yml` | `ai-core context index`; шаг `verify` harness `docs-delta` |
-| адаптеры (`CLAUDE.md`, `.claude/`, `.codex/`) | `ai-core adapters sync`; шаг `verify` harness `docs-delta` |
+| `context/.delta/` — удаление после приёмки | `ai delta close`; шаг `close` harness `docs-delta`, без harness — docs-keeper |
+| `context/index.yml` | `ai context index`; шаг `verify` harness `docs-delta` |
+| адаптеры (`CLAUDE.md`, `.claude/`, `.codex/`) | `ai adapters sync`; шаг `verify` harness `docs-delta` |
 <!-- /expect:skill-runs -->
 
 Основная сессия в документацию не пишет.
@@ -92,9 +92,9 @@ items:
 
 <!-- expect:skill-runs -->
 <!-- metadata.runs: docs-delta -->
-С harness запись ведёт `harness docs-delta start --name <имя>`: он
+С harness запись ведёт `ai docs-delta start --name <имя>`: он
 выдаёт задание — шаги 1–4 ниже — и короткий id сессии; после них
-`harness docs-delta open <id>` проверяет, ревьюит и закрывает дельту
+`ai docs-delta open <id>` проверяет, ревьюит и закрывает дельту
 (шаги 5–6). С `--file <намерения | ->` шаги 1–4 выполняет роль
 `docs-keeper` сама, без задания агенту. Ревью — роль `judge`: ищет
 противоречия правки с остальной документацией, цитаты сверяются
@@ -118,7 +118,7 @@ items:
    нет — с harness это шаг `review` (роль `judge`).
 6. После приёмки дельта удаляется, строки `revise` — в отчёт:
    <!-- expect:skill-runs -->
-   с harness — шаг `close` процесса, `ai-core delta close`.
+   с harness — шаг `close` процесса, `ai delta close`.
    <!-- /expect:skill-runs -->
 
 Без harness — та же сверка вручную по `git diff HEAD` слоёв, дельту

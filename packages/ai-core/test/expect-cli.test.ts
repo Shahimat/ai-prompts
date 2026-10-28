@@ -1,7 +1,7 @@
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { main } from '#cli';
+import { main } from '@shahimat/cli';
 import { isRecord } from '#shared/guards';
 
 const TMP = path.join(import.meta.dirname, '.tmp');
@@ -35,7 +35,7 @@ afterAll(async () => {
   await rm(ROOT, { recursive: true, force: true });
 });
 
-describe('ai-core expect report | lint | judge', () => {
+describe('ai expect report | lint | judge', () => {
   it('lint: 0 — заголовки в порядке', async () => {
     expect(await main(['expect', 'lint', ENTRY, '--root', ROOT], NOW)).toBe(0);
   }, 60_000);

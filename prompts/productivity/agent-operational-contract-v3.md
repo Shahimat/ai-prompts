@@ -23,8 +23,9 @@ use_case: Скармливается AI-агенту одной ссылкой, 
   устойчивое — в репозитории.
 - **CHANGELOG — одна строка до 120 символов** с тегом
   `arch` / `stack` / `dep` / `milestone`.
-- **Harness** (`@shahimat/harness`) — механические проверки и генерация;
-  подключается возможностью.
+- **CLI `ai`** (`@shahimat/cli` и `@shahimat/ai-core`) — ядро: проверки,
+  генерация, роли; Node ≥ 24 и `package.json`. Автоматы — возможность
+  `harness`. Свои роли, команды, скрипты и автоматы — в `.agents/`.
 
 ## Роль и посыл
 
@@ -74,9 +75,12 @@ https://raw.githubusercontent.com/Shahimat/ai-prompts/main/prompts/index.yml
 AGENTS.md                          ← маршрутизация и жёсткие правила
 CLAUDE.md                          ← @AGENTS.md (для Claude Code)
 CHANGELOG.md                       ← журнал решений
+package.json                       ← devDependencies: @shahimat/cli, @shahimat/ai-core
 .gitattributes                     ← eol=lf, CHANGELOG.md merge=union
 context/
   project.yml                      ← реквизиты, namespaces, sync
+  ai-core.yml                      ← конфиг CLI: adapters, hooks, checks
+  index.yml                        ← карта документации (генерирует ai)
   conventions/<key>.yml            ← договорённости этого проекта
   modules/<key>.yml                ← manifest'ы подключённых возможностей
 .agents/
@@ -86,14 +90,19 @@ context/
     docs-keeper/                   ← правила записи в документацию
     source-sync/                   ← обновление из источника
     source-feedback/               ← предложения из проекта в источник
+    cli/                           ← CLI ai: команды, конфиг, свои расширения
   agents/
     docs-keeper.md                 ← роль записи в документацию (канон)
     judge.md                       ← роль судьи: проверка доки на противоречия
+    <name>.md                      ← свои роли проекта
+  commands/<name>.ts               ← свои команды: npx ai <name>
+  scripts/<name>.yml               ← свои скрипты
+  harnesses/<name>/                ← свои автоматы (модуль harness)
 ```
 
 Skills и роли берутся из индекса: skills `contract-setup`, `workflow`,
-`docs-keeper`, `source-sync`, `source-feedback`, роли `docs-keeper` и
-`judge`. Кладутся в проект байт в байт, их SHA записываются в
+`docs-keeper`, `source-sync`, `source-feedback`, `cli`, роли
+`docs-keeper` и `judge`. Кладутся в проект байт в байт, их SHA записываются в
 `sync.contract.parts`.
 
 Канон для всех агентов — `AGENTS.md` и `.agents/`. Файлы под конкретный
@@ -125,7 +134,7 @@ sync:
     key: agent-operational-contract-v3
     synced_sha: <hex>
     parts:
-      skills: {contract-setup: <hex>, workflow: <hex>, docs-keeper: <hex>, source-sync: <hex>, source-feedback: <hex>}
+      skills: {contract-setup: <hex>, workflow: <hex>, docs-keeper: <hex>, source-sync: <hex>, source-feedback: <hex>, cli: <hex>}
       agents: {docs-keeper: <hex>, judge: <hex>}
 ```
 
@@ -181,7 +190,8 @@ CHANGELOG.md merge=union
   (список ключей — `context/index.yml`, если есть, иначе
   `ls context/conventions`);
 - реквизиты, namespaces, внешние ссылки → `context/project.yml`;
-- какие возможности подключены → `context/modules/*.yml`.
+- какие возможности подключены → `context/modules/*.yml`;
+- свои роли, команды, скрипты, автоматы → `.agents/` (skill `cli`).
 
 Читай то, на что указывает маршрут. Полный обход `docs/` и `context/`
 запрещён.
@@ -194,8 +204,8 @@ CHANGELOG.md merge=union
 3. Внимание пользователя — самый дорогой ресурс: вопрос — только когда
    без решения нельзя продолжить или откатить; формат — skill `workflow`.
 4. Документация только читается; правки — намерениями (skill
-   `workflow`): с harness — `harness docs-delta start --name <имя>
-   --file -`, без — субагенту `docs-keeper`; генерируемое — harness.
+   `workflow`): с harness — `npx ai docs-delta start --name <имя>
+   --file -`, без — субагенту `docs-keeper`; генерируемое — ai-core.
 5. Ничего не создавать, не переносить, не удалять без явного «да».
 6. Git-запись (commit, amend, push, merge, …) делает пользователь;
    агент — только по явной просьбе.
@@ -219,7 +229,8 @@ CHANGELOG.md merge=union
 - `docs-keeper` — правила записи в документацию;
 - `source-sync` — обновление из источника, «что нового»;
 - `source-feedback` — предложения из проекта в источник;
-- `contract-setup` — «что добавить / убрать в проекте».
+- `contract-setup` — «что добавить / убрать в проекте»;
+- `cli` — команды `ai`, конфиг, свои расширения.
 
 <!-- блоки возможностей ниже добавляет contract-setup -->
 ````
@@ -237,13 +248,16 @@ CHANGELOG.md merge=union
 слоёв документации (факты, решения, правила, `CHANGELOG.md`) делает
 только роль `docs-keeper` по skill `docs-keeper`: основной агент
 передаёт ей намерения. С harness — напрямую процессу
-`harness docs-delta start --file -` (намерения JSON по схеме `intents`
+`ai docs-delta start --file -` (намерения JSON по схеме `intents`
 на stdin): роль `docs-keeper` пишет, роль `judge` проверяет правку на
 противоречия, harness проверяет и закрывает дельту — правила записи не
 попадают ни в одну интерактивную сессию. Без harness — субагенту
 `docs-keeper`. Генерируемые файлы (`context/index.yml`,
-адаптеры под инструменты) при подключённом harness меняет только
-harness — не основной агент и не docs-keeper. Инструмент без субагентов —
+адаптеры под инструменты) меняет только `ai` — не основной агент и не
+docs-keeper. С hook `docs-guard` (`hooks` в `context/ai-core.yml`)
+запрет механический: Claude Code отказывает `Edit` и `Write` основной
+сессии в документацию и генерируемые файлы; роли, которые запускает
+`ai`, hooks проекта не грузят. Инструмент без субагентов —
 агент не пишет документацию сам, а отдаёт намерения пользователю для
 отдельного запуска docs-keeper.
 
@@ -340,11 +354,9 @@ feature:
 - **Codex** — читает `AGENTS.md` и `.agents/skills/` сам; субагенты в
   `.codex/agents/<name>.toml`, memory выключена в `.codex/config.toml`.
 
-Какие инструменты используются — спроси при установке. При подключённом
-harness производные генерирует `ai-core adapters sync` и проверяет
-`ai-core check`. Без harness их создаёшь ты по тем же правилам: метка
-«generated by ai-core adapters sync» в каждом файле, копии skills —
-байт в байт, и сам держишь их в актуальном состоянии.
+Какие инструменты используются — спроси при установке. Производные
+генерирует `ai adapters sync` и проверяет `ai check`: руками их не
+создаёшь и не правишь.
 
 Существующий `CLAUDE.md` с содержимым не затирай: перенеси содержимое
 по слоям (план — пользователю), затем замени прослойкой.
@@ -367,10 +379,9 @@ harness производные генерирует `ai-core adapters sync` и �
     проекте, и на 2026-10 есть открытый баг openai/codex#47812 —
     надёжнее дополнительно выключить глобально: `codex features disable
     memories`. Это решение пользователя, предложи его.
-- При подключённом harness настройки ставит и проверяет
-  `ai-core adapters sync`; без него — ты, по тем же правилам: в
-  `.claude/settings.json` правится только ключ, остальное содержимое
-  сохраняется.
+- Настройки ставит и проверяет `ai adapters sync`: в
+  `.claude/settings.json` правятся только его ключи, остальное
+  содержимое сохраняется.
 - При установке найди memory по этому проекту в своём инструменте:
   факты — перенести в документацию (план — пользователю), memory —
   очистить.
@@ -388,13 +399,20 @@ harness производные генерирует `ai-core adapters sync` и �
 
 ### greenfield
 
-1. Спроси одним блоком: название и одна строка о проекте, стек,
-   стартовые namespaces, инструменты (Claude Code, Codex, другие).
-2. Поставь ядро (раздел «Что ставит ядро»): файлы, skills и агент из
-   индекса, `AGENTS.md` по шаблону, адаптеры.
-3. Запусти skill `contract-setup`: чеклист возможностей и их
+1. Проверь `node --version` ≥ 24: без Node контракт не ставится —
+   скажи пользователю.
+2. Спроси одним блоком: название и одна строка о проекте, стек,
+   стартовые namespaces, инструменты (Claude Code, Codex, другие),
+   hook `docs-guard` (да / нет).
+3. Поставь ядро (раздел «Что ставит ядро»): `@shahimat/cli` и
+   `@shahimat/ai-core` в `devDependencies` (точные версии из
+   `npm view`, нет `package.json` — создай минимальный), `npm install`
+   после «да»; файлы, skills и роли из индекса, `AGENTS.md` по шаблону,
+   `context/ai-core.yml`; затем `npx ai refresh` — индекс, адаптеры,
+   проверки.
+4. Запусти skill `contract-setup`: чеклист возможностей и их
    подключение.
-4. Итог — отчёт: что поставлено, где что лежит, что дальше.
+5. Итог — отчёт: что поставлено, где что лежит, что дальше.
 
 ### Миграция с v2
 
@@ -412,8 +430,8 @@ domain, manuals и goals.
    ручном `context/index.yml`.
 4. `contract-setup`: отметить domain, manuals, goals (слои уже есть) и
    остальное по выбору.
-5. Ручной `context/index.yml` → генерируемый (`ai-core context index`)
-   или удалить, если harness не выбран. Разделы, которые в нём писались
+5. Ручной `context/index.yml` → генерируемый (`ai context index`).
+   Разделы, которые в нём писались
    руками (карта кода, правила namespace), — в `context/project.yml`.
 6. `CHANGELOG.md`: строки длиннее 120 символов и без тега — показать
    списком; большинство — удалить (подробности уже в git log), решения —

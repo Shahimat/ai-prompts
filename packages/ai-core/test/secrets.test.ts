@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { checkSecrets, scanSecrets } from '#commands/secrets/secrets';
-import { main, run } from '#cli';
+import { main, run } from '@shahimat/cli';
 
 const AWS = `${'AKIA'}${'Q7XK2M9PLR4TWZ8N'}`;
 const GITHUB = `${'ghp'}_${'a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8'}`;
@@ -82,7 +82,7 @@ describe('checkSecrets', () => {
   });
 });
 
-describe('ai-core secrets scan', () => {
+describe('ai secrets scan', () => {
   let root: string;
 
   beforeEach(async () => {

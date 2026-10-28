@@ -1,7 +1,7 @@
 import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { main } from '#cli';
+import { main } from '@shahimat/cli';
 import { io } from '#harnesses/plan-review/cli';
 import { openerFor, servePage } from '#harnesses/plan-review/page';
 import { hookEvent } from '#harnesses/plan-review/hook';
@@ -13,7 +13,7 @@ import {
   type ModelRunner,
 } from '@shahimat/ai-core';
 import { openSession } from '#harnesses/core/store/session';
-import { aiCoreCommand, isRecord } from '@shahimat/ai-core';
+import { cliCommand, isRecord } from '@shahimat/ai-core';
 
 const NOW = new Date('2026-10-14T12:00:00Z');
 const PLAN_FILE = 'plans/демо.expect.ts';
@@ -450,7 +450,7 @@ describe('plan-review: страница плана', () => {
     expect(openerFor('http://x/')).toBeUndefined();
     await mkdir(path.join(project, 'plans'), { recursive: true });
     await writeFile(planPath(), GOOD, 'utf8');
-    const page = await servePage(aiCoreCommand(), project, PLAN_FILE);
+    const page = await servePage(cliCommand(), project, PLAN_FILE);
     try {
       expect(page.url).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/$/);
       expect(page.url).not.toContain(':4173/');
@@ -498,7 +498,7 @@ describe('plan-review: команды', () => {
     io.terminal = () => false;
     const id = await start([]);
     expect(fake.interactive).toEqual([]);
-    expect(out.join('\n')).toContain(`harness plan-review open ${id.slice(0, 7)}`);
+    expect(out.join('\n')).toContain(`ai plan-review open ${id.slice(0, 7)}`);
     io.terminal = () => true;
     session = () => id;
     expect(await cli('plan-review', 'open', id.slice(0, 7))).toBe(0);

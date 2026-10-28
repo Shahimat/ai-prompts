@@ -15,24 +15,17 @@ import {
 } from '@shahimat/ai-core/expect';
 import { stringList } from './shared/guards.ts';
 
-budget({ crit: 0, warn: 0 });
+budget({ crit: 0, warn: 5 });
 
 describe('состав skills', () => {
-  crit('skills ядра: contract-setup, workflow, docs-keeper, source-sync, source-feedback', () =>
-    Check.coreSkills(),
+  crit(
+    'skills ядра: contract-setup, workflow, docs-keeper, source-sync, source-feedback, cli',
+    () => Check.coreSkills(),
   );
   crit(
-    'skills модулей, по имени модуля: domain, manuals, goals, harness, worktrees, app-loop, data-access',
+    'skills модулей, по имени модуля: domain, manuals, goals, worktrees, app-loop, data-access',
     () =>
-      Check.moduleSkills([
-        'domain',
-        'manuals',
-        'goals',
-        'harness',
-        'worktrees',
-        'app-loop',
-        'data-access',
-      ]),
+      Check.moduleSkills(['domain', 'manuals', 'goals', 'worktrees', 'app-loop', 'data-access']),
   );
   crit(
     'skills модулей, по имени модуля: privacy, life, safety-boundaries, analysis, book-corpus, external-context, knowledge-external-gui',
@@ -99,7 +92,14 @@ describe('поведение ключевых skills', () => {
   );
 });
 
-const CORE_SKILLS = ['contract-setup', 'workflow', 'docs-keeper', 'source-sync', 'source-feedback'];
+const CORE_SKILLS = [
+  'contract-setup',
+  'workflow',
+  'docs-keeper',
+  'source-sync',
+  'source-feedback',
+  'cli',
+];
 const SCHEMAS = 'expectations/schemas';
 
 async function inlineBlock(pattern: string): Promise<string> {

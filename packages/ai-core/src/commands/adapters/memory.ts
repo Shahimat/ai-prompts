@@ -2,6 +2,7 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { Diagnostic } from '#shared/diagnostics';
+import type { HookKey } from '#shared/config';
 import { errorCode, errorMessage, isRecord } from '#shared/guards';
 import { GENERATED_MARK } from './render.ts';
 import type { Action } from './sync.ts';
@@ -37,16 +38,41 @@ async function readOrNull(abs: string): Promise<string | null> {
   }
 }
 
+export const DOCS_GUARD_COMMAND = 'node node_modules/@shahimat/cli/dist/bin.js docs guard';
+const DOCS_GUARD_MATCHER = 'Edit|Write|MultiEdit|NotebookEdit';
+
+function withDocsGuard(data: Record<string, unknown>): Record<string, unknown> {
+  const hooks = isRecord(data['hooks']) ? data['hooks'] : {};
+  const pre: unknown[] = Array.isArray(hooks['PreToolUse']) ? hooks['PreToolUse'] : [];
+  const present = pre.some(
+    (entry) =>
+      isRecord(entry) &&
+      Array.isArray(entry['hooks']) &&
+      entry['hooks'].some((h) => isRecord(h) && h['command'] === DOCS_GUARD_COMMAND),
+  );
+  if (present) return data;
+  const guard = {
+    matcher: DOCS_GUARD_MATCHER,
+    hooks: [{ type: 'command', command: DOCS_GUARD_COMMAND }],
+  };
+  return { ...data, hooks: { ...hooks, PreToolUse: [...pre, guard] } };
+}
+
 export async function claudeMemory(
   root: string,
+  hookKeys: readonly HookKey[] = [],
 ): Promise<{ actions: Action[]; diagnostics: Diagnostic[] }> {
+  const desired = (data: Record<string, unknown>): Record<string, unknown> => {
+    const next = { ...data, autoMemoryEnabled: false };
+    return hookKeys.includes('docs-guard') ? withDocsGuard(next) : next;
+  };
   const current = await readOrNull(path.join(root, CLAUDE_SETTINGS));
   const write = (data: Record<string, unknown>): Action => ({
     op: 'write',
     path: CLAUDE_SETTINGS,
     content: Buffer.from(`${JSON.stringify(data, null, 2)}\n`, 'utf8'),
   });
-  if (current === null) return { actions: [write({ autoMemoryEnabled: false })], diagnostics: [] };
+  if (current === null) return { actions: [write(desired({}))], diagnostics: [] };
 
   let data: unknown;
   try {
@@ -63,8 +89,9 @@ export async function claudeMemory(
       diagnostics: [{ file: CLAUDE_SETTINGS, message: 'корень должен быть объектом' }],
     };
   }
-  if (data['autoMemoryEnabled'] === false) return { actions: [], diagnostics: [] };
-  return { actions: [write({ ...data, autoMemoryEnabled: false })], diagnostics: [] };
+  const next = desired(data);
+  if (JSON.stringify(next) === JSON.stringify(data)) return { actions: [], diagnostics: [] };
+  return { actions: [write(next)], diagnostics: [] };
 }
 
 function scanToml(text: string): Map<string, string> {

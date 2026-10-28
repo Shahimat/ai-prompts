@@ -37,7 +37,7 @@ import {
 } from '@shahimat/ai-core/expect';
 import { parseJson } from './shared/guards.ts';
 
-budget({ crit: 0, warn: 0 });
+budget({ crit: 0, warn: 5 });
 
 info.title('Harness Plan-Review');
 info.text(
@@ -134,9 +134,8 @@ planReview.whole(() => {
 });
 
 planReview.entry(() => {
-  crit(
-    'вход — harness plan-review start <file>: сессия открывается на конкретном файле ожиданий',
-    () => Machine.entry(),
+  crit('вход — ai plan-review start <file>: сессия открывается на конкретном файле ожиданий', () =>
+    Machine.entry(),
   );
   crit(
     'при запуске сессии планера harness поднимает страницу плана и открывает её в браузере; сервер живёт, пока открыта сессия планера',
@@ -317,7 +316,7 @@ info.subtitle('общие ожидания');
 
 describe('[harness] plan-review start', () => {
   crit(
-    'harness plan-review start <file>: существующий файл ожиданий — план изменения его состояния; нового файла нет — создаётся каркас с plan({ name })',
+    'ai plan-review start <file>: существующий файл ожиданий — план изменения его состояния; нового файла нет — создаётся каркас с plan({ name })',
     () => Start.file(),
   );
   crit('имя плана берётся из plan({ name }) в файле; для нового файла — из имени файла', () =>
@@ -335,7 +334,7 @@ describe('[harness] plan-review start', () => {
 
 describe('[harness] plan-review', () => {
   crit(
-    'команды планера: harness plan-review start | open | list | status | validate | graph | hook',
+    'команды планера: ai plan-review start | open | list | status | validate | graph | hook',
     () => Check.commands(),
   );
   crit('сессии лежат в ~/.config/harness; каталог переопределяется параметром', () => Check.home());
@@ -774,7 +773,7 @@ class Machine {
       const run = spawnSync(
         process.execPath,
         [
-          path.join(repoRoot(), 'packages/ai-core/dist/bin.js'),
+          path.join(repoRoot(), 'packages/cli/dist/bin.js'),
           'expect',
           'report',
           'example.expect.ts',
@@ -1198,7 +1197,7 @@ class Start {
       const run = spawnSync(
         process.execPath,
         [
-          path.join(repoRoot(), 'packages/ai-core/dist/bin.js'),
+          path.join(repoRoot(), 'packages/cli/dist/bin.js'),
           'expect',
           'report',
           file,

@@ -71,7 +71,7 @@ export async function judged(evidence: string[]): Promise<void> {
       await writeFile(path.join(dir, `${id}.json`), JSON.stringify(item), 'utf8');
       return;
     }
-    throw new Error(`нет свежего вердикта судьи — запусти ai-core expect judge [${id}]`);
+    throw new Error(`нет свежего вердикта судьи — запусти ai expect judge [${id}]`);
   }
   if (!cached.verdict) {
     throw new Error(`судья: нет — ${cached.reason} (${cached.ref}: «${cached.quote}»)`);

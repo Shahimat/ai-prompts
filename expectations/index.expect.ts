@@ -1,3 +1,4 @@
+import './shared/runtime.ts';
 import './agent-operational-contract-v3.expect.ts';
 import './ai-prompts.expect.ts';
 import './docs-flow.expect.ts';
