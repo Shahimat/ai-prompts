@@ -1,6 +1,6 @@
 import { Graphviz } from '@hpcc-js/wasm-graphviz';
-import type { Budget, PlanDecl, Question, StepDef } from '#lib/expect/levels';
-import { graphOf, type MachineGraph } from '#lib/expect/plan';
+import type { Budget, PlanDecl, Question, StepDef } from '#lib/expect/model';
+import { graphOf, type MachineGraph } from '#lib/expect/model';
 import { diffTitles, type DiffMark, type Titled } from './head.ts';
 import {
   outcomeOf,

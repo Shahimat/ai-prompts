@@ -8,55 +8,35 @@ import {
   type NodeScope,
 } from './scope.ts';
 
-export const LEVELS = ['crit', 'warn', 'info'] as const;
-export type Level = (typeof LEVELS)[number];
-
-export interface Budget {
-  crit: number;
-  warn: number;
-}
-
-export const BUDGET_TITLE = '__budget__';
-
-export const NEAR_LIMIT = 0.9;
-
-export interface StepDef {
-  id: string;
-  title: string;
-  after: string[];
-  why?: string;
-}
-
-export interface PlanDecl {
-  name: string;
-}
-
-export const DOC_KINDS = ['title', 'subtitle', 'text', 'stats', 'questions', 'remarks'] as const;
-export type DocKind = (typeof DOC_KINDS)[number];
-
-export interface Answer {
-  text: string;
-  recommended?: boolean;
-  comment?: string;
-}
-
-export interface Question {
-  text: string;
-  answers: readonly Answer[];
-}
-
-export interface DocBlock {
-  kind: DocKind;
-  text: string;
-  questions?: Question[];
-}
-
-export const DOC_TITLE = '__doc__';
-
-export interface MachineMeta {
-  name: string;
-  def: unknown;
-}
+export {
+  BUDGET_TITLE,
+  DOC_KINDS,
+  DOC_TITLE,
+  LEVELS,
+  NEAR_LIMIT,
+  type Answer,
+  type Budget,
+  type DocBlock,
+  type DocKind,
+  type Level,
+  type MachineMeta,
+  type PlanDecl,
+  type Question,
+  type StepDef,
+} from './model.ts';
+import {
+  BUDGET_TITLE,
+  DOC_TITLE,
+  NEAR_LIMIT,
+  type Budget,
+  type DocBlock,
+  type DocKind,
+  type Level,
+  type MachineMeta,
+  type PlanDecl,
+  type Question,
+  type StepDef,
+} from './model.ts';
 
 declare module 'vitest' {
   interface TaskMeta {

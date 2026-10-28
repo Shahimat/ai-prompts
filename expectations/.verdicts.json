@@ -59,12 +59,12 @@
     "1db1d3ca45dd": {
       "question": "[harness] expect > смысловая проверка заголовков файла запускается только при изменении его заголовков",
       "evidence": {
-        "@expect-cycles": "833e3e3e344ef0406081c24e37091dde089bab486972da4ca9adbda09fbbbf32"
+        "@expect-cycles": "ebdcd53e249d4b5bdc5518dd0400e953ae52dfaf005fe8b3668fd869311b3cc2"
       },
       "verdict": true,
       "quote": "if (store.lint[file]?.titles === sha) continue;",
       "ref": "@expect-cycles",
-      "reason": "Задание на проверку заголовков создаётся только если хэш заголовков изменился.",
+      "reason": "В judgePrepare проверка заголовков файла пропускается, если sha заголовков совпадает с сохранённым; задание создаётся только при их изменении.",
       "at": "2026-10-28"
     },
     "1e94c71faacc": {
@@ -237,12 +237,12 @@
     "694f0f4b5141": {
       "question": "[harness] expect > в кэше вердиктов только вердикты живых ожиданий",
       "evidence": {
-        "@verdict-prune": "a2054bcfa7336d61c37e5c3ded365058a492588723ce884a938c0aeadfb9f69e"
+        "@verdict-prune": "89096853c2ec84030e43fe39bb345fa417fea3fa2113a1eb8463039ab1c62fea"
       },
       "verdict": true,
-      "quote": "if (!liveIds.has(id)) {",
+      "quote": "if (!liveIds.has(id)) {\n      delete store.verdicts[id];\n      removed++;",
       "ref": "@verdict-prune",
-      "reason": "pruneStore удаляет вердикты, не виденные в прогоне.",
+      "reason": "pruneStore удаляет вердикты, чьи id не входят в множество живых (просмотренных) ожиданий.",
       "at": "2026-10-28"
     },
     "6c3c787c9f87": {
@@ -380,12 +380,12 @@
     "9d95d48cd2c2": {
       "question": "[harness] common > итог прогона считает код по бюджету и ответам модели, а не модель",
       "evidence": {
-        "@verdict-by-code": "59f60a98d85588fea921855390b80870fbfde565b2cee7040e062927a287c719"
+        "@verdict-by-code": "a8d2fade34a066e110d24fced56658fe69d4d8ecff8fa70db6236556dad1a8f6"
       },
       "verdict": true,
-      "quote": "const over = count.crit > budget.crit || count.warn > budget.warn || count.pending > 0;",
+      "quote": "const over = count.crit > budget.crit || count.warn > budget.warn || count.pending > 0;\n    blocked ||= over;",
       "ref": "@verdict-by-code",
-      "reason": "Итог blocked считает код по бюджету и сохранённым ответам судьи.",
+      "reason": "Блокировка считается кодом по счётчикам и бюджету; вердикты модели лишь загружаются из хранилища и применяются кодом (applyAnswers), итог модель не выносит.",
       "at": "2026-10-28"
     },
     "a5651202c571": {
@@ -535,12 +535,12 @@
     "de808fdc116f": {
       "question": "[harness] expect > судья вызывается только для вердиктов, у которых изменились заголовок или доказательства",
       "evidence": {
-        "@expect-cycles": "833e3e3e344ef0406081c24e37091dde089bab486972da4ca9adbda09fbbbf32"
+        "@expect-cycles": "ebdcd53e249d4b5bdc5518dd0400e953ae52dfaf005fe8b3668fd869311b3cc2"
       },
       "verdict": true,
-      "quote": "refs.every((r) => cached.evidence[r.ref] === r.sha);",
+      "quote": "cached.question === question &&\n    Object.keys(cached.evidence).length === refs.length &&\n    refs.every((r) => cached.evidence[r.ref] === r.sha);",
       "ref": "@expect-cycles",
-      "reason": "Вердикт свежий при совпадении вопроса и sha доказательств; иначе вопрос уходит судье.",
+      "reason": "Вердикт считается свежим, если совпадают вопрос и sha доказательств. Иначе он попадает в pending и уходит судье.",
       "at": "2026-10-28"
     },
     "dfed5ff72504": {

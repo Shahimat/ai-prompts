@@ -10,8 +10,8 @@ import {
   type Level,
   type PlanDecl,
   type StepDef,
-} from '#lib/expect/levels';
-import { MACHINE_TITLE, PLAN_TITLE, STEP_TITLE } from '#lib/expect/plan';
+} from '#lib/expect/model';
+import { MACHINE_TITLE, PLAN_TITLE, STEP_TITLE } from '#lib/expect/model';
 import { isServiceTitle, type NodeScope, type StepStatus } from '#lib/expect/scope';
 import { isOneOf, isRecord, isStringArray } from '#shared/guards';
 

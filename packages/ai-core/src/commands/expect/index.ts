@@ -16,7 +16,7 @@ import {
   renderLintBatch,
 } from '#lib/expect/batch';
 import { readEvidence, shaOf } from '#lib/expect/evidence';
-import { COLLECT_ENV, idOf, isPendingItem, SEEN_ENV, type PendingItem } from '#lib/expect/judge';
+import { COLLECT_ENV, idOf, isPendingItem, SEEN_ENV, type PendingItem } from '#lib/expect/pending';
 import { errorMessage, isRecord, isStringArray } from '#shared/guards';
 import { askRole } from '#lib/role';
 import { lintTitles, type Title } from '#lib/expect/lint';

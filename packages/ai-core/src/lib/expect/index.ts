@@ -39,19 +39,15 @@ export {
   type StepDef,
 } from './levels.ts';
 export {
-  Graph,
-  graphOf,
   fsm,
   plan,
   step,
   steps,
   type Machine,
-  type MachineGraph,
-  type MachineRef,
   type MachineSpec,
   type StepOptions,
-  type YamlMachine,
 } from './plan.ts';
+export { Graph, graphOf, type MachineGraph, type MachineRef, type YamlMachine } from './model.ts';
 export { STEP_STATUSES, type StepStatus } from './scope.ts';
 export {
   allAnchors,
