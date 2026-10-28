@@ -3,6 +3,7 @@ name: docs-keeper
 description: Записывает факты, решения и правила в проектную документацию по skill docs-keeper. Вызывай в конце задачи со списком намерений (kind, summary, evidence) и на «запомни».
 skills: [docs-keeper]
 tools: [Read, Grep, Glob, Edit, Write, Bash]
+model: haiku
 output: result
 ---
 

@@ -93,14 +93,14 @@
       "question": "[flow] ownership > основная сессия передаёт docs-keeper только намерения и получает отчёт не длиннее 10 строк",
       "evidence": {
         "@docs-keeper-report": "f30a5351e552880d82de59fd015119f07dceb20c9e2fc6ec079f4be9ba6be412",
-        "@docs-intents-triggers": "d6b5e3117ceb25e2bea4b4907c8a04207d978bee5e234b1960a8cecc1adb4a43",
+        "@docs-intents-triggers": "bddf914b91deefa3f3eef986b05ffb7e5d28a0ddc732f84c64d145e70bfb1966",
         "@attention": "daebfacb2085c10755c1809af36be15b25fe958ab4db8ecf24da8d682eb9b0e6"
       },
       "verdict": true,
-      "quote": "Отчёт основной сессии — не длиннее 10 строк:",
+      "quote": "Отчёт основной сессии — не длиннее 10 строк",
       "ref": "@docs-keeper-report",
-      "reason": "Намерения (kind, summary, evidence) передаются docs-keeper, документацию ведёт субагент, отчёт основной сессии — до 10 строк.",
-      "at": "2026-10-14"
+      "reason": "Основная сессия передаёт намерения (kind/summary/evidence) по правилу 4, сама правила записи не читает и получает отчёт не длиннее 10 строк.",
+      "at": "2026-10-27"
     },
     "2f6f86544a76": {
       "question": "предложения в источник > перед передачей файл предложения проходит harness secrets scan --file; без harness агент проверяет по тем же правилам сам",
@@ -149,13 +149,13 @@
     "3c87c225937f": {
       "question": "документация проекта > в основной сессии файлы проектной документации только читаются; правки — только через docs-keeper, генерируемые файлы — через harness",
       "evidence": {
-        "@docs-readonly": "ba929b99a1c0d1998506848d8aefa4c1f9da79dbb1ebea0e8690742f57a678e3"
+        "@docs-readonly": "308866dd576d6a5f3d36a330a269b212e4f9518fe47b3956d264dc469f54fd03"
       },
       "verdict": true,
-      "quote": "В основной сессии файлы проектной документации только читаются. Правки",
+      "quote": "В основной сессии файлы проектной документации только читаются.",
       "ref": "@docs-readonly",
-      "reason": "Основная сессия только читает, правки — docs-keeper, генерируемые — harness.",
-      "at": "2026-10-14"
+      "reason": "Правки слоёв документации делает только docs-keeper, а генерируемые файлы при подключённом harness меняет только harness.",
+      "at": "2026-10-27"
     },
     "42ca6f7057ad": {
       "question": "[harness] plan-review > переходами управляет автомат из harness.yaml; модель работает только внутри состояний",
@@ -270,13 +270,13 @@
     "7ba751f6d1ea": {
       "question": "документация проекта > docs-keeper меняет только слои документации проекта и не трогает код",
       "evidence": {
-        "@docs-readonly": "ba929b99a1c0d1998506848d8aefa4c1f9da79dbb1ebea0e8690742f57a678e3"
+        "@docs-readonly": "308866dd576d6a5f3d36a330a269b212e4f9518fe47b3956d264dc469f54fd03"
       },
       "verdict": true,
       "quote": "docs-keeper меняет только слои документации проекта — код, тесты,",
       "ref": "@docs-readonly",
-      "reason": "docs-keeper меняет только слои документации, код/тесты/конфиги сборки не трогает.",
-      "at": "2026-10-14"
+      "reason": "В skill docs-keeper прямо сказано: код, тесты и конфиги сборки он не трогает.",
+      "at": "2026-10-27"
     },
     "8de05cd21c91": {
       "question": "ядро > ядро ставится одной ссылкой на контракт, остальное агент берёт по индексу",
@@ -425,13 +425,13 @@
     "b067fbbab481": {
       "question": "документация проекта > при подключённом harness генерируемые файлы (context/index.yml, адаптеры под инструменты) меняет только harness, не агент и не docs-keeper",
       "evidence": {
-        "@docs-readonly": "ba929b99a1c0d1998506848d8aefa4c1f9da79dbb1ebea0e8690742f57a678e3"
+        "@docs-readonly": "308866dd576d6a5f3d36a330a269b212e4f9518fe47b3956d264dc469f54fd03"
       },
       "verdict": true,
-      "quote": "harness — не основной агент и не docs-keeper. Инструмент без субагентов —",
+      "quote": "адаптеры под инструменты) при подключённом harness меняет только",
       "ref": "@docs-readonly",
-      "reason": "Генерируемые файлы при подключённом harness меняет только harness.",
-      "at": "2026-10-14"
+      "reason": "Контракт: генерируемые файлы при подключённом harness меняет только harness — не основной агент и не docs-keeper.",
+      "at": "2026-10-27"
     },
     "beb079d7b30b": {
       "question": "plan-review › состояние composing > ожидание без готовой проверки записывается заглушкой crit.todo или crit.wip",
@@ -568,13 +568,13 @@
     "f586544d451f": {
       "question": "документация проекта > шаблон AGENTS.md и блоки модулей не содержат указаний основной сессии самой править документацию — только ссылки на skills и harness; guardrail о достоверности знания допустим",
       "evidence": {
-        "@agents-md-readonly": "7b56abd79f60cb74bebbad77cc8f3d7d0aaf14035b25f2268edf9c3a055dccab"
+        "@agents-md-readonly": "3aa00c1ddaf789cb211033002f4e621858c08f46c0336e2af3fe5425600d9915"
       },
       "verdict": true,
-      "quote": "документация здесь только\n   читается, правки — намерениями субагенту `docs-keeper`",
+      "quote": "Документация только читается; правки — намерениями (skill",
       "ref": "@agents-md-readonly",
-      "reason": "Шаблон запрещает основной сессии править документацию; блоки модулей дают только маршруты, ссылки на skills и harness и guardrail-правила, указаний на самостоятельную правку нет",
-      "at": "2026-10-27"
+      "reason": "Шаблон AGENTS.md запрещает основной сессии править документацию напрямую: правки идут намерениями через skill workflow, с harness — docs-delta, без harness — субагенту docs-keeper. Блоки модулей содержат только маршруты, skills и harness-команды (например, «в конце задачи — harness refresh»). Guardrail о достоверности знания есть (модуль analysis: «ни одной выдуманной цитаты»), и по формулировке ожидания он допустим.",
+      "at": "2026-10-28"
     },
     "f7310dcbc6e4": {
       "question": "plan-review › переход clarify_form —answered→ > после ответа планер записывает ожидания выбранным блоком",
@@ -648,7 +648,7 @@
       "at": "2026-10-27"
     },
     "expectations/roles.expect.ts": {
-      "titles": "03349cde7ed21dce69d24bfffa74d3ad349431ee57794c973a937dca27466494",
+      "titles": "94bd929db5a79ceaed2ce8ad411ed41aa2fd22b98c824478456932c355677bb3",
       "contradictions": [],
       "unmeasurable": [],
       "at": "2026-10-27"

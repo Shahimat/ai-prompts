@@ -2,7 +2,7 @@ import { COMMAND_NODES, runScript } from '#scripts/index';
 import type { CommandArgs } from '#shared/args';
 import { UsageError } from '#shared/diagnostics';
 import { askRole } from '#lib/role';
-import { errorMessage } from '#shared/guards';
+import { errorMessage, isRecord } from '#shared/guards';
 import type { ScriptDef } from '#shared/node';
 import { driveSession, homeOf, requireProject, type HarnessModule } from './catalog.ts';
 import type { ActionDef, Registry } from './fsm/machine.ts';
@@ -55,6 +55,7 @@ export function roleOrHandoff<C extends ProcessContext>(
           `${task(ctx)}.\n\nНамерения (JSON по схеме intents):\n\n${s.data.request}`,
         );
         await s.log({ role, result: data });
+        if (isRecord(data) && typeof data['report'] === 'string') console.log(data['report']);
         return { event: 'done' };
       } catch (error) {
         await s.log({ role, error: errorMessage(error) });

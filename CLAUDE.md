@@ -186,7 +186,7 @@ worktree — одна задача, одна ветка, один worktree.
 vitest: заголовок `it` (≤ 200 символов, проверяемо да/нет или числом) —
 ожидание, тело — проверка. Общие ожидания этого репозитория —
 `expectations/shared/`; общие для всех проектов (правила работы агента,
-например `ticketCommits`) — пакет `@shahimat/expectations`
+например `attention`) — пакет `@shahimat/expectations`
 (`packages/expectations`): единый текст, каждый проект проверяет
 им свои файлы. Каркас в другом проекте — `harness expect init`.
 

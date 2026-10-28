@@ -58,6 +58,10 @@ describe('[roles] процессы', () => {
   crit('ядро контракта v3 ставит роли docs-keeper и judge: judge проверяет доку в docs-delta', () =>
     Check.coreRoles(),
   );
+  crit(
+    'с harness основная сессия передаёт намерения процессу docs-delta напрямую (правило 4 шаблона AGENTS.md), без субагента docs-keeper',
+    () => Check.intentsToHarness(),
+  );
   crit('harness plan-review заморожен: дизайн объявляет статус «заморожен»', () =>
     Check.planReviewFrozen(),
   );
@@ -114,6 +118,12 @@ class Check {
   static async coreRoles(): Promise<void> {
     const contract = await readRepo('prompts/productivity/agent-operational-contract-v3.md');
     expect(contract).toContain('agents: {docs-keeper: <hex>, judge: <hex>}');
+  }
+
+  static async intentsToHarness(): Promise<void> {
+    const contract = await readRepo('prompts/productivity/agent-operational-contract-v3.md');
+    const rule = (/^4\. [\s\S]*?(?=^5\. )/m.exec(contract)?.[0] ?? '').replace(/\s+/g, ' ');
+    expect(rule).toContain('`harness docs-delta start --name <имя> --file -`');
   }
 
   static isolatedRun(): void {

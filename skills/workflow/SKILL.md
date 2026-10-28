@@ -98,8 +98,10 @@ description: Протоколы сценариев plan / execute / audit / chal
 ## Намерения в документацию
 
 <!-- expect:docs-intents-triggers -->
-Намерения субагенту docs-keeper — `kind`, `summary`, `evidence`, по
-строке на каждое — формируются:
+Намерения в документацию — `kind`, `summary`, `evidence`, по строке на
+каждое (схема `intents`) — передаёшь по правилу 4 `AGENTS.md`: с
+harness — процессу docs-delta, без него — субагенту docs-keeper. Сам
+правила записи не читаешь. Формируются:
 
 - в конце `execute`;
 - в `audit` — исправления, после «да»;

@@ -199,6 +199,9 @@ harness skill вызывает `harness sync` как ускоритель.
    ```
 2. В конце задачи агент передаёт намерения
    docs-keeper:
+   - есть harness → `harness docs-delta start --file -`: намерения JSON
+     по схеме `intents` на stdin, запись — роль `docs-keeper`, проверка
+     на противоречия — роль `judge` (`design/roles.md`);
    - есть субагенты → субагент `docs-keeper` с предзагруженным skill;
    - нет → агент отдаёт намерения пользователю для отдельного запуска
      docs-keeper; сам документацию не пишет
@@ -568,7 +571,8 @@ harness), `external.yml`, `private.yml`,
 ## 10. Отложенные задачи
 
 Роли (субагенты с `output` протокола) и runner harness — отдельный
-документ `design/roles.md`; `plan-review` заморожен.
+документ `design/roles.md`; `plan-review` заморожен. Составная
+документация с субпроектами — черновик `design/subprojects.md`.
 
 - Свести `personal-project`, `analytical-project`,
   `external-project-context-v2` к пресетам возможностей поверх ядра v3 —

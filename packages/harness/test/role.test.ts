@@ -16,7 +16,13 @@ import { FAKE_CLAUDE } from './fake-claude.ts';
 
 const NOW = new Date('2026-10-28T12:00:00Z');
 
-const RESULT = { status: 'done', changed: [], failed: [], questions: [], report: 'ok' };
+const RESULT = {
+  status: 'done',
+  changed: [],
+  failed: [],
+  questions: [],
+  report: 'отчёт docs-keeper',
+};
 
 let root: string;
 let home: string;
@@ -254,9 +260,14 @@ describe('docs-delta: роли docs-keeper и judge', () => {
   it('start --file: намерения по схеме хранятся в сессии; apply — docs-keeper, review — judge по изменённым файлам', async () => {
     await project();
     process.env['FAKE_SUBMIT'] = JSON.stringify({ result: RESULT, verdict: { conflicts: [] } });
+    const lines: string[] = [];
+    vi.spyOn(console, 'log').mockImplementation((...a: unknown[]) => {
+      lines.push(a.join(' '));
+    });
     expect(await start('--file', 'intents.yml')).toBe(0);
     const s = await session();
     expect(s.data.state).toBe('done');
+    expect(lines).toContain(RESULT.report);
     expect(JSON.parse(s.data.request)).toEqual({
       intents: [{ kind: 'rule', summary: 'новое', evidence: 'e' }],
     });
