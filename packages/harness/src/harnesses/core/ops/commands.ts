@@ -1,7 +1,8 @@
 import { readFile } from 'node:fs/promises';
+import { readText } from './files.ts';
 import path from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
-import { runtime, UsageError, type CommandArgs, type CommandNode } from '@shahimat/ai-core';
+import { runtime, stepOf, UsageError, type CommandArgs, type CommandNode } from '@shahimat/ai-core';
 import { harnessHome } from '#harnesses/core/store/session';
 import { loadAutonomy, loadOpsConfig } from './config.ts';
 import {
@@ -23,7 +24,7 @@ import {
   providerContext,
   scheduleName,
 } from './providers.ts';
-import { pollMs } from './runner.ts';
+import { activeRoles, pollMs, waitingRoles } from './runner.ts';
 import { serveBoard } from './serve.ts';
 import {
   addWatch,
@@ -44,6 +45,24 @@ function param(args: CommandArgs, key: string): string {
   return value;
 }
 
+export async function runningLines(home: string, root: string, now: Date): Promise<string[]> {
+  const mine = (await activeRoles(home)).filter((r) => r.project === path.resolve(root));
+  const lines: string[] = [];
+  for (const r of mine) {
+    const minutes = Math.max(0, Math.round((now.getTime() - Date.parse(r.started)) / 60_000));
+    const text = r.transcript === '' ? undefined : await readText(r.transcript);
+    const last = (text ?? '')
+      .split('\n')
+      .map(stepOf)
+      .filter((x) => x !== undefined)
+      .at(-1);
+    lines.push(
+      `работает ${r.role}${r.job === '' ? '' : ` · ${r.job}`} · ${minutes} мин${last === undefined ? '' : ` · последний шаг: ${last}`}${r.transcript === '' ? '' : ` · ${r.transcript}`}`,
+    );
+  }
+  return lines;
+}
+
 const BRIEF_LINES = 20;
 
 export async function briefLines(home: string, root: string): Promise<string[]> {
@@ -56,8 +75,10 @@ export async function briefLines(home: string, root: string): Promise<string[]> 
     const p = await pending(s);
     if (p !== undefined && p.answer === undefined) asked.push(s.short);
   }
+  const running = (await activeRoles(home)).filter((r) => r.project === path.resolve(root)).length;
+  const queued = Math.max(0, (await waitingRoles(home)) - (await activeRoles(home)).length);
   const lines = [
-    `ops: jobs ${jobs.length} · ждут ответа ${asked.length} · наблюдателей ${watches.length} · новых событий ${unseen.length}`,
+    `ops: jobs ${jobs.length} · ждут ответа ${asked.length} · ролей в работе ${running}, в очереди машины ${queued} · наблюдателей ${watches.length} · новых событий ${unseen.length}`,
   ];
   for (const s of jobs.slice(0, 10))
     lines.push(
@@ -75,6 +96,7 @@ async function brief(args: CommandArgs): Promise<number> {
 
 async function status(args: CommandArgs): Promise<number> {
   const home = homeOf(args);
+  for (const line of await runningLines(home, args.root, args.now)) console.log(line);
   for (const s of await projectJobs(home, args.root))
     console.log(
       `${s.short}\t${s.data.state}\t${s.data.title}\t${posixRelative(args.root, jobDir(args.root, s.short))}`,

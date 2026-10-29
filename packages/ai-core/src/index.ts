@@ -92,6 +92,8 @@ export {
   ROLE_DIRS,
   roleArgs,
   roleSystemPrompt,
+  roleTimeoutMs,
+  stepOf,
   runRole,
   type AskOptions,
   type RoleOutcome,

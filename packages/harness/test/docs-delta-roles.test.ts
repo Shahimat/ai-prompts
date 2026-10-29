@@ -128,6 +128,12 @@ describe('docs-delta: роли docs-keeper и judge', () => {
     expect(keeper?.message).toBe('result');
     expect(keeper?.prompt).toContain('"summary":"новое"');
     expect(judge?.message).toBe('verdict');
+    expect((await readdir(s.file('runs'))).sort()).toEqual([
+      'docs-keeper-1.jsonl',
+      'judge-1.jsonl',
+    ]);
+    expect(await readFile(s.file('runs/docs-keeper-1.jsonl'), 'utf8')).toContain('"type":"result"');
+    expect(await readFile(s.file('progress.log'), 'utf8')).toContain('роль docs-keeper: запущена');
     expect(judge?.prompt).toContain('- context/conventions/other.yml');
     expect(judge?.prompt).toContain('target: other');
   });

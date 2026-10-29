@@ -1,11 +1,14 @@
 import { COMMAND_NODES, runtime } from '@shahimat/ai-core';
 import type { CommandArgs } from '@shahimat/ai-core';
 import { UsageError } from '@shahimat/ai-core';
-import { askRole } from '@shahimat/ai-core';
 import { errorMessage, isRecord } from '@shahimat/ai-core';
 import { driveSession, homeOf, requireProject, type HarnessModule } from './catalog.ts';
 import type { ActionDef, Registry } from './fsm/machine.ts';
+import { appendFileSync, existsSync, mkdirSync } from 'node:fs';
+import { readdir } from 'node:fs/promises';
 import path from 'node:path';
+import type { RoleOutcome } from '@shahimat/ai-core';
+import { opsRole, PRIORITY } from './ops/runner.ts';
 import { loadMachine, loadMachineAt } from './load.ts';
 import { createSession, type Session } from './store/session.ts';
 
@@ -38,6 +41,39 @@ export function handoff<C extends ProcessContext>(task: (ctx: C) => string): Act
   };
 }
 
+export function progressTo(file: string): (text: string) => void {
+  return (text) => {
+    mkdirSync(path.dirname(file), { recursive: true });
+    appendFileSync(file, `${new Date().toISOString().slice(11, 19)} ${text}\n`, 'utf8');
+  };
+}
+
+export async function sessionRole(
+  ctx: ProcessContext,
+  role: string,
+  task: string,
+): Promise<RoleOutcome> {
+  const s = ctx.session;
+  const dir = s.file('runs');
+  const n = existsSync(dir)
+    ? (await readdir(dir)).filter((f) => f.startsWith(`${role}-`)).length + 1
+    : 1;
+  const transcript = s.file(`runs/${role}-${n}.jsonl`);
+  console.error(`роль ${role}: запущена; журнал — ${transcript}`);
+  const outcome = await opsRole({
+    root: s.data.project,
+    home: ctx.home,
+    role,
+    task,
+    lane: 'jobs',
+    priority: PRIORITY.answered,
+    job: s.short,
+    options: { transcript, onProgress: progressTo(s.file('progress.log')) },
+  });
+  console.error(`роль ${role}: готово`);
+  return outcome;
+}
+
 export function roleOrHandoff<C extends ProcessContext>(
   role: string,
   task: (ctx: C) => string,
@@ -49,8 +85,8 @@ export function roleOrHandoff<C extends ProcessContext>(
       const s = ctx.session;
       if (s.data.request === '' || s.data.handoff === s.data.state) return manual.run(ctx);
       try {
-        const { data } = await askRole(
-          s.data.project,
+        const { data } = await sessionRole(
+          ctx,
           role,
           `${task(ctx)}.\n\nНамерения (JSON по схеме intents):\n\n${s.data.request}`,
         );

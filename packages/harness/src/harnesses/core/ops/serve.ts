@@ -20,6 +20,7 @@ const ARTIFACTS = [
   'verify.log',
   'review.md',
   'log.md',
+  'progress.log',
   'feedback.md',
 ];
 
@@ -131,6 +132,8 @@ export async function jobHtml(s: Session, index: number): Promise<string> {
       `<ul>${files.map((f) => `<li>${link(f)}</li>`).join('')}</ul>`,
       '<h3>Прогоны ролей</h3>',
       `<ul>${runs.map((r) => `<li>${link(`runs/${r}`)}</li>`).join('')}</ul>`,
+      '<h3>Ход роли</h3>',
+      `<pre>${esc(((await readText(jobFile(s, 'progress.log'))) ?? '').split('\n').slice(-40).join('\n'))}</pre>`,
       '<h3>Журнал</h3>',
       `<pre>${esc((await readText(jobFile(s, 'log.md'))) ?? '')}</pre>`,
     ].join('\n'),

@@ -8,7 +8,7 @@ import { main, selfCommand } from '@shahimat/cli';
 import { parseAgent, type AgentDef } from '#lib/agent';
 import { advertisedSchema, serveChannel } from '#lib/mcp';
 import { PROTOCOL, SUBMIT_TOOL, SUBMIT_TOOL_ID } from '#lib/protocol';
-import { askRole, finalLine, findRole, roleArgs } from '#lib/role';
+import { askRole, finalLine, findRole, roleArgs, roleTimeoutMs, stepOf } from '#lib/role';
 import { setRuntime } from '#lib/runtime';
 import { isRecord } from '#shared/guards';
 import { FAKE_CLAUDE } from './fake-claude.ts';
@@ -18,7 +18,7 @@ const NOW = new Date('2026-10-28T12:00:00Z');
 let root: string;
 let home: string;
 let fake: string;
-const ENV = ['HARNESS_CLAUDE', 'FAKE_SUBMIT', 'FAKE_ARGS', 'FAKE_FILES'];
+const ENV = ['HARNESS_CLAUDE', 'FAKE_SUBMIT', 'FAKE_ARGS', 'FAKE_FILES', 'SLOW_MS'];
 let saved: [string, string | undefined][];
 
 async function put(rel: string, content: string): Promise<void> {
@@ -147,6 +147,53 @@ describe('роль: запуск', () => {
     const { data } = await askRole(root, 'judge', 'Задание', { transcript });
     expect(data).toEqual({ answers: [] });
     expect(await readFile(transcript, 'utf8')).toContain('"type":"result"');
+  });
+
+  it('журнал пишется по ходу прогона, прогресс — по шагам роли, таймаут останавливает процесс', async () => {
+    await put('agents/judge.md', roleFile('judge', 'verdict'));
+    setRuntime({ self: selfCommand(), runScript: async () => 0 });
+    const slow = path.join(home, 'slow-claude.mjs');
+    await writeFile(
+      slow,
+      [
+        'for await (const _ of process.stdin) {}',
+        "const out = (o) => process.stdout.write(JSON.stringify(o) + '\\n');",
+        "out({ type: 'assistant', message: { content: [{ type: 'tool_use', name: 'Read' }] } });",
+        "await new Promise((r) => setTimeout(r, Number(process.env.SLOW_MS ?? '400')));",
+        "out({ type: 'result', is_error: false, result: 'ok' });",
+      ].join('\n'),
+      'utf8',
+    );
+    process.env['HARNESS_CLAUDE'] = slow;
+    const transcript = path.join(home, 'runs', 'judge-live.jsonl');
+    const seen: string[] = [];
+    let settled = false;
+    const running = askRole(root, 'judge', 'т', {
+      transcript,
+      onProgress: (t) => seen.push(t),
+    }).finally(() => {
+      settled = true;
+    });
+    let live = false;
+    for (let i = 0; i < 50 && !live; i++) {
+      await new Promise((r) => setTimeout(r, 20));
+      live =
+        !settled &&
+        existsSync(transcript) &&
+        (await readFile(transcript, 'utf8')).includes('tool_use');
+    }
+    expect(live).toBe(true);
+    await expect(running).rejects.toThrow('не вернула результат');
+    expect(seen).toEqual([
+      'роль judge: запущена (opus)',
+      'роль judge: шаг 1 — Read',
+      'роль judge: готово, шагов 1',
+    ]);
+    process.env['SLOW_MS'] = '5000';
+    await expect(askRole(root, 'judge', 'т', { timeoutMs: 200 })).rejects.toThrow('таймаут');
+    delete process.env['SLOW_MS'];
+    expect(stepOf('{"type":"assistant","message":{"content":[{"type":"text"}]}}')).toBeUndefined();
+    expect(roleTimeoutMs()).toBe(30 * 60_000);
   });
 
   it('role run: роль без submit_result — ошибка, а не пустой ответ', async () => {

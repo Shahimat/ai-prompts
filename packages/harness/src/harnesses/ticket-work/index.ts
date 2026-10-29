@@ -34,6 +34,7 @@ import {
   PRIORITY,
   readJson,
   processModule,
+  progressTo,
   providerContext,
   report,
   resolveSession,
@@ -53,6 +54,7 @@ import {
 } from '#harnesses/core/index';
 
 const NAME = 'ticket-work';
+const IMPLEMENT_TIMEOUT_MS = 60 * 60_000;
 
 const answerHint = (s: Session): string => `ответ: ai ${NAME} answer ${s.short} <текст>`;
 const rel = (s: Session, name: string): string => posixRelative(s.data.project, jobFile(s, name));
@@ -113,7 +115,12 @@ async function roleStep(
       lane: 'jobs',
       priority: answered === undefined ? priority : PRIORITY.answered,
       job: s.short,
-      options: { transcript: jobFile(s, `runs/${s.data.state}-${n}.jsonl`), addDirs },
+      options: {
+        transcript: jobFile(s, `runs/${s.data.state}-${n}.jsonl`),
+        addDirs,
+        onProgress: progressTo(jobFile(s, 'progress.log')),
+        ...(s.data.state === 'implement' ? { timeoutMs: IMPLEMENT_TIMEOUT_MS } : {}),
+      },
     }));
   } catch (error) {
     await jobLog(s, `роль ${role}: ошибка — ${errorMessage(error)}`);

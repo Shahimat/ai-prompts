@@ -88,9 +88,13 @@ harness <имя> validate | graph  # определение и Mermaid авто�
   `ready` (ждёт «готово»; git-запись — пользователь) → `docs` → `done`.
   `ai ticket-work answer <id> <текст>` — ответ на вопрос роли, план или
   готовность. Журнал — `.ops/jobs/<id>/`: `log.md`, `events.jsonl`,
-  артефакты и `runs/<состояние>-<n>.jsonl` — полный stream-json
-  прогонов.
-- `ai ops brief` — сводка до 20 строк (hook `ops-brief` подставляет её
+  артефакты, `runs/<состояние>-<n>.jsonl` — полный stream-json
+  прогонов и `progress.log` — ход роли по шагам; оба пишутся по мере
+  работы. Роль дольше таймаута (30 мин, правка — 60;
+  `HARNESS_ROLE_TIMEOUT_MIN`) останавливается с причиной. `docs-delta`
+  ведёт такие же журналы в каталоге своей сессии.
+- `ai ops status` — работающие роли (job, минуты, последний шаг, путь
+  журнала), jobs и наблюдатели; `ai ops brief` — сводка до 20 строк (hook `ops-brief` подставляет её
   на старте сессии); `ai ops status`; `ai ops wait [--all]
   [--timeout <с>]` — ждёт важного события и выходит.
 - `ai ops watch add review|checks <запрос> [--every <мин>] [--until

@@ -3,7 +3,6 @@ import { existsSync, readFileSync } from 'node:fs';
 import { readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { readIntents } from '@shahimat/ai-core';
-import { askRole } from '@shahimat/ai-core';
 import type { CommandArgs } from '@shahimat/ai-core';
 import { errorMessage, isRecord } from '@shahimat/ai-core';
 import { DELTA_DIR } from '@shahimat/ai-core';
@@ -13,6 +12,7 @@ import {
   roleOrHandoff,
   processModule,
   scriptAction,
+  sessionRole,
   type ActionDef,
   type ProcessContext,
   type Registry,
@@ -101,7 +101,7 @@ function reviewAction(): ActionDef<ProcessContext> {
       const delta = existsSync(deltaPath) ? await readFile(deltaPath, 'utf8') : '(дельты нет)';
       let data: unknown;
       try {
-        ({ data } = await askRole(root, 'judge', reviewTask(delta, changedFiles(root))));
+        ({ data } = await sessionRole(ctx, 'judge', reviewTask(delta, changedFiles(root))));
       } catch (error) {
         await s.log({ review: 'error', error: errorMessage(error) });
         return {

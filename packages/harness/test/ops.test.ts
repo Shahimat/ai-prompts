@@ -292,6 +292,36 @@ export default {
 };
 `;
 
+describe('ops: что работает сейчас', () => {
+  it('status показывает работающую роль, её job, время и последний шаг из журнала', async () => {
+    const transcript = path.join(home, 'runs', 'research-1.jsonl');
+    await put(
+      'runs/research-1.jsonl',
+      '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Grep"}]}}\n',
+      home,
+    );
+    await put(
+      'ops/slots/jobs-0.json',
+      JSON.stringify({
+        pid: process.pid,
+        token: 't',
+        role: 'researcher',
+        project: path.resolve(root),
+        job: 'abc1234',
+        started: new Date(NOW.getTime() - 4 * 60_000).toISOString(),
+        transcript,
+      }),
+      home,
+    );
+    out = [];
+    expect(await run(['ops', 'status'])).toBe(0);
+    expect(out[0]).toBe(
+      `работает researcher · abc1234 · 4 мин · последний шаг: Grep · ${transcript}`,
+    );
+    expect((await briefLines(home, root))[0]).toContain('ролей в работе 1');
+  });
+});
+
 describe('ops: наблюдатели', () => {
   beforeEach(async () => {
     await put('providers/review/fake.mjs', REVIEW_PROVIDER, home);

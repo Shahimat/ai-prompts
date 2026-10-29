@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { mkdir, readdir, writeFile } from 'node:fs/promises';
+import path from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 import {
   askRole,
@@ -71,12 +72,13 @@ async function takeSlot(
   prefix: string,
   cap: number,
   token: string,
+  meta: Record<string, unknown> = {},
 ): Promise<string | undefined> {
   await mkdir(slotsDir(home), { recursive: true });
   for (let i = 0; i < cap; i++) {
     const file = machineFile(home, 'slots', `${prefix}-${i}.json`);
     try {
-      await writeFile(file, JSON.stringify({ pid: process.pid, token }), { flag: 'wx' });
+      await writeFile(file, JSON.stringify({ ...meta, pid: process.pid, token }), { flag: 'wx' });
       return file;
     } catch (error) {
       if (errorCode(error) !== 'EEXIST') throw error;
@@ -173,7 +175,15 @@ export async function opsRole(run: OpsRoleRun): Promise<RoleOutcome> {
           w.token !== token &&
           (w.priority < run.priority || (w.priority === run.priority && w.at < at)),
       );
-      const lane = ahead.length < cap ? await takeSlot(run.home, run.lane, cap, token) : undefined;
+      const meta = {
+        role: run.role,
+        project: path.resolve(run.root),
+        job: run.job ?? '',
+        started: new Date().toISOString(),
+        transcript: run.options?.transcript ?? '',
+      };
+      const lane =
+        ahead.length < cap ? await takeSlot(run.home, run.lane, cap, token, meta) : undefined;
       const big =
         lane !== undefined && opus
           ? await takeSlot(run.home, 'opus', limits.opus, token)
@@ -198,4 +208,38 @@ export async function opsRole(run: OpsRoleRun): Promise<RoleOutcome> {
   } finally {
     await remove(ticket);
   }
+}
+
+export interface ActiveRole {
+  role: string;
+  project: string;
+  job: string;
+  started: string;
+  transcript: string;
+  lane: string;
+}
+
+export async function activeRoles(home: string): Promise<ActiveRole[]> {
+  const out: ActiveRole[] = [];
+  for (const name of (await list(slotsDir(home))).sort()) {
+    if (name.startsWith('opus-')) continue;
+    const data = await readJson(machineFile(home, 'slots', name), 'ops/slots').catch(
+      () => undefined,
+    );
+    if (!isRecord(data) || typeof data['pid'] !== 'number' || !alive(data['pid'])) continue;
+    const str = (k: string): string => (typeof data[k] === 'string' ? data[k] : '');
+    out.push({
+      role: str('role'),
+      project: str('project'),
+      job: str('job'),
+      started: str('started'),
+      transcript: str('transcript'),
+      lane: name.replace(/-\d+\.json$/, ''),
+    });
+  }
+  return out;
+}
+
+export async function waitingRoles(home: string): Promise<number> {
+  return (await list(queueDir(home))).length;
 }
