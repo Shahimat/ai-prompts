@@ -168,13 +168,16 @@ describe('корень проекта harness', () => {
     await mkdir(path.join(root, '.claude'));
     await mkdir(path.join(root, 'a/b'), { recursive: true });
     expect(projectOf(path.join(root, 'a/b'))).toBe(root);
-    const saved = process.env['HOME'];
-    process.env['HOME'] = root;
+    const keys = ['HOME', 'USERPROFILE'];
+    const saved = keys.map((k) => [k, process.env[k]] as const);
+    for (const k of keys) process.env[k] = root;
     try {
       expect(projectOf(path.join(root, 'a/b'))).toBeUndefined();
     } finally {
-      if (saved === undefined) delete process.env['HOME'];
-      else process.env['HOME'] = saved;
+      for (const [k, v] of saved) {
+        if (v === undefined) delete process.env[k];
+        else process.env[k] = v;
+      }
     }
   });
 });
