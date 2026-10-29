@@ -30,6 +30,7 @@ import {
   loadProvider,
   opsRole,
   pending,
+  posixRelative,
   PRIORITY,
   readJson,
   processModule,
@@ -54,7 +55,7 @@ import {
 const NAME = 'ticket-work';
 
 const answerHint = (s: Session): string => `ответ: ai ${NAME} answer ${s.short} <текст>`;
-const rel = (s: Session, name: string): string => path.relative(s.data.project, jobFile(s, name));
+const rel = (s: Session, name: string): string => posixRelative(s.data.project, jobFile(s, name));
 
 async function provider(ctx: ProcessContext, iface: 'tasks' | 'vcs') {
   const config = await loadOpsConfig(ctx.session.data.project);

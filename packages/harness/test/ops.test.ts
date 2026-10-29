@@ -395,7 +395,7 @@ describe('ops: провайдеры и дашборд', () => {
   it('провайдер ищется в проекте, на машине и среди встроенных; одно имя дважды — ошибка', async () => {
     await put('providers/review/fake.mjs', REVIEW_PROVIDER, home);
     expect((await loadProvider(root, home, 'review', 'fake')).source).toContain(
-      'providers/review/fake.mjs',
+      path.join('providers', 'review', 'fake.mjs'),
     );
     await put('.agents/providers/review/fake.mjs', REVIEW_PROVIDER);
     await expect(loadProvider(root, home, 'review', 'fake')).rejects.toThrow('объявлен дважды');

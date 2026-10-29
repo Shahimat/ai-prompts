@@ -80,7 +80,8 @@ export function hookEvent(
   if (hook === 'edit') {
     if (input.tool_name !== undefined && !EDIT_TOOLS.includes(input.tool_name)) return {};
     const target = path.resolve(input.cwd ?? '', input.file_path ?? '');
-    if (target !== planPath) return { block: `планер правит только файл ожиданий ${planPath}` };
+    if (target !== path.resolve(planPath))
+      return { block: `планер правит только файл ожиданий ${planPath}` };
     if (state === 'gathering') return { event: 'gathered' };
     if (state === 'composing') return {};
     return { block: `в состоянии ${state} файл ожиданий не меняется` };

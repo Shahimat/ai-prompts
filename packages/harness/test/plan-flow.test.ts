@@ -371,7 +371,9 @@ describe('plan-review: сквозной прогон', { timeout: 120_000 }, () 
     for (const event of ['UserPromptSubmit', 'PreToolUse', 'PostToolUse', 'Stop', 'SessionEnd'])
       expect(settings).toContain(event);
     expect(settings).toMatch(/plan-review hook \S+ stop/);
-    expect(run.allowedTools.filter((t) => t.startsWith('Edit('))).toEqual([`Edit(/${planPath()})`]);
+    expect(run.allowedTools.filter((t) => t.startsWith('Edit('))).toEqual([
+      `Edit(/${planPath().split(path.sep).join('/')})`,
+    ]);
     expect(run.allowedTools.some((t) => t.includes('plan-review hook'))).toBe(false);
     const args = interactiveArgs(run);
     expect(args.slice(0, 3)).toEqual(['--setting-sources', '', '--disable-slash-commands']);

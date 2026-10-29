@@ -18,6 +18,9 @@ export const projectFile = (root: string, ...rel: string[]): string =>
 export const jobDir = (root: string, short: string): string => projectFile(root, 'jobs', short);
 export const watchesDir = (root: string): string => projectFile(root, 'watches');
 
+export const posixRelative = (from: string, to: string): string =>
+  path.relative(from, to).split(path.sep).join('/');
+
 export const projectKey = (root: string): string =>
   createHash('sha256').update(path.resolve(root)).digest('hex').slice(0, 16);
 

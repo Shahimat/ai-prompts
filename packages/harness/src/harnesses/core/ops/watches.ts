@@ -9,7 +9,7 @@ import { emit } from './events.ts';
 import { readYaml, remove, writeAtomic, writeYaml } from './files.ts';
 import { addFeedback, JOB_HARNESS } from './jobs.ts';
 import { cached, loadRegistry } from './machine.ts';
-import { hashOf, OPS_VERSION, projectFile, watchesDir } from './paths.ts';
+import { hashOf, OPS_VERSION, posixRelative, projectFile, watchesDir } from './paths.ts';
 import {
   asSnapshot,
   callRead,
@@ -257,7 +257,7 @@ async function ladder(home: string, root: string, w: Watch, diff: string[]): Pro
       `Наблюдатель ${w.id}: ${w.interface} «${w.query}».`,
       card === undefined || !existsSync(card)
         ? 'Job не привязан.'
-        : `Карточка задачи: ${path.relative(root, card)}`,
+        : `Карточка задачи: ${posixRelative(root, card)}`,
       `Решение триажа: ${text}`,
       'Изменения:',
       ...diff,
@@ -292,7 +292,7 @@ async function ladder(home: string, root: string, w: Watch, diff: string[]): Pro
         home,
         root,
         'suggest',
-        `${w.interface}.${a.method} ${a.target} — после «да»: ai ops act ${w.interface} ${a.method} ${a.target} --file ${path.relative(root, file)}`,
+        `${w.interface}.${a.method} ${a.target} — после «да»: ai ops act ${w.interface} ${a.method} ${a.target} --file ${posixRelative(root, file)}`,
         w.job,
       );
     }

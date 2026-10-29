@@ -13,7 +13,7 @@ import {
   readEvents,
   writeCursor,
 } from './events.ts';
-import { jobDir } from './paths.ts';
+import { jobDir, posixRelative } from './paths.ts';
 import { pending, projectJobs } from './jobs.ts';
 import { loadRegistry, register, TICK_SECONDS, TICK_UNIT, unregister } from './machine.ts';
 import {
@@ -77,7 +77,7 @@ async function status(args: CommandArgs): Promise<number> {
   const home = homeOf(args);
   for (const s of await projectJobs(home, args.root))
     console.log(
-      `${s.short}\t${s.data.state}\t${s.data.title}\t${path.relative(args.root, jobDir(args.root, s.short))}`,
+      `${s.short}\t${s.data.state}\t${s.data.title}\t${posixRelative(args.root, jobDir(args.root, s.short))}`,
     );
   for (const w of await listWatches(args.root))
     console.log(
