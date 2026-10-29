@@ -4,6 +4,9 @@
 
 ## 0.1.0
 
+- Опции `--all`, `--every`, `--until`, `--job`, `--timeout` для команд
+  `ai ops …`.
+
 - Пакет — точка входа: бинарь `ai`, скрипты `check`, `refresh`,
   `docs verify` (перенесены из `@shahimat/ai-core`), оболочка, дерево
   команд из `ai-core`, автоматов `@shahimat/harness` (динамически, если

@@ -12,6 +12,17 @@
       "reason": "Отчёт содержит новые модули, устаревшие, пресеты, версию harness и вариант включить/отключить.",
       "at": "2026-10-28"
     },
+    "070695102e54": {
+      "question": "[harness] ticket-work > git-запись по job делает пользователь: implementer не коммитит, ready ждёт «готово»",
+      "evidence": {
+        "@job-git": "74ac90b27a795b5d4a12492c9c8cdcac8065442cb6290fadabb238e89f5bff14"
+      },
+      "verdict": true,
+      "quote": "Git-запись (commit, push, merge, создание PR) не делаешь: её делает\n  пользователь.",
+      "ref": "@job-git",
+      "reason": "implementer не коммитит; в ops ready ждёт «готово» от пользователя.",
+      "at": "2026-10-29"
+    },
     "0e48c53bde80": {
       "question": "[harness] secrets > docs-keeper не записывает секрет в документацию: вместо значения — указатель на хранилище",
       "evidence": {
@@ -127,13 +138,13 @@
     "3a42cc45ddae": {
       "question": "возможности и пресеты > модуль добавляет поля в чужие слои только через provides.extends",
       "evidence": {
-        "@extends-only": "7a6013dd9b2718def1015a9092b8f547a278310c64cf4ae0171b6242d0ff531a"
+        "@extends-only": "b41321ba3e5c9824b35e439294cc8728a86a8aa866bfa068d74cc2fee1dcdca9"
       },
       "verdict": true,
-      "quote": "`extends` — дополнительные поля в слоях других модулей",
+      "quote": "Добавлять модуль может и\nв чужое, но явно, через `provides`:",
       "ref": "@extends-only",
-      "reason": "В чужое модуль добавляет только явно, через provides; поля в слоях других модулей — это provides.extends",
-      "at": "2026-10-27"
+      "reason": "Поля в чужих слоях — через provides.extends.",
+      "at": "2026-10-29"
     },
     "3c87c225937f": {
       "question": "документация проекта > в основной сессии файлы проектной документации только читаются; правки — только через docs-keeper, генерируемые файлы — через harness",
@@ -270,13 +281,13 @@
     "741df40f5b3c": {
       "question": "[harness] adapters > adapters sync выключает memory: autoMemoryEnabled false в Claude Code, memories false в Codex",
       "evidence": {
-        "@memory-off": "edc22ce17584412013a6a2766ddbf3776fc856f64023649fcb21947fd95182ef"
+        "@memory-off": "06a5eeb519cb0c5f06a6b07e6277ca0800079546b881c00046ca2b992d88781a"
       },
       "verdict": true,
-      "quote": "const next = { ...data, autoMemoryEnabled: false };",
+      "quote": "let next: Record<string, unknown> = { ...data, autoMemoryEnabled: false };",
       "ref": "@memory-off",
-      "reason": "Claude: autoMemoryEnabled false; Codex-конфиг ставит memories = false.",
-      "at": "2026-10-28"
+      "reason": "Claude: autoMemoryEnabled false; Codex конфиг: memories = false.",
+      "at": "2026-10-29"
     },
     "7ba751f6d1ea": {
       "question": "документация проекта > docs-keeper меняет только слои документации проекта и не трогает код",
@@ -391,13 +402,13 @@
     "a5651202c571": {
       "question": "виды контракта > ядро контракта перечисляет виды и что каждый включает; неподходящий вид — ручной выбор в том же чеклисте",
       "evidence": {
-        "@contract-kinds": "15b4f15c06cd822b5302fedb5505b87396e737112fd8e3bfbd0c79172a94b8e2"
+        "@contract-kinds": "b0cad1937187b7869c31a8c1188ce08cf0ba8cc6f648db1be33fa40728edcfd3"
       },
       "verdict": true,
       "quote": "Вид не подходит — ручной выбор возможностей в том же чеклисте.",
       "ref": "@contract-kinds",
-      "reason": "Ядро перечисляет виды operational, external, private, analytical с составом каждого и задаёт запасной ручной выбор",
-      "at": "2026-10-27"
+      "reason": "Перечислены виды с содержимым и ручной выбор для неподходящего.",
+      "at": "2026-10-29"
     },
     "a6ff1ea8fcff": {
       "question": "[flow] delta > revise не блокирует работу: объявлен в дельте, попадает в отчёт и в тело сообщения коммита",
@@ -568,13 +579,13 @@
     "f586544d451f": {
       "question": "документация проекта > шаблон AGENTS.md и блоки модулей не содержат указаний основной сессии самой править документацию — только ссылки на skills и harness; guardrail о достоверности знания допустим",
       "evidence": {
-        "@agents-md-readonly": "6b6f6c5e157b3790498863b846cde92b8344a89f88c3a66c4d026dc312ac378d"
+        "@agents-md-readonly": "abe9b1151662b252ae4ac3010a2b14aaf2232e8ec60aac5650ed09d023cd3791"
       },
       "verdict": true,
-      "quote": "Документация только читается; правки — намерениями (skill\n   `workflow`)",
+      "quote": "Документация только читается; правки — намерениями (skill\n   `workflow`): с harness — `npx ai docs-delta start --name <имя>\n   --file -`, без — субагенту `docs-keeper`",
       "ref": "@agents-md-readonly",
-      "reason": "Шаблон и блоки модулей отсылают к docs-delta/docs-keeper, а не велят править самой сессии.",
-      "at": "2026-10-28"
+      "reason": "Шаблон запрещает основной сессии править документацию напрямую (только через harness/docs-keeper); блоки модулей лишь дают маршруты чтения и ссылки на skills, прямых указаний писать в документацию нет.",
+      "at": "2026-10-29"
     },
     "f7310dcbc6e4": {
       "question": "plan-review › переход clarify_form —answered→ > после ответа планер записывает ожидания выбранным блоком",
@@ -654,22 +665,21 @@
       "at": "2026-10-28"
     },
     "expectations/harness.expect.ts": {
-      "titles": "4792395039074a23a44a14d3617d07141bc0712946fbfa58bc45a330d384b08c",
-      "contradictions": [
+      "titles": "1064dcfdba81acfe1039369f887d5c69cbe063fc46afb9fab2ef83c4890fd12c",
+      "contradictions": [],
+      "unmeasurable": [
         {
-          "a": "0ad455ca74a9",
-          "b": "6fe27bd2b677",
-          "reason": "0ad455ca74a9 говорит, что open заново выполняет действие текущего состояния, а в состоянии агента это приём задания. 6fe27bd2b677 говорит, что в состоянии агента open <id> продолжает со следующего состояния. Для одной ситуации заданы два разных поведения open."
+          "id": "b0ae36a8ae5c",
+          "reason": "«Без контекста автора» не задаёт проверяемого критерия: непонятно, что считать контекстом автора и как это проверить да/нет или числом."
         }
       ],
-      "unmeasurable": [],
-      "at": "2026-10-28"
+      "at": "2026-10-29"
     },
     "expectations/presets.expect.ts": {
-      "titles": "8db5f2e241db6eaf02a2dbe9ed0fbf1bf57301beaa967d6ad6b6e6bc8d39b63d",
+      "titles": "b8ea66151e610e21d7b47fb384185c9c11ece58fbf330cb92a7808191fe35b44",
       "contradictions": [],
       "unmeasurable": [],
-      "at": "2026-10-27"
+      "at": "2026-10-29"
     },
     "expectations/roles.expect.ts": {
       "titles": "74478d6b016909403bdda1851e25dcbd19a022e18e7d1ea5d4ce9fd208fa2d55",
@@ -684,15 +694,15 @@
       "at": "2026-10-14"
     },
     "expectations/skills.expect.ts": {
-      "titles": "fdd69bd2336b28db3d6c4b14e1ee4b9322f6953dc2a85eb13a1113a7b43316ba",
+      "titles": "596da9c3b84187683db0bf98a4b6646624312b8aa1bd0117dc34d3f3eb2652ee",
       "contradictions": [],
       "unmeasurable": [
         {
           "id": "c57fb558adc6",
-          "reason": "Нет критерия, по которому description «говорит, когда загружать». Это оценочное суждение без формального признака, например маркера «Use when» или шаблона."
+          "reason": "«говорит, когда загружать» — оценочно: нет критерия (формулировка, маркер вроде «Use when…»), по которому можно ответить да/нет."
         }
       ],
-      "at": "2026-10-28"
+      "at": "2026-10-29"
     }
   }
 }

@@ -105,15 +105,19 @@
 - **проект** — `.agents/providers/<interface>/<name>.ts`: только для
   этого проекта.
 
-Проект выбирает провайдер по имени в `context/ai-core.yml` → `ops`:
+Проект выбирает провайдер по имени в `context/ops.yml` модуля `ops`
+(`context/ai-core.yml` строгий: свой ключ рантайма был бы ошибкой
+конфига ядра):
 
 ```yaml
-ops:
-  providers:
-    tasks: local
-    vcs: git
-    review: none
-    checks: none
+providers:
+  tasks: local
+  vcs: git
+  review: none
+  checks: none
+  schedule: auto
+repo: .
+verify: [npm test]
 ```
 
 Имя ищется в проекте, затем на машине, затем во встроенных. Одно имя на
@@ -136,7 +140,7 @@ harness вызывает только если convention разрешает д�
   `SessionStart` (`startup`, `resume`, `compact`): после чистки контекста
   оператор восстанавливается сам. Hook ставит `ai adapters sync` из
   `hooks` в `context/ai-core.yml`, как `docs-guard`.
-- Пробуждение: оператор держит фоновый `ai ops watch` — команда
+- Пробуждение: оператор держит фоновый `ai ops wait` — команда
   выходит на первом важном событии проекта (вопрос, провал, готово),
   инструмент будит сессию. Опроса по таймеру в сессии нет.
 - Сводка пользователю — до 10 строк на все jobs; подробности — журнал и
@@ -234,7 +238,8 @@ harness вызывает только если convention разрешает д�
 `.ops/watches/<id>.yml` проекта: провайдер и запрос (`review`,
 `checks`), интервал (по умолчанию 5 минут, минимум 1), `until`
 (`merged`, `closed`, `job-done`), job, к которому привязан. Гасится сам по `until` или оператором:
-`ai ops watch list | stop <id>`.
+`ai ops watch list | stop <id>`. Наблюдатель — запись и лестница в
+рантайме, а не сессия автомата: иначе каждый тик копил бы сессии.
 
 Лестница моделей:
 
@@ -268,7 +273,7 @@ harness вызывает только если convention разрешает д�
   провайдер и запрос, срок — интервал. Десять проектов, которые следят
   за одними PR, опрашивают систему один раз за тик.
 - **Общий поток событий** — `~/.config/harness/ops/events.jsonl`: у
-  каждого события поле `project`. `ai ops watch` проекта по умолчанию
+  каждого события поле `project`. `ai ops wait` проекта по умолчанию
   видит свои события, `--all` — события всех проектов машины.
 - **Общий лимит моделей** — подписка одна на пользователя: лимит
   одновременных прогонов `claude -p` и очередь — на машину, а не на
@@ -289,7 +294,9 @@ harness вызывает только если convention разрешает д�
 
 ## Политика автономии
 
-Действия наружу — по `context/conventions/autonomy.yml` проекта: «сам»,
+Действия наружу — по `context/autonomy.yml` проекта (файл модуля
+`operator`, а не convention: паттерн запрещает копию правила в
+`context/conventions/`): «сам»,
 «после „да“», «никогда». Паттерн `guardrail-dual-level`:
 
 - **агент** — правило в блоке `AGENTS.md` модуля `operator`;
@@ -303,30 +310,36 @@ harness вызывает только если convention разрешает д�
 
 ## Где живёт код
 
-Нового пакета нет. Job — сессия автомата, наблюдатель — маленький
-автомат (L0 — код, L1 и L2 — роли), сводка и дашборд читают сессии: всё
-это зона `@shahimat/harness`.
+Нового пакета нет. Job — сессия автомата, наблюдатель — запись и
+лестница (L0 — код, L1 и L2 — роли `watch-triage` и `watch-request`),
+сводка и доска читают сессии: всё это зона `@shahimat/harness`.
 
-- `@shahimat/harness` — срез `harnesses/ops/`: команды `ai ops …`,
-  автоматы `ticket-work` и `watch`, загрузчик провайдеров, встроенные
-  провайдеры, реестр, кэш и поток событий машины, `serve`.
+- `@shahimat/harness` — автомат `harnesses/ticket-work/` и рантайм в
+  ядре `harnesses/core/ops/` (каталог в `harnesses/` — только автомат с
+  `harness.yaml`): команды `ai ops …`, загрузчик провайдеров,
+  встроенные провайдеры, реестр, кэш, поток событий и лимиты машины,
+  `serve`.
+- `@shahimat/ai-core` — журнал прогона роли (stream-json) и `--add-dir`
+  для копии job; hook `ops-brief` в `adapters sync`.
 - Модули `roles`, `operator`, `ops`, `watchers`, `dashboard` — в
   `prompts/modules/`; роли — в `agents/`; skill `operator` — в
   `skills/`; пресет `operator` — в `presets/`.
 - Проект или машина — свои провайдеры и, при нужде, свои автоматы.
 
-Ожидания, которые нужно расширить (правка заголовков — с согласия
-пользователя): состав команд и автоматов harness в
-`expectations/harness.expect.ts`. Состав пакетов не меняется.
+Ожидания расширены: состав команд и автоматов harness, разделы
+`[harness] ticket-work` и `[harness] ops`, число skills и состав ролей,
+вид `operator` в пресетах. Состав пакетов не меняется.
 
 ## Этапы
 
+Этапы 1–6 сделаны 2026-10-29 одним тикетом; дальше — потребитель.
+
 1. Этот документ.
 2. Источник: роли `researcher`, `oracle`, `reviewer`; модуль `roles`.
-3. Источник: skill `operator`, convention автономии, hook
+3. Источник: skill `operator`, политика автономии, hook
    `SessionStart`; модуль `operator`.
-4. harness: срез `ops` — jobs, карточка, журнал, провайдеры `tasks` и
-   `vcs` (`local`, `git`), `brief | status | watch`; модуль `ops`.
+4. harness: рантайм `ops` — jobs, карточка, журнал, провайдеры `tasks` и
+   `vcs` (`local`, `git`), `brief | status | wait`; модуль `ops`.
 5. harness: наблюдатели, планировщик машины, провайдеры `schedule`
    (`launchd`, `systemd`), интерфейсы `review` и `checks`; модуль
    `watchers`.

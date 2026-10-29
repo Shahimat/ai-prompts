@@ -4,6 +4,27 @@
 
 ## 0.4.0
 
+- Автомат `ticket-work` — работа по задаче вне сессии оператора:
+  карточка из провайдера `tasks`, исследование, план с «да»
+  пользователя, правка в копии от провайдера `vcs`, проверки из
+  `context/ops.yml`, ревью по DoD с дословными цитатами, готовность к
+  коммиту; `ticket-work answer <id> <текст>` — ответ на вопрос роли,
+  план и готовность. Журнал хода и stream-json прогонов ролей —
+  `.ops/jobs/<id>/`.
+- Рантайм `ops` в ядре автоматов: `ai ops brief | status | wait`,
+  наблюдатели `ops watch add | list | stop` с лестницей код → haiku →
+  sonnet, `ops tick [--all]`, один планировщик на машину
+  `ops schedule on | off | status` (launchd, systemd или свой
+  провайдер), `ops act` — действие наружу по политике
+  `context/autonomy.yml`, `ops serve` — HTML-доска с ответами из
+  браузера.
+- Провайдеры `tasks`, `vcs`, `review`, `checks`, `schedule`: встроенные
+  `local`, `git`, `launchd`, `systemd`; свои — в проекте
+  (`.agents/providers/`) или на машине (`~/.config/harness/providers/`).
+- Общее на машину: реестр проектов, кэш опроса, поток событий, лимиты
+  моделей (`~/.config/harness/ops/limits.yml`: jobs 4, opus 2,
+  наблюдатели 1) с очередью по приоритету и паузой при rate limit.
+
 - Пакет — только автоматы (harness): `docs-delta`, `source-sync`,
   `plan-review` и их ядро. Команды, скрипты, механизм ожиданий и роли
   выделены в `@shahimat/ai-core` (CLI `ai-core`); `harness` зависит от

@@ -1,0 +1,83 @@
+# Автомат ticket-work: работа по задаче — карточка, исследование, план, правка, проверка, ревью.
+# Роли researcher, implementer, reviewer работают в состояниях модели, остальное — скрипт и пользователь.
+# Схема — expectations/schemas/harness-fsm.schema.json.
+harness: ticket-work
+description: Работа по задаче — карточка, исследование, план, правка, проверка, ревью
+initial: intake
+
+limits:
+  # rounds — возвраты в implement после провала verify, review или доработки на ready.
+  rounds: 3
+  # plan — переделки плана по замечаниям пользователя.
+  plan: 3
+
+states:
+  intake:
+    actor: script
+    action: job-intake
+    on:
+      ok: research
+      fail: failed
+  research:
+    actor: model
+    action: job-research
+    on:
+      done: plan
+  plan:
+    actor: model
+    action: job-plan
+    on:
+      done: plan-gate
+  plan-gate:
+    actor: user
+    action: job-gate
+    on:
+      approved: implement
+      revise:
+        - { to: plan, count: plan }
+        - failed
+  implement:
+    actor: model
+    action: job-implement
+    on:
+      done: verify
+  verify:
+    actor: script
+    action: job-verify
+    on:
+      ok: review
+      fail:
+        - { to: implement, count: rounds }
+        - failed
+  review:
+    actor: model
+    action: job-review
+    on:
+      ok: ready
+      fail:
+        - { to: implement, count: rounds }
+        - failed
+  ready:
+    actor: user
+    action: job-ready
+    on:
+      done: docs
+      feedback:
+        - { to: implement, count: rounds }
+        - failed
+  docs:
+    actor: script
+    action: job-docs
+    on:
+      ok: done
+  failed:
+    actor: user
+    action: job-failed
+    on:
+      retry:
+        - { to: intake, guard: no-card, reset: [rounds, plan] }
+        - { to: plan, guard: no-plan, reset: [rounds, plan] }
+        - { to: implement, reset: [rounds, plan] }
+  done:
+    final: true
+    action: job-done

@@ -4,6 +4,14 @@
 
 ## 0.1.0
 
+- Роли: `askRole(root, name, task, { transcript, addDirs })` — полный
+  stream-json прогона в файл журнала и доступ роли к каталогам вне
+  проекта (`--add-dir`, копия репозитория job).
+- Hook `ops-brief`: `adapters sync` при `hooks: [ops-brief]` ставит
+  `ai ops brief` в `SessionStart` (`startup`, `resume`, `compact`).
+- `CommandArgs`: `all`, `every`, `until`, `job`, `timeout` — опции
+  рантайма `ops`.
+
 - Пакет выделен из `@shahimat/harness`: команды (`index`, `adapters`,
   `changelog`, `context`, `delta`, `expect`, `secrets`, `outdated`,
   `role`), скрипты (`check`, `refresh`), механизм ожиданий

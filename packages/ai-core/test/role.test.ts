@@ -4,11 +4,12 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { PassThrough } from 'node:stream';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { main } from '@shahimat/cli';
+import { main, selfCommand } from '@shahimat/cli';
 import { parseAgent, type AgentDef } from '#lib/agent';
 import { advertisedSchema, serveChannel } from '#lib/mcp';
 import { PROTOCOL, SUBMIT_TOOL, SUBMIT_TOOL_ID } from '#lib/protocol';
-import { findRole, roleArgs } from '#lib/role';
+import { askRole, finalLine, findRole, roleArgs } from '#lib/role';
+import { setRuntime } from '#lib/runtime';
 import { isRecord } from '#shared/guards';
 import { FAKE_CLAUDE } from './fake-claude.ts';
 
@@ -121,6 +122,31 @@ describe('роль: запуск', () => {
     expect(JSON.parse(await readFile(path.join(root, 'a.json'), 'utf8'))).toEqual({ answers: [] });
     const seen: unknown = JSON.parse(await readFile(path.join(home, 'args.jsonl'), 'utf8'));
     expect(isRecord(seen) ? seen['prompt'] : undefined).toBe('Задание судье');
+  });
+
+  it('журнал прогона: stream-json пишется в файл, итог — из последней строки result', async () => {
+    const args = roleArgs({
+      root,
+      role,
+      task: 'т',
+      out: '/o.json',
+      self: ['node', 'bin.js'],
+      transcript: '/t.jsonl',
+      addDirs: ['/work'],
+    });
+    expect(args[args.indexOf('--output-format') + 1]).toBe('stream-json');
+    expect(args[args.indexOf('--add-dir') + 1]).toBe('/work');
+    expect(args).toContain('--verbose');
+    expect(finalLine('{"type":"system"}\n{"type":"result","result":"ok"}\n{"type":"x"}\n')).toBe(
+      '{"type":"result","result":"ok"}',
+    );
+    await put('agents/judge.md', roleFile('judge', 'verdict'));
+    process.env['FAKE_SUBMIT'] = JSON.stringify({ verdict: { answers: [] } });
+    setRuntime({ self: selfCommand(), runScript: async () => 0 });
+    const transcript = path.join(home, 'runs', 'judge-1.jsonl');
+    const { data } = await askRole(root, 'judge', 'Задание', { transcript });
+    expect(data).toEqual({ answers: [] });
+    expect(await readFile(transcript, 'utf8')).toContain('"type":"result"');
   });
 
   it('role run: роль без submit_result — ошибка, а не пустой ответ', async () => {

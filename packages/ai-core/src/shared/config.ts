@@ -29,7 +29,7 @@ export interface SecretsOptions {
 export const KNOWN_ADAPTERS = ['claude-code', 'codex'] as const;
 export type AdapterName = (typeof KNOWN_ADAPTERS)[number];
 
-export const KNOWN_HOOKS = ['docs-guard'] as const;
+export const KNOWN_HOOKS = ['docs-guard', 'ops-brief'] as const;
 export type HookKey = (typeof KNOWN_HOOKS)[number];
 
 export interface HarnessConfig {

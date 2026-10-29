@@ -16,3 +16,4 @@ export {
   type ModelRunner,
 } from '@shahimat/ai-core';
 export * from './store/session.ts';
+export * from './ops/index.ts';

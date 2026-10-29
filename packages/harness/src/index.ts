@@ -31,3 +31,15 @@ export {
 export { headlessArgs, interactiveArgs, type ModelRunner } from './harnesses/index.ts';
 export { BUILTIN_HARNESSES, createSession, harnessHome, openSession } from './harnesses/index.ts';
 export { roleOrHandoff, handoff, processModule, type ProcessContext } from './harnesses/index.ts';
+export {
+  BUILTIN_PROVIDERS,
+  briefLines,
+  callWrite,
+  loadLimits,
+  loadProvider,
+  OPS_NODES,
+  parseVerdicts,
+  quoted,
+  TICKET_WORK,
+  type Verdict,
+} from './harnesses/index.ts';

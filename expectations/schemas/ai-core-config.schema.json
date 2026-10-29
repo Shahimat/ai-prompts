@@ -88,10 +88,10 @@
       "type": "string"
     },
     "hooks": {
-      "description": "Hooks инструментов, которые ставит ai adapters sync: docs-guard — запрет правки документации в основной сессии",
+      "description": "Hooks инструментов, которые ставит ai adapters sync: docs-guard — запрет правки документации в основной сессии; ops-brief — сводка ai ops brief на старте сессии",
       "type": "array",
       "items": {
-        "enum": ["docs-guard"]
+        "enum": ["docs-guard", "ops-brief"]
       },
       "uniqueItems": true
     }

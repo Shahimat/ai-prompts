@@ -86,12 +86,14 @@ export { advertisedSchema, serveChannel, type Channel } from './lib/mcp.ts';
 export {
   cliCommand,
   askRole,
+  finalLine,
   findRole,
   READ_ONLY_TOOLS,
   ROLE_DIRS,
   roleArgs,
   roleSystemPrompt,
   runRole,
+  type AskOptions,
   type RoleOutcome,
   type RoleRun,
 } from './lib/role.ts';

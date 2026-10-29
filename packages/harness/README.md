@@ -2,7 +2,8 @@
 
 Автоматы (harness) для проектов на контракте
 [`agent-operational-contract-v3`](https://github.com/Shahimat/ai-prompts/blob/main/prompts/productivity/agent-operational-contract-v3.md):
-`docs-delta`, `source-sync`, `plan-review`. Команды, скрипты, механизм
+`docs-delta`, `source-sync`, `plan-review`, `ticket-work` и рантайм
+оператора `ops`. Команды, скрипты, механизм
 ожиданий и роли, на которых они построены, — пакет
 [`@shahimat/ai-core`](https://www.npmjs.com/package/@shahimat/ai-core).
 
@@ -73,6 +74,58 @@ harness <имя> validate | graph  # определение и Mermaid авто�
   source-sync): `outdated` (версия harness и журнал, без `version` в
   конфиге — пропуск) → `update` (агент обновляет файлы) → `refresh`.
   Провал `refresh` возвращает в `update` не больше 3 раз.
+
+### `ticket-work` и `ops`
+
+Рантайм оператора (модули `ops`, `watchers`, `dashboard` контракта):
+работа по задаче идёт вне сессии оператора, роли — отдельные процессы
+`claude -p`.
+
+- `ai ticket-work start <ref>` — job по задаче: `intake` (карточка из
+  провайдера `tasks`) → `research` → `plan` → `plan-gate` (ждёт «да») →
+  `implement` (копия от провайдера `vcs`) → `verify` (команды
+  `context/ops.yml` → `verify`) → `review` (DoD, дословные цитаты) →
+  `ready` (ждёт «готово»; git-запись — пользователь) → `docs` → `done`.
+  `ai ticket-work answer <id> <текст>` — ответ на вопрос роли, план или
+  готовность. Журнал — `.ops/jobs/<id>/`: `log.md`, `events.jsonl`,
+  артефакты и `runs/<состояние>-<n>.jsonl` — полный stream-json
+  прогонов.
+- `ai ops brief` — сводка до 20 строк (hook `ops-brief` подставляет её
+  на старте сессии); `ai ops status`; `ai ops wait [--all]
+  [--timeout <с>]` — ждёт важного события и выходит.
+- `ai ops watch add review|checks <запрос> [--every <мин>] [--until
+  merged|closed|done|job-done] [--job <id>]`, `watch list`,
+  `watch stop <id>`; `ai ops tick [--all]` — проверка наблюдателей:
+  код сравнивает статусы, роль `watch-triage` (haiku) решает, нужна ли
+  реакция, `watch-request` (sonnet) пишет запрос в job и действия в PR.
+- `ai ops schedule on | off | status` — один планировщик на машину
+  (`launchd`, `systemd` или свой провайдер `schedule`) для всех
+  проектов реестра `~/.config/harness/ops/projects.yml`.
+- `ai ops act <интерфейс> <метод> <цель> [--file <текст>]` — действие
+  наружу по политике `context/autonomy.yml` (`never` не обходится).
+- `ai ops serve [--port <n>] [--all]` — локальная HTML-доска jobs,
+  журналов и событий с ответами из браузера.
+
+Провайдер — `export default { interface, name, …методы }` в
+`.agents/providers/<интерфейс>/<имя>.ts` проекта или
+`~/.config/harness/providers/<интерфейс>/<имя>.ts` машины; встроенные —
+`tasks/local`, `vcs/git`, `schedule/launchd`, `schedule/systemd`.
+`context/ops.yml`:
+
+```yaml
+providers:
+  tasks: local
+  vcs: git
+  review: none
+  checks: none
+  schedule: auto
+repo: .
+verify: [npm test]
+```
+
+Лимиты моделей машины — `~/.config/harness/ops/limits.yml` (`jobs: 4`,
+`opus: 2`, `watchers: 1`): очередь по приоритету (ответ пользователя →
+review → implement → plan → research), пауза при rate limit.
 
 ### `plan-review`
 

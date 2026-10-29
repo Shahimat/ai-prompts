@@ -40,22 +40,33 @@ async function readOrNull(abs: string): Promise<string | null> {
 
 export const DOCS_GUARD_COMMAND = 'node node_modules/@shahimat/cli/dist/bin.js docs guard';
 const DOCS_GUARD_MATCHER = 'Edit|Write|MultiEdit|NotebookEdit';
+export const OPS_BRIEF_COMMAND = 'node node_modules/@shahimat/cli/dist/bin.js ops brief';
+const OPS_BRIEF_MATCHER = 'startup|resume|compact';
 
-function withDocsGuard(data: Record<string, unknown>): Record<string, unknown> {
+interface HookSpec {
+  event: string;
+  matcher: string;
+  command: string;
+}
+
+const HOOK_SPECS: Readonly<Record<HookKey, HookSpec>> = {
+  'docs-guard': { event: 'PreToolUse', matcher: DOCS_GUARD_MATCHER, command: DOCS_GUARD_COMMAND },
+  'ops-brief': { event: 'SessionStart', matcher: OPS_BRIEF_MATCHER, command: OPS_BRIEF_COMMAND },
+};
+
+function withHook(data: Record<string, unknown>, spec: HookSpec): Record<string, unknown> {
   const hooks = isRecord(data['hooks']) ? data['hooks'] : {};
-  const pre: unknown[] = Array.isArray(hooks['PreToolUse']) ? hooks['PreToolUse'] : [];
-  const present = pre.some(
+  const current = hooks[spec.event];
+  const list: unknown[] = Array.isArray(current) ? current : [];
+  const present = list.some(
     (entry) =>
       isRecord(entry) &&
       Array.isArray(entry['hooks']) &&
-      entry['hooks'].some((h) => isRecord(h) && h['command'] === DOCS_GUARD_COMMAND),
+      entry['hooks'].some((h) => isRecord(h) && h['command'] === spec.command),
   );
   if (present) return data;
-  const guard = {
-    matcher: DOCS_GUARD_MATCHER,
-    hooks: [{ type: 'command', command: DOCS_GUARD_COMMAND }],
-  };
-  return { ...data, hooks: { ...hooks, PreToolUse: [...pre, guard] } };
+  const hook = { matcher: spec.matcher, hooks: [{ type: 'command', command: spec.command }] };
+  return { ...data, hooks: { ...hooks, [spec.event]: [...list, hook] } };
 }
 
 export async function claudeMemory(
@@ -63,8 +74,9 @@ export async function claudeMemory(
   hookKeys: readonly HookKey[] = [],
 ): Promise<{ actions: Action[]; diagnostics: Diagnostic[] }> {
   const desired = (data: Record<string, unknown>): Record<string, unknown> => {
-    const next = { ...data, autoMemoryEnabled: false };
-    return hookKeys.includes('docs-guard') ? withDocsGuard(next) : next;
+    let next: Record<string, unknown> = { ...data, autoMemoryEnabled: false };
+    for (const key of hookKeys) next = withHook(next, HOOK_SPECS[key]);
+    return next;
   };
   const current = await readOrNull(path.join(root, CLAUDE_SETTINGS));
   const write = (data: Record<string, unknown>): Action => ({

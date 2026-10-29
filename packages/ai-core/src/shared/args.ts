@@ -12,4 +12,9 @@ export interface CommandArgs {
   home?: string;
   name?: string;
   request?: string;
+  all?: boolean;
+  every?: string;
+  until?: string;
+  job?: string;
+  timeout?: string;
 }

@@ -105,11 +105,13 @@ shebang: пояснения — в именах, ожиданиях и README. �
 - Скрипт — только последовательность команд (данные `ScriptDef`, их
   исполняет `scripts/run.ts` по реестру `scripts/commands.ts`).
 - Harness — автомат с плоским именем `категория-вид` (`plan-review`,
-  `docs-delta`, `source-sync`). Живёт в одном каталоге
+  `docs-delta`, `source-sync`, `ticket-work`). Живёт в одном каталоге
   `harnesses/<имя>/`: `harness.yaml`, критерии и промпты рядом с кодом.
   Ядро `harnesses/core` не зависит ни от одного конкретного harness,
   harness не импортируют друг друга; каталог `harnesses/index.ts`
-  регистрирует модули (`HarnessModule`).
+  регистрирует модули (`HarnessModule`). Рантайм оператора
+  (`ai ops …`: провайдеры, наблюдатели, планировщик машины, доска) —
+  в ядре, `harnesses/core/ops/`; модель — `design/operator.md`.
 - CLI harness — под его именем: `ai <имя> start | open <id> | list
   | status <id> | validate | graph`. id сессии — sha256, в выводе 7
   символов, команды принимают префикс от 4. Пауза — выход: `open` заново

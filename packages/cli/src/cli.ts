@@ -41,6 +41,11 @@ export async function cliMain(
       home: { type: 'string' },
       name: { type: 'string' },
       request: { type: 'string' },
+      all: { type: 'boolean' },
+      every: { type: 'string' },
+      until: { type: 'string' },
+      job: { type: 'string' },
+      timeout: { type: 'string' },
       help: { type: 'boolean', short: 'h' },
     },
   });
@@ -66,6 +71,11 @@ export async function cliMain(
   if (values.home !== undefined) args.home = values.home;
   if (values.name !== undefined) args.name = values.name;
   if (values.request !== undefined) args.request = values.request;
+  if (values.all === true) args.all = true;
+  if (values.every !== undefined) args.every = values.every;
+  if (values.until !== undefined) args.until = values.until;
+  if (values.job !== undefined) args.job = values.job;
+  if (values.timeout !== undefined) args.timeout = values.timeout;
 
   if (match !== undefined) return match.command.run({ ...args, params: match.params });
 

@@ -40,8 +40,12 @@ describe('состав skills', () => {
         'knowledge-external-gui',
       ]),
   );
-  crit('других skills нет — всего 19', () => Check.skillCount());
-  crit('субагенты-роли: только docs-keeper и judge', () => Check.onlyRoles());
+  crit('skills модулей, по имени модуля: operator', () => Check.moduleSkills(['operator']));
+  crit('других skills нет — всего 20', () => Check.skillCount());
+  crit(
+    'субагенты-роли: ядро — docs-keeper и judge; модули — oracle, researcher, implementer, reviewer, watch-triage, watch-request',
+    () => Check.onlyRoles(),
+  );
 });
 
 describe('skills — общее', () => {
@@ -62,7 +66,7 @@ describe('копии источников', () => {
     Check.knowledgeCopy(),
   );
   crit(
-    'skills privacy, safety-boundaries и analysis содержат inline-блок паттерна guardrail-dual-level',
+    'skills privacy, safety-boundaries, analysis и operator содержат inline-блок паттерна guardrail-dual-level',
     () => Check.guardrailCopies(),
   );
 });
@@ -155,13 +159,24 @@ class Check {
   }
 
   static async skillCount(): Promise<void> {
-    expect((await skills()).length).toBe(19);
+    expect((await skills()).length).toBe(20);
   }
 
   static async onlyRoles(): Promise<void> {
-    expect((await indexEntries()).filter((e) => e.kind === 'agent').map((e) => e.key)).toEqual([
+    expect(
+      (await indexEntries())
+        .filter((e) => e.kind === 'agent')
+        .map((e) => e.key)
+        .sort(),
+    ).toEqual([
       'docs-keeper',
+      'implementer',
       'judge',
+      'oracle',
+      'researcher',
+      'reviewer',
+      'watch-request',
+      'watch-triage',
     ]);
   }
 
@@ -208,7 +223,7 @@ class Check {
 
   static async guardrailCopies(): Promise<void> {
     const expected = (await inlineBlock('guardrail-dual-level')).trim().replace(/^### /m, '## ');
-    for (const name of ['privacy', 'safety-boundaries', 'analysis']) {
+    for (const name of ['privacy', 'safety-boundaries', 'analysis', 'operator']) {
       expect({ name, ok: (await skill(name)).text.includes(expected) }).toEqual({ name, ok: true });
     }
   }

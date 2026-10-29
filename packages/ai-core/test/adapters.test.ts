@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { parse as parseYaml } from 'yaml';
 import { codexAgent } from '#commands/adapters/render';
 import { readSources, type AgentDef } from '#commands/adapters/source';
-import { DOCS_GUARD_COMMAND } from '#commands/adapters/memory';
+import { DOCS_GUARD_COMMAND, OPS_BRIEF_COMMAND } from '#commands/adapters/memory';
 import { applyActions, checkAdapters, computeSync } from '#commands/adapters/sync';
 import type { AdapterName } from '#shared/config';
 import { parseFrontmatter } from '#shared/frontmatter';
@@ -230,6 +230,24 @@ describe('adapters sync: hook docs-guard', () => {
     ]);
     expect((await computeSync(root, ['claude-code'], ['docs-guard'])).actions).toEqual([]);
     expect(await checkAdapters(root, ['claude-code'], ['docs-guard'])).toEqual([]);
+  });
+
+  it('hooks: [ops-brief] — SessionStart на startup|resume|compact с ai ops brief', async () => {
+    await put('AGENTS.md', '# x\n');
+    const { actions } = await computeSync(root, ['claude-code'], ['docs-guard', 'ops-brief']);
+    await applyActions(root, actions);
+    const settings: unknown = JSON.parse(await read('.claude/settings.json'));
+    expect(
+      isRecord(settings) && isRecord(settings['hooks']) ? settings['hooks']['SessionStart'] : [],
+    ).toEqual([
+      {
+        matcher: 'startup|resume|compact',
+        hooks: [{ type: 'command', command: OPS_BRIEF_COMMAND }],
+      },
+    ]);
+    expect((await computeSync(root, ['claude-code'], ['docs-guard', 'ops-brief'])).actions).toEqual(
+      [],
+    );
   });
 
   it('adapters check: hook включён, но не стоит — расхождение', async () => {

@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { UsageError } from '#shared/diagnostics';
@@ -42,6 +42,8 @@ export interface RoleRun {
   out: string;
   self: string[];
   maxTurns?: number;
+  transcript?: string;
+  addDirs?: readonly string[];
 }
 
 export function roleSystemPrompt(role: AgentDef): string {
@@ -79,8 +81,9 @@ export function roleArgs(run: RoleRun): string[] {
     '--strict-mcp-config',
     '--mcp-config',
     JSON.stringify(channel),
-    '--output-format',
-    'json',
+    ...(run.transcript === undefined
+      ? ['--output-format', 'json']
+      : ['--output-format', 'stream-json', '--verbose']),
     '--model',
     run.role.model ?? DEFAULT_MODEL,
     '--permission-mode',
@@ -88,6 +91,7 @@ export function roleArgs(run: RoleRun): string[] {
     '--max-turns',
     String(run.maxTurns ?? MAX_TURNS),
     '--no-session-persistence',
+    ...(run.addDirs ?? []).flatMap((d) => ['--add-dir', d]),
     '--append-system-prompt',
     roleSystemPrompt(run.role),
     '--tools',
@@ -126,8 +130,18 @@ export interface RoleOutcome {
   costUsd: number | undefined;
 }
 
+export function finalLine(stdout: string): string {
+  const lines = stdout.split('\n').filter((l) => l.trim() !== '');
+  return lines.findLast((l) => l.includes('"type":"result"')) ?? lines.at(-1) ?? '';
+}
+
 export async function runRole(run: RoleRun): Promise<RoleOutcome> {
-  const head = parseHeadless(await spawnClaude(run.root, roleArgs(run), run.task));
+  const stdout = await spawnClaude(run.root, roleArgs(run), run.task);
+  if (run.transcript !== undefined) {
+    await mkdir(path.dirname(run.transcript), { recursive: true });
+    await writeFile(run.transcript, stdout, 'utf8');
+  }
+  const head = parseHeadless(run.transcript === undefined ? stdout : finalLine(stdout));
   if (!existsSync(run.out))
     throw new Error(`роль ${run.role.name} не вернула результат через ${SUBMIT_TOOL}`);
   const data: unknown = JSON.parse(await readFile(run.out, 'utf8'));
@@ -139,17 +153,30 @@ export async function runRole(run: RoleRun): Promise<RoleOutcome> {
   return { data, costUsd: head.costUsd };
 }
 
-export async function askRole(root: string, name: string, task: string): Promise<RoleOutcome> {
+export interface AskOptions {
+  transcript?: string;
+  addDirs?: readonly string[];
+}
+
+export async function askRole(
+  root: string,
+  name: string,
+  task: string,
+  options: AskOptions = {},
+): Promise<RoleOutcome> {
   const role = await findRole(root, name);
   const dir = await mkdtemp(path.join(tmpdir(), `harness-role-${name}-`));
   try {
-    return await runRole({
+    const run: RoleRun = {
       root,
       role,
       task,
       out: path.join(dir, 'out.json'),
       self: cliCommand(),
-    });
+    };
+    if (options.transcript !== undefined) run.transcript = options.transcript;
+    if (options.addDirs !== undefined) run.addDirs = options.addDirs;
+    return await runRole(run);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

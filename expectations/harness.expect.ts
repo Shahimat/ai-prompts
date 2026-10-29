@@ -18,17 +18,26 @@ import {
   KNOWN_CHECKS,
   parseConfig,
   parseFrontmatter,
+  roleArgs,
   runOutdated,
   UsageError,
   type Command,
 } from '@shahimat/ai-core';
 import {
+  BUILTIN_PROVIDERS,
+  briefLines,
+  callWrite,
   createSession,
   HARNESS,
   JUDGE_TOOLS,
   loadHarness,
+  loadLimits,
+  loadProvider,
+  parseMachine,
+  parseVerdicts,
   planIo,
   plannerTools,
+  quoted,
   selfCommand,
   type PlanContext,
 } from '@shahimat/harness';
@@ -59,7 +68,7 @@ budget({ crit: 0, warn: 5 });
 
 describe('[harness] common', () => {
   crit(
-    'состав: команды ai-core — check, refresh, changelog, context, adapters, delta, docs, outdated, expect, index, secrets, role; автоматы harness — plan-review, docs-delta, source-sync',
+    'состав: команды ai-core — check, refresh, changelog, context, adapters, delta, docs, outdated, expect, index, secrets, role; harness — plan-review, docs-delta, source-sync, ticket-work, ops',
     () => Check.composition(),
   );
   crit(
@@ -226,6 +235,91 @@ describe('[harness] source-sync', () => {
   });
   crit('skill docs-keeper объявляет runs: docs-delta, skill source-sync — runs: source-sync', () =>
     Skills.processSkills(),
+  );
+});
+
+describe('[harness] ticket-work', () => {
+  crit(
+    'команды harness ticket-work start <ref> | answer <id> <text> | open | list | status | validate | graph',
+    () =>
+      Check.commands([
+        'ticket-work start <ref>',
+        'ticket-work answer <id> <text>',
+        'ticket-work open <id>',
+        'ticket-work list',
+        'ticket-work status <id>',
+        'ticket-work validate',
+        'ticket-work graph',
+      ]),
+  );
+  crit(
+    'автомат ticket-work: intake → research → plan → plan-gate → implement → verify → review → ready → docs → done; plan-gate и ready ждут ответа пользователя',
+    () => Ops.ticketChain(),
+  );
+  crit(
+    'провал verify или review и доработка на ready возвращают в implement не больше 3 раз, затем failed',
+    () => Ops.ticketRounds(),
+  );
+  crit('ok в ревью без дословной цитаты из копии репозитория не засчитывается', () =>
+    Ops.reviewQuotes(),
+  );
+  crit(
+    'роль в job — отдельный процесс claude -p; полный stream-json прогона пишется в журнал job',
+    () => Ops.transcripts(),
+  );
+  warn('git-запись по job делает пользователь: implementer не коммитит, ready ждёт «готово»', () =>
+    judged(['@job-git']),
+  );
+});
+
+describe('[harness] ops', () => {
+  crit(
+    'команды ops: brief, status, wait, watch add | list | stop, tick, schedule on | off | status, act, serve',
+    () =>
+      Check.commands([
+        'ops brief',
+        'ops status',
+        'ops wait',
+        'ops watch add <interface> <query>',
+        'ops watch list',
+        'ops watch stop <id>',
+        'ops tick',
+        'ops schedule on',
+        'ops schedule off',
+        'ops schedule status',
+        'ops act <interface> <method> <target>',
+        'ops serve',
+      ]),
+  );
+  crit('сводка ai ops brief — не больше 20 строк при любом числе jobs', () => Ops.briefLimit());
+  crit('hook ops-brief ставит ai ops brief в SessionStart на startup, resume и compact', () =>
+    Ops.briefHook(),
+  );
+  crit(
+    'действие наружу с уровнем never в context/autonomy.yml не выполняется даже прямой командой ai ops act',
+    () => Ops.neverBlocks(),
+  );
+  crit('запись провайдера при уровне ask без «да» не выполняется: рантайм только предлагает', () =>
+    Ops.askWaits(),
+  );
+  crit('провайдер с одним именем в проекте и на машине — ошибка, а не тихая подмена', () =>
+    Ops.providerClash(),
+  );
+  crit(
+    'в источнике нет провайдеров конкретных систем: встроенные — только tasks/local, vcs/git, schedule/launchd, schedule/systemd',
+    () => Ops.builtinProviders(),
+  );
+  crit('тик без изменений у провайдера не запускает ни одной роли', () => Ops.quietTick());
+  crit(
+    'планировщик один на машину: unit ставится при первом проекте реестра и снимается, когда реестр пуст',
+    () => Ops.oneScheduler(),
+  );
+  crit('лимиты моделей машины по умолчанию: jobs 4, из них opus 2; наблюдатели 1', () =>
+    Ops.defaultLimits(),
+  );
+  crit(
+    'намерения из job уходят в документацию только через docs-delta start: ticket-work сам не пишет в context/ и docs/ проекта',
+    () => Ops.docsViaDelta(),
   );
 });
 
@@ -655,7 +749,21 @@ const DECLARED_COMMANDS = [
   'plan-review start <file>',
   'docs-delta start',
   'source-sync start',
-  ...['plan-review', 'docs-delta', 'source-sync'].flatMap((p) => [
+  'ticket-work start <ref>',
+  'ticket-work answer <id> <text>',
+  'ops brief',
+  'ops status',
+  'ops wait',
+  'ops watch add <interface> <query>',
+  'ops watch list',
+  'ops watch stop <id>',
+  'ops tick',
+  'ops schedule on',
+  'ops schedule off',
+  'ops schedule status',
+  'ops act <interface> <method> <target>',
+  'ops serve',
+  ...['plan-review', 'docs-delta', 'source-sync', 'ticket-work'].flatMap((p) => [
     `${p} open <id>`,
     `${p} list`,
     `${p} status <id>`,
@@ -753,17 +861,19 @@ class Check {
       'docs-delta',
       'expect',
       'index',
+      'ops',
       'outdated',
       'plan-review',
       'refresh',
       'role',
       'secrets',
       'source-sync',
+      'ticket-work',
     ]);
     const planIter = await readRepo('expectations/harness-plan-review.expect.ts');
     expect(planIter).toContain("describe('[harness] plan-review'");
     const own = await readRepo('expectations/harness.expect.ts');
-    for (const section of ['refresh', 'docs-delta', 'source-sync'])
+    for (const section of ['refresh', 'docs-delta', 'source-sync', 'ticket-work', 'ops'])
       expect(own).toContain(`describe('[harness] ${section}'`);
   }
 
@@ -2877,5 +2987,323 @@ class Root {
       await rm(project, { recursive: true, force: true });
       await rm(home, { recursive: true, force: true });
     }
+  }
+}
+
+const FAKE_REVIEW = `import { appendFileSync } from 'node:fs';
+export default {
+  interface: 'review',
+  name: 'fake',
+  poll: async () => ({ items: [{ id: '1', state: 'open', summary: 'PR' }] }),
+  comment: async (id, text) => appendFileSync(process.env.OPS_LOG, 'comment ' + id + ' ' + text + '\\n'),
+};
+`;
+
+const FAKE_SCHEDULE = `import { appendFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
+const log = () => process.env.OPS_LOG;
+export default {
+  interface: 'schedule',
+  name: 'fake',
+  install: async () => { writeFileSync(log() + '.state', 'active'); appendFileSync(log(), 'install\\n'); },
+  remove: async () => { writeFileSync(log() + '.state', 'absent'); appendFileSync(log(), 'remove\\n'); },
+  status: async () => (existsSync(log() + '.state') ? readFileSync(log() + '.state', 'utf8') : 'absent'),
+};
+`;
+
+async function opsProject(home: string, extra: Record<string, string> = {}): Promise<string> {
+  const dir = await tempDir();
+  await mkdir(path.join(dir, '.claude'));
+  const files: Record<string, string> = {
+    'context/ops.yml': 'providers:\n  review: fake\n  schedule: fake\n',
+    ...extra,
+  };
+  for (const [rel, text] of Object.entries(files)) {
+    await mkdir(path.dirname(path.join(dir, rel)), { recursive: true });
+    await writeFile(path.join(dir, rel), text);
+  }
+  for (const [rel, text] of [
+    ['providers/review/fake.mjs', FAKE_REVIEW],
+    ['providers/schedule/fake.mjs', FAKE_SCHEDULE],
+  ] as const) {
+    await mkdir(path.dirname(path.join(home, rel)), { recursive: true });
+    await writeFile(path.join(home, rel), text);
+  }
+  return dir;
+}
+
+const opsCli = (args: string[], env: Record<string, string>) =>
+  spawnSync(process.execPath, [BIN(args), ...args], {
+    cwd: repoRoot(),
+    encoding: 'utf8',
+    env: { ...process.env, ...env },
+  });
+
+async function withOps(fn: (home: string, log: string) => Promise<void>): Promise<void> {
+  const home = await tempDir();
+  try {
+    await fn(home, path.join(home, 'ops.log'));
+  } finally {
+    await rm(home, { recursive: true, force: true });
+  }
+}
+
+const readOr = async (file: string): Promise<string> =>
+  existsSync(file) ? readFile(file, 'utf8') : '';
+
+class Ops {
+  static async ticketDef() {
+    const where = `${HARNESSES}/ticket-work/harness.yaml`;
+    const { def, errors } = parseMachine(await readRepo(where), where);
+    if (def === undefined) throw new Error(errors.join('\n'));
+    return def;
+  }
+
+  static async ticketChain(): Promise<void> {
+    const def = await Ops.ticketDef();
+    const next = (state: string, event: string): string | undefined =>
+      def.states.find((st) => st.name === state)?.on[event]?.[0]?.to;
+    const actor = (state: string): string | undefined =>
+      def.states.find((st) => st.name === state)?.actor;
+    expect({
+      initial: def.initial,
+      chain: [
+        next('intake', 'ok'),
+        next('research', 'done'),
+        next('plan', 'done'),
+        next('plan-gate', 'approved'),
+        next('implement', 'done'),
+        next('verify', 'ok'),
+        next('review', 'ok'),
+        next('ready', 'done'),
+        next('docs', 'ok'),
+      ],
+      users: [actor('plan-gate'), actor('ready')],
+      done: def.states.find((st) => st.name === 'done')?.final,
+    }).toEqual({
+      initial: 'intake',
+      chain: [
+        'research',
+        'plan',
+        'plan-gate',
+        'implement',
+        'verify',
+        'review',
+        'ready',
+        'docs',
+        'done',
+      ],
+      users: ['user', 'user'],
+      done: true,
+    });
+  }
+
+  static async ticketRounds(): Promise<void> {
+    const def = await Ops.ticketDef();
+    const on = (state: string, event: string) =>
+      (def.states.find((st) => st.name === state)?.on[event] ?? []).map((t) =>
+        t.count === undefined ? { to: t.to } : { to: t.to, count: t.count },
+      );
+    const back = [{ to: 'implement', count: 'rounds' }, { to: 'failed' }];
+    expect({
+      verify: on('verify', 'fail'),
+      review: on('review', 'fail'),
+      ready: on('ready', 'feedback'),
+      limit: def.limits['rounds'],
+    }).toEqual({ verify: back, review: back, ready: back, limit: 3 });
+  }
+
+  static async reviewQuotes(): Promise<void> {
+    const dir = await tempDir();
+    try {
+      await writeFile(path.join(dir, 'a.txt'), 'hello   world\n');
+      expect(parseVerdicts('- [ok] пункт — a.txt:1 «hello world»')).toEqual([
+        { status: 'ok', item: 'пункт', evidence: 'a.txt:1 «hello world»' },
+      ]);
+      expect(await quoted(dir, 'a.txt:1 «hello world»')).toBe(true);
+      expect(await quoted(dir, 'a.txt:1 «hello moon»')).toBe(false);
+      expect(await quoted(dir, 'нет цитаты')).toBe(false);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  }
+
+  static async transcripts(): Promise<void> {
+    const args = roleArgs({
+      root: '/r',
+      role: {
+        name: 'implementer',
+        source: 'agents/implementer.md',
+        description: 'd',
+        skills: [],
+        tools: [],
+        output: 'result',
+        instructions: 'i',
+      },
+      task: 't',
+      out: '/o.json',
+      self: ['node', 'bin.js'],
+      transcript: '/r/.ops/jobs/x/runs/implement-1.jsonl',
+    });
+    expect(args[args.indexOf('--output-format') + 1]).toBe('stream-json');
+    expect(args[0]).toBe('-p');
+    expect(await readRepo(`${HARNESSES}/ticket-work/index.ts`)).toContain(
+      'transcript: jobFile(s, `runs/',
+    );
+  }
+
+  static async briefLimit(): Promise<void> {
+    await withOps(async (home) => {
+      const dir = await opsProject(home);
+      try {
+        for (let i = 0; i < 30; i++)
+          await createSession(home, {
+            harness: 'ticket-work',
+            title: `задача ${i}`,
+            request: `t${i}.md`,
+            project: dir,
+            initial: 'research',
+            now: new Date(),
+          });
+        const lines = await briefLines(home, dir);
+        expect(lines[0]).toContain('jobs 30');
+        expect(lines.length).toBeLessThanOrEqual(20);
+      } finally {
+        await rm(dir, { recursive: true, force: true });
+      }
+    });
+  }
+
+  static async briefHook(): Promise<void> {
+    const dir = await tempDir();
+    try {
+      await writeFile(path.join(dir, 'AGENTS.md'), '# x\n');
+      const { actions } = await computeSync(dir, ['claude-code'], ['ops-brief']);
+      const found = actions.find((a) => a.path.endsWith('settings.json'));
+      const text = found !== undefined && 'content' in found ? found.content.toString('utf8') : '';
+      const hook = unknownList(at(parseJson(text), 'hooks', 'SessionStart'), 'SessionStart')[0];
+      expect(stringAt(hook, 'matcher')).toBe('startup|resume|compact');
+      expect(JSON.stringify(at(hook, 'hooks'))).toMatch(/ops brief"/);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  }
+
+  static async neverBlocks(): Promise<void> {
+    await withOps(async (home, log) => {
+      const dir = await opsProject(home, {
+        'context/autonomy.yml': 'levels:\n  self: [review.comment]\n  never: [review]\n',
+        'note.md': 'текст',
+      });
+      try {
+        const args = ['ops', 'act', 'review', 'comment', '1', '--file', 'note.md'];
+        const r = opsCli([...args, '--root', dir, '--home', home], { OPS_LOG: log });
+        expect(r.status).not.toBe(0);
+        expect(`${r.stdout}${r.stderr}`).toContain('запрещено политикой');
+        expect(await readOr(log)).toBe('');
+      } finally {
+        await rm(dir, { recursive: true, force: true });
+      }
+    });
+  }
+
+  static async askWaits(): Promise<void> {
+    await withOps(async (home, log) => {
+      const dir = await opsProject(home);
+      const saved = process.env['OPS_LOG'];
+      process.env['OPS_LOG'] = log;
+      try {
+        const provider = await loadProvider(dir, home, 'review', 'fake');
+        const policy = { self: [], ask: [], never: [] };
+        expect(await callWrite(provider, policy, 'comment', false, ['1', 't'])).toEqual({
+          done: false,
+          level: 'ask',
+        });
+        expect(await readOr(log)).toBe('');
+      } finally {
+        if (saved === undefined) delete process.env['OPS_LOG'];
+        else process.env['OPS_LOG'] = saved;
+        await rm(dir, { recursive: true, force: true });
+      }
+    });
+  }
+
+  static async providerClash(): Promise<void> {
+    await withOps(async (home) => {
+      const dir = await opsProject(home);
+      try {
+        await mkdir(path.join(dir, '.agents/providers/review'), { recursive: true });
+        await writeFile(path.join(dir, '.agents/providers/review/fake.mjs'), FAKE_REVIEW);
+        await expect(loadProvider(dir, home, 'review', 'fake')).rejects.toThrow('объявлен дважды');
+      } finally {
+        await rm(dir, { recursive: true, force: true });
+      }
+    });
+  }
+
+  static builtinProviders(): void {
+    expect(BUILTIN_PROVIDERS.map((p) => `${p.interface}/${p.name}`).sort()).toEqual([
+      'schedule/launchd',
+      'schedule/systemd',
+      'tasks/local',
+      'vcs/git',
+    ]);
+  }
+
+  static async quietTick(): Promise<void> {
+    await withOps(async (home, log) => {
+      const dir = await opsProject(home);
+      const env = { OPS_LOG: log, HARNESS_CLAUDE: path.join(home, 'нет-claude.mjs') };
+      try {
+        const base = ['--root', dir, '--home', home];
+        const add = ['ops', 'watch', 'add', 'review', 'q', '--every', '1', ...base];
+        expect(opsCli(add, env).status).toBe(0);
+        expect(opsCli(['ops', 'tick', ...base], env).status).toBe(0);
+        const [file = ''] = await readdir(path.join(dir, '.ops/watches'));
+        const watch = path.join(dir, '.ops/watches', file);
+        const text = await readFile(watch, 'utf8');
+        await writeFile(watch, text.replace(/^next: .*$/m, 'next: 2000-01-01T00:00:00.000Z'));
+        const second = opsCli(['ops', 'tick', ...base], env);
+        expect(second.status).toBe(0);
+        expect(second.stdout).toContain('проверено 1, изменилось 0');
+        expect(await readOr(path.join(home, 'ops/events.jsonl'))).not.toContain('"warn"');
+      } finally {
+        await rm(dir, { recursive: true, force: true });
+      }
+    });
+  }
+
+  static async oneScheduler(): Promise<void> {
+    await withOps(async (home, log) => {
+      const a = await opsProject(home);
+      const b = await opsProject(home);
+      try {
+        for (const [root, mode] of [
+          [a, 'on'],
+          [b, 'on'],
+          [a, 'off'],
+          [b, 'off'],
+        ] as const)
+          expect(
+            opsCli(['ops', 'schedule', mode, '--root', root, '--home', home], { OPS_LOG: log })
+              .status,
+          ).toBe(0);
+        expect(await readOr(log)).toBe('install\nremove\n');
+      } finally {
+        await rm(a, { recursive: true, force: true });
+        await rm(b, { recursive: true, force: true });
+      }
+    });
+  }
+
+  static async docsViaDelta(): Promise<void> {
+    const code = await readRepo(`${HARNESSES}/ticket-work/index.ts`);
+    expect(code).toMatch(/'docs-delta',\s*'start'/);
+    expect(code).not.toMatch(/['`](?:context|docs)\//);
+  }
+
+  static async defaultLimits(): Promise<void> {
+    await withOps(async (home) => {
+      expect(await loadLimits(home)).toEqual({ jobs: 4, opus: 2, watchers: 1 });
+    });
   }
 }
