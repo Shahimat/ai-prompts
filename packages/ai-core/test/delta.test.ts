@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildContextIndex } from '#commands/context/context-index';
-import { checkDelta, revisionLines } from '#commands/delta/delta';
+import { ACCEPTED_FILE, checkDelta, matchesTarget, revisionLines } from '#commands/delta/delta';
 import { main, run } from '@shahimat/cli';
 
 const NOW = new Date('2026-10-14T12:00:00Z');
@@ -166,5 +166,51 @@ describe('context index и .delta', () => {
     );
     const { text } = await buildContextIndex(root);
     expect(text).not.toContain('leak');
+  });
+});
+
+describe('delta: предложения из проектов', () => {
+  const ADD_RULE = (target: string): string =>
+    `summary: новое правило\nitems:\n  - op: add\n    kind: rule\n    target: ${target}\n    summary: s\n    evidence: e\n`;
+  const close = (name?: string) =>
+    main(['delta', 'close', '--root', root, ...(name === undefined ? [] : ['--name', name])], NOW);
+
+  it('revise с якорем target#поле засчитывается по файлу', async () => {
+    await put('context/.delta/naming.yml', REVISE.replace('target: naming', 'target: naming#rule'));
+    await put('context/conventions/naming.yml', 'key: naming\nsummary: snake_case\nrule: x\n');
+    expect(await close('naming')).toBe(0);
+    expect(matchesTarget('AGENTS.md#skills', 'AGENTS.md')).toBe(true);
+  });
+
+  it('close --name закрывает только свою дельту: чужая невыполненная не мешает', async () => {
+    await put('context/.delta/mine.yml', ADD_RULE('context/conventions/mine.yml'));
+    await put('context/.delta/other.yml', ADD_RULE('context/conventions/other.yml'));
+    await put('context/conventions/mine.yml', 'key: mine\nsummary: s\nrule: r\n');
+    expect(await close('mine')).toBe(0);
+    expect(existsSync(path.join(root, 'context/.delta/mine.yml'))).toBe(false);
+    expect(existsSync(path.join(root, 'context/.delta/other.yml'))).toBe(true);
+    expect(await close('nope')).toBe(1);
+  });
+
+  it('принятый revise помнится до коммита: следующая сессия не падает «знание без revise»', async () => {
+    await put('context/.delta/naming.yml', REVISE);
+    await put('context/conventions/naming.yml', 'key: naming\nsummary: snake_case\nrule: x\n');
+    expect(await close('naming')).toBe(0);
+    expect(existsSync(path.join(root, ACCEPTED_FILE))).toBe(true);
+    await put('context/.delta/next.yml', ADD_RULE('context/conventions/next.yml'));
+    await put('context/conventions/next.yml', 'key: next\nsummary: s\nrule: r\n');
+    expect((await checkDelta(root)).diagnostics).toEqual([]);
+    expect(await close('next')).toBe(0);
+    git('add', '.');
+    git('commit', '-qm', 'принято');
+    await put('context/.delta/last.yml', ADD_RULE('context/conventions/last.yml'));
+    await put('context/conventions/last.yml', 'key: last\nsummary: s\nrule: r\n');
+    expect(await close('last')).toBe(0);
+    expect(existsSync(path.join(root, ACCEPTED_FILE))).toBe(false);
+  });
+
+  it('пункт о файле внутри context/.delta считается выполненным', async () => {
+    await put('context/.delta/fix.yml', ADD_RULE('context/.delta/other.yml'));
+    expect(await close('fix')).toBe(0);
   });
 });

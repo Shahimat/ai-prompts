@@ -68,6 +68,7 @@ export interface DeltaResult {
   revisions: Revision[];
   changed: Set<string>;
   diagnostics: Diagnostic[];
+  accepted: Accepted[];
 }
 
 const NOT_DOCS = [CONTEXT_INDEX_PATH, 'context/ai-core.yml', 'context/modules/', `${DELTA_DIR}/`];
@@ -207,8 +208,58 @@ async function readDeltas(root: string, diagnostics: Diagnostic[]): Promise<Delt
   return deltas;
 }
 
-export const matchesTarget = (target: string, file: string): boolean =>
-  target === file || path.posix.basename(file).replace(/\.[^.]+$/, '') === target;
+export const ACCEPTED_FILE = `${DELTA_DIR}/.accepted.json`;
+
+export function matchesTarget(target: string, file: string): boolean {
+  const base = target.split('#')[0] ?? target;
+  return base === file || path.posix.basename(file).replace(/\.[^.]+$/, '') === base;
+}
+
+const isDeltaTarget = (target: string): boolean =>
+  (target.split('#')[0] ?? target).startsWith(`${DELTA_DIR}/`);
+
+export interface Accepted {
+  delta: string;
+  target: string;
+  summary: string;
+  was: string;
+  why: string;
+}
+
+const isAccepted = (v: unknown): v is Accepted =>
+  isRecord(v) &&
+  ['delta', 'target', 'summary', 'was', 'why'].every((k) => typeof v[k] === 'string');
+
+export async function readAccepted(root: string): Promise<Accepted[]> {
+  let text: string;
+  try {
+    text = await readFile(path.join(root, ACCEPTED_FILE), 'utf8');
+  } catch (error) {
+    if (errorCode(error) === 'ENOENT') return [];
+    throw error;
+  }
+  let data: unknown;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    return [];
+  }
+  const items = isRecord(data) ? data['items'] : undefined;
+  return Array.isArray(items) ? items.filter(isAccepted) : [];
+}
+
+export const acceptedOf = (deltas: readonly Delta[]): Accepted[] =>
+  deltas.flatMap((d) =>
+    d.items
+      .filter((i) => i.op === 'revise')
+      .map((i) => ({
+        delta: d.file,
+        target: i.target,
+        summary: i.summary,
+        was: i.was ?? '',
+        why: i.why ?? '',
+      })),
+  );
 
 export async function checkDelta(root: string): Promise<DeltaResult> {
   if (!git(root, ['rev-parse', '--verify', 'HEAD']).ok)
@@ -235,9 +286,13 @@ export async function checkDelta(root: string): Promise<DeltaResult> {
     if (lost.length > 0) revisions.push({ file, deleted: false, lost: lost.slice(0, 3) });
   }
 
-  const revise = deltas.flatMap((d) => d.items.filter((i) => i.op === 'revise'));
+  const accepted = await readAccepted(root);
+  const revise = [
+    ...deltas.flatMap((d) => d.items.filter((i) => i.op === 'revise')).map((i) => i.target),
+    ...accepted.map((a) => a.target),
+  ];
   for (const r of revisions) {
-    if (revise.some((i) => matchesTarget(i.target, r.file))) continue;
+    if (revise.some((t) => matchesTarget(t, r.file))) continue;
     diagnostics.push({
       file: r.file,
       message: r.deleted
@@ -245,19 +300,24 @@ export async function checkDelta(root: string): Promise<DeltaResult> {
         : `изменено существующее знание без пункта revise в дельте: ${r.lost.join('; ')}`,
     });
   }
-  return { deltas, revisions, changed, diagnostics };
+  return { deltas, revisions, changed, diagnostics, accepted };
 }
 
-export function unfinishedItems(root: string, result: DeltaResult): Diagnostic[] {
+export function unfinishedItems(
+  root: string,
+  result: DeltaResult,
+  deltas: readonly Delta[] = result.deltas,
+): Diagnostic[] {
   const out: Diagnostic[] = [];
   const touched = [...result.changed, ...result.revisions.map((r) => r.file)];
-  for (const d of result.deltas) {
+  for (const d of deltas) {
     d.items.forEach((item, i) => {
       const done =
-        item.op === 'add'
-          ? existsSync(path.join(root, item.target)) ||
+        isDeltaTarget(item.target) ||
+        (item.op === 'add'
+          ? existsSync(path.join(root, item.target.split('#')[0] ?? item.target)) ||
             touched.some((f) => matchesTarget(item.target, f))
-          : touched.some((f) => matchesTarget(item.target, f));
+          : touched.some((f) => matchesTarget(item.target, f)));
       if (!done)
         out.push({
           file: d.file,

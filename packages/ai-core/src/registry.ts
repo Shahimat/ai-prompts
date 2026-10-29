@@ -51,6 +51,7 @@ export const COMMAND_NODES: readonly CommandNode[] = [
     path: ['delta', 'close'],
     kind: 'command',
     effect: 'mutation',
+    options: '[--name <дельта>]',
     run: (args) => runDelta('close', args),
   },
   {

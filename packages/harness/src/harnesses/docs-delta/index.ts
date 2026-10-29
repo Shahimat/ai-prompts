@@ -146,7 +146,12 @@ function registry(): Registry<ProcessContext> {
       ],
       ['docs-verify', scriptAction<ProcessContext>(['docs', 'verify'])],
       ['docs-review', reviewAction()],
-      ['delta-close', commandAction<ProcessContext>(['delta', 'close'])],
+      [
+        'delta-close',
+        commandAction<ProcessContext>(['delta', 'close'], (ctx) => ({
+          name: ctx.session.data.title,
+        })),
+      ],
       ['report-failure', failureAction<ProcessContext>()],
     ]),
     guards: new Map(),

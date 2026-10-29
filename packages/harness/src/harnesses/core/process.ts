@@ -123,10 +123,13 @@ function commandOf(path: readonly string[]) {
   return found;
 }
 
-export const commandAction = <C extends ProcessContext>(path: readonly string[]): ActionDef<C> => ({
+export const commandAction = <C extends ProcessContext>(
+  path: readonly string[],
+  extra: (ctx: C) => Partial<CommandArgs> = () => ({}),
+): ActionDef<C> => ({
   events: ['ok', 'fail'],
   run: async (ctx) => ({
-    event: (await commandOf(path).run(argsOf(ctx))) === 0 ? 'ok' : 'fail',
+    event: (await commandOf(path).run({ ...argsOf(ctx), ...extra(ctx) })) === 0 ? 'ok' : 'fail',
   }),
 });
 
