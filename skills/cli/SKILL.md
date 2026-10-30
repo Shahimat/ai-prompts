@@ -15,6 +15,10 @@ description: Как пользоваться CLI ai в проекте — refres
 - `@shahimat/harness` — автоматы `docs-delta`, `source-sync`,
   `plan-review`; модуль harness. Без него `ai` автоматов не знает.
 
+Пакеты ставятся из npm-реестра по версиям, не из локальных архивов
+(`file:*.tgz`): с архивами `npm ci` в CI падает, а `ai outdated` читает
+только `dependencies` и `devDependencies`.
+
 Конфиг команд — `context/ai-core.yml`.
 
 ## Свои расширения

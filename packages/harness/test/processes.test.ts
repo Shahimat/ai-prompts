@@ -90,6 +90,30 @@ describe('harness docs delta', () => {
     expect(existsSync(path.join(root, 'context/index.yml'))).toBe(true);
   });
 
+  it('verify и close сессии не валят нарушения в дельтах прошлых сессий', async () => {
+    await project();
+    await put('context/.delta/old.yml', `summary: ${'x'.repeat(201)}\nitems: []\n`);
+    const args = ['--root', root, '--home', home];
+    await put(
+      '.agents/agents/judge.md',
+      '---\nname: judge\ndescription: Судья для теста процесса docs-delta\noutput: verdict\n---\n\nСудья.\n',
+    );
+    const fake = path.join(home, 'fake-claude.mjs');
+    await writeFile(fake, FAKE_CLAUDE, 'utf8');
+    vi.stubEnv('HARNESS_CLAUDE', fake);
+    vi.stubEnv('FAKE_SUBMIT', JSON.stringify({ verdict: { conflicts: [] } }));
+    expect(await main(['docs-delta', 'start', '--name', 'naming', ...args], NOW)).toBe(0);
+    await put(
+      'context/.delta/naming.yml',
+      'summary: s\nitems:\n  - op: add\n    kind: rule\n    target: other\n    summary: новое\n    evidence: e\n',
+    );
+    await put('context/conventions/other.yml', 'key: other\nsummary: новое\nrule: y\n');
+    expect(await main(['docs-delta', 'open', await sessionId(), '--home', home], NOW)).toBe(0);
+    expect(await state()).toBe('done');
+    expect(existsSync(path.join(root, 'context/.delta/naming.yml'))).toBe(false);
+    expect(existsSync(path.join(root, 'context/.delta/old.yml'))).toBe(true);
+  });
+
   it('провал verify возвращает в apply, после трёх — failed; open из failed — снова apply', async () => {
     await project();
     const args = ['--root', root, '--home', home];

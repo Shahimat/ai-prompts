@@ -108,10 +108,12 @@ export function roleOrHandoff<C extends ProcessContext>(
 
 export const scriptAction = <C extends ProcessContext>(
   script: readonly string[],
+  extra: (ctx: C) => Partial<CommandArgs> = () => ({}),
 ): ActionDef<C> => ({
   events: ['ok', 'fail'],
   run: async (ctx) => ({
-    event: (await runtime().runScript(script, argsOf(ctx))) === 0 ? 'ok' : 'fail',
+    event:
+      (await runtime().runScript(script, { ...argsOf(ctx), ...extra(ctx) })) === 0 ? 'ok' : 'fail',
   }),
 });
 

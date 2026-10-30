@@ -214,3 +214,66 @@ describe('delta: предложения из проектов', () => {
     expect(await close('fix')).toBe(0);
   });
 });
+
+describe('delta: дельты прошлых сессий и закоммиченные дельты', () => {
+  const ADD = (target: string): string =>
+    `summary: новое правило\nitems:\n  - op: add\n    kind: rule\n    target: ${target}\n    summary: s\n    evidence: e\n`;
+  const LONG = REVISE.replace(
+    'summary: пересмотр правила именования',
+    `summary: ${'x'.repeat(201)}`,
+  );
+  const naming = 'key: naming\nsummary: snake_case\nrule: имена в snake_case\n';
+
+  it('дельта, попавшая в коммит вместе с правкой, закрывается: пункт засчитан по коммиту', async () => {
+    await put('context/.delta/naming.yml', REVISE);
+    await put('context/conventions/naming.yml', naming);
+    git('add', '.');
+    git('commit', '-qm', 'сбой сессии');
+    expect(await main(['delta', 'check', '--root', root], NOW)).toBe(0);
+    expect(stderr[0]).toMatch(
+      /^предупреждение: context\/\.delta\/naming\.yml: дельта попала в коммит — закрой её: ai delta close --name naming/,
+    );
+    expect(await main(['delta', 'close', '--root', root, '--name', 'naming'], NOW)).toBe(0);
+    expect(existsSync(path.join(root, 'context/.delta/naming.yml'))).toBe(false);
+  });
+
+  it('закоммиченная дельта без правки цели не закрывается', async () => {
+    await put('context/.delta/naming.yml', REVISE);
+    git('add', '.');
+    git('commit', '-qm', 'только дельта');
+    expect(await main(['delta', 'close', '--root', root, '--name', 'naming'], NOW)).toBe(1);
+    expect(stderr).toContain('context/.delta/naming.yml: пункт 1 (revise naming) не выполнен');
+  });
+
+  it('check и close --name: нарушения чужой дельты — предупреждение, сессию не валят', async () => {
+    await put('context/.delta/old.yml', 'summary: [сломано\n');
+    await put('context/.delta/mine.yml', ADD('context/conventions/mine.yml'));
+    await put('context/conventions/mine.yml', 'key: mine\nsummary: s\nrule: r\n');
+    expect(await main(['delta', 'check', '--root', root], NOW)).toBe(1);
+    stderr = [];
+    expect(await main(['delta', 'check', '--root', root, '--name', 'mine'], NOW)).toBe(0);
+    expect(stderr[0]).toMatch(/^предупреждение: context\/\.delta\/old\.yml: невалидный YAML/);
+    expect(stderr[1]).toMatch(/^дельты прошлых сессий с нарушениями \(1\)/);
+    expect(await main(['delta', 'close', '--root', root, '--name', 'mine'], NOW)).toBe(0);
+    expect(existsSync(path.join(root, 'context/.delta/old.yml'))).toBe(true);
+  });
+
+  it('своя дельта не прошла схему: close --name сообщает ошибку схемы, а не «дельты нет»', async () => {
+    await put('context/.delta/naming.yml', LONG);
+    expect(await main(['delta', 'close', '--root', root, '--name', 'naming'], NOW)).toBe(1);
+    expect(stderr[0]).toBe(
+      'context/.delta/naming.yml: /summary must NOT have more than 200 characters',
+    );
+  });
+
+  it('дельта не прошла схему: первой — ошибка схемы, производные «без revise» свёрнуты', async () => {
+    await put('context/.delta/naming.yml', LONG);
+    await put('context/conventions/naming.yml', naming);
+    expect(await main(['delta', 'check', '--root', root], NOW)).toBe(1);
+    expect(stderr).toEqual([
+      'context/.delta/naming.yml: /summary must NOT have more than 200 characters',
+      'context/.delta/naming.yml: дельта не прошла схему — нарушения «без revise» по её целям (1) скрыты как следствие; исправь схему',
+      'delta check: нарушений 2',
+    ]);
+  });
+});

@@ -234,17 +234,6 @@
       "reason": "Без harness проверка вручную по тем же типам.",
       "at": "2026-10-28"
     },
-    "63aaccc6f834": {
-      "question": "[harness] layers > skill запускает только то, что объявлено в metadata.runs; остальные команды harness лишь упоминает",
-      "evidence": {
-        "@skill-runs": "c8ce9e1233882454732ac83f38e430926ded0c80e8506ca0fee9cdd02f5487b0"
-      },
-      "verdict": true,
-      "quote": "Сам skill запускает одно: `ai refresh` в конце каждой задачи и",
-      "ref": "@skill-runs",
-      "reason": "У skill cli runs: refresh, и он запускает только это; остальные команды описаны как справка. Другие skills тоже объявляют runs, совпадающие с тем, что они запускают.",
-      "at": "2026-10-28"
-    },
     "694f0f4b5141": {
       "question": "[harness] expect > в кэше вердиктов только вердикты живых ожиданий",
       "evidence": {
@@ -358,13 +347,13 @@
     "949a9cc62a83": {
       "question": "поведение ключевых skills > docs-keeper: факт без evidence не записывается как проверенный",
       "evidence": {
-        "@docs-keeper-intents": "f50740e452a0a389b4ab7bd0f8d764e1dafb8b009bda4bffe83a682f27ac7435"
+        "@docs-keeper-intents": "f05d81a9427a2a379fca75b982d7d91262c6c9e13a1243495414d07fe4d2580b"
       },
       "verdict": true,
-      "quote": "Без `evidence` факт не записывается как проверенный: пометь `unknown`",
+      "quote": "Без `evidence` факт не записывается как проверенный: пометь `unknown`\nили спроси.",
       "ref": "@docs-keeper-intents",
-      "reason": "Прямо сказано в skill docs-keeper",
-      "at": "2026-10-27"
+      "reason": "Текст прямо запрещает записывать факт без evidence как проверенный.",
+      "at": "2026-10-30"
     },
     "951ad57f14cb": {
       "question": "внимание пользователя — самый дорогой ресурс > вопрос пользователю — только там, где без его решения нельзя продолжить или откатить",

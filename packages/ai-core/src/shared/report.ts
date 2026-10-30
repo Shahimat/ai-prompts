@@ -9,3 +9,7 @@ export function report(label: string, diags: Diagnostic[]): number {
   console.error(`${label}: нарушений ${diags.length}`);
   return 1;
 }
+
+export function warn(diags: Diagnostic[]): void {
+  for (const d of diags) console.error(`предупреждение: ${formatDiagnostic(d)}`);
+}

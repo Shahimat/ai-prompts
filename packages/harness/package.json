@@ -1,6 +1,6 @@
 {
   "name": "@shahimat/harness",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Автоматы (harness) для проектов на контрактах ai-prompts: docs-delta, source-sync, plan-review",
   "license": "MIT",
   "author": "Gevorg Nakhapetyan",
@@ -54,21 +54,21 @@
     "prepublishOnly": "npm run typecheck && npm test && npm run build"
   },
   "dependencies": {
-    "@shahimat/ai-core": "0.1.0",
+    "@shahimat/ai-core": "0.1.1",
     "yaml": "^2.9.1"
   },
   "devDependencies": {
     "@types/node": "^24.19.2",
     "typescript": "^7.0.2",
     "vitest": "^5.0.4",
-    "@shahimat/cli": "0.1.0"
+    "@shahimat/cli": "0.1.1"
   },
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
   },
   "peerDependencies": {
-    "vitest": ">=4"
+    "vitest": ">=3"
   },
   "peerDependenciesMeta": {
     "vitest": {

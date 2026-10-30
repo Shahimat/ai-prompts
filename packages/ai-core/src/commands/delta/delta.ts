@@ -68,7 +68,13 @@ export interface DeltaResult {
   revisions: Revision[];
   changed: Set<string>;
   diagnostics: Diagnostic[];
+  warnings: Diagnostic[];
   accepted: Accepted[];
+}
+
+interface Broken {
+  file: string;
+  targets: string[];
 }
 
 const NOT_DOCS = [CONTEXT_INDEX_PATH, 'context/ai-core.yml', 'context/modules/', `${DELTA_DIR}/`];
@@ -175,7 +181,19 @@ function isDeltaBody(v: unknown): v is Omit<Delta, 'file'> {
   );
 }
 
-async function readDeltas(root: string, diagnostics: Diagnostic[]): Promise<Delta[]> {
+function targetsOf(data: unknown): string[] {
+  const items = isRecord(data) ? data['items'] : undefined;
+  if (!Array.isArray(items)) return [];
+  return items.flatMap((i: unknown) =>
+    isRecord(i) && typeof i['target'] === 'string' ? [i['target']] : [],
+  );
+}
+
+async function readDeltas(
+  root: string,
+  diagnostics: Diagnostic[],
+  broken: Broken[],
+): Promise<Delta[]> {
   let names: string[] = [];
   try {
     names = (await readdir(path.join(root, DELTA_DIR))).filter((f) => /\.ya?ml$/.test(f)).sort();
@@ -200,6 +218,7 @@ async function readDeltas(root: string, diagnostics: Diagnostic[]): Promise<Delt
     if (issues.length > 0) {
       for (const i of issues)
         diagnostics.push({ file, message: `${i.path || '/'} ${i.message}`.trim() });
+      broken.push({ file, targets: targetsOf(data) });
       continue;
     }
     if (!isDeltaBody(data)) throw new Error(`${file}: схема дельты пропустила неверную форму`);
@@ -265,7 +284,8 @@ export async function checkDelta(root: string): Promise<DeltaResult> {
   if (!git(root, ['rev-parse', '--verify', 'HEAD']).ok)
     throw new UsageError('delta: нужен git-репозиторий с коммитом HEAD');
   const diagnostics: Diagnostic[] = [];
-  const deltas = await readDeltas(root, diagnostics);
+  const broken: Broken[] = [];
+  const deltas = await readDeltas(root, diagnostics, broken);
   const roots = await docRoots(root);
   const status = git(root, ['diff', '--name-status', '--no-renames', 'HEAD', '--', ...roots]).out;
   const untracked = git(root, ['ls-files', '--others', '--exclude-standard', '--', ...roots]).out;
@@ -291,8 +311,14 @@ export async function checkDelta(root: string): Promise<DeltaResult> {
     ...deltas.flatMap((d) => d.items.filter((i) => i.op === 'revise')).map((i) => i.target),
     ...accepted.map((a) => a.target),
   ];
+  const hidden = new Map<string, number>();
   for (const r of revisions) {
     if (revise.some((t) => matchesTarget(t, r.file))) continue;
+    const cause = broken.find((b) => b.targets.some((t) => matchesTarget(t, r.file)));
+    if (cause !== undefined) {
+      hidden.set(cause.file, (hidden.get(cause.file) ?? 0) + 1);
+      continue;
+    }
     diagnostics.push({
       file: r.file,
       message: r.deleted
@@ -300,7 +326,35 @@ export async function checkDelta(root: string): Promise<DeltaResult> {
         : `изменено существующее знание без пункта revise в дельте: ${r.lost.join('; ')}`,
     });
   }
-  return { deltas, revisions, changed, diagnostics, accepted };
+  for (const [file, n] of hidden)
+    diagnostics.push({
+      file,
+      message: `дельта не прошла схему — нарушения «без revise» по её целям (${n}) скрыты как следствие; исправь схему`,
+    });
+  const warnings = committedDeltas(root).map((file) => ({
+    file,
+    message: `дельта попала в коммит — закрой её: ai delta close --name ${deltaName(file)}; пункты, выполненные в коммитах после её появления, засчитываются`,
+  }));
+  return { deltas, revisions, changed, diagnostics, warnings, accepted };
+}
+
+const deltaName = (file: string): string => path.posix.basename(file).replace(/\.ya?ml$/, '');
+
+function committedDeltas(root: string): string[] {
+  return git(root, ['ls-files', '--', DELTA_DIR])
+    .out.split('\n')
+    .filter((f) => /\.ya?ml$/.test(f));
+}
+
+function committedSince(root: string, file: string): string[] {
+  const added = git(root, ['log', '--diff-filter=A', '--format=%H', '-1', '--', file]).out.trim();
+  if (added === '') return [];
+  const range = git(root, ['rev-parse', '--verify', '-q', `${added}^`]).ok
+    ? `${added}^..HEAD`
+    : 'HEAD';
+  return git(root, ['log', '--format=', '--name-only', '--no-renames', range])
+    .out.split('\n')
+    .filter((f) => f !== '' && isDoc(f));
 }
 
 export function unfinishedItems(
@@ -309,8 +363,9 @@ export function unfinishedItems(
   deltas: readonly Delta[] = result.deltas,
 ): Diagnostic[] {
   const out: Diagnostic[] = [];
-  const touched = [...result.changed, ...result.revisions.map((r) => r.file)];
   for (const d of deltas) {
+    const committed = committedSince(root, d.file);
+    const touched = [...result.changed, ...result.revisions.map((r) => r.file), ...committed];
     d.items.forEach((item, i) => {
       const done =
         isDeltaTarget(item.target) ||

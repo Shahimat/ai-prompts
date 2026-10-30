@@ -45,6 +45,7 @@ export const COMMAND_NODES: readonly CommandNode[] = [
     path: ['delta', 'check'],
     kind: 'command',
     effect: 'query',
+    options: '[--name <дельта>]',
     run: (args) => runDelta('check', args),
   },
   {

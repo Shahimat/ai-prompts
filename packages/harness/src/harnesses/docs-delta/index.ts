@@ -144,7 +144,12 @@ function registry(): Registry<ProcessContext> {
             `собери дельту context/.delta/${ctx.session.data.title}.yml из намерений и примени её пункты по skill docs-keeper; процесс docs-delta уже идёт — сам его не запускай, verify, review и close сделает harness${lastConflicts(ctx)}`,
         ),
       ],
-      ['docs-verify', scriptAction<ProcessContext>(['docs', 'verify'])],
+      [
+        'docs-verify',
+        scriptAction<ProcessContext>(['docs', 'verify'], (ctx) => ({
+          name: ctx.session.data.title,
+        })),
+      ],
       ['docs-review', reviewAction()],
       [
         'delta-close',
