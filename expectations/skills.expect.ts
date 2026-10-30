@@ -89,6 +89,10 @@ describe('поведение ключевых skills', () => {
   warn('docs-keeper: факт без evidence не записывается как проверенный', () =>
     Check.intentsEvidence(),
   );
+  warn(
+    'operator: роли и harness с ролями запускаются в фоне, перед запуском пользователь узнаёт, чего ждёт сессия',
+    () => Check.operatorResponsive(),
+  );
   crit(
     'domain: verified: true ставится только вместе с verified_at (дата) и verified_note (чем проверено)',
     () => Check.verifiedRule(),
@@ -250,6 +254,7 @@ class Check {
   static blockingQuestion = (): Promise<void> => judged(['@blocking-question']);
   static moduleInstall = (): Promise<void> => judged(['@module-install']);
   static intentsEvidence = (): Promise<void> => judged(['@docs-keeper-intents']);
+  static operatorResponsive = (): Promise<void> => judged(['@operator-responsive']);
 
   static async verifiedRule(): Promise<void> {
     const section = (await skill('domain')).section('Верификация') ?? '';

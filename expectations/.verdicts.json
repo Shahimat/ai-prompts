@@ -455,6 +455,17 @@
       "reason": "Генерируемые файлы меняет только harness.",
       "at": "2026-10-28"
     },
+    "be702f7abfb1": {
+      "question": "поведение ключевых skills > operator: роли и harness с ролями запускаются в фоне, перед запуском пользователь узнаёт, чего ждёт сессия",
+      "evidence": {
+        "@operator-responsive": "136771d6f6112c9fe85393e6a57d019c42ca919f94bb035fdae628729781c09f"
+      },
+      "verdict": true,
+      "quote": "Перед запуском — строка пользователю:",
+      "ref": "@operator-responsive",
+      "reason": "Роли и harness идут в фоне; перед запуском выводится строка «что запущено — чего жду — пиши, отвечу».",
+      "at": "2026-10-30"
+    },
     "beb079d7b30b": {
       "question": "plan-review › состояние composing > ожидание без готовой проверки записывается заглушкой crit.todo или crit.wip",
       "evidence": {
@@ -568,12 +579,12 @@
     "f586544d451f": {
       "question": "документация проекта > шаблон AGENTS.md и блоки модулей не содержат указаний основной сессии самой править документацию — только ссылки на skills и harness; guardrail о достоверности знания допустим",
       "evidence": {
-        "@agents-md-readonly": "2a874824e594194ced5cf0e397ae073781626dff6d61d41fa03bf80ab77244e8"
+        "@agents-md-readonly": "623a5809d21197c75b10afae8cdfaa6bc60fb83370a2a38dbd337d012f07d0ee"
       },
       "verdict": true,
-      "quote": "Документация только читается; правки — намерениями (skill\n   `workflow`): с harness — `npx ai docs-delta start --name <имя>\n   --file -`, без — субагенту `docs-keeper`",
+      "quote": "Документация только читается; правки — намерениями (skill",
       "ref": "@agents-md-readonly",
-      "reason": "Шаблон запрещает основной сессии править документацию напрямую, модули лишь ссылаются на skills/harness (docs-delta), а guardrail достоверности в analysis допустим.",
+      "reason": "Шаблон и модули направляют запись в docs-delta/docs-keeper и skills; самостоятельной правки документации основной сессией нет.",
       "at": "2026-10-30"
     },
     "f7310dcbc6e4": {
@@ -683,14 +694,9 @@
       "at": "2026-10-14"
     },
     "expectations/skills.expect.ts": {
-      "titles": "b9f60f282fe3e5f346fd01bb4d46c53279b73e56fe2987f6fa07cb5dde0c7115",
+      "titles": "e91f590a3ee485cd4b44f86611bbd91644ff37e720ae5360c74e6f37a6a62687",
       "contradictions": [],
-      "unmeasurable": [
-        {
-          "id": "c57fb558adc6",
-          "reason": "«говорит, когда его загружать» — оценочный критерий без порога и без формального признака (например, обязательной формулировки или маркера в description). Двое проверяющих могут ответить по-разному."
-        }
-      ],
+      "unmeasurable": [],
       "at": "2026-10-30"
     }
   }
