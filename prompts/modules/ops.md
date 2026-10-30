@@ -9,7 +9,7 @@ tags: [ops, jobs, harness, providers, agent-contract, module]
 feature:
   summary: jobs по задачам вне сессии оператора — карточка, план с «да», правка в копии, проверки, ревью, журнал хода
   default: false
-  requires: [operator, harness]
+  requires: [harness]
   conflicts: []
   asks:
     - key: tasks
@@ -32,8 +32,10 @@ feature:
 роли — отдельные процессы. Оператор запускает job, получает события и
 пересказывает их пользователю; рестарт оператора job не останавливает.
 
-Рантайм запускает роли через `claude -p` — только Claude Code. Роли и
-протокол оператора (`roles`, `operator`) нейтральны к агенту.
+Рантайм запускает роли через `claude -p` — только Claude Code. Роли
+ядра и протокол оператора нейтральны к агенту. Модуль добавляет роль
+`implementer` — правку в копии репозитория; `researcher` и `reviewer` —
+из ядра.
 
 ### Путь job
 
@@ -85,7 +87,7 @@ feature:
 ```yaml
 provides:
   layers: []
-  files: [context/ops.yml]
+  files: [context/ops.yml, .agents/agents/implementer.md]
   skills: []
   agents_md_block: true
   harness_checks: []
@@ -122,7 +124,8 @@ verify: []              # команды проверки в копии: сбо�
 
 ## Установка
 
-1. Проверь `operator` и `harness` (иначе `contract-setup` добавит).
+1. Проверь `harness` (иначе `contract-setup` добавит); поставь роль
+   `implementer` из индекса, SHA — в `parts.agents`.
 2. Создай `context/ops.yml` по ответам; спроси команды `verify` и путь
    `repo`, если код не в этом репозитории.
 3. `project-provider` — помоги написать провайдер в

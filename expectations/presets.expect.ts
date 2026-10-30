@@ -14,7 +14,7 @@ budget({ crit: 0, warn: 0 });
 
 describe('виды контракта', () => {
   crit(
-    'контракт собирается под вид проекта пресетом: operational, external, private, analytical, operator — для каждого есть пресет',
+    'контракт собирается под вид проекта пресетом: operational, external, private, analytical — для каждого есть пресет',
     () => Check.allKinds(),
   );
   warn(
@@ -79,22 +79,7 @@ describe('analytical — аналитический проект', () => {
   );
 });
 
-describe('operator — цифровой двойник поверх живого проекта', () => {
-  crit(
-    'operator: пресет включает roles, operator, ops, watchers и dashboard поверх external-context',
-    () =>
-      Check.has('operator', [
-        'external-context',
-        'roles',
-        'operator',
-        'ops',
-        'watchers',
-        'dashboard',
-      ]),
-  );
-});
-
-const KINDS = ['operational', 'external', 'private', 'analytical', 'operator'];
+const KINDS = ['operational', 'external', 'private', 'analytical'];
 
 async function preset(key: string): Promise<PresetDoc> {
   const p = (await presets()).find((x) => x.key === key);

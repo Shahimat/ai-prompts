@@ -4,7 +4,7 @@ kind: contract
 title: Операционный контракт агента v3 — ядро, возможности, harness
 patterns: [source-sync]
 tags: [docs-as-code, workflow, agent-contract, agents-md, skills, harness, features-checklist]
-use_case: Скармливается AI-агенту одной ссылкой, чтобы развернуть в проекте операционный контракт v3 — тонкий AGENTS.md с маршрутизацией и жёсткими правилами, skills ядра (contract-setup, workflow, docs-keeper, source-sync, source-feedback), субагент docs-keeper и выбранные чеклистом возможности (domain, manuals, goals, harness, worktrees и др.). Работает с любым агентом, читающим AGENTS.md (Claude Code, Codex, Cursor, Copilot); специфика инструментов — в генерируемых адаптерах. Если в проекте уже есть v2 или своя документация — план миграции.
+use_case: Скармливается AI-агенту одной ссылкой, чтобы развернуть в проекте операционный контракт v3 — тонкий AGENTS.md с маршрутизацией и жёсткими правилами, skills ядра (contract-setup, workflow, docs-keeper, source-sync, source-feedback, cli, operator), роли docs-keeper, judge, oracle, researcher, reviewer, политику автономии и выбранные чеклистом возможности (domain, manuals, goals, harness, worktrees и др.). Работает с любым агентом, читающим AGENTS.md (Claude Code, Codex, Cursor, Copilot); специфика инструментов — в генерируемых адаптерах. Если в проекте уже есть v2 или своя документация — план миграции.
 ---
 
 # Операционный контракт агента v3 — ядро, возможности, harness
@@ -19,6 +19,10 @@ use_case: Скармливается AI-агенту одной ссылкой, 
 - **Чтение отделено от записи.** Основной агент знает кратчайший путь
   к ответу. Запись в документацию — через skill и субагента
   `docs-keeper`.
+- **Основная сессия — оператор.** Тяжёлую работу делают роли с чистым
+  контекстом (`oracle`, `researcher`, `reviewer`), действия наружу — по
+  политике `context/autonomy.yml`. Рантайм jobs и наблюдателей —
+  возможности `ops`, `watchers`, `dashboard`.
 - **Memory агента запрещена.** Документация открытого типа: всё
   устойчивое — в репозитории.
 - **CHANGELOG — одна строка до 120 символов** с тегом
@@ -80,6 +84,7 @@ package.json                       ← devDependencies: @shahimat/cli, @shahimat
 context/
   project.yml                      ← реквизиты, namespaces, sync
   ai-core.yml                      ← конфиг CLI: adapters, hooks, checks
+  autonomy.yml                     ← политика действий наружу
   index.yml                        ← карта документации (генерирует ai)
   conventions/<key>.yml            ← договорённости этого проекта
   modules/<key>.yml                ← manifest'ы подключённых возможностей
@@ -91,9 +96,13 @@ context/
     source-sync/                   ← обновление из источника
     source-feedback/               ← предложения из проекта в источник
     cli/                           ← CLI ai: команды, конфиг, свои расширения
+    operator/                      ← протокол оператора, политика автономии
   agents/
     docs-keeper.md                 ← роль записи в документацию (канон)
     judge.md                       ← роль судьи: проверка доки на противоречия
+    oracle.md                      ← быстрый ответ по документации
+    researcher.md                  ← глубокий разбор с доказательствами
+    reviewer.md                    ← проверка результата по DoD
     <name>.md                      ← свои роли проекта
   commands/<name>.ts               ← свои команды: npx ai <name>
   scripts/<name>.yml               ← свои скрипты
@@ -101,8 +110,8 @@ context/
 ```
 
 Skills и роли берутся из индекса: skills `contract-setup`, `workflow`,
-`docs-keeper`, `source-sync`, `source-feedback`, `cli`, роли
-`docs-keeper` и `judge`. Кладутся в проект байт в байт, их SHA записываются в
+`docs-keeper`, `source-sync`, `source-feedback`, `cli`, `operator`, роли
+`docs-keeper`, `judge`, `oracle`, `researcher`, `reviewer`. Кладутся в проект байт в байт, их SHA записываются в
 `sync.contract.parts`.
 
 Канон для всех агентов — `AGENTS.md` и `.agents/`. Файлы под конкретный
@@ -134,8 +143,8 @@ sync:
     key: agent-operational-contract-v3
     synced_sha: <hex>
     parts:
-      skills: {contract-setup: <hex>, workflow: <hex>, docs-keeper: <hex>, source-sync: <hex>, source-feedback: <hex>, cli: <hex>}
-      agents: {docs-keeper: <hex>, judge: <hex>}
+      skills: {contract-setup: <hex>, workflow: <hex>, docs-keeper: <hex>, source-sync: <hex>, source-feedback: <hex>, cli: <hex>, operator: <hex>}
+      agents: {docs-keeper: <hex>, judge: <hex>, oracle: <hex>, researcher: <hex>, reviewer: <hex>}
 ```
 
 Новый namespace — только с явного «да» пользователя: иначе список
@@ -209,6 +218,8 @@ CHANGELOG.md merge=union
 5. Ничего не создавать, не переносить, не удалять без явного «да».
 6. Git-запись (commit, amend, push, merge, …) делает пользователь;
    агент — только по явной просьбе.
+7. Тяжёлая работа — ролям (skill `operator`); действие наружу — только
+   по `context/autonomy.yml`.
 
 Правила в блоках возможностей ниже обязательны наравне с этими: они
 дополняют жёсткие правила и не отменяют их.
@@ -230,7 +241,8 @@ CHANGELOG.md merge=union
 - `source-sync` — обновление из источника, «что нового»;
 - `source-feedback` — предложения из проекта в источник;
 - `contract-setup` — «что добавить / убрать в проекте»;
-- `cli` — команды `ai`, конфиг, свои расширения.
+- `cli` — команды `ai`, конфиг, свои расширения;
+- `operator` — кому отдать работу, автономия.
 
 <!-- блоки возможностей ниже добавляет contract-setup -->
 ````
@@ -267,6 +279,29 @@ docs-keeper. С hook `docs-guard` (`hooks` в `context/ai-core.yml`)
 `context/.delta/` ведёт docs-keeper; в маршруты и индекс контекста она
 не входит.
 <!-- /expect:docs-readonly -->
+
+## Оператор
+
+Основная сессия раздаёт работу и пересказывает итоги; читают, правят и
+проверяют роли с чистым контекстом — так её контекст не забивают тела
+файлов и сырые ответы систем. Протокол (кому отдать, бриф, итог,
+сводка) — skill `operator`.
+
+- `oracle` — быстрый ответ по документации, не нашёл — промах и вопрос
+  для `researcher`; `researcher` — разбор с доказательствами, отчёт
+  файлом; `reviewer` — вердикт по каждому пункту DoD с дословной
+  цитатой.
+- Политика автономии — `context/autonomy.yml`: действия наружу
+  (`<интерфейс>.<метод>` или интерфейс) по уровням `self` — сам, `ask` —
+  после «да», `never` — никогда. Не перечислено — `ask`; git-запись —
+  всегда `never`. Новое `self` — только решением пользователя.
+
+```yaml
+levels:
+  self: []
+  ask: []
+  never: [vcs.write]
+```
 
 ## Журнал решений (`CHANGELOG.md`)
 
@@ -333,11 +368,11 @@ feature:
 - `private` — личный проект: домен жизни, приватность, границы
   безопасности, петля с приложением;
 - `analytical` — аналитический проект: источники, тезисы, позиции,
-  целостность атрибуции, корпус книг, петля с приложением;
-- `operator` — цифровой двойник поверх живого проекта: внешний
-  контекст, роли, jobs по задачам вне сессии оператора, наблюдатели,
-  политика автономии (`roles`, `operator`, `ops`, `watchers`,
-  `dashboard`).
+  целостность атрибуции, корпус книг, петля с приложением.
+
+Режим оператора — в ядре и есть у любого вида; рантайм jobs,
+наблюдателей и доски (`ops`, `watchers`, `dashboard`) добавляется
+чеклистом к любому виду.
 
 Вид не подходит — ручной выбор возможностей в том же чеклисте.
 <!-- /expect:contract-kinds -->
@@ -412,7 +447,8 @@ feature:
    `@shahimat/ai-core` в `devDependencies` (точные версии из
    `npm view`, нет `package.json` — создай минимальный), `npm install`
    после «да»; файлы, skills и роли из индекса, `AGENTS.md` по шаблону,
-   `context/ai-core.yml`; затем `npx ai refresh` — индекс, адаптеры,
+   `context/ai-core.yml`, `context/autonomy.yml` (раздел «Оператор»);
+   затем `npx ai refresh` — индекс, адаптеры,
    проверки.
 4. Запусти skill `contract-setup`: чеклист возможностей и их
    подключение.

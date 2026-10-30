@@ -138,13 +138,13 @@
     "3a42cc45ddae": {
       "question": "возможности и пресеты > модуль добавляет поля в чужие слои только через provides.extends",
       "evidence": {
-        "@extends-only": "b41321ba3e5c9824b35e439294cc8728a86a8aa866bfa068d74cc2fee1dcdca9"
+        "@extends-only": "cdd7e40cd97767346da4f0ddc4b3dd9d0d1a46f3be2d597b99769b080cfbf1ab"
       },
       "verdict": true,
-      "quote": "Добавлять модуль может и\nв чужое, но явно, через `provides`:",
+      "quote": "Добавлять модуль может и в чужое, но явно, через `provides`:",
       "ref": "@extends-only",
-      "reason": "Поля в чужих слоях — через provides.extends.",
-      "at": "2026-10-29"
+      "reason": "Поля в слоях других модулей добавляются через provides.extends.",
+      "at": "2026-10-30"
     },
     "3c87c225937f": {
       "question": "документация проекта > в основной сессии файлы проектной документации только читаются; правки — только через docs-keeper, генерируемые файлы — через harness",
@@ -402,13 +402,13 @@
     "a5651202c571": {
       "question": "виды контракта > ядро контракта перечисляет виды и что каждый включает; неподходящий вид — ручной выбор в том же чеклисте",
       "evidence": {
-        "@contract-kinds": "b0cad1937187b7869c31a8c1188ce08cf0ba8cc6f648db1be33fa40728edcfd3"
+        "@contract-kinds": "9effdf661309ece9118094b13723d573aa3809845ca3fca5e788dfe138c3b69e"
       },
       "verdict": true,
       "quote": "Вид не подходит — ручной выбор возможностей в том же чеклисте.",
       "ref": "@contract-kinds",
-      "reason": "Перечислены виды с содержимым и ручной выбор для неподходящего.",
-      "at": "2026-10-29"
+      "reason": "Перечислены четыре вида с составом; неподходящий вид — ручной выбор в чеклисте.",
+      "at": "2026-10-30"
     },
     "a6ff1ea8fcff": {
       "question": "[flow] delta > revise не блокирует работу: объявлен в дельте, попадает в отчёт и в тело сообщения коммита",
@@ -579,13 +579,13 @@
     "f586544d451f": {
       "question": "документация проекта > шаблон AGENTS.md и блоки модулей не содержат указаний основной сессии самой править документацию — только ссылки на skills и harness; guardrail о достоверности знания допустим",
       "evidence": {
-        "@agents-md-readonly": "abe9b1151662b252ae4ac3010a2b14aaf2232e8ec60aac5650ed09d023cd3791"
+        "@agents-md-readonly": "2a874824e594194ced5cf0e397ae073781626dff6d61d41fa03bf80ab77244e8"
       },
       "verdict": true,
       "quote": "Документация только читается; правки — намерениями (skill\n   `workflow`): с harness — `npx ai docs-delta start --name <имя>\n   --file -`, без — субагенту `docs-keeper`",
       "ref": "@agents-md-readonly",
-      "reason": "Шаблон запрещает основной сессии править документацию напрямую (только через harness/docs-keeper); блоки модулей лишь дают маршруты чтения и ссылки на skills, прямых указаний писать в документацию нет.",
-      "at": "2026-10-29"
+      "reason": "Шаблон запрещает основной сессии править документацию напрямую, модули лишь ссылаются на skills/harness (docs-delta), а guardrail достоверности в analysis допустим.",
+      "at": "2026-10-30"
     },
     "f7310dcbc6e4": {
       "question": "plan-review › переход clarify_form —answered→ > после ответа планер записывает ожидания выбранным блоком",
@@ -676,16 +676,16 @@
       "at": "2026-10-29"
     },
     "expectations/presets.expect.ts": {
-      "titles": "b8ea66151e610e21d7b47fb384185c9c11ece58fbf330cb92a7808191fe35b44",
+      "titles": "8db5f2e241db6eaf02a2dbe9ed0fbf1bf57301beaa967d6ad6b6e6bc8d39b63d",
       "contradictions": [],
       "unmeasurable": [],
-      "at": "2026-10-29"
+      "at": "2026-10-30"
     },
     "expectations/roles.expect.ts": {
-      "titles": "74478d6b016909403bdda1851e25dcbd19a022e18e7d1ea5d4ce9fd208fa2d55",
+      "titles": "372d9b2580e779fcd7bd14266321dc5915871a183ae75dd5a23eaa8c50a35dff",
       "contradictions": [],
       "unmeasurable": [],
-      "at": "2026-10-28"
+      "at": "2026-10-30"
     },
     "expectations/shared/any-contract.expect.ts": {
       "titles": "c5f9a68bcba0dbca8e1c32c4b8665c90e6714c379af7c52d844250f634ae1413",
@@ -694,15 +694,15 @@
       "at": "2026-10-14"
     },
     "expectations/skills.expect.ts": {
-      "titles": "596da9c3b84187683db0bf98a4b6646624312b8aa1bd0117dc34d3f3eb2652ee",
+      "titles": "b9f60f282fe3e5f346fd01bb4d46c53279b73e56fe2987f6fa07cb5dde0c7115",
       "contradictions": [],
       "unmeasurable": [
         {
           "id": "c57fb558adc6",
-          "reason": "«говорит, когда загружать» — оценочно: нет критерия (формулировка, маркер вроде «Use when…»), по которому можно ответить да/нет."
+          "reason": "«говорит, когда его загружать» — оценочный критерий без порога и без формального признака (например, обязательной формулировки или маркера в description). Двое проверяющих могут ответить по-разному."
         }
       ],
-      "at": "2026-10-29"
+      "at": "2026-10-30"
     }
   }
 }

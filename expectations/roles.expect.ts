@@ -56,8 +56,9 @@ describe('[roles] процессы', () => {
   crit('docs-delta start --file <намерения> — apply выполняет роль docs-keeper без handoff', () =>
     Check.optionOf('docs-delta start', '--file'),
   );
-  crit('ядро контракта v3 ставит роли docs-keeper и judge: judge проверяет доку в docs-delta', () =>
-    Check.coreRoles(),
+  crit(
+    'ядро контракта v3 ставит роли docs-keeper, judge, oracle, researcher и reviewer: judge проверяет доку в docs-delta',
+    () => Check.coreRoles(),
   );
   crit(
     'с harness основная сессия передаёт намерения процессу docs-delta напрямую (правило 4 шаблона AGENTS.md), без субагента docs-keeper',
@@ -118,7 +119,9 @@ class Check {
 
   static async coreRoles(): Promise<void> {
     const contract = await readRepo('prompts/productivity/agent-operational-contract-v3.md');
-    expect(contract).toContain('agents: {docs-keeper: <hex>, judge: <hex>}');
+    expect(contract).toContain(
+      'agents: {docs-keeper: <hex>, judge: <hex>, oracle: <hex>, researcher: <hex>, reviewer: <hex>}',
+    );
   }
 
   static async intentsToHarness(): Promise<void> {

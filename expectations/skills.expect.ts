@@ -19,7 +19,7 @@ budget({ crit: 0, warn: 5 });
 
 describe('состав skills', () => {
   crit(
-    'skills ядра: contract-setup, workflow, docs-keeper, source-sync, source-feedback, cli',
+    'skills ядра: contract-setup, workflow, docs-keeper, source-sync, source-feedback, cli, operator',
     () => Check.coreSkills(),
   );
   crit(
@@ -40,10 +40,9 @@ describe('состав skills', () => {
         'knowledge-external-gui',
       ]),
   );
-  crit('skills модулей, по имени модуля: operator', () => Check.moduleSkills(['operator']));
   crit('других skills нет — всего 20', () => Check.skillCount());
   crit(
-    'субагенты-роли: ядро — docs-keeper и judge; модули — oracle, researcher, implementer, reviewer, watch-triage, watch-request',
+    'субагенты-роли: ядро — docs-keeper, judge, oracle, researcher, reviewer; модули — implementer, watch-triage, watch-request',
     () => Check.onlyRoles(),
   );
 });
@@ -66,7 +65,7 @@ describe('копии источников', () => {
     Check.knowledgeCopy(),
   );
   crit(
-    'skills privacy, safety-boundaries, analysis и operator содержат inline-блок паттерна guardrail-dual-level',
+    'skills privacy, safety-boundaries и analysis содержат inline-блок паттерна guardrail-dual-level',
     () => Check.guardrailCopies(),
   );
 });
@@ -103,6 +102,7 @@ const CORE_SKILLS = [
   'source-sync',
   'source-feedback',
   'cli',
+  'operator',
 ];
 const SCHEMAS = 'expectations/schemas';
 
@@ -223,7 +223,7 @@ class Check {
 
   static async guardrailCopies(): Promise<void> {
     const expected = (await inlineBlock('guardrail-dual-level')).trim().replace(/^### /m, '## ');
-    for (const name of ['privacy', 'safety-boundaries', 'analysis', 'operator']) {
+    for (const name of ['privacy', 'safety-boundaries', 'analysis']) {
       expect({ name, ok: (await skill(name)).text.includes(expected) }).toEqual({ name, ok: true });
     }
   }
