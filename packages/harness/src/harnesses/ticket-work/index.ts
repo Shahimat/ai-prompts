@@ -13,6 +13,8 @@ import {
 } from '@shahimat/ai-core';
 import {
   acceptDod,
+  addWatch,
+  affirmation,
   AFFIRMATIVE,
   answer,
   ask,
@@ -20,11 +22,14 @@ import {
   callRead,
   callWrite,
   emit,
+  EXTERNAL_DONE,
+  hashOf,
   harnessHome,
   jobFile,
   jobLog,
   jobMeta,
   lastFeedback,
+  levelOf,
   loadAutonomy,
   loadOpsConfig,
   loadProvider,
@@ -33,6 +38,7 @@ import {
   posixRelative,
   PRIORITY,
   readJson,
+  readText,
   processModule,
   progressTo,
   providerContext,
@@ -44,6 +50,7 @@ import {
   takeAnswered,
   takeFeedback,
   takeGate,
+  DEFAULT_EVERY_MIN,
   writeCard,
   type ActionDef,
   type ActionResult,
@@ -55,6 +62,12 @@ import {
 
 const NAME = 'ticket-work';
 const IMPLEMENT_TIMEOUT_MS = 60 * 60_000;
+const VERIFIED = 'verify.ok';
+const ATTRIBUTION = [
+  /^\s*co-authored-by:/im,
+  /generated (with|by) .*(claude|codex|copilot|agent|ai)/i,
+];
+const MESSAGE_FILES = ['commit.md', 'pr.md'];
 
 const answerHint = (s: Session): string => `ответ: ai ${NAME} answer ${s.short} <текст>`;
 const rel = (s: Session, name: string): string => posixRelative(s.data.project, jobFile(s, name));
@@ -170,8 +183,20 @@ const intake: ActionDef<ProcessContext> = {
     const s = ctx.session;
     await clearMarker(s, 'failed', 'failed');
     try {
+      const waiting = await pending(s);
+      if (waiting !== undefined && waiting.state === s.data.state && waiting.answer === undefined)
+        return { pause: `в карточке нет DoD; ${answerHint(s)}` };
+      await takeAnswered(s);
       const { provider: tasks, pctx } = await provider(ctx, 'tasks');
       const card = asCard(await callRead(tasks, 'fetch', [s.data.request, pctx]), tasks.source);
+      if (card.dod.length === 0) {
+        await ask(s, [
+          'в карточке нет DoD — без него задача не берётся в работу: допиши чеклист DoD в источнике и ответь (любой ответ — перечитать карточку)',
+        ]);
+        await emit(ctx.home, s.data.project, 'question', `нет DoD — ${answerHint(s)}`, s.short);
+        await jobLog(s, `карточка: ${card.title}, DoD нет — вопрос`);
+        return { pause: `в карточке нет DoD; ${answerHint(s)}` };
+      }
       await writeCard(s, card);
       await saveMeta(s, await jobMeta(s));
       await jobLog(s, `карточка: ${card.title}, DoD ${card.dod.length}`);
@@ -201,6 +226,7 @@ const plan: ActionDef<ProcessContext> = {
   events: ['done'],
   run: async (ctx) => {
     const s = ctx.session;
+    await rm(jobFile(s, 'plan-note.md'), { force: true });
     const remark = existsSync(jobFile(s, 'plan-remark.md'))
       ? `\nЗамечание пользователя к прошлому плану: ${rel(s, 'plan-remark.md')}.`
       : '';
@@ -232,13 +258,15 @@ const gate: ActionDef<ProcessContext> = {
       return { pause: `план: ${rel(s, 'plan.md')} — «да» или замечание к плану; ${answerHint(s)}` };
     }
     await clearMarker(s, 'asked', 'plan-gate');
-    if (AFFIRMATIVE.test(text)) {
+    const { yes, rest } = affirmation(text);
+    if (yes) {
       await writeFile(jobFile(s, 'plan.approved'), `${new Date().toISOString()}\n`, 'utf8');
-      await jobLog(s, 'план принят');
+      if (rest !== '') await writeFile(jobFile(s, 'plan-note.md'), `${rest}\n`, 'utf8');
+      await jobLog(s, rest === '' ? 'план принят' : 'план принят с замечанием');
       return { event: 'approved' };
     }
     await writeFile(jobFile(s, 'plan-remark.md'), `${text}\n`, 'utf8');
-    await jobLog(s, 'замечание к плану');
+    await jobLog(s, 'замечание к плану — план переделывается');
     return { event: 'revise' };
   },
 };
@@ -275,6 +303,9 @@ const implement: ActionDef<ProcessContext> = {
       return { pause: `копия не создана: ${errorMessage(error)}; ${answerHint(s)}` };
     }
     const extra = [
+      existsSync(jobFile(s, 'plan-note.md'))
+        ? `замечание пользователя при принятии плана — ${rel(s, 'plan-note.md')}`
+        : '',
       existsSync(jobFile(s, 'review.md')) ? `замечания ревью — ${rel(s, 'review.md')}` : '',
       existsSync(jobFile(s, 'verify.log')) ? `последняя проверка — ${rel(s, 'verify.log')}` : '',
       (await lastFeedback(s)) === undefined
@@ -288,7 +319,7 @@ const implement: ActionDef<ProcessContext> = {
       [
         `Правь код в копии ${dir} (только там) по карточке ${rel(s, 'task.md')} и принятому плану ${rel(s, 'plan.md')}.`,
         extra.length === 0 ? '' : `Учти: ${extra.join('; ')}.`,
-        `Не коммить и не пушь. Сообщение коммита — в ${rel(s, 'commit.md')}. Устойчивые факты для документации — намерения JSON по схеме intents в ${rel(s, 'intents.json')}.`,
+        `Не коммить и не пушь. Сообщение коммита — в ${rel(s, 'commit.md')}, описание запроса на ревью — в ${rel(s, 'pr.md')}; без трейлеров и строк атрибуции агента (Co-Authored-By, «Generated with …»). Устойчивые факты для документации — намерения JSON по схеме intents в ${rel(s, 'intents.json')}.`,
       ]
         .filter((x) => x !== '')
         .join('\n'),
@@ -298,6 +329,21 @@ const implement: ActionDef<ProcessContext> = {
   },
 };
 
+export async function attributionIn(s: Session): Promise<string[]> {
+  const found: string[] = [];
+  for (const name of MESSAGE_FILES) {
+    const text = await readText(jobFile(s, name));
+    if (text !== undefined && ATTRIBUTION.some((re) => re.test(text))) found.push(name);
+  }
+  return found;
+}
+
+async function diffHash(ctx: ProcessContext, dir: string): Promise<string> {
+  const { provider: vcs, pctx } = await provider(ctx, 'vcs');
+  const diff = await callRead(vcs, 'diff', [dir, pctx]);
+  return hashOf(typeof diff === 'string' ? diff : '');
+}
+
 const verify: ActionDef<ProcessContext> = {
   events: ['ok', 'fail'],
   run: async (ctx) => {
@@ -305,8 +351,11 @@ const verify: ActionDef<ProcessContext> = {
     const config = await loadOpsConfig(s.data.project);
     const dir = (await jobMeta(s)).workdir ?? s.data.project;
     const lines: string[] = [];
-    let ok = true;
-    for (const cmd of config.verify) {
+    await rm(jobFile(s, VERIFIED), { force: true });
+    const attributed = await attributionIn(s);
+    let ok = attributed.length === 0;
+    if (!ok) lines.push(`атрибуция агента в сообщениях: ${attributed.join(', ')} — убери строки`);
+    for (const cmd of ok ? config.verify : []) {
       const r = spawnSync(cmd, { cwd: dir, shell: true, encoding: 'utf8' });
       lines.push(
         `$ ${cmd}`,
@@ -321,6 +370,7 @@ const verify: ActionDef<ProcessContext> = {
     }
     if (config.verify.length === 0) lines.push('проверок нет: context/ops.yml → verify');
     await writeFile(jobFile(s, 'verify.log'), `${lines.join('\n')}\n`, 'utf8');
+    if (ok) await writeFile(jobFile(s, VERIFIED), `${await diffHash(ctx, dir)}\n`, 'utf8');
     await jobLog(s, `проверка: ${ok ? 'ok' : 'провал'}`);
     return { event: ok ? 'ok' : 'fail' };
   },
@@ -444,11 +494,135 @@ const ready: ActionDef<ProcessContext> = {
       return { pause: msg };
     }
     await clearMarker(s, 'asked', 'ready');
-    if (AFFIRMATIVE.test(text)) return { event: 'done' };
+    const { yes, rest } = affirmation(text);
+    if (yes) {
+      if (rest !== '') await jobLog(s, `закрыт с комментарием: ${rest}`);
+      return { event: 'done' };
+    }
     await writeFile(jobFile(s, 'feedback.md'), `${text}\n`, 'utf8');
     await takeFeedback(s);
     await jobLog(s, 'доработка от пользователя');
     return { event: 'feedback' };
+  },
+};
+
+const publish: ActionDef<ProcessContext> = {
+  events: ['published', 'manual', 'stale'],
+  run: async (ctx) => {
+    const s = ctx.session;
+    const { config, provider: vcs, pctx } = await provider(ctx, 'vcs');
+    if (!vcs.methods.has('publish')) return { event: 'manual' };
+    const meta = await jobMeta(s);
+    const dir = meta.workdir ?? s.data.project;
+    const verified = (await readText(jobFile(s, VERIFIED)))?.trim();
+    if (verified !== (await diffHash(ctx, dir))) {
+      await jobLog(s, 'публикация: локальные проверки не на текущем diff — сначала verify');
+      return { event: 'stale' };
+    }
+    if (path.resolve(config.repo) === path.resolve(s.data.project)) return { event: 'manual' };
+    const target = path.basename(config.repo);
+    const policy = await loadAutonomy(s.data.project);
+    const level = levelOf(policy, 'vcs.publish', target, true);
+    if (level === 'never') return { event: 'manual' };
+    if (level === 'ask') {
+      const text = await takeGate(s);
+      if (text === undefined) {
+        const msg = `локальные проверки зелёные — опубликовать изменения в ${target}? «да» — job опубликует и будет ждать CI и ревью, иное — коммит и публикация вручную; ${answerHint(s)}`;
+        await once(s, 'asked', () => emit(ctx.home, s.data.project, 'question', msg, s.short));
+        return { pause: msg };
+      }
+      await clearMarker(s, 'asked', 'publish');
+      if (!affirmation(text).yes) return { event: 'manual' };
+    }
+    const outcome = await callWrite(
+      vcs,
+      policy,
+      'publish',
+      true,
+      [
+        target,
+        {
+          dir,
+          ref: s.data.request,
+          title: s.data.title,
+          commit: jobFile(s, 'commit.md'),
+          description: jobFile(s, 'pr.md'),
+          ...(meta.published === undefined ? {} : { published: meta.published }),
+        },
+        pctx,
+      ],
+      target,
+    );
+    const ref = outcome.result;
+    if (typeof ref !== 'string' || ref === '')
+      throw new UsageError(`${vcs.source}: publish вернул не ссылку на опубликованное изменение`);
+    meta.published = ref;
+    await saveMeta(s, meta);
+    await jobLog(s, `опубликовано: ${ref}`);
+    return { event: 'published' };
+  },
+};
+
+const awaiting: ActionDef<ProcessContext> = {
+  events: ['done', 'feedback'],
+  run: async (ctx) => {
+    const s = ctx.session;
+    const root = s.data.project;
+    if ((await takeFeedback(s)) !== undefined) {
+      await clearMarker(s, 'watched', 'awaiting');
+      await jobLog(s, 'доработка по внешнему событию');
+      return { event: 'feedback' };
+    }
+    const external = await readText(jobFile(s, EXTERNAL_DONE));
+    if (external !== undefined) {
+      await rm(jobFile(s, EXTERNAL_DONE), { force: true });
+      await jobLog(s, `внешнее событие: ${external.trim()}`);
+      return { event: 'done' };
+    }
+    const text = await takeGate(s);
+    if (text !== undefined) {
+      const { yes, rest } = affirmation(text);
+      if (yes) return { event: 'done' };
+      await writeFile(jobFile(s, 'feedback.md'), `${rest}\n`, 'utf8');
+      await takeFeedback(s);
+      return { event: 'feedback' };
+    }
+    const meta = await jobMeta(s);
+    const published = meta.published ?? '';
+    const config = await loadOpsConfig(root);
+    await once(s, 'watched', async () => {
+      for (const iface of ['checks', 'review'] as const)
+        if (config.providers[iface] !== 'none')
+          await addWatch(
+            root,
+            {
+              iface,
+              query: published,
+              every: DEFAULT_EVERY_MIN,
+              until: iface === 'review' ? 'merged' : 'job-done',
+              job: s.short,
+            },
+            new Date(),
+          );
+      const after = ((await readText(jobFile(s, 'review.md'))) ?? '')
+        .split('\n')
+        .filter((l) => l.includes('[unknown]'));
+      await writeFile(
+        jobFile(s, 'awaiting.md'),
+        [`опубликовано: ${published}`, 'пункты DoD до внешнего события:', ...after, ''].join('\n'),
+        'utf8',
+      );
+      await emit(
+        ctx.home,
+        root,
+        'ready',
+        `опубликовано ${published}: жду CI и ревью, влитие закроет job; пункты — ${rel(s, 'awaiting.md')}`,
+        s.short,
+      );
+    });
+    return {
+      pause: `ждёт внешнего события по ${published}: CI, ревью, влитие — наблюдатели ops; «готово» — закрыть вручную, текст — доработка; ${answerHint(s)}`,
+    };
   },
 };
 
@@ -560,6 +734,8 @@ function registry(): Registry<ProcessContext> {
       ['job-verify', verify],
       ['job-review', review],
       ['job-ready', ready],
+      ['job-publish', publish],
+      ['job-awaiting', awaiting],
       ['job-docs', docs],
       ['job-failed', failed],
       ['job-done', done],

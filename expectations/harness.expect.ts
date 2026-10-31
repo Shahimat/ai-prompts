@@ -253,7 +253,7 @@ describe('[harness] ticket-work', () => {
       ]),
   );
   crit(
-    'автомат ticket-work: intake → research → plan → plan-gate → implement → verify → review → ready → docs → done; plan-gate и ready ждут ответа пользователя',
+    'автомат ticket-work: intake → research → plan → plan-gate → implement → verify → review → publish → awaiting или ready → docs → done; plan-gate, awaiting и ready ждут ответа пользователя',
     () => Ops.ticketChain(),
   );
   crit(
@@ -274,11 +274,13 @@ describe('[harness] ticket-work', () => {
 
 describe('[harness] ops', () => {
   crit(
-    'команды ops: brief, status, wait, watch add | list | stop, tick, schedule on | off | status, act, serve',
+    'команды ops: brief, status, line, providers check, wait, watch add | list | stop, tick, schedule on | off | status, act, serve',
     () =>
       Check.commands([
         'ops brief',
         'ops status',
+        'ops line',
+        'ops providers check',
         'ops wait',
         'ops watch add <interface> <query>',
         'ops watch list',
@@ -753,6 +755,8 @@ const DECLARED_COMMANDS = [
   'ticket-work answer <id> <text>',
   'ops brief',
   'ops status',
+  'ops line',
+  'ops providers check',
   'ops wait',
   'ops watch add <interface> <query>',
   'ops watch list',
@@ -3074,10 +3078,13 @@ class Ops {
         next('implement', 'done'),
         next('verify', 'ok'),
         next('review', 'ok'),
+        next('publish', 'published'),
+        next('awaiting', 'done'),
+        next('publish', 'manual'),
         next('ready', 'done'),
         next('docs', 'ok'),
       ],
-      users: [actor('plan-gate'), actor('ready')],
+      users: [actor('plan-gate'), actor('awaiting'), actor('ready')],
       done: def.states.find((st) => st.name === 'done')?.final,
     }).toEqual({
       initial: 'intake',
@@ -3088,11 +3095,14 @@ class Ops {
         'implement',
         'verify',
         'review',
+        'publish',
+        'awaiting',
+        'docs',
         'ready',
         'docs',
         'done',
       ],
-      users: ['user', 'user'],
+      users: ['user', 'user', 'user'],
       done: true,
     });
   }

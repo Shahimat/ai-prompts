@@ -10,6 +10,8 @@ export function report(label: string, diags: Diagnostic[]): number {
   return 1;
 }
 
+export const WARNING_PREFIX = 'предупреждение: ';
+
 export function warn(diags: Diagnostic[]): void {
-  for (const d of diags) console.error(`предупреждение: ${formatDiagnostic(d)}`);
+  for (const d of diags) console.error(`${WARNING_PREFIX}${formatDiagnostic(d)}`);
 }

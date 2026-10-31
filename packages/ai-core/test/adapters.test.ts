@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { parse as parseYaml } from 'yaml';
 import { codexAgent } from '#commands/adapters/render';
 import { readSources, type AgentDef } from '#commands/adapters/source';
-import { DOCS_GUARD_COMMAND, OPS_BRIEF_COMMAND } from '#commands/adapters/memory';
+import { DOCS_GUARD_COMMAND, OPS_BRIEF_COMMAND, OPS_LINE_COMMAND } from '#commands/adapters/memory';
 import { applyActions, checkAdapters, computeSync } from '#commands/adapters/sync';
 import type { AdapterName } from '#shared/config';
 import { parseFrontmatter } from '#shared/frontmatter';
@@ -248,6 +248,25 @@ describe('adapters sync: hook docs-guard', () => {
     expect((await computeSync(root, ['claude-code'], ['docs-guard', 'ops-brief'])).actions).toEqual(
       [],
     );
+  });
+
+  it('hooks: [ops-line] — statusLine с ai ops line и обновлением раз в 5 с; чужой statusLine — расхождение', async () => {
+    await put('AGENTS.md', '# x\n');
+    const { actions } = await computeSync(root, ['claude-code'], ['ops-line']);
+    await applyActions(root, actions);
+    const settings: unknown = JSON.parse(await read('.claude/settings.json'));
+    expect(isRecord(settings) ? settings['statusLine'] : undefined).toEqual({
+      type: 'command',
+      command: OPS_LINE_COMMAND,
+      refreshInterval: 5,
+    });
+    expect((await computeSync(root, ['claude-code'], ['ops-line'])).actions).toEqual([]);
+    await put(
+      '.claude/settings.json',
+      JSON.stringify({ statusLine: { type: 'command', command: 'mine' } }),
+    );
+    const { diagnostics } = await computeSync(root, ['claude-code'], ['ops-line']);
+    expect(diagnostics.map((d) => d.message).join('\n')).toContain('statusLine уже задан');
   });
 
   it('adapters check: hook включён, но не стоит — расхождение', async () => {

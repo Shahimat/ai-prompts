@@ -118,6 +118,10 @@ export const INTENT_KINDS = [
   'manual',
 ] as const;
 
+export const REVISE_INTENT = 'revise';
+
+export const INTENTS_SHAPE = `intents: [{kind, summary, evidence}] или тот же список без обёртки; kind — ${INTENT_KINDS.join(' | ')}; пересмотр существующего знания — {kind: ${REVISE_INTENT}, target, was, why, summary, evidence}`;
+
 export const INTENTS_SCHEMA = {
   $schema: 'https://json-schema.org/draft/2020-12/schema',
   title: 'intents — вход роли docs-keeper: намерения записи в документацию',
@@ -133,10 +137,20 @@ export const INTENTS_SCHEMA = {
         additionalProperties: false,
         required: ['kind', 'summary'],
         properties: {
-          kind: { enum: INTENT_KINDS },
+          kind: { enum: [...INTENT_KINDS, REVISE_INTENT] },
           summary: { type: 'string', minLength: 1, pattern: '^[^\\n]+$' },
           evidence: { type: 'string' },
+          target: { type: 'string', minLength: 1 },
+          was: { type: 'string', minLength: 1 },
+          why: { type: 'string', minLength: 1 },
         },
+        anyOf: [
+          { properties: { kind: { enum: INTENT_KINDS }, target: false, was: false, why: false } },
+          {
+            properties: { kind: { const: REVISE_INTENT } },
+            required: ['target', 'was', 'why', 'evidence'],
+          },
+        ],
       },
     },
   },

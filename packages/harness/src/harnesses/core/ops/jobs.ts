@@ -15,6 +15,7 @@ export interface JobMeta {
   short: string;
   ref: string;
   workdir?: string;
+  published?: string;
 }
 
 export const jobFile = (s: Session, rel: string): string =>
@@ -24,6 +25,7 @@ export async function jobMeta(s: Session): Promise<JobMeta> {
   const data = await readJson(jobFile(s, 'job.json'), `${s.short}/job.json`);
   const meta: JobMeta = { v: OPS_VERSION, id: s.id, short: s.short, ref: s.data.request };
   if (isRecord(data) && typeof data['workdir'] === 'string') meta.workdir = data['workdir'];
+  if (isRecord(data) && typeof data['published'] === 'string') meta.published = data['published'];
   return meta;
 }
 
@@ -156,3 +158,17 @@ export async function projectJobs(home: string, root: string): Promise<Session[]
 
 export const AFFIRMATIVE =
   /^\s*(да|ок|ok|yes|y|approve|approved|го|поехали|готово|done|merged|влито)\s*[.!]?\s*$/i;
+
+const AFFIRMATIVE_HEAD =
+  /^\s*(да|ок|ok|yes|approved|approve|y|го|поехали|готово|done|merged|влито)(?=$|[\s.,!:;—–-])[\s.,!:;—–-]*([\s\S]*)$/i;
+
+export function affirmation(text: string): { yes: boolean; rest: string } {
+  const m = AFFIRMATIVE_HEAD.exec(text);
+  return m === null ? { yes: false, rest: text.trim() } : { yes: true, rest: (m[2] ?? '').trim() };
+}
+
+export const EXTERNAL_DONE = 'external.done';
+
+export async function markExternal(root: string, short: string, text: string): Promise<void> {
+  await appendLine(path.join(jobDir(root, short), EXTERNAL_DONE), `${text.trim()}\n`);
+}

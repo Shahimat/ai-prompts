@@ -42,6 +42,8 @@ export const DOCS_GUARD_COMMAND = 'node node_modules/@shahimat/cli/dist/bin.js d
 const DOCS_GUARD_MATCHER = 'Edit|Write|MultiEdit|NotebookEdit';
 export const OPS_BRIEF_COMMAND = 'node node_modules/@shahimat/cli/dist/bin.js ops brief';
 const OPS_BRIEF_MATCHER = 'startup|resume|compact';
+export const OPS_LINE_COMMAND = 'node node_modules/@shahimat/cli/dist/bin.js ops line';
+export const OPS_LINE_REFRESH_SECONDS = 5;
 
 interface HookSpec {
   event: string;
@@ -49,7 +51,7 @@ interface HookSpec {
   command: string;
 }
 
-const HOOK_SPECS: Readonly<Record<HookKey, HookSpec>> = {
+const HOOK_SPECS: Readonly<Record<Exclude<HookKey, 'ops-line'>, HookSpec>> = {
   'docs-guard': { event: 'PreToolUse', matcher: DOCS_GUARD_MATCHER, command: DOCS_GUARD_COMMAND },
   'ops-brief': { event: 'SessionStart', matcher: OPS_BRIEF_MATCHER, command: OPS_BRIEF_COMMAND },
 };
@@ -69,13 +71,30 @@ function withHook(data: Record<string, unknown>, spec: HookSpec): Record<string,
   return { ...data, hooks: { ...hooks, [spec.event]: [...list, hook] } };
 }
 
+function withStatusLine(data: Record<string, unknown>): Record<string, unknown> {
+  if (data['statusLine'] !== undefined) return data;
+  return {
+    ...data,
+    statusLine: {
+      type: 'command',
+      command: OPS_LINE_COMMAND,
+      refreshInterval: OPS_LINE_REFRESH_SECONDS,
+    },
+  };
+}
+
+const foreignStatusLine = (data: Record<string, unknown>): boolean =>
+  data['statusLine'] !== undefined &&
+  !(isRecord(data['statusLine']) && data['statusLine']['command'] === OPS_LINE_COMMAND);
+
 export async function claudeMemory(
   root: string,
   hookKeys: readonly HookKey[] = [],
 ): Promise<{ actions: Action[]; diagnostics: Diagnostic[] }> {
   const desired = (data: Record<string, unknown>): Record<string, unknown> => {
     let next: Record<string, unknown> = { ...data, autoMemoryEnabled: false };
-    for (const key of hookKeys) next = withHook(next, HOOK_SPECS[key]);
+    for (const key of hookKeys)
+      next = key === 'ops-line' ? withStatusLine(next) : withHook(next, HOOK_SPECS[key]);
     return next;
   };
   const current = await readOrNull(path.join(root, CLAUDE_SETTINGS));
@@ -102,8 +121,17 @@ export async function claudeMemory(
     };
   }
   const next = desired(data);
-  if (JSON.stringify(next) === JSON.stringify(data)) return { actions: [], diagnostics: [] };
-  return { actions: [write(next)], diagnostics: [] };
+  const diagnostics: Diagnostic[] =
+    hookKeys.includes('ops-line') && foreignStatusLine(data)
+      ? [
+          {
+            file: CLAUDE_SETTINGS,
+            message: `statusLine уже задан проектом — ops-line не поставлен: убери ops-line из hooks в context/ai-core.yml или свой statusLine`,
+          },
+        ]
+      : [];
+  if (JSON.stringify(next) === JSON.stringify(data)) return { actions: [], diagnostics };
+  return { actions: [write(next)], diagnostics };
 }
 
 function scanToml(text: string): Map<string, string> {

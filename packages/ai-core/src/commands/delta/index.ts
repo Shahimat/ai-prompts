@@ -19,10 +19,19 @@ export async function runDelta(command: string | undefined, args: CommandArgs): 
     throw new UsageError(`неизвестная команда: delta ${command ?? ''}`.trimEnd());
   const result = await checkDelta(args.root);
   const ownFile = args.name === undefined ? undefined : `${DELTA_DIR}/${args.name}.yml`;
+  const own =
+    ownFile === undefined ? result.deltas : result.deltas.filter((d) => d.file === ownFile);
+  const targets = own.flatMap((d) => d.items.map((i) => i.target));
   const isForeign = (d: Diagnostic): boolean =>
     ownFile !== undefined && d.file.startsWith(`${DELTA_DIR}/`) && d.file !== ownFile;
+  const isOutside = (d: Diagnostic): boolean =>
+    ownFile !== undefined &&
+    own.length > 0 &&
+    result.revisions.some((r) => r.file === d.file) &&
+    !targets.some((t) => matchesTarget(t, d.file));
   const foreign = result.diagnostics.filter(isForeign);
-  const errors = result.diagnostics.filter((d) => !isForeign(d));
+  const outside = result.diagnostics.filter((d) => !isForeign(d) && isOutside(d));
+  const errors = result.diagnostics.filter((d) => !isForeign(d) && !isOutside(d));
   warn(result.warnings);
   if (foreign.length > 0) {
     warn(foreign);
@@ -31,8 +40,12 @@ export async function runDelta(command: string | undefined, args: CommandArgs): 
       `дельты прошлых сессий с нарушениями (${files}): исправь их или удали, если их сессии не продолжатся — сессию ${args.name ?? ''} они не валят`,
     );
   }
-  const own =
-    ownFile === undefined ? result.deltas : result.deltas.filter((d) => d.file === ownFile);
+  if (outside.length > 0) {
+    warn(outside);
+    console.error(
+      `изменения вне целей дельты ${args.name ?? ''} без пункта revise (${outside.length}): правки других сессий — сессию ${args.name ?? ''} они не валят; свои — добавь пункт revise в дельту`,
+    );
+  }
   for (const line of revisionLines(own)) console.log(line);
   if (command === 'check') return report('delta check', errors);
 

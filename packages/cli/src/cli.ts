@@ -8,7 +8,7 @@ import { setRuntime, type CommandTree } from '@shahimat/ai-core';
 import { runScript } from './scripts/index.ts';
 import { loadTree } from './tree.ts';
 import type { CommandArgs } from '@shahimat/ai-core';
-import { UsageError } from '@shahimat/ai-core';
+import { InputError, UsageError } from '@shahimat/ai-core';
 import { errorCode, errorMessage } from '@shahimat/ai-core';
 
 export function projectOf(start: string): string | undefined {
@@ -133,6 +133,7 @@ export async function runCli(tree: CommandTree, argv: string[]): Promise<number>
     return await cliMain(tree, argv);
   } catch (error) {
     console.error(`ERROR: ${errorMessage(error)}`);
+    if (error instanceof InputError) return 2;
     if (error instanceof UsageError) {
       console.error(tree.renderUsage());
       return 2;

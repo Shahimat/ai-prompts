@@ -258,6 +258,23 @@ describe('delta: дельты прошлых сессий и закоммиче�
     expect(existsSync(path.join(root, 'context/.delta/old.yml'))).toBe(true);
   });
 
+  it('check --name: «без revise» вне целей своей дельты — предупреждение, по своим целям — нарушение', async () => {
+    await put('context/.delta/mine.yml', ADD('context/conventions/mine.yml'));
+    await put('context/conventions/mine.yml', 'key: mine\nsummary: s\nrule: r\n');
+    await put('context/conventions/naming.yml', naming);
+    expect(await main(['delta', 'check', '--root', root], NOW)).toBe(1);
+    stderr = [];
+    expect(await main(['delta', 'check', '--root', root, '--name', 'mine'], NOW)).toBe(0);
+    expect(stderr[0]).toMatch(
+      /^предупреждение: context\/conventions\/naming\.yml: изменено существующее знание без пункта revise/,
+    );
+    expect(stderr[1]).toMatch(/^изменения вне целей дельты mine без пункта revise \(1\)/);
+    await put('context/.delta/mine.yml', ADD('naming'));
+    stderr = [];
+    expect(await main(['delta', 'check', '--root', root, '--name', 'mine'], NOW)).toBe(1);
+    expect(stderr[0]).toMatch(/^context\/conventions\/naming\.yml: изменено существующее знание/);
+  });
+
   it('своя дельта не прошла схему: close --name сообщает ошибку схемы, а не «дельты нет»', async () => {
     await put('context/.delta/naming.yml', LONG);
     expect(await main(['delta', 'close', '--root', root, '--name', 'naming'], NOW)).toBe(1);

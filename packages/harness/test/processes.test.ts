@@ -126,6 +126,9 @@ describe('harness docs delta', () => {
     }
     expect(await main(['docs-delta', 'open', id, '--home', home], NOW)).toBe(0);
     expect(await state()).toBe('failed');
+    expect(out.join('\n')).toContain(
+      `попытки исчерпаны — исправь причину и запусти ai docs-delta open ${id.slice(0, 7)}`,
+    );
     expect(await main(['docs-delta', 'open', id, '--home', home], NOW)).toBe(0);
     expect(await state()).toBe('apply');
     const log = await readFile(path.join(home, 'sessions', id, 'log.jsonl'), 'utf8');

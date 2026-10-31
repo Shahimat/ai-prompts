@@ -2,7 +2,8 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { readIntents } from '@shahimat/ai-core';
+import { parse } from 'yaml';
+import { matchesTarget, readIntents } from '@shahimat/ai-core';
 import type { CommandArgs } from '@shahimat/ai-core';
 import { errorMessage, isRecord } from '@shahimat/ai-core';
 import { DELTA_DIR } from '@shahimat/ai-core';
@@ -11,6 +12,7 @@ import {
   failureAction,
   roleOrHandoff,
   processModule,
+  recordedViolations,
   scriptAction,
   sessionRole,
   type ActionDef,
@@ -75,6 +77,27 @@ function changedFiles(root: string): string[] {
     .sort();
 }
 
+export function deltaTargets(text: string): string[] | undefined {
+  let data: unknown;
+  try {
+    data = parse(text);
+  } catch {
+    return undefined;
+  }
+  const items = isRecord(data) ? data['items'] : undefined;
+  if (!Array.isArray(items)) return undefined;
+  return items.flatMap((i) =>
+    isRecord(i) && typeof i['target'] === 'string' ? [i['target']] : [],
+  );
+}
+
+export function ownChanged(delta: string | undefined, changed: string[]): string[] {
+  const targets = delta === undefined ? undefined : deltaTargets(delta);
+  return targets === undefined
+    ? changed
+    : changed.filter((f) => targets.some((t) => matchesTarget(t, f)));
+}
+
 export function reviewTask(delta: string, changed: string[]): string {
   return [
     'Проверь правку проектной документации на противоречия.',
@@ -83,7 +106,7 @@ export function reviewTask(delta: string, changed: string[]): string {
     '',
     'Сверяй изменённое с документами, на которые оно ссылается и которые указывает маршрут `AGENTS.md` → «Где искать ответ». Полный обход `docs/` и `context/` запрещён.',
     '',
-    `Изменённые файлы:\n${changed.map((f) => `- ${f}`).join('\n') || '- (нет)'}`,
+    `Изменённые файлы — цели дельты:\n${changed.map((f) => `- ${f}`).join('\n') || '- (нет)'}`,
     '',
     `Дельта правки:\n\n${delta}`,
     '',
@@ -98,10 +121,11 @@ function reviewAction(): ActionDef<ProcessContext> {
       const s = ctx.session;
       const root = s.data.project;
       const deltaPath = path.join(root, DELTA_DIR, `${s.data.title}.yml`);
-      const delta = existsSync(deltaPath) ? await readFile(deltaPath, 'utf8') : '(дельты нет)';
+      const text = existsSync(deltaPath) ? await readFile(deltaPath, 'utf8') : undefined;
+      const task = reviewTask(text ?? '(дельты нет)', ownChanged(text, changedFiles(root)));
       let data: unknown;
       try {
-        ({ data } = await sessionRole(ctx, 'judge', reviewTask(delta, changedFiles(root))));
+        ({ data } = await sessionRole(ctx, 'judge', task));
       } catch (error) {
         await s.log({ review: 'error', error: errorMessage(error) });
         return {
@@ -133,31 +157,47 @@ function lastConflicts(ctx: ProcessContext): string {
     : `; судья нашёл противоречия — разреши их (неочевидное — вопросом пользователю в отчёте):\n${lines.join('\n')}`;
 }
 
+function lastViolations(ctx: ProcessContext): string {
+  const lines = recordedViolations(ctx.session);
+  return lines.length === 0
+    ? ''
+    : `; прошлая попытка не прошла проверку — исправь нарушения:\n${lines.map((l) => `- ${l}`).join('\n')}`;
+}
+
+export function applyTask(ctx: ProcessContext): string {
+  const file = `${DELTA_DIR}/${ctx.session.data.title}.yml`;
+  const exists = existsSync(path.join(ctx.session.data.project, file));
+  const what = exists
+    ? `дельта ${file} уже есть — дополни её, а не пересобирай: существующие пункты, включая ручные revise, сохрани; недостающие пункты добавь и примени по skill docs-keeper`
+    : `собери дельту ${file} из намерений и примени её пункты по skill docs-keeper`;
+  return `${what}; намерение kind revise — пункт op: revise с его target, was, why; процесс docs-delta уже идёт — сам его не запускай, verify, review и close сделает harness${lastViolations(ctx)}${lastConflicts(ctx)}`;
+}
+
+const FAILURE_HINT =
+  'не закрывай дельту вручную (delta close, удаление файла дельты) в обход судьи — сначала спроси пользователя';
+
 function registry(): Registry<ProcessContext> {
   return {
     actions: new Map([
-      [
-        'delta-apply',
-        roleOrHandoff<ProcessContext>(
-          'docs-keeper',
-          (ctx) =>
-            `собери дельту context/.delta/${ctx.session.data.title}.yml из намерений и примени её пункты по skill docs-keeper; процесс docs-delta уже идёт — сам его не запускай, verify, review и close сделает harness${lastConflicts(ctx)}`,
-        ),
-      ],
+      ['delta-apply', roleOrHandoff<ProcessContext>('docs-keeper', applyTask)],
       [
         'docs-verify',
-        scriptAction<ProcessContext>(['docs', 'verify'], (ctx) => ({
-          name: ctx.session.data.title,
-        })),
+        scriptAction<ProcessContext>(
+          ['docs', 'verify'],
+          (ctx) => ({ name: ctx.session.data.title }),
+          { record: true },
+        ),
       ],
       ['docs-review', reviewAction()],
       [
         'delta-close',
-        commandAction<ProcessContext>(['delta', 'close'], (ctx) => ({
-          name: ctx.session.data.title,
-        })),
+        commandAction<ProcessContext>(
+          ['delta', 'close'],
+          (ctx) => ({ name: ctx.session.data.title }),
+          { record: true },
+        ),
       ],
-      ['report-failure', failureAction<ProcessContext>()],
+      ['report-failure', failureAction<ProcessContext>(FAILURE_HINT)],
     ]),
     guards: new Map(),
   };

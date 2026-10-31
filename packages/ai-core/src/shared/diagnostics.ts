@@ -9,3 +9,5 @@ export function formatDiagnostic(d: Diagnostic): string {
 }
 
 export class UsageError extends Error {}
+
+export class InputError extends UsageError {}

@@ -15,13 +15,13 @@
     "070695102e54": {
       "question": "[harness] ticket-work > git-запись по job делает пользователь: implementer не коммитит, ready ждёт «готово»",
       "evidence": {
-        "@job-git": "74ac90b27a795b5d4a12492c9c8cdcac8065442cb6290fadabb238e89f5bff14"
+        "@job-git": "04a28519a468cfb5eb167bb1d0768f944f1339cf6ee917115bcc09d1077cd1d1"
       },
       "verdict": true,
-      "quote": "Git-запись (commit, push, merge, создание PR) не делаешь: её делает\n  пользователь.",
+      "quote": "git-запись делает пользователь, «готово» закрывает job, текст — доработка.",
       "ref": "@job-git",
-      "reason": "implementer не коммитит; в ops ready ждёт «готово» от пользователя.",
-      "at": "2026-10-29"
+      "reason": "implementer не делает git-запись, ready ждёт «готово» пользователя.",
+      "at": "2026-10-30"
     },
     "0e48c53bde80": {
       "question": "[harness] secrets > docs-keeper не записывает секрет в документацию: вместо значения — указатель на хранилище",
@@ -104,14 +104,14 @@
       "question": "[flow] ownership > основная сессия передаёт docs-keeper только намерения и получает отчёт не длиннее 10 строк",
       "evidence": {
         "@docs-keeper-report": "f30a5351e552880d82de59fd015119f07dceb20c9e2fc6ec079f4be9ba6be412",
-        "@docs-intents-triggers": "bddf914b91deefa3f3eef986b05ffb7e5d28a0ddc732f84c64d145e70bfb1966",
+        "@docs-intents-triggers": "37928c9598603771ad81d74e814cd0b1e423c17d3558b30acbaadf5398db1344",
         "@attention": "daebfacb2085c10755c1809af36be15b25fe958ab4db8ecf24da8d682eb9b0e6"
       },
       "verdict": true,
-      "quote": "Отчёт основной сессии — не длиннее 10 строк",
+      "quote": "Отчёт основной сессии — не длиннее 10 строк:",
       "ref": "@docs-keeper-report",
-      "reason": "Основная сессия передаёт намерения (kind/summary/evidence) по правилу 4, сама правила записи не читает и получает отчёт не длиннее 10 строк.",
-      "at": "2026-10-27"
+      "reason": "Основная сессия передаёт только намерения и получает отчёт до 10 строк.",
+      "at": "2026-10-30"
     },
     "37f837d16e74": {
       "question": "[flow] delta > дельту ведёт docs-keeper: собирает из намерений, сверяет с текущей документацией, применяет",
@@ -270,13 +270,13 @@
     "741df40f5b3c": {
       "question": "[harness] adapters > adapters sync выключает memory: autoMemoryEnabled false в Claude Code, memories false в Codex",
       "evidence": {
-        "@memory-off": "06a5eeb519cb0c5f06a6b07e6277ca0800079546b881c00046ca2b992d88781a"
+        "@memory-off": "77c89f849b40b0f6b60703ba7c1b2fa51e5d3ce4e1bea3f1f1e4c97c6d85bfa7"
       },
       "verdict": true,
       "quote": "let next: Record<string, unknown> = { ...data, autoMemoryEnabled: false };",
       "ref": "@memory-off",
-      "reason": "Claude: autoMemoryEnabled false; Codex конфиг: memories = false.",
-      "at": "2026-10-29"
+      "reason": "Claude: autoMemoryEnabled false; Codex конфиг ставит memories = false.",
+      "at": "2026-10-30"
     },
     "7ba751f6d1ea": {
       "question": "документация проекта > docs-keeper меняет только слои документации проекта и не трогает код",
@@ -347,12 +347,12 @@
     "949a9cc62a83": {
       "question": "поведение ключевых skills > docs-keeper: факт без evidence не записывается как проверенный",
       "evidence": {
-        "@docs-keeper-intents": "f05d81a9427a2a379fca75b982d7d91262c6c9e13a1243495414d07fe4d2580b"
+        "@docs-keeper-intents": "fded027dda5a9e275ea70c0fa0f6537691fbae932b5eddfb66f2f6c9badd5b6d"
       },
       "verdict": true,
-      "quote": "Без `evidence` факт не записывается как проверенный: пометь `unknown`\nили спроси.",
+      "quote": "Без `evidence` факт не записывается как проверенный: пометь `unknown`",
       "ref": "@docs-keeper-intents",
-      "reason": "Текст прямо запрещает записывать факт без evidence как проверенный.",
+      "reason": "Прямо указано правилом.",
       "at": "2026-10-30"
     },
     "951ad57f14cb": {
@@ -579,12 +579,12 @@
     "f586544d451f": {
       "question": "документация проекта > шаблон AGENTS.md и блоки модулей не содержат указаний основной сессии самой править документацию — только ссылки на skills и harness; guardrail о достоверности знания допустим",
       "evidence": {
-        "@agents-md-readonly": "623a5809d21197c75b10afae8cdfaa6bc60fb83370a2a38dbd337d012f07d0ee"
+        "@agents-md-readonly": "8bb76d25a4afe58fe881f50b5507c6b5eda0b545d46cbd3d109ec77b275de131"
       },
       "verdict": true,
       "quote": "Документация только читается; правки — намерениями (skill",
       "ref": "@agents-md-readonly",
-      "reason": "Шаблон и модули направляют запись в docs-delta/docs-keeper и skills; самостоятельной правки документации основной сессией нет.",
+      "reason": "Шаблон и модули отправляют правки в harness/субагент; модули лишь ссылки и guardrail.",
       "at": "2026-10-30"
     },
     "f7310dcbc6e4": {
@@ -638,10 +638,10 @@
       "at": "2026-10-28"
     },
     "expectations/ai-prompts.expect.ts": {
-      "titles": "c9a037d1ac40d62396a9079d5ce84ff13a8c8e139e22ffbe4f04cb4e96ed3833",
+      "titles": "85d9b83cf4e46e9ad1f695ef8efe28848ba451af5fba64a18aeb00e77ff289b7",
       "contradictions": [],
       "unmeasurable": [],
-      "at": "2026-10-27"
+      "at": "2026-10-30"
     },
     "expectations/docs-flow.expect.ts": {
       "titles": "8e4980aeabe4f0bbb21d74226a5b45afdd37774f991e2b9c13dcad3cdfcdbd07",
@@ -665,15 +665,16 @@
       "at": "2026-10-28"
     },
     "expectations/harness.expect.ts": {
-      "titles": "1064dcfdba81acfe1039369f887d5c69cbe063fc46afb9fab2ef83c4890fd12c",
-      "contradictions": [],
-      "unmeasurable": [
+      "titles": "133e836092bf7963313021d334609e31bd523b34d24edd10c3253f59f9b437d7",
+      "contradictions": [
         {
-          "id": "b0ae36a8ae5c",
-          "reason": "«Без контекста автора» не задаёт проверяемого критерия: непонятно, что считать контекстом автора и как это проверить да/нет или числом."
+          "a": "0ad455ca74a9",
+          "b": "6fe27bd2b677",
+          "reason": "Первое: open заново выполняет действие текущего состояния, в состоянии агента это приём задания. Второе: в состоянии агента harness останавливается с заданием, а open продолжает со следующего состояния. Из этих формулировок неясно, выполняется ли действие текущего состояния или начинается следующее."
         }
       ],
-      "at": "2026-10-29"
+      "unmeasurable": [],
+      "at": "2026-10-30"
     },
     "expectations/presets.expect.ts": {
       "titles": "8db5f2e241db6eaf02a2dbe9ed0fbf1bf57301beaa967d6ad6b6e6bc8d39b63d",

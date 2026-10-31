@@ -1,5 +1,9 @@
+import { spawnSync } from 'node:child_process';
+import { readFile } from 'node:fs/promises';
+import { homedir } from 'node:os';
+import path from 'node:path';
 import { describe, expect } from 'vitest';
-import { budget, crit, readRepo } from '@shahimat/ai-core/expect';
+import { budget, crit, note, readRepo, repoRoot } from '@shahimat/ai-core/expect';
 import { attention } from './shared/attention.ts';
 import { at, parseJson, recordOrEmpty, stringAt } from './shared/guards.ts';
 
@@ -17,7 +21,28 @@ describe('публичные npm-пакеты', () => {
   );
 });
 
+describe('источник', () => {
+  crit(
+    'контракт, модули, skills, роли, паттерны, пресеты, harness и пакеты не называют конкретных компаний, их систем и внутренних сущностей — только абстракции',
+    () => Check.abstractOnly(),
+  );
+});
+
 const PACKAGES = ['ai-core', 'harness'];
+
+const STOPLIST =
+  process.env['AI_PROMPTS_STOPLIST'] ?? path.join(homedir(), '.config', 'ai-prompts', 'stoplist');
+
+const escapeRegExp = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+async function stopTerms(): Promise<string[] | undefined> {
+  const text = await readFile(STOPLIST, 'utf8').catch(() => undefined);
+  if (text === undefined) return undefined;
+  return text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line !== '' && !line.startsWith('#'));
+}
 
 const localVersion = async (pkg: string): Promise<string> =>
   stringAt(parseJson(await readRepo(`packages/${pkg}/package.json`)), 'version');
@@ -30,6 +55,33 @@ function isNextVersion(latest: string, next: string): boolean {
 }
 
 class Check {
+  static async abstractOnly(): Promise<void> {
+    const terms = await stopTerms();
+    if (terms === undefined || terms.length === 0) {
+      note(`стоп-лист ${STOPLIST} не найден — проверка источника на конкретику пропущена`);
+      return;
+    }
+    const word = new RegExp(
+      `(?<![\\p{L}\\p{N}_-])(${terms.map(escapeRegExp).join('|')})(?![\\p{L}\\p{N}_-])`,
+      'iu',
+    );
+    const files = spawnSync('git', ['ls-files', '--cached', '--others', '--exclude-standard'], {
+      cwd: repoRoot(),
+      encoding: 'utf8',
+    })
+      .stdout.split('\n')
+      .filter((f) => f !== '');
+    const found: string[] = [];
+    for (const file of files) {
+      const text = await readRepo(file).catch(() => '');
+      text.split('\n').forEach((line, i) => {
+        const term = word.exec(line)?.[1];
+        if (term !== undefined) found.push(`${file}:${i + 1}: ${term}`);
+      });
+    }
+    expect(found).toEqual([]);
+  }
+
   static async oneUnpublishedVersion(): Promise<void> {
     for (const pkg of PACKAGES) {
       const response = await fetch(`https://registry.npmjs.org/@shahimat%2f${pkg}`);

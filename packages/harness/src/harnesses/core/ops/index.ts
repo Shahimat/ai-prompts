@@ -3,6 +3,7 @@ export * from './commands.ts';
 export * from './config.ts';
 export * from './events.ts';
 export * from './files.ts';
+export * from './inspect.ts';
 export * from './jobs.ts';
 export * from './machine.ts';
 export * from './paths.ts';

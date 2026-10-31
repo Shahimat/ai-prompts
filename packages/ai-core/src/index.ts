@@ -28,7 +28,8 @@ export {
   type SecretsAllow,
   type SecretsOptions,
 } from './shared/config.ts';
-export { formatDiagnostic, UsageError, type Diagnostic } from './shared/diagnostics.ts';
+export { formatDiagnostic, InputError, UsageError, type Diagnostic } from './shared/diagnostics.ts';
+export { WARNING_PREFIX } from './shared/report.ts';
 export {
   buildContextIndex,
   checkContextIndex,
@@ -79,6 +80,8 @@ export {
   SUBMIT_TOOL_ID,
   INTENT_KINDS,
   INTENTS_SCHEMA,
+  INTENTS_SHAPE,
+  REVISE_INTENT,
   type ProtocolMessage,
 } from './lib/protocol.ts';
 export { parseIntents } from './lib/intents.ts';

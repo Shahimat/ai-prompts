@@ -1,12 +1,13 @@
-# Автомат ticket-work: работа по задаче — карточка, исследование, план, правка, проверка, ревью.
+# Автомат ticket-work: работа по задаче — карточка, исследование, план, правка, проверка, ревью, публикация.
 # Роли researcher, implementer, reviewer работают в состояниях модели, остальное — скрипт и пользователь.
 # Схема — expectations/schemas/harness-fsm.schema.json.
 harness: ticket-work
-description: Работа по задаче — карточка, исследование, план, правка, проверка, ревью
+description: Работа по задаче — карточка, исследование, план, правка, проверка, ревью, публикация
 initial: intake
 
 limits:
-  # rounds — возвраты в implement после провала verify, review или доработки на ready.
+  # rounds — возвраты в implement после провала verify, review, доработки на ready или awaiting
+  # и повторы verify перед публикацией, когда diff изменился.
   rounds: 3
   # plan — переделки плана по замечаниям пользователя.
   plan: 3
@@ -53,8 +54,26 @@ states:
     actor: model
     action: job-review
     on:
-      ok: ready
+      ok: publish
       fail:
+        - { to: implement, count: rounds }
+        - failed
+  # Лестница проверок: публикация — только после зелёного verify на текущем diff.
+  publish:
+    actor: script
+    action: job-publish
+    on:
+      published: awaiting
+      manual: ready
+      stale:
+        - { to: verify, count: rounds }
+        - failed
+  awaiting:
+    actor: user
+    action: job-awaiting
+    on:
+      done: docs
+      feedback:
         - { to: implement, count: rounds }
         - failed
   ready:

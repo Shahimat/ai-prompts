@@ -1,12 +1,13 @@
 import { COMMAND_NODES, runtime } from '@shahimat/ai-core';
 import type { CommandArgs } from '@shahimat/ai-core';
 import { UsageError } from '@shahimat/ai-core';
-import { errorMessage, isRecord } from '@shahimat/ai-core';
+import { errorMessage, isRecord, WARNING_PREFIX } from '@shahimat/ai-core';
 import { driveSession, homeOf, requireProject, type HarnessModule } from './catalog.ts';
 import type { ActionDef, Registry } from './fsm/machine.ts';
-import { appendFileSync, existsSync, mkdirSync } from 'node:fs';
-import { readdir } from 'node:fs/promises';
+import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
+import { readdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { format } from 'node:util';
 import type { RoleOutcome } from '@shahimat/ai-core';
 import { opsRole, PRIORITY } from './ops/runner.ts';
 import { loadMachine, loadMachineAt } from './load.ts';
@@ -22,7 +23,51 @@ const argsOf = (ctx: ProcessContext): CommandArgs => ({
   now: new Date(),
 });
 
-const resume = (s: Session): string => `harness ${s.data.harness} open ${s.short}`;
+const resume = (s: Session): string => `ai ${s.data.harness} open ${s.short}`;
+
+export const VIOLATIONS_FILE = 'violations.log';
+
+const MAX_VIOLATIONS = 40;
+
+export interface StepOptions {
+  record?: boolean;
+}
+
+async function recorded(
+  s: Session,
+  step: () => Promise<number>,
+  options: StepOptions,
+): Promise<'ok' | 'fail'> {
+  const lines: string[] = [];
+  const original = console.error;
+  if (options.record === true)
+    console.error = (...args: unknown[]) => {
+      lines.push(format(...args));
+      original(...args);
+    };
+  let code: number;
+  try {
+    code = await step();
+  } finally {
+    console.error = original;
+  }
+  if (options.record !== true) return code === 0 ? 'ok' : 'fail';
+  if (code === 0) {
+    await rm(s.file(VIOLATIONS_FILE), { force: true });
+    return 'ok';
+  }
+  const kept = lines.filter((l) => !l.startsWith(WARNING_PREFIX)).slice(0, MAX_VIOLATIONS);
+  await writeFile(s.file(VIOLATIONS_FILE), `${kept.join('\n')}\n`, 'utf8');
+  return 'fail';
+}
+
+export function recordedViolations(s: Session): string[] {
+  const file = s.file(VIOLATIONS_FILE);
+  if (!existsSync(file)) return [];
+  return readFileSync(file, 'utf8')
+    .split('\n')
+    .filter((l) => l !== '');
+}
 
 export function handoff<C extends ProcessContext>(task: (ctx: C) => string): ActionDef<C> {
   return {
@@ -109,11 +154,15 @@ export function roleOrHandoff<C extends ProcessContext>(
 export const scriptAction = <C extends ProcessContext>(
   script: readonly string[],
   extra: (ctx: C) => Partial<CommandArgs> = () => ({}),
+  options: StepOptions = {},
 ): ActionDef<C> => ({
   events: ['ok', 'fail'],
   run: async (ctx) => ({
-    event:
-      (await runtime().runScript(script, { ...argsOf(ctx), ...extra(ctx) })) === 0 ? 'ok' : 'fail',
+    event: await recorded(
+      ctx.session,
+      () => runtime().runScript(script, { ...argsOf(ctx), ...extra(ctx) }),
+      options,
+    ),
   }),
 });
 
@@ -128,10 +177,15 @@ function commandOf(path: readonly string[]) {
 export const commandAction = <C extends ProcessContext>(
   path: readonly string[],
   extra: (ctx: C) => Partial<CommandArgs> = () => ({}),
+  options: StepOptions = {},
 ): ActionDef<C> => ({
   events: ['ok', 'fail'],
   run: async (ctx) => ({
-    event: (await commandOf(path).run({ ...argsOf(ctx), ...extra(ctx) })) === 0 ? 'ok' : 'fail',
+    event: await recorded(
+      ctx.session,
+      () => commandOf(path).run({ ...argsOf(ctx), ...extra(ctx) }),
+      options,
+    ),
   }),
 });
 
@@ -147,10 +201,14 @@ export const reportAction = <C extends ProcessContext>(path: readonly string[]):
   },
 });
 
-export const failureAction = <C extends ProcessContext>(): ActionDef<C> => ({
+export const failureAction = <C extends ProcessContext>(hint?: string): ActionDef<C> => ({
   events: ['retry'],
   run: async (ctx) => ({
-    pause: `попытки исчерпаны — исправь причину и запусти harness ${ctx.session.data.harness} open ${ctx.session.short}`,
+    pause: [
+      `попытки исчерпаны — исправь причину и запусти ${resume(ctx.session)}`,
+      'причина неясна или нужно решение — спроси пользователя; проверки автомата вручную не обходи',
+      ...(hint === undefined ? [] : [hint]),
+    ].join('; '),
   }),
 });
 

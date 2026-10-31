@@ -49,17 +49,28 @@ export interface ScheduleUnit {
 
 export const WRITE_METHODS: Readonly<Record<InterfaceName, readonly string[]>> = {
   tasks: ['update'],
-  vcs: [],
+  vcs: ['publish'],
   review: ['comment', 'approve'],
-  checks: [],
+  checks: ['start'],
+  notify: ['send'],
   schedule: ['install', 'remove'],
 };
 
-const REQUIRED: Readonly<Record<InterfaceName, readonly string[]>> = {
+export const READ_METHODS: Readonly<Record<InterfaceName, readonly string[]>> = {
   tasks: ['fetch'],
   vcs: ['create', 'diff', 'remove'],
   review: ['poll'],
   checks: ['poll'],
+  notify: [],
+  schedule: ['status'],
+};
+
+export const REQUIRED: Readonly<Record<InterfaceName, readonly string[]>> = {
+  tasks: ['fetch'],
+  vcs: ['create', 'diff', 'remove'],
+  review: ['poll'],
+  checks: ['poll'],
+  notify: ['send'],
   schedule: ['install', 'remove', 'status'],
 };
 
@@ -157,17 +168,25 @@ export interface WriteOutcome {
   result?: unknown;
 }
 
+const targetOf = (args: readonly unknown[]): string | undefined =>
+  typeof args[0] === 'string' ? args[0] : undefined;
+
 export async function callWrite(
   provider: Provider,
   policy: Autonomy,
   method: string,
   approved: boolean,
   args: readonly unknown[],
+  target?: string,
 ): Promise<WriteOutcome> {
   const action = `${provider.iface}.${method}`;
+  if (!WRITE_METHODS[provider.iface].includes(method))
+    throw new UsageError(
+      `${action} — не метод записи интерфейса: ${WRITE_METHODS[provider.iface].join(', ') || 'нет'}`,
+    );
   const fn = provider.methods.get(method);
   if (fn === undefined) throw new UsageError(`${provider.source}: нет метода ${method}`);
-  const level = levelOf(policy, action);
+  const level = levelOf(policy, action, target ?? targetOf(args), true);
   if (level === 'never')
     throw new UsageError(`${action}: запрещено политикой context/autonomy.yml`);
   if (level === 'ask' && !approved) return { done: false, level };
@@ -181,6 +200,10 @@ export async function callRead(
 ): Promise<unknown> {
   if (WRITE_METHODS[provider.iface].includes(method))
     throw new UsageError(`${provider.iface}.${method} — запись: только через политику автономии`);
+  if (!READ_METHODS[provider.iface].includes(method))
+    throw new UsageError(
+      `${provider.iface}.${method} — не объявлен в интерфейсе: чтение — ${READ_METHODS[provider.iface].join(', ') || 'нет'}, запись — ${WRITE_METHODS[provider.iface].join(', ')}`,
+    );
   const fn = provider.methods.get(method);
   if (fn === undefined) throw new UsageError(`${provider.source}: нет метода ${method}`);
   return fn(...args);

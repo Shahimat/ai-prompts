@@ -4,7 +4,7 @@ import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promis
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { main } from '@shahimat/cli';
+import { main, run } from '@shahimat/cli';
 import { openSession } from '#harnesses/core/store/session';
 import { isRecord } from '@shahimat/ai-core';
 import { FAKE_CLAUDE } from './fake-claude.ts';
@@ -157,6 +157,72 @@ describe('docs-delta: роли docs-keeper и judge', () => {
     expect(keepers).toHaveLength(4);
     expect(keepers[1]?.prompt).toContain('судья нашёл противоречия');
     expect(keepers[1]?.prompt).toContain('«summary: kebab-case»');
+  });
+
+  it('провал verify: повторный apply дополняет существующую дельту и получает нарушения; failed — ai docs-delta open и подсказка оператору', async () => {
+    await project();
+    process.env['FAKE_FILES'] = JSON.stringify({
+      'context/.delta/naming.yml': DELTA.replace('target: other', 'target: naming'),
+      'context/conventions/naming.yml': 'key: naming\nsummary: snake_case\nrule: x\n',
+    });
+    process.env['FAKE_SUBMIT'] = JSON.stringify({ result: RESULT, verdict: { conflicts: [] } });
+    const lines: string[] = [];
+    vi.spyOn(console, 'log').mockImplementation((...a: unknown[]) => {
+      lines.push(a.join(' '));
+    });
+    expect(await start('--file', 'intents.yml')).toBe(0);
+    const s = await session();
+    expect(s.data.state).toBe('failed');
+    const keepers = (await calls()).filter((c) => c.message === 'result');
+    expect(keepers).toHaveLength(4);
+    expect(keepers[0]?.prompt).toContain('собери дельту context/.delta/naming.yml');
+    expect(keepers[1]?.prompt).toContain('уже есть — дополни её, а не пересобирай');
+    expect(keepers[1]?.prompt).toContain('включая ручные revise');
+    expect(keepers[1]?.prompt).toMatch(
+      /исправь нарушения:\n(- .*\n)*- context\/conventions\/naming\.yml: изменено существующее знание без пункта revise/,
+    );
+    const pause = lines.join('\n');
+    expect(pause).toContain(`ai docs-delta open ${s.short}`);
+    expect(pause).not.toContain('harness docs-delta open');
+    expect(pause).toContain('спроси пользователя');
+    expect(pause).toContain('не закрывай дельту вручную');
+  });
+
+  it('review: судья получает только файлы — цели своей дельты', async () => {
+    await project();
+    await put('context/conventions/foreign.yml', 'key: foreign\nsummary: s\nrule: r\n');
+    process.env['FAKE_SUBMIT'] = JSON.stringify({ result: RESULT, verdict: { conflicts: [] } });
+    expect(await start('--file', 'intents.yml')).toBe(0);
+    expect((await session()).data.state).toBe('done');
+    const judge = (await calls()).find((c) => c.message === 'verdict');
+    expect(judge?.prompt).toContain('- context/conventions/other.yml');
+    expect(judge?.prompt).not.toContain('foreign.yml');
+  });
+
+  it('--file не по схеме: короткая ошибка с ожидаемой формой, код 2, без полной справки', async () => {
+    await project();
+    await put('bad.yml', '- kind: idea\n  summary: x\n');
+    const errors: string[] = [];
+    vi.spyOn(console, 'error').mockImplementation((...a: unknown[]) => {
+      errors.push(a.join(' '));
+    });
+    expect(
+      await run([
+        'docs-delta',
+        'start',
+        '--name',
+        'naming',
+        '--root',
+        root,
+        '--home',
+        home,
+        '--file',
+        'bad.yml',
+      ]),
+    ).toBe(2);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain('ожидается: intents: [{kind, summary, evidence}]');
+    expect(existsSync(path.join(home, 'sessions'))).toBe(false);
   });
 
   it('противоречие без дословной цитаты отклоняется — правка проходит', async () => {

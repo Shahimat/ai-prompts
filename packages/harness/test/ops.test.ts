@@ -9,8 +9,11 @@ import { main } from '@shahimat/cli';
 import { isRecord } from '@shahimat/ai-core';
 import { openSession, listSessions } from '#harnesses/core/store/session';
 import {
+  affirmation,
   briefLines,
+  callRead,
   handle,
+  levelOf,
   launchdPlist,
   loadLimits,
   loadProvider,
@@ -487,5 +490,154 @@ describe('ops: провайдеры и дашборд', () => {
     } finally {
       server.close();
     }
+  });
+});
+
+const VCS_PROVIDER = `import { appendFileSync, readFileSync } from 'node:fs';
+import path from 'node:path';
+export default {
+  interface: 'vcs',
+  name: 'pub',
+  create: async (_job, ctx) => ctx.repo,
+  diff: async (dir) => readFileSync(path.join(dir, 'README.md'), 'utf8'),
+  remove: async () => undefined,
+  publish: async (target, change) => { appendFileSync(process.env.FAKE_PUBLISH, target + ' ' + change.ref + '\\n'); return 'change-1'; },
+};
+`;
+
+describe('ticket-work: лестница проверок и публикация', () => {
+  const ROLES = {
+    researcher: { submit: result('исследование') },
+    implementer: { submit: result('сделано') },
+    reviewer: { submit: OK_REVIEW },
+  };
+
+  beforeEach(async () => {
+    await put('target/README.md', 'hello world\n');
+    await put('.agents/providers/vcs/pub.mjs', VCS_PROVIDER);
+    await put('providers/review/fake.mjs', REVIEW_PROVIDER, home);
+    await put(
+      'context/ops.yml',
+      [
+        'providers:',
+        '  vcs: { provider: pub, system: репозиторий кода }',
+        '  review: fake',
+        'repo: target',
+        'verify:',
+        '  - node -e "process.exit(0)"',
+        '',
+      ].join('\n'),
+    );
+    vi.stubEnv('FAKE_PUBLISH', path.join(home, 'publish.log'));
+    vi.stubEnv('FAKE_REVIEW', path.join(home, 'review.json'));
+    await put('review.json', JSON.stringify({ items: [] }), home);
+  });
+
+  it('«да» с хвостом принимает план; публикация после зелёного verify; влитие закрывает job', async () => {
+    await put('context/autonomy.yml', 'levels:\n  self: [vcs.publish@target]\n');
+    byRole(ROLES);
+    await run(['ticket-work', 'start', 'tasks/t1.md']);
+    const { short } = await job();
+    const dir = path.join(root, '.ops', 'jobs', short);
+    expect(
+      await main(['ticket-work', 'answer', short, 'да. только README', '--home', home], NOW),
+    ).toBe(0);
+    expect(await read('plan-note.md', dir)).toBe('только README\n');
+    expect(await stateOf()).toBe('awaiting');
+    expect(await readFile(path.join(home, 'publish.log'), 'utf8')).toBe('target tasks/t1.md\n');
+    expect(await read('verify.ok', dir)).toMatch(/^[0-9a-f]+\n$/);
+    await put('review.json', JSON.stringify({ items: [], done: true }), home);
+    await run(['ops', 'tick'], new Date(Date.now() + 60_000));
+    expect((await events()).map((e) => e.kind)).toContain('external');
+    expect(await main(['ticket-work', 'open', short, '--home', home], NOW)).toBe(0);
+    expect(await stateOf()).toBe('done');
+  });
+
+  it('без разрешения в политике публикации нет: job ждёт пользователя на ready', async () => {
+    byRole(ROLES);
+    await run(['ticket-work', 'start', 'tasks/t1.md']);
+    const { short } = await job();
+    await main(['ticket-work', 'answer', short, 'да', '--home', home], NOW);
+    expect(await stateOf()).toBe('ready');
+    expect(existsSync(path.join(home, 'publish.log'))).toBe(false);
+  });
+
+  it('атрибуция агента в commit.md валит verify', async () => {
+    byRole(ROLES);
+    await run(['ticket-work', 'start', 'tasks/t1.md']);
+    const { short } = await job();
+    const dir = path.join(root, '.ops', 'jobs', short);
+    await put('commit.md', 'feat: x\n\nCo-Authored-By: Agent <a@b>\n', dir);
+    await main(['ticket-work', 'answer', short, 'да', '--home', home], NOW);
+    expect(await read('verify.log', dir)).toContain('атрибуция агента');
+    expect(await stateOf()).toBe('failed');
+  });
+
+  it('карточка без DoD не берётся в работу: вопрос на intake', async () => {
+    await put('tasks/t2.md', '# Без DoD\n\nТекст\n');
+    byRole(ROLES);
+    await run(['ticket-work', 'start', 'tasks/t2.md']);
+    expect(await stateOf()).toBe('intake');
+    expect((await events()).find((e) => e.kind === 'question')?.text).toContain('нет DoD');
+  });
+});
+
+describe('ops: mapping, проверка провайдеров и строка прогонов', () => {
+  it('providers check: интерфейс без записи mapping или с ошибкой — код 1; none с why — ok', async () => {
+    await put(
+      'context/ops.yml',
+      [
+        'providers:',
+        '  tasks: { provider: local, system: файлы задач }',
+        '  vcs: git',
+        '  review: { provider: none, why: ревью нет }',
+        '  checks: { provider: none, why: CI нет }',
+        'probe:',
+        '  tasks: tasks/t1.md',
+        '',
+      ].join('\n'),
+    );
+    out = [];
+    expect(await run(['ops', 'providers', 'check'])).toBe(1);
+    const text = out.join('\n');
+    expect(text).toContain('карточка «Добавить приветствие», DoD 1');
+    expect(text).toMatch(/notify\t.*unmapped/);
+    await put(
+      'context/ops.yml',
+      `${await read('context/ops.yml')}`.replace(
+        'probe:',
+        '  notify: { provider: none, why: нет }\nprobe:',
+      ),
+    );
+    expect(await run(['ops', 'providers', 'check'])).toBe(0);
+  });
+
+  it('line: живая сессия автомата проекта — имя, задача, состояние, ожидание ответа', async () => {
+    byRole({ researcher: { submit: result('', ['вопрос?']) } });
+    await run(['ticket-work', 'start', 'tasks/t1.md']);
+    const { short } = await job();
+    out = [];
+    expect(await run(['ops', 'line'], new Date())).toBe(0);
+    expect(out).toEqual([`ticket-work ${short} · tasks/t1.md · research · ждёт ответа`]);
+  });
+
+  it('автономия: запись с целью сильнее записи без неё; vcs.write закрывает любую запись vcs', () => {
+    const policy = { self: ['vcs.publish@target'], ask: [], never: ['vcs.write'] };
+    expect(levelOf(policy, 'vcs.publish', 'target', true)).toBe('self');
+    expect(levelOf(policy, 'vcs.publish', 'project', true)).toBe('never');
+    expect(levelOf(policy, 'tasks.update', 'Q-1', true)).toBe('ask');
+    expect(
+      levelOf({ self: ['tasks.update@Q'], ask: [], never: [] }, 'tasks.update', 'Q-1', true),
+    ).toBe('self');
+  });
+
+  it('согласие с хвостом и чтение только объявленных методов', async () => {
+    expect(affirmation('да. только README')).toEqual({ yes: true, rest: 'только README' });
+    expect(affirmation('Да')).toEqual({ yes: true, rest: '' });
+    expect(affirmation('дай подумать').yes).toBe(false);
+    const tasks = await loadProvider(root, home, 'tasks', 'local');
+    await expect(Promise.resolve().then(() => callRead(tasks, 'drop', []))).rejects.toThrow(
+      'не объявлен в интерфейсе',
+    );
   });
 });

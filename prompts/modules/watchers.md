@@ -37,7 +37,12 @@ feature:
   без изменений — ноль токенов; L1 — роль `watch-triage` (haiku):
   `ignore`, `notify` или `act`; L2 — роль `watch-request` (sonnet):
   запрос в job задачи (событие `feedback`, job возвращается в правку)
-  и действия в PR строками `act:` — по политике автономии.
+  и действия строками `act:` — `review.comment`, `checks.start` — по
+  политике автономии.
+- **Внешнее событие job**: job в `awaiting` ставит наблюдателей
+  `checks` и `review` по опубликованному изменению сам; наблюдатель
+  `review` с `until: merged` при влитии снимается и продолжает job
+  (событие `external`).
 - **Один планировщик на машину**: реестр проектов
   `~/.config/harness/ops/projects.yml`, один unit (провайдер
   `schedule`: `launchd` на macOS, `systemd` на Linux, свой — на другой

@@ -7,7 +7,7 @@ import { listSessions } from '#harnesses/core/store/session';
 import { loadAutonomy, loadOpsConfig } from './config.ts';
 import { emit } from './events.ts';
 import { readYaml, remove, writeAtomic, writeYaml } from './files.ts';
-import { addFeedback, JOB_HARNESS } from './jobs.ts';
+import { addFeedback, JOB_HARNESS, markExternal } from './jobs.ts';
 import { cached, loadRegistry } from './machine.ts';
 import { hashOf, OPS_VERSION, posixRelative, projectFile, watchesDir } from './paths.ts';
 import {
@@ -353,6 +353,16 @@ export async function tickProject(home: string, root: string, now: Date): Promis
         await stopWatch(root, w.id);
         result.stopped++;
         await emit(home, root, 'watch-stopped', `наблюдатель ${w.id} снят: ${w.until}`, w.job);
+        if (w.job !== undefined && w.until === 'merged') {
+          await markExternal(root, w.job, `${w.interface} «${w.query}»: ${w.until}`);
+          await emit(
+            home,
+            root,
+            'external',
+            `job ${w.job}: ${w.until} — ai ticket-work open ${w.job}`,
+            w.job,
+          );
+        }
         continue;
       }
       await writeYaml(watchFile(root, w.id), w);

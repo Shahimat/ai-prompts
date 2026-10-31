@@ -25,6 +25,7 @@ import {
   scheduleName,
 } from './providers.ts';
 import { activeRoles, pollMs, waitingRoles } from './runner.ts';
+import { liveLines, providersReport, reportFails, reportLines } from './inspect.ts';
 import { serveBoard } from './serve.ts';
 import {
   addWatch,
@@ -263,6 +264,17 @@ async function scheduleStatus(args: CommandArgs): Promise<number> {
   return 0;
 }
 
+async function liveLine(args: CommandArgs): Promise<number> {
+  for (const l of await liveLines(homeOf(args), args.root, args.now)) console.log(l);
+  return 0;
+}
+
+async function providersCheck(args: CommandArgs): Promise<number> {
+  const rows = await providersReport(args.root, homeOf(args));
+  for (const l of reportLines(rows)) console.log(l);
+  return reportFails(rows) ? 1 : 0;
+}
+
 async function act(args: CommandArgs): Promise<number> {
   const iface = param(args, 'interface');
   if (!isInterface(iface)) throw new UsageError(`нет интерфейса ${iface}`);
@@ -293,6 +305,8 @@ const node = (
 export const OPS_NODES: readonly CommandNode[] = [
   node(['brief'], 'query', brief),
   node(['status'], 'query', status),
+  node(['line'], 'query', liveLine),
+  node(['providers', 'check'], 'query', providersCheck),
   node(['wait'], 'mutation', wait, '[--all] [--timeout <секунды>] [--home <dir>]'),
   node(
     ['watch', 'add', '<interface>', '<query>'],
