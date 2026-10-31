@@ -5,6 +5,7 @@
 *.swo
 .claude/
 .claude/artifacts/
+.opencode/worktrees/
 node_modules/
 dist/
 coverage/

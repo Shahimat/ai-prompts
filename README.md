@@ -1,7 +1,10 @@
 # ai-prompts
 
-Личная коллекция промптов для работы с AI-агентами (Claude Code, ChatGPT,
-Cursor и т.п.).
+Личная коллекция промптов для работы с AI-агентами (OpenCode, Claude Code,
+ChatGPT, Cursor и т.п.).
+
+Точка входа агента — `AGENTS.md`. Claude Code читает `CLAUDE.md`, который
+импортирует `AGENTS.md`.
 
 ## Идея
 
