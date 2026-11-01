@@ -158,12 +158,12 @@
     "59df1d74a41f": {
       "question": "журнал решений > свой тег журнала модуль добавляет только через provides.changelog_tags",
       "evidence": {
-        "@module-tags": "db579e46c3c790a4d2bc943f890200dd4e081d5ab0d29da0a3ad886fb8ca7f2b"
+        "@module-tags": "bafca286daf7a45d373a0f482e0b8ad9eb03afdf6ebdc41a70bc50f70560f966"
       },
       "verdict": true,
-      "quote": "changelog_tags: [<теги журнала решений модуля>]",
+      "quote": "`provides.changelog_tags` подключённых модулей;",
       "ref": "@module-tags",
-      "reason": "собственный тег журнала модуль добавляет только через provides.changelog_tags",
+      "reason": "Тег журнала модуля попадает в список через provides.changelog_tags подключённых модулей.",
       "at": "2026-11-01"
     },
     "5def1c64ae06": {
@@ -191,12 +191,12 @@
     "63aaccc6f834": {
       "question": "[harness] layers > skill запускает только то, что объявлено в metadata.runs; остальные команды harness лишь упоминает",
       "evidence": {
-        "@skill-runs": "9ca48f5e22f4ddf255156c3352618da36e4f193a92720a2c9603bf419266c62e"
+        "@skill-runs": "f0cb01acc80b5500bbd58bc3be80a5ce099d85cdeadb3cdb44d9d8a003e5e833"
       },
       "verdict": true,
-      "quote": "Сам skill запускает одно: `ai refresh` в конце каждой задачи",
+      "quote": "Сам skill запускает одно: `ai refresh` в конце каждой задачи и",
       "ref": "@skill-runs",
-      "reason": "Остальное — справка: что делает команда и кто её запускает.",
+      "reason": "Каждый skill объявляет единственную команду в metadata.runs, остальные команды harness идут как справка.",
       "at": "2026-11-01"
     },
     "694f0f4b5141": {
@@ -612,13 +612,13 @@
     "fea56d1882e8": {
       "question": "поведение ключевых skills > contract-setup: модули подключаются по одному, каждый — с manifest и отчётом",
       "evidence": {
-        "@module-install": "fd4aecca9077acb483bad9ed9d650b84460e66c9b2d2e5e682f621874368d219"
+        "@module-install": "6092cebbf78d022f9bd2f2e6fbd8787eaacc1678846eaf2655421c506ca35a92"
       },
       "verdict": true,
       "quote": "По одному модулю; модуль — отдельный шаг с отчётом (skill `workflow`).",
       "ref": "@module-install",
-      "reason": "Шаг 4 задаёт manifest context/modules/<key>.yml для каждого модуля.",
-      "at": "2026-10-28"
+      "reason": "Шаг подключения — по одному модулю с отчётом, далее manifest context/modules/<key>.yml.",
+      "at": "2026-11-01"
     },
     "ff81d6f20d87": {
       "question": "plan-review › переход gathering —gathered→ > планер переходит к записи ожиданий, когда список его открытых вопросов к пользователю пуст",
@@ -676,9 +676,20 @@
       "at": "2026-10-28"
     },
     "expectations/harness.expect.ts": {
-      "titles": "499d46869f3acdcc6db909cf6438090794ad7f1ec721a3f7ac28c604c4b37c8c",
-      "contradictions": [],
-      "unmeasurable": [],
+      "titles": "cb85709d77d1357700bc49002784d4ecb25ee15b2392c120af1a56c81895bd62",
+      "contradictions": [
+        {
+          "a": "19aa435d4910",
+          "b": "b3c410031708",
+          "reason": "Один и тот же слой `scripts` отнесён к разным пакетам: `19aa435d4910` говорит, что скрипты — у `@shahimat/cli` («точка входа ai и скрипты»), а `b3c410031708` завершает цепочку слоёв `@shahimat/ai-core` как «shared → lib → commands → scripts». Одновременно оба утверждения выполняться не могут."
+        }
+      ],
+      "unmeasurable": [
+        {
+          "id": "c7dfae164cd9",
+          "reason": "«без своей логики» не задаёт наблюдаемого критерия: не определено, что считать «своей логикой» (ветвления, вычисления, вызовы, побочные эффекты). По тексту ожидания нельзя ответить «да/нет» без обращения к неоговорённой реализации."
+        }
+      ],
       "at": "2026-11-01"
     },
     "expectations/presets.expect.ts": {

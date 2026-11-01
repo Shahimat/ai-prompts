@@ -134,8 +134,8 @@ skill — протокол их выбора, подключения и откл
 6. Адаптеры, индекс и проверки:
    <!-- expect:skill-runs -->
    <!-- metadata.runs: refresh -->
-   `ai refresh`, если подключён harness; иначе обнови производные
-   файлы сам (`AGENTS.md` → «Адаптеры» ядра).
+   `ai refresh`; производные файлы — `ai adapters sync`, руками
+   не правь.
    <!-- /expect:skill-runs -->
 <!-- /expect:module-tags -->
 <!-- /expect:module-install -->

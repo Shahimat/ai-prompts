@@ -33,6 +33,8 @@ export async function cliMain(
       root: { type: 'string' },
       out: { type: 'string' },
       file: { type: 'string' },
+      ticket: { type: 'string' },
+      baseline: { type: 'string' },
       html: { type: 'string' },
       port: { type: 'string' },
       'raw-base': { type: 'string' },
@@ -63,6 +65,8 @@ export async function cliMain(
   const args: CommandArgs = { root, now };
   if (values.out !== undefined) args.out = values.out;
   if (values.file !== undefined) args.file = values.file;
+  if (values.ticket !== undefined) args.ticket = values.ticket;
+  if (values.baseline !== undefined) args.baseline = values.baseline;
   if (values.html !== undefined) args.html = values.html;
   if (values.port !== undefined) args.port = values.port;
   if (values['raw-base'] !== undefined) args.rawBase = values['raw-base'];

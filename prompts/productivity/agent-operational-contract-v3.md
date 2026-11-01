@@ -529,7 +529,6 @@ pre-processing искажает контент, SHA не сойдётся. Сч�
 frontmatter с ожидаемым. Не совпало — стоп: защита от подмены URL.
 
 ## Установка
-
 ### Развилка
 
 - **greenfield** — документации нет или только пустой `README.md`;
@@ -545,12 +544,13 @@ frontmatter с ожидаемым. Не совпало — стоп: защит�
 2. Спроси одним блоком: название и одна строка о проекте, стек,
    namespaces, инструменты (Claude Code, Codex, OpenCode, другие), нужен
    ли hook docs guard.
-3. Поставь ядро: `@shahimat/cli` и `@shahimat/ai-core` в
+3. Поставь ядро: `@shahimat/cli`, `@shahimat/ai-core` и `vitest` в
    `devDependencies` (версии из `npm view`; нет `package.json` — создай
    минимальный), `npm install` после «да»; skills и роли из индекса,
    `AGENTS.md` по шаблону, `context/project.yml`, `context/ai-core.yml`,
    `context/autonomy.yml`, `context/skills.yml` (роли по `role_skills`
-   пресета), пустой `goals/`; в `.gitignore` — `.ops/operator/` и
+   плюс core `contract-setup`, `workflow`, `source-sync`, `cli` с
+   `roles: []`), пустой `goals/`; в `.gitignore` — `.ops/operator/` и
    `.ops/locks/`; затем `npx ai refresh`.
 4. Запусти skill `contract-setup`: чеклист возможностей.
 5. Отчёт: что поставлено, где лежит, что дальше.

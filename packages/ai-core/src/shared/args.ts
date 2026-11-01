@@ -2,6 +2,8 @@ export interface CommandArgs {
   root: string;
   out?: string;
   file?: string;
+  ticket?: string;
+  baseline?: string;
   html?: string;
   port?: string;
   rawBase?: string;

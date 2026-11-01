@@ -4,9 +4,12 @@ import { runContext } from '#commands/context/index';
 import { runDelta } from '#commands/delta/index';
 import { runDocsGuard } from '#commands/docs/index';
 import { runExpect } from '#commands/expect/index';
+import { runGoals } from '#commands/goals/index';
+import { runOperator } from '#commands/operator/index';
 import { runOutdated } from '#commands/outdated/index';
 import { runIndex } from '#commands/prompt-index/index';
 import { runRoleCommand } from '#commands/role/index';
+import { runRoles, runSkills } from '#commands/roles/index';
 import { runSecretsScan } from '#commands/secrets/index';
 import type { CommandNode } from '#shared/node';
 
@@ -109,6 +112,43 @@ export const COMMAND_NODES: readonly CommandNode[] = [
     effect: 'mutation',
     options: '[--apply | --run]',
     run: (args) => runExpect('judge', args),
+  },
+  {
+    path: ['goals', 'check', '<file>'],
+    kind: 'command',
+    effect: 'query',
+    options: '--ticket <key> [--baseline <path>]',
+    run: (args) => runGoals('check', args),
+  },
+  {
+    path: ['goals', 'status'],
+    kind: 'command',
+    effect: 'query',
+    run: (args) => runGoals('status', args),
+  },
+  {
+    path: ['goals', 'status', '<file>'],
+    kind: 'command',
+    effect: 'query',
+    run: (args) => runGoals('status', args),
+  },
+  {
+    path: ['roles', 'check'],
+    kind: 'command',
+    effect: 'query',
+    run: (args) => runRoles('check', args),
+  },
+  {
+    path: ['skills', 'check'],
+    kind: 'command',
+    effect: 'query',
+    run: (args) => runSkills('check', args),
+  },
+  {
+    path: ['operator', 'state', 'check'],
+    kind: 'command',
+    effect: 'query',
+    run: (args) => runOperator('check', args),
   },
   {
     path: ['index', 'build'],

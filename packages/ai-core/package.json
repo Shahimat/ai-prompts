@@ -59,13 +59,13 @@
   "dependencies": {
     "@hpcc-js/wasm-graphviz": "^1.29.2",
     "ajv": "^8.20.0",
+    "typescript": "^5.9.3",
     "yaml": "^2.9.1"
   },
   "devDependencies": {
+    "@shahimat/cli": "0.1.2",
     "@types/node": "^24.19.2",
-    "typescript": "^7.0.2",
-    "vitest": "^5.0.4",
-    "@shahimat/cli": "0.1.2"
+    "vitest": "^5.0.4"
   },
   "publishConfig": {
     "access": "public",

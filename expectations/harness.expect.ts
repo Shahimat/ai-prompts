@@ -68,7 +68,7 @@ budget({ crit: 0, warn: 5 });
 
 describe('[harness] common', () => {
   crit(
-    'состав: команды ai-core — check, refresh, changelog, context, adapters, delta, docs, outdated, expect, index, secrets, role; harness — plan-review, docs-delta, source-sync, ticket-work, ops',
+    'состав: команды ai-core — check, refresh, changelog, context, adapters, delta, docs, outdated, expect, goals, roles, skills, operator, index, secrets, role',
     () => Check.composition(),
   );
   crit(
@@ -738,6 +738,12 @@ const DECLARED_COMMANDS = [
   'expect lint <file>',
   'expect judge <file>',
   'expect serve <file>',
+  'goals check <file>',
+  'goals status',
+  'goals status <file>',
+  'roles check',
+  'skills check',
+  'operator state check',
   'delta check',
   'delta close',
   'outdated',
@@ -864,13 +870,17 @@ class Check {
       'docs',
       'docs-delta',
       'expect',
+      'goals',
       'index',
+      'operator',
       'ops',
       'outdated',
       'plan-review',
       'refresh',
       'role',
+      'roles',
       'secrets',
+      'skills',
       'source-sync',
       'ticket-work',
     ]);
