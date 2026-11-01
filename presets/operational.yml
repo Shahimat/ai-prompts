@@ -1,4 +1,4 @@
-# Операционный проект: свой код, домен, ручные процедуры, очередь задач.
+# Операционный проект: свой код, домен, ручные процедуры.
 # Базовый вид — заменяет agent-operational-contract-v2 для новых проектов.
 key: operational
 title: Операционный проект — код, домен и задачи
@@ -6,5 +6,9 @@ contract: agent-operational-contract-v3
 modules:
   - key: domain
   - key: manuals
-  - key: goals
-  - key: harness
+role_skills:
+  operator: [operator-feedback]
+  researcher: [research, domain, manuals]
+  executor: [executor, domain, manuals]
+  judge: [judge, domain, manuals]
+  librarian: [librarian, domain, manuals]

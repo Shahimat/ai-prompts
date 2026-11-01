@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Бриф роли — тело сообщения brief",
+  "type": "object",
+  "required": ["role", "goal", "pointers", "output"],
+  "additionalProperties": false,
+  "properties": {
+    "role": {
+      "description": "Роль-адресат: core или кастомная (kebab-case), кроме operator",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$"
+    },
+    "goal": { "type": "string", "minLength": 1, "maxLength": 300, "pattern": "^[^\\n]+$" },
+    "pointers": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1, "maxLength": 300 }
+    },
+    "worktree": { "type": "string", "minLength": 1 },
+    "constraints": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1, "maxLength": 300 }
+    },
+    "deadline": { "type": "string", "minLength": 1 },
+    "output": { "type": "string", "minLength": 1, "maxLength": 300 },
+    "questions": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1, "maxLength": 300 }
+    }
+  }
+}

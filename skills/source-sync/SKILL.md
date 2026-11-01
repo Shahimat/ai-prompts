@@ -101,7 +101,7 @@ Manifest каждого модуля — `context/modules/<key>.yml` со сво
 8. После «да»: применяешь план к артефактам контракта — `.agents/`,
    блоки `AGENTS.md`, manifest'ы `context/modules/`, блок `sync` в
    `context/project.yml`; правки слоёв документации проекта — только
-   через docs-keeper. Затем обнови `sync.index_sha`, `synced_sha`
+   через librarian. Затем обнови `sync.index_sha`, `synced_sha`
    контракта и модулей, SHA в `parts`, `synced_at`; при обновлении
    harness — `version` в `context/ai-core.yml`. Адаптеры и проверку с
    harness делает resume процесса (шаг 2), без harness — вручную.

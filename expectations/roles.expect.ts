@@ -26,13 +26,21 @@ budget({ crit: 0, warn: 0 });
 
 describe('[roles] формат', () => {
   crit(
-    'frontmatter каждой роли в agents/ соответствует схеме agent-frontmatter: name, description, output и необязательные skills, tools, model',
+    'frontmatter каждой роли в agents/ соответствует схеме agent-frontmatter: name, description, model, output и необязательные tools',
     () => Check.roleSchema(),
   );
-  crit('роль judge — только чтение: tools Read, Glob, Grep; output — verdict', () =>
-    Check.judgeReadOnly(),
+  crit(
+    'frontmatter ролей контракта соответствует схеме role: kind, lifecycle, permissions и artifacts',
+    () => Check.roleContractSchema(),
   );
-  crit('роль docs-keeper возвращает итог сообщением result', () => Check.docsKeeperResult());
+  crit(
+    'роль judge проверяет только чтением и правит goals/*.expect.ts: tools Read, Glob, Grep, Edit, Bash; output — verdict',
+    () => Check.judgeReadOnly(),
+  );
+  crit('модели ролей: researcher, executor, external-executor, librarian — max, judge — low', () =>
+    Check.roleModels(),
+  );
+  crit('роль librarian возвращает итог сообщением result', () => Check.librarianResult());
 });
 
 describe('[roles] протокол', () => {
@@ -40,7 +48,7 @@ describe('[roles] протокол', () => {
     Check.protocolClosed(),
   );
   crit(
-    'вход docs-keeper — схема intents: kind из decision, fact, rule, behavior-change, task, manual, summary в одну строку, evidence; YAML-список принимается',
+    'вход librarian — схема intents: kind из decision, fact, rule, behavior-change, task, manual, summary в одну строку, evidence; YAML-список принимается',
     () => Check.intentsSchema(),
   );
   crit(
@@ -53,15 +61,15 @@ describe('[roles] процессы', () => {
   crit('expect judge --run отвечает на задания ролью judge', () =>
     Check.optionOf('expect judge <file>', '--run'),
   );
-  crit('docs-delta start --file <намерения> — apply выполняет роль docs-keeper без handoff', () =>
+  crit('docs-delta start --file <намерения> — apply выполняет роль документации без handoff', () =>
     Check.optionOf('docs-delta start', '--file'),
   );
   crit(
-    'ядро контракта v3 ставит роли docs-keeper, judge, oracle, researcher и reviewer: judge проверяет доку в docs-delta',
+    'ядро контракта v3 ставит роли researcher, executor, judge и librarian; oracle, reviewer, implementer и docs-keeper отсутствуют',
     () => Check.coreRoles(),
   );
   crit(
-    'с harness основная сессия передаёт намерения процессу docs-delta напрямую (правило 4 шаблона AGENTS.md), без субагента docs-keeper',
+    'правило 4 шаблона AGENTS.md: документацию пишет librarian по docs_request, без правки в основной сессии',
     () => Check.intentsToHarness(),
   );
   crit('ai plan-review заморожен: дизайн объявляет статус «заморожен»', () =>
@@ -77,16 +85,43 @@ class Check {
     await expectSchema(await frontmatters(paths), `${SCHEMAS}/agent-frontmatter.schema.json`);
   }
 
+  static async roleContractSchema(): Promise<void> {
+    const keys = ['researcher', 'executor', 'external-executor', 'judge', 'librarian'];
+    const paths = (await indexEntries())
+      .filter((e) => e.kind === 'agent' && keys.includes(e.key))
+      .map((e) => e.path);
+    await expectSchema(await frontmatters(paths), `${SCHEMAS}/role.schema.json`);
+  }
+
   static async judgeReadOnly(): Promise<void> {
     const fm = (await doc('agents/judge.md')).frontmatter ?? {};
-    expect({ tools: stringList(fm['tools'], 'judge: tools'), output: fm['output'] }).toEqual({
-      tools: ['Read', 'Glob', 'Grep'],
+    expect({
+      tools: stringList(fm['tools'], 'judge: tools'),
+      output: fm['output'],
+      permissions: stringList(fm['permissions'], 'judge: permissions'),
+    }).toEqual({
+      tools: ['Read', 'Glob', 'Grep', 'Edit', 'Bash'],
       output: 'verdict',
+      permissions: ['read', 'goals-expect-write', 'verdicts-write', 'results-write', 'browser'],
     });
   }
 
-  static async docsKeeperResult(): Promise<void> {
-    expect((await doc('agents/docs-keeper.md')).frontmatter?.['output']).toBe('result');
+  static async roleModels(): Promise<void> {
+    const expected: Record<string, string> = {
+      researcher: 'deepseek/deepseek-flash#max',
+      executor: 'deepseek/deepseek-flash#max',
+      'external-executor': 'deepseek/deepseek-flash#max',
+      librarian: 'deepseek/deepseek-flash#max',
+      judge: 'deepseek/deepseek-flash#low',
+    };
+    for (const [name, model] of Object.entries(expected)) {
+      const fm = (await doc(`agents/${name}.md`)).frontmatter ?? {};
+      expect({ name, model: fm['model'] }).toEqual({ name, model });
+    }
+  }
+
+  static async librarianResult(): Promise<void> {
+    expect((await doc('agents/librarian.md')).frontmatter?.['output']).toBe('result');
   }
 
   static protocolClosed(): void {
@@ -118,16 +153,21 @@ class Check {
   }
 
   static async coreRoles(): Promise<void> {
-    const contract = await readRepo('prompts/productivity/agent-operational-contract-v3.md');
-    expect(contract).toContain(
-      'agents: {docs-keeper: <hex>, judge: <hex>, oracle: <hex>, researcher: <hex>, reviewer: <hex>}',
-    );
+    const roles = (await indexEntries()).filter((e) => e.kind === 'agent').map((e) => e.key);
+    expect(
+      ['researcher', 'executor', 'judge', 'librarian'].filter((r) => !roles.includes(r)),
+    ).toEqual([]);
+    expect(
+      roles.filter((r) => ['oracle', 'reviewer', 'implementer', 'docs-keeper'].includes(r)),
+    ).toEqual([]);
   }
 
   static async intentsToHarness(): Promise<void> {
     const contract = await readRepo('prompts/productivity/agent-operational-contract-v3.md');
     const rule = (/^4\. [\s\S]*?(?=^5\. )/m.exec(contract)?.[0] ?? '').replace(/\s+/g, ' ');
-    expect(rule).toContain('`npx ai docs-delta start --name <имя> --file -`');
+    expect(rule).toContain('librarian');
+    expect(rule).toContain('docs_request');
+    expect(rule).toContain('оператор, executor и judge');
   }
 
   static isolatedRun(): void {

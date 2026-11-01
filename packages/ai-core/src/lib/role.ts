@@ -13,7 +13,7 @@ import { CHANNEL_SERVER, PROTOCOL, SUBMIT_TOOL, SUBMIT_TOOL_ID } from './protoco
 
 export const ROLE_DIRS = ['.agents/agents', 'agents'] as const;
 export const READ_ONLY_TOOLS = ['Read', 'Glob', 'Grep'];
-const DEFAULT_MODEL = 'opus';
+const DEFAULT_MODEL = 'deepseek/deepseek-flash#max';
 const MAX_TURNS = 60;
 
 export const cliCommand = (): string[] => [...runtime().self];

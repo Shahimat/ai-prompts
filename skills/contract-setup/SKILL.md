@@ -2,7 +2,7 @@
 name: contract-setup
 metadata:
   runs: refresh
-description: Чеклист возможностей контракта v3 — выбрать, подключить и отключить модули (domain, manuals, goals, harness, worktrees и др.). Загружай при установке контракта и на «что добавить / убрать в проекте».
+description: Чеклист возможностей контракта v3 — выбрать, подключить и отключить модули (domain, manuals, worktrees, data-access и др.), роли и autonomy пресета. Загружай при установке контракта и на «что добавить / убрать в проекте».
 ---
 
 # contract-setup
@@ -16,7 +16,8 @@ skill — протокол их выбора, подключения и откл
 1. `curl` тянет индекс по `sync.index_source` из `context/project.yml`
    (правила fetch — skill `source-sync`).
 2. Из группы `modules` возьми записи, у которых `applicable_to`
-   содержит `agent-operational-contract-v3` и есть `feature`.
+   содержит `agent-operational-contract-v3`, есть `feature` и нет
+   `deprecated`.
 3. Подключённые сейчас — `context/modules/*.yml`.
 
 ## Шаг 2. Пресет
@@ -31,6 +32,13 @@ skill — протокол их выбора, подключения и откл
 чеклиста, а `answers` — дефолтами вопросов `asks`. Пресет — стартовая
 точка: пользователь правит отметки и ответы как обычно. Ключ пресета
 запиши в `context/project.yml` → `preset`.
+
+Роли и skills пресета — тоже install-time вход: `role_skills`
+инвертируй в `roles` записей `context/skills.yml`, `role_exceptions`
+запиши в `context/project.yml` → `roles.exceptions`, определения
+`roles` — в `.agents/agents/<name>.md`, `autonomy` — в
+`context/autonomy.yml`. Дальше runtime читает только `skills.yml` и файлы
+ролей; пресет вторым источником не остаётся.
 <!-- /expect:preset-first -->
 
 ## Шаг 3. Чеклист

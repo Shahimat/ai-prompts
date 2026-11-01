@@ -1,21 +1,45 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Frontmatter роли — agents/<name>.md",
+  "title": "Frontmatter субагента — agents/<name>.md",
   "type": "object",
-  "required": ["name", "description", "output"],
+  "required": ["name", "description", "model", "output"],
   "additionalProperties": false,
   "properties": {
     "name": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
     "description": { "type": "string", "minLength": 20, "maxLength": 300, "pattern": "^[^\\n]+$" },
-    "skills": { "type": "array", "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" } },
     "tools": { "type": "array", "items": { "type": "string", "minLength": 1 } },
     "model": {
-      "description": "Модель роли в harness и в субагенте Claude Code; по умолчанию opus",
-      "enum": ["opus", "sonnet", "haiku"]
+      "description": "Модель роли: DeepSeek V4.1 Flash 1017; max кроме judge — low",
+      "enum": ["deepseek/deepseek-flash#max", "deepseek/deepseek-flash#low"]
     },
     "output": {
       "description": "Сообщение протокола harness, которым роль возвращает итог",
       "enum": ["result", "verdict", "question"]
+    },
+    "kind": {
+      "description": "Вид роли контракта: primary — оператор, core — роль ядра, custom — роль проекта или модуля",
+      "enum": ["primary", "core", "custom"]
+    },
+    "permissions": {
+      "description": "Capability-уровень роли; гранулярные permissions — в context/skills.yml, уровни — в context/autonomy.yml",
+      "oneOf": [
+        { "type": "string", "minLength": 1 },
+        { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } }
+      ]
+    },
+    "lifecycle": {
+      "description": "Жизненный цикл сессии роли",
+      "enum": ["persistent", "fresh", "resumable", "paused"]
+    },
+    "concurrency": {
+      "description": "Сколько сессий роли может работать одновременно",
+      "oneOf": [{ "type": "integer", "minimum": 1 }, { "const": "unlimited" }]
+    },
+    "artifacts": {
+      "description": "Куда роль пишет артефакты",
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
     }
   }
 }

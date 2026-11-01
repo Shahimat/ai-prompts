@@ -4,16 +4,21 @@ kind: module
 applicable_to: [agent-operational-contract-v3]
 patterns: [source-sync]
 title: Модуль harness — автоматы через @shahimat/harness
-use_case: Возможность ядра v3. Добавляет в devDependencies проекта @shahimat/harness — автоматы docs-delta (запись в документацию ролями docs-keeper и judge) и source-sync (обновление из источника), а также исполнение своих автоматов проекта из .agents/harnesses/. Запуск — через CLI ai ядра.
+use_case: Возможность ядра v3. Добавляет в devDependencies проекта @shahimat/harness — автоматы docs-delta (запись в документацию ролями librarian и judge) и source-sync (обновление из источника), а также исполнение своих автоматов проекта из .agents/harnesses/. Запуск — через CLI ai ядра. Подключается только для headless/CI-задач, не по умолчанию.
 tags: [harness, automation, agent-contract, module]
 feature:
   summary: "@shahimat/harness — автоматы docs-delta и source-sync, свои автоматы проекта в .agents/harnesses/"
-  default: true
+  default: false
   requires: []
   conflicts: []
 ---
 
 # Модуль harness — автоматы
+
+> Headless-рантайм прошлой редакции. В operator-centric интерактивной
+> работе не обязателен: документацию пишет librarian напрямую. Модуль
+> остаётся для детерминированных headless/CI-задач; перенос имён ролей
+> внутри самого рантайма — вне итерации контракта.
 
 ## Назначение
 
@@ -21,13 +26,13 @@ feature:
 скрипт, а роли и агент работают внутри состояний. Модуль добавляет пакет
 `@shahimat/harness`, после чего CLI `ai` ядра знает автоматы:
 
-- `ai docs-delta` — запись в документацию: роль `docs-keeper` пишет,
+- `ai docs-delta` — запись в документацию: роль `librarian` пишет,
   `ai` проверяет, роль `judge` ищет противоречия, дельта закрывается;
 - `ai source-sync` — обновление из источника;
 - свои автоматы проекта из `.agents/harnesses/<name>/`.
 
 Без модуля всё остальное работает: команды и скрипты `ai` — ядро,
-запись в документацию — через субагента `docs-keeper`.
+запись в документацию — через субагента `librarian`.
 
 ## Что ставит
 

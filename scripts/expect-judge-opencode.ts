@@ -91,7 +91,15 @@ const ask = (task: Task, kind: 'batch' | 'lint'): unknown => {
       ? 'Верни JSON-массив ответов последним блоком сообщения; файл ответа не пиши.'
       : 'Верни JSON-объект с contradictions и unmeasurable последним блоком сообщения; файл ответа не пиши.',
   ].join(' ');
-  const result = run('opencode', ['run', '--standalone', '--agent', 'judge', prompt]);
+  const result = run('opencode', [
+    'run',
+    '--standalone',
+    '--agent',
+    'judge',
+    '--model',
+    'deepseek/deepseek-flash#low',
+    prompt,
+  ]);
   if (result.status !== 0) throw new Error(`opencode run judge: код ${result.status}: ${result.stderr.slice(-500)}`);
   return parseJson(result.stdout, kind);
 };

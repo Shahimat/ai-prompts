@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Формальное сообщение оператора и ролей",
+  "type": "object",
+  "required": ["id", "from", "to", "ticket", "kind", "summary", "created_at"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "from": { "$ref": "#/$defs/party" },
+    "to": { "$ref": "#/$defs/party" },
+    "ticket": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+    "kind": {
+      "enum": ["brief", "report", "verdict", "docs_request", "feedback", "event"]
+    },
+    "summary": { "type": "string", "minLength": 1, "maxLength": 300, "pattern": "^[^\\n]+$" },
+    "artifacts": { "$ref": "#/$defs/pointers" },
+    "evidence": { "$ref": "#/$defs/pointers" },
+    "status": { "type": "string", "minLength": 1 },
+    "questions": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1, "maxLength": 300 }
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "cycles": { "type": "integer", "minimum": 1 },
+        "time": { "type": "string", "minLength": 1 },
+        "deadline": { "type": "string", "minLength": 1 }
+      }
+    },
+    "created_at": { "type": "string", "minLength": 1 },
+    "body": {
+      "oneOf": [
+        { "$ref": "brief.schema.json" },
+        { "$ref": "report.schema.json" },
+        { "$ref": "verdict.schema.json" },
+        { "$ref": "feedback.schema.json" }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "kind": { "enum": ["brief", "report", "verdict", "feedback"] } } },
+      "then": { "required": ["body"] }
+    }
+  ],
+  "$defs": {
+    "party": {
+      "description": "Core-роль, кастомная роль (kebab-case) или operator/user/watcher/source",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$"
+    },
+    "pointers": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1, "maxLength": 300 }
+    }
+  }
+}

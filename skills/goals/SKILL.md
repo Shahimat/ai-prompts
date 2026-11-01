@@ -1,6 +1,7 @@
 ---
 name: goals
 description: Система целей и программ — очередь работы проекта в context/views/ (goals.yaml, goal--<key>.yaml, program--<key>.yaml), приоритеты, жизненный цикл, goal-consistency, отчёт о статусе. Загружай при работе с очередью, на «статус», «что дальше» и при планировании.
+deprecated: старая очередь context/views; в operator-centric v3 не применяется — работа живёт в goals/*.expect.ts
 ---
 
 # Система целей и программ
@@ -149,7 +150,7 @@ human-friendly формат (3–5 задач с явными ссылками �
 
 - что делать дальше → `context/views/goals.yaml`, затем нужный
   `goal--<key>.yaml`;
-- запись задачи или новой цели — через docs-keeper, с прогоном
+- запись задачи или новой цели — через librarian, с прогоном
   `goal-consistency`.
 
 ## Поля от других модулей

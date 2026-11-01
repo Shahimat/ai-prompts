@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Фидбек оператора — .ops/feedback/<ticket>.yml",
+  "type": "object",
+  "required": [
+    "ticket",
+    "period",
+    "metrics",
+    "observations",
+    "root_causes",
+    "recommendations",
+    "evidence"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "ticket": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+    "period": { "type": "string", "minLength": 1, "maxLength": 100 },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": { "type": ["number", "string"] }
+    },
+    "observations": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1, "maxLength": 300 }
+    },
+    "root_causes": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1, "maxLength": 300 }
+    },
+    "recommendations": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1, "maxLength": 300 }
+    },
+    "evidence": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1, "maxLength": 300 }
+    }
+  }
+}

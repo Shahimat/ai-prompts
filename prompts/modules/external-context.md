@@ -136,7 +136,7 @@ external:
 1. Проверь, что `domain` подключён (иначе — `contract-setup` добавит).
 2. Собери у пользователя целевые системы: ключ, URL, какие из них —
    источник реальности. План правки `context/project.yml` (`reality`,
-   `external`, `namespaces` из ответа) → «да» → через docs-keeper.
+   `external`, `namespaces` из ответа) → «да» → через librarian.
 3. Создай `context/glossary.yml` по шаблону.
 4. `local-checkout` — создай `context/local.yml` с путями пользователя,
    добавь строку в `.gitignore`.

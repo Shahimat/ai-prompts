@@ -6,11 +6,32 @@ contract: agent-operational-contract-v3
 modules:
   - key: domain
   - key: manuals
-  - key: goals
-  - key: harness
   - key: external-context
     answers:
       namespaces: [systems, org, processes, knowledge]
       starter-manuals: [onboarding, create-ticket, request-access]
       target-access: url-only
       legacy-v1: "no"
+  - key: data-access
+roles:
+  external-executor:
+    kind: custom
+    description: executor в удалённом проекте, GUI/CI-работы
+    model: deepseek/deepseek-flash#max
+    permissions: [remote-write, browser, data-access]
+    lifecycle: resumable
+    concurrency: 5
+    skills: [executor, domain, manuals, external-context, browser, data-access]
+    output: result
+    artifacts: [.ops/<ticket>/reports/]
+role_skills:
+  operator: [operator-feedback]
+  researcher: [research, domain, manuals, external-context, browser-read]
+  judge: [judge, domain, manuals, external-context, browser-read]
+  librarian: [librarian, domain, manuals, external-context]
+role_exceptions: [executor]
+autonomy:
+  levels:
+    self: []
+    ask: [browser.submit, vcs.publish]
+    never: [vcs.write]

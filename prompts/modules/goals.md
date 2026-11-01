@@ -8,12 +8,18 @@ use_case: Возможность ядра v3. Заводит очередь ра
 tags: [goals-programs, workflow, agent-contract, module]
 feature:
   summary: очередь работы — цели и программы с приоритетами и goal-consistency
-  default: true
+  default: false
   requires: []
   conflicts: []
+deprecated: "старая очередь context/views; в operator-centric v3 не ставится — работа живёт в goals/*.expect.ts"
 ---
 
 # Модуль goals — цели и программы как очередь работы
+
+> Deprecated. Старая очередь `context/views/` из редакции до
+> operator-centric. В v3-проектах не подключается: работа и приоритеты
+> живут в плоских `goals/*.expect.ts` — цели и
+> `program--<key>.expect.ts`. Модуль остаётся для старых проектов.
 
 ## Назначение
 

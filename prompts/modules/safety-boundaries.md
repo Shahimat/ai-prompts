@@ -91,7 +91,7 @@ provides:
 2. Добавь блок в `AGENTS.md` дословно.
 3. `app-behaviors: now` и подключён `domain` — план стартовых behavior
    по `scope` (шаблоны — skill), с entity, принимающей ввод человека;
-   «да» → через docs-keeper. `verified: false`, пока не проверены.
+   «да» → через librarian. `verified: false`, пока не проверены.
 4. `later` — задача «behavior safety-boundaries» в цель, если подключён
    `goals`; иначе — строка в итоговом отчёте.
 
@@ -116,7 +116,7 @@ provides:
 ## Отключение
 
 - Сначала предупреди: правило перестанет быть в контексте агента.
-  Отключение — явное решение пользователя, запись через docs-keeper.
+  Отключение — явное решение пользователя, запись через librarian.
 - Удаляются skill и блок `AGENTS.md`.
 - Behavior из `provides.files` — вопрос: удалить или оставить обычными
   behavior `domain`.

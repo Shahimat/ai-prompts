@@ -3,7 +3,13 @@ import { errorMessage } from '#shared/guards';
 import { normalizeEol, parseFrontmatter } from '#shared/frontmatter';
 import { isProtocolMessage, type ProtocolMessage } from './protocol.ts';
 
-export const ROLE_MODELS = ['opus', 'sonnet', 'haiku'] as const;
+export const ROLE_MODELS = [
+  'deepseek/deepseek-flash#max',
+  'deepseek/deepseek-flash#low',
+  'opus',
+  'sonnet',
+  'haiku',
+] as const;
 export type RoleModel = (typeof ROLE_MODELS)[number];
 
 export interface AgentDef {
@@ -17,7 +23,19 @@ export interface AgentDef {
   instructions: string;
 }
 
-const AGENT_KEYS = ['name', 'description', 'skills', 'tools', 'model', 'output'];
+const AGENT_KEYS = [
+  'name',
+  'description',
+  'skills',
+  'tools',
+  'model',
+  'output',
+  'kind',
+  'permissions',
+  'lifecycle',
+  'concurrency',
+  'artifacts',
+];
 
 const isRoleModel = (v: unknown): v is RoleModel => ROLE_MODELS.some((m) => m === v);
 

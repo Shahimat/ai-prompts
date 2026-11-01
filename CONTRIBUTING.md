@@ -109,8 +109,9 @@ Skills и субагенты, которые контракт или модул�
 - `skills/<name>/SKILL.md` (+ любые файлы рядом) — по стандарту Agent
   Skills: во frontmatter только `name` (совпадает с каталогом) и
   `description` (одна строка: что делает и когда загружать);
-- `agents/<name>.md` — frontmatter `name`, `description`, `skills`,
-  `tools`, тело — инструкция субагента.
+- `agents/<name>.md` — frontmatter `name`, `description`, `model`,
+  `tools`, тело — инструкция субагента; skills роли задаются в
+  `context/skills.yml`, не в файле роли.
 
 Контракт или модуль, который ставит skill, перечисляет его в
 `provides.skills`.

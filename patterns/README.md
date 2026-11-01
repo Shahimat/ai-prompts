@@ -101,8 +101,7 @@ frontmatter `patterns:`) или в рамках синхронизации то�
 - [`guardrail-dual-level`](guardrail-dual-level.md) — жёсткое правило
   модуля в двух уровнях: строки в блоке `AGENTS.md` (агент) и
   обязательные behavior с `verified` (приложение).
-- [`goals`](goals.md) — система целей и программ как internal-очередь
-  работы проекта (`context/views/goals.yaml` + `goal--<key>.yaml` +
-  `program--<key>.yaml`): приоритет = порядок, статусы без `done`,
-  жизненный цикл через `CHANGELOG.md` + удаление, кросс-целевая проверка
-  `goal-consistency`.
+- [`goals`](goals.md) — deprecated в operator-centric v3: система целей и
+  программ как internal-очередь работы (`context/views/goals.yaml` +
+  `goal--<key>.yaml` + `program--<key>.yaml`); остаётся для старых
+  проектов, новые работают в плоских `goals/*.expect.ts`.

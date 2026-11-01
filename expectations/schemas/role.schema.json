@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Frontmatter роли контракта — .agents/agents/<name>.md",
+  "description": "Расширяет agent-frontmatter: роль контракта объявляет kind и lifecycle; skills в роли нет — привязка в context/skills.yml",
+  "allOf": [
+    { "$ref": "agent-frontmatter.schema.json" },
+    {
+      "type": "object",
+      "required": ["kind", "lifecycle"],
+      "properties": {
+        "kind": { "enum": ["primary", "core", "custom"] },
+        "lifecycle": { "enum": ["persistent", "fresh", "resumable", "paused"] },
+        "concurrency": {
+          "oneOf": [{ "type": "integer", "minimum": 1 }, { "const": "unlimited" }]
+        },
+        "artifacts": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  ]
+}

@@ -48,8 +48,9 @@ v3 ещё не менялись. Следующий шаг — **16.2.1: схе�
   активный тикет на файл цели; параллель — между целями. Артефакты
   тикета — `.ops/<ticket>/`.
 - **Этапы цели.** `it.todo` — план; `it.todo` нет — готовый план; нет
-  `it.todo`/`crit.wip` и все `crit`/`warn` проходят — цель достигнута,
-  файл и импорт удаляются. Стадию показывает `ai goals status`.
+  `it.todo`/`crit.wip` и все тикеты приняты (≥80% `pass`) — цель
+  достигнута, файл и импорт удаляются. Стадию показывает `ai goals
+  status`.
 - **`goals/` коммитится.** Это рабочее пространство целей, замена
   `context/views`. Старая очередь goals/programs в новой модели не
   используется; паттерн и модуль `goals` остаются deprecated для старых
@@ -68,7 +69,30 @@ v3 ещё не менялись. Следующий шаг — **16.2.1: схе�
   memory-пути блокируется, настройки и hooks ставят адаптеры и проверяет
   `ai adapters check`.
 - **Judge resume** — только в цикле judge ↔ executor. Вернулись к
-  оператору — новый свежий judge.
+  оператору — новый свежий judge; запускает его executor по команде
+  оператора.
+- **Оператор всегда на связи.** Все роли оператор запускает только с
+  `background: true`; он не блокируется на субагенте и отвечает
+  человеку. Завершение роли будит оператора результатом; человек может
+  разбудить его напрямую.
+- **Модели закреплены.** Все роли — DeepSeek V4.1 Flash 1017
+  (`deepseek/deepseek-flash`); по умолчанию `#max`, judge — `#low`.
+  Бесплатные модели запрещены. Модель — обязательное поле frontmatter
+  роли.
+- **Результаты прогонов.** Рядом с каждым `*.expect.ts` лежит
+  `*.expect.json`: `timestamp` и `results`; оператор сбрасывает файл
+  перед циклом, judge добавляет запись `{run, items}`. Статусы —
+  `pass`/`удовлетворительно`/`fail`; во втором и последующих прогонах негатив
+  помечается `удовлетворительно`.
+- **Циклы.** Первый прогон judge — `pass`/`fail`; executor дорабатывает;
+  второй — негатив `удовлетворительно`. Оператор считает 80% `pass` по
+  `crit`/`warn` активного тикета (закрыто = `pass`); если меньше — может
+  один раз запустить повторный цикл executor→judge, после него — к
+  человеку.
+- **Делегирование executor.** Executor может запускать `judge` и
+  `researcher`; другие роли — нет. Глубина не больше 2 (оператор →
+  executor → judge/researcher); judge и researcher не запускают никого;
+  все запуски видны в GUI.
 - **Merge worktree** — оператор.
 - **Watcher-транспорт** — MCP + Unix socket; на Windows — named pipe
   или HTTP-fallback. Event log — JSONL.
@@ -163,6 +187,14 @@ jobs. Это хорошо для однозначных повторяемых �
   не считает их активными.
 - **Ограниченное состояние оператора.** Scratchpad — явный временный
   журнал, не memory.
+- **Оператор не блокируется.** Долгие роли — только `background: true`;
+  оператор всегда доступен человеку, просыпается на результате или
+  сообщении.
+- **Модели фиксированы.** `deepseek/deepseek-flash`, по умолчанию
+  `#max`, judge — `#low`; бесплатные модели запрещены.
+- **Результаты прогонов — файл.** Рядом с `*.expect.ts` лежит
+  `*.expect.json` с историей прогонов; решение о повторе — по нему, не
+  по чату.
 - **Фидбек в источник.** Оператор умеет собирать метрики работы,
   причины и рекомендации по улучшению контракта.
 
@@ -186,14 +218,14 @@ jobs. Это хорошо для однозначных повторяемых �
 
 ### 4.1 Оператор
 
-Один, primary, постоянная сессия.
+Один, primary, постоянная сессия. Модель — `deepseek/deepseek-flash#max`.
 
 **Читает:** `AGENTS.md`, `context/`, `docs/`, `goals/` (цели и
-программы), артефакты ролей.
+программы), `*.expect.json`, артефакты ролей.
 
 **Пишет:** `goals/program--<key>.expect.ts`,
 `goals/<goal>.expect.ts`, `.ops/operator/state.yml`,
-`.ops/feedback/<ticket>.yml`.
+`.ops/feedback/<ticket>.yml`, сброс `*.expect.json` перед циклом.
 
 **Не пишет:** `docs/`, `context/`, `CHANGELOG.md`, код.
 
@@ -209,11 +241,19 @@ jobs. Это хорошо для однозначных повторяемых �
 - фиксирует цель как `goals/<goal>.expect.ts`: `describe` цели и
   `describe('ticket: …')` на каждый тикет; на первом проходе —
   `it.todo`/`crit.wip`, затем механика проверок;
-- ведёт тикеты: один активный на файл цели, следующий — после закрытия
-  предыдущего; тикет закрыт, когда все его `crit` и `warn` зелёные;
+- ведёт тикеты: один активный на файл цели, следующий — после принятия
+  предыдущего; тикет принят, когда ≥80% его `crit`/`warn` — `pass`,
+  остальные `удовлетворительно` — принятый остаток;
 - держит `goals/program--<key>.expect.ts` как агрегаторы; удаляет цель
-  из её программы и из `goals/`, когда все её тикеты закрыты;
+  из её программы и из `goals/`, когда все её тикеты приняты;
 - состав целей, программы и бюджет — его собственность;
+- запускает роли только с `background: true`; не блокируется, всегда
+  отвечает человеку; просыпается на результате роли или сообщении;
+- перед циклом сбрасывает `*.expect.json` активной цели в
+  `{timestamp, results: []}` и запускает executor;
+- по результатам judge считает 80% `pass` по `crit`/`warn` активного
+  тикета; меньше — может один раз запустить повторный цикл
+  executor→judge, после него — к человеку;
 - выдаёт брифы ролям; параллельные задачи — параллельно,
   зависимые — последовательно;
 - выделяет worktree исполнителям; для external — удалённый target;
@@ -234,7 +274,9 @@ jobs. Это хорошо для однозначных повторяемых �
 
 ### 4.2 Researcher
 
-Всегда свежий контекст, без resume.
+Всегда свежий контекст, без resume. Модель —
+`deepseek/deepseek-flash#max`. Запускает оператор или executor в рамках
+тикета; researcher не запускает никого.
 
 **Читает:** всё, что нужно по задаче.
 
@@ -254,10 +296,14 @@ jobs. Это хорошо для однозначных повторяемых �
 
 ### 4.3 Executor
 
-Возобновляемая сессия; работает в своём worktree.
+Возобновляемая сессия; работает в своём worktree. Модель —
+`deepseek/deepseek-flash#max`. Может запускать `judge` и `researcher`;
+другие роли — нет. Глубина — не больше 2 (оператор → executor →
+judge/researcher); judge и researcher никого не запускают; запуски видны
+в GUI.
 
-**Читает:** цель и тикет, expectations, research, вердикты judge, код,
-документацию.
+**Читает:** цель и тикет, expectations, `*.expect.json`, research,
+вердикты judge, код, документацию.
 
 **Пишет:** код, тесты, конфиги, `.ops/<ticket>/reports/<id>.md` в своём
 worktree.
@@ -266,13 +312,20 @@ worktree.
 expectations.
 
 **Получает:** тикет, DoD, ограничения, worktree, указатели, бюджет
-циклов, прошлые замечания judge (без аргументов в чате).
+(два прогона judge + один повторный цикл), `*.expect.json`, прошлые
+замечания judge (без аргументов в чате).
 
 **Возвращает:** что сделано, какие проверки прошли, что осталось, где
 риски, указатель на diff/ветку.
 
 **Resume:** для доработок по замечаниям judge или оператора. Новая
 задача — новый worktree и, как правило, новая сессия.
+
+**Цикл.** Получает сброшенный `*.expect.json`; после работы запускает
+judge; judge пишет первый прогон. Читает результаты, дорабатывает,
+запускает judge снова; judge пишет второй прогон (негатив —
+`удовлетворительно`). Дальше executor ничего не делает, пока оператор не
+запустит повторный цикл.
 
 **Параллельность:** до 5 одновременно работающих executor; paused не
 считается. Один worktree — один executor. Два executor в одном checkout
@@ -310,7 +363,9 @@ expectations.
 ### 4.4 Judge
 
 Помогает executor завершить работу корректно. Это его интерес: не
-«завалить», а довести до соответствия DoD.
+«завалить», а довести до соответствия DoD. Модель —
+`deepseek/deepseek-flash#low`. Запускает executor; judge виден в GUI;
+глубина 2; сам judge никого не запускает.
 
 Всегда читает только результат и expectations; **аргументов и чата
 executor не видит**.
@@ -318,7 +373,10 @@ executor не видит**.
 **Читает:** expectations, DoD, артефакты результата, проверки; из файла
 цели — только свой `describe('ticket: …')`.
 
-**Пишет:** `.ops/<ticket>/verdicts/<cycle>.yml`; может править в
+**Пишет:** `.ops/<ticket>/verdicts/<run>.yml` и `*.expect.json`:
+добавляет запись `{run, items}` с результатами прогона. В первом
+прогоне статусы `pass`/`fail`; во втором и последующих негатив
+помечается `удовлетворительно`, `fail` не ставится. Может править в
 `goals/<goal>.expect.ts` только `title` и механику проверки внутри
 своего тикета.
 
@@ -351,27 +409,30 @@ baseline: число и порядок `describe`/`crit`/`warn`/`it.todo` не
 
 - executor — подробный результат по каждому пункту: вердикт, цитата,
   причина, что именно не сходится;
-- оператору — короткую сводку: «всё прошло» / «есть замечания» +
-  сколько циклов и что изменено в expectations.
+- оператору — сводку по последнему прогону: сколько `crit`/`warn`
+  `pass`, `удовлетворительно`, `fail`, и долю закрытых (80%).
 
-**Циклы:** до 3 по умолчанию. Бюджет задаёт оператор.
+**Циклы:** за попытку — два прогона judge (первый и после доработки).
+Оператор может один раз запустить повторный цикл executor→judge; после
+него — к человеку. Бюджет задаёт оператор.
 
 **Конфликт:**
 
-- executor говорит «готово», а judge показывает замечания — конфликт
-  оператору сразу;
-- циклы исчерпаны — конфликт оператору;
-- оператор решает: ещё один цикл, другой executor, эскалация
-  пользователю.
+- executor говорит «готово», а judge в первом прогоне показывает
+  `fail` — executor дорабатывает;
+- второй прогон не даёт 80% `pass` — оператор решает: один повторный
+  цикл или к человеку;
+- после повторного цикла — только к человеку с результатами.
 
 **Сессия:** внутри цикла judge ↔ executor можно resume, чтобы уточнить
 вердикт или продолжить диалог с исполнителем. Как только вопрос вернулся
-оператору, следующий запуск — свежий judge; старый контекст не
-переиспользуется.
+оператору, исполнитель запускает свежий judge по команде оператора;
+старый контекст не переиспользуется.
 
 ### 4.5 Librarian
 
 Один, всегда свежий контекст, последовательный писатель документации.
+Модель — `deepseek/deepseek-flash#max`.
 
 **Читает:** документацию, код, `goals/`, запрос оператора.
 
@@ -472,6 +533,7 @@ Frontmatter роли:
 name: <kebab-case>
 kind: primary | core | custom
 description: <одна строка>
+model: <provider/model#variant>
 permissions: <capability или набор действий>
 lifecycle: persistent | fresh | resumable | paused
 concurrency: <число или unlimited>
@@ -488,6 +550,8 @@ artifacts: [<пути>]
   помеченные фрагменты;
 - `operator` — `kind: primary`, `lifecycle: persistent`; файла роли нет,
   протокол в `AGENTS.md`, allowlist skills — в `context/skills.yml`;
+- `model` обязателен: `deepseek/deepseek-flash#max` по умолчанию, у
+  judge — `#low`; бесплатные модели запрещены;
 - role-level `permissions` — capability-уровень (`browser`,
   `remote-write`, `data-access`); гранулярные permissions
   (`browser.click`, `browser.type`) — в `context/skills.yml`; уровни
@@ -664,6 +728,7 @@ Browser-задачи с отдельным lifecycle, credentials, модель�
 name: browser-executor
 kind: custom
 description: executor с полноценным управлением браузером
+model: deepseek/deepseek-flash#max
 lifecycle: resumable
 concurrency: 1
 permissions: [browser]           # capability; granular — в skills.yml
@@ -706,6 +771,8 @@ Skill без browser-tool бесполезен; поэтому `context/skills.y
 Пресет задаёт modules, install-time `role_skills`, `role_exceptions` и
 дефолты `autonomy`; отдельной схемы `goals/` нет — она одна для всех.
 Core-роли одни и те же; external добавляет `external-executor`.
+Модели: все core-роли — `deepseek/deepseek-flash#max`, judge — `#low`;
+external-executor — `#max`.
 `role_skills` — вход установки: установщик инвертирует его в `roles`
 записей `context/skills.yml`; дальше runtime читает только `skills.yml`;
 пресет не второй источник.
@@ -758,6 +825,7 @@ roles:
   external-executor:
     kind: custom
     description: executor в удалённом проекте, GUI/CI-работы
+    model: deepseek/deepseek-flash#max
     permissions: [remote-write, browser, data-access]
     lifecycle: resumable
     concurrency: 5
@@ -800,21 +868,22 @@ skill.
 
 ## 5. Матрица прав
 
-| Роль | Документация | Код | Артефакты | Сессия | Параллельность |
-| --- | --- | --- | --- | --- | --- |
-| operator | read | read | goals/, .ops/operator/state.yml, .ops/feedback | постоянная | один |
-| researcher | read | read | .ops/<ticket>/research | свежая | много |
-| executor | read | write | .ops/<ticket>/reports, worktree | возобновляемая | ≤5 активных, paused не считается |
-| external-executor | read | write remote | .ops/<ticket>/reports, remote target | возобновляемая | ≤5 активных, paused не считается |
-| judge | read | read | .ops/<ticket>/verdicts, goals expect | resume в цикле; свежая после оператора | много, по файлу |
-| librarian | write | read | docs/, context/, CHANGELOG | свежая | один |
+| Роль | Модель | Документация | Код | Артефакты | Сессия | Параллельность |
+| --- | --- | --- | --- | --- | --- | --- |
+| operator | deepseek/deepseek-flash#max | read | read | goals/, .ops/operator/state.yml, .ops/feedback | постоянная | один |
+| researcher | deepseek/deepseek-flash#max | read | read | .ops/<ticket>/research | свежая | много |
+| executor | deepseek/deepseek-flash#max | read | write | .ops/<ticket>/reports, worktree | возобновляемая | ≤5 активных, paused не считается |
+| external-executor | deepseek/deepseek-flash#max | read | write remote | .ops/<ticket>/reports, remote target | возобновляемая | ≤5 активных, paused не считается |
+| judge | deepseek/deepseek-flash#low | read | read | .ops/<ticket>/verdicts, goals expect, *.expect.json | resume в цикле; свежая по команде оператора | много, по файлу |
+| librarian | deepseek/deepseek-flash#max | write | read | docs/, context/, CHANGELOG | свежая | один |
 
 Активных executor — не больше 5; paused не считается. Merge локального
 worktree — оператор; external publish — по autonomy. Judge меняет
 `goals/*.expect.ts` только в заголовках/механике своего тикета;
 AST-валидатор не даёт менять состав и бюджет. Skills привязываются через
 `context/skills.yml`; browser-права — только через `browser`/`browser-read`
-и autonomy.
+и autonomy. Цикл: два прогона judge, 80% `pass` по `crit`/`warn`, один
+повторный цикл executor→judge.
 
 Механическое исполнение:
 
@@ -834,6 +903,7 @@ executor — никогда. Память инструментов выключ�
 ```text
 goals/
   <goal>.expect.ts          # цель: describe('goal') → describe('ticket: …') → crit/warn
+  <goal>.expect.json        # результаты прогонов judge рядом с файлом цели
   program--<key>.expect.ts  # программа: импорты своих целей в порядке приоритета
   ...
 
@@ -856,10 +926,11 @@ context/
   agents/<name>.md         # роли: frontmatter + промпт
 ```
 
-`goals/` — плоский набор `*.expect.ts`. Никаких `goals/index.yml`,
-`goals/README.md`, `expectations.yml`, `proposal/specs/design/tasks`
-нет. `context/ai-core.yml`, `context/modules/`, `context/conventions/` и
-`context/index.yml` остаются как в контракте v3: новые файлы аддитивны.
+`goals/` — плоский набор `*.expect.ts` и `*.expect.json`. Никаких
+`goals/index.yml`, `goals/README.md`, `expectations.yml`,
+`proposal/specs/design/tasks` нет. `context/ai-core.yml`,
+`context/modules/`, `context/conventions/` и `context/index.yml`
+остаются как в контракте v3: новые файлы аддитивны.
 
 - Файл программы содержит только импорты своих целей; порядок импортов
   = приоритет внутри программы. Программ много, единой очереди нет;
@@ -872,8 +943,8 @@ context/
 - Незапущенный тикет — `it.todo`; paused или в работе — `crit.wip`
   (падение не блокирует); пометка паузы — в заголовке тикета и
   scratchpad.
-- Этапы цели: есть `it.todo` — план; `it.todo` нет — готовый план; нет
-  `it.todo`/`crit.wip` и все `crit`/`warn` проходят — цель достигнута.
+- Этапы цели: есть `it.todo` — план; `it.todo` нет — готовый план; все
+  тикеты приняты (≥80% `pass`) — цель достигнута.
 - `ai goals status` показывает программы, их цели, стадии (план /
   готовый план / достигнута) и тикет в работе (по `crit.wip`);
   «достигнута» фиксируется до удаления файла. `ai goals check` требует
@@ -887,7 +958,9 @@ context/
   локальный и не коммитится.
 - `goals/` — не проектная документация; docs guard его не трогает.
 - Это не `expectations/*.expect.ts` репозитория: там долгосрочные
-  ожидания к промптам и коду; здесь — цели конкретной работы.
+  ожидания к промптам и коду; здесь — цели конкретной работы. Механизм
+  `*.expect.json` одинаков для обоих: файл лежит рядом с любым
+  `*.expect.ts`.
 
 Пример цели:
 
@@ -926,6 +999,43 @@ import './judge.expect.ts';
 - невалидная правка отклоняется, judge получает ошибку;
 - judge отчитывается, что именно изменил.
 
+### Результаты прогонов
+
+Рядом с каждым `*.expect.ts` лежит `*.expect.json`:
+
+```json
+{
+  "timestamp": "<ISO начала цикла>",
+  "results": [
+    {
+      "run": 1,
+      "items": [
+        { "key": "crit: ...", "status": "pass | удовлетворительно | fail", "reason": "..." }
+      ]
+    }
+  ]
+}
+```
+
+- Перед циклом оператор сбрасывает файл в `{ timestamp: now, results: [] }`.
+- Judge после прогона добавляет `{ run, items }`; `run` — 1, 2, 3;
+  `items` — только `crit`/`warn` активного тикета, закрытые тикеты в
+  текущий run не входят.
+- `run` — один прогон judge; попытка — два прогона; повторный цикл —
+  run 3. Перед повторным циклом `results` не сбрасывается: run 3
+  дописывается.
+- Первый прогон — `pass`/`fail`; второй и последующие — негатив
+  `удовлетворительно` (без `fail`).
+- `удовлетворительно` не считается закрытым. 80% — доля `pass` по всем
+  `crit`/`warn` активного тикета (items последнего run), а не по всему
+  файлу.
+- За попытку — два прогона; оператор может один раз запустить третий
+  (повторный цикл), после него — к человеку.
+- `*.expect.json` коммитится рядом с `*.expect.ts`. Сброс коммитит
+  оператор до создания worktree; run пишет judge в worktree, оператор
+  мержит ветку и коммитит результат вместе с тикетом. В репозитории
+  источника — тот, кто запускает проверку.
+
 Это ответ на «как валидировать diff judge на всех runtime»: не через
 permissions рантайма (они path-level), а общим AST-валидатором,
 одинаковым для OpenCode, Claude Code и Codex.
@@ -944,8 +1054,9 @@ permissions рантайма (они path-level), а общим AST-валида
    `goals/program--<key>.expect.ts` в порядке приоритета.
 5. Показывает пользователю план, если есть развилка; иначе идёт по
    согласованному сценарию.
-6. Тикеты раскрываются по одному: следующий — после закрытия
-   предыдущего. Цель удаляется, когда все её тикеты зелёные.
+6. Тикеты раскрываются по одному: следующий — после принятия
+   предыдущего. Цель удаляется, когда все её тикеты приняты (≥80%
+   `pass`).
 
 ### 7.2 Бриф роли
 
@@ -953,8 +1064,8 @@ permissions рантайма (они path-level), а общим AST-валида
 
 - `id`, `ticket`, `role`, `goal` — цель одной строкой и что считать
   готовым;
-- `goals/program--<key>.expect.ts`, `goals/<goal>.expect.ts`, research,
-  verdicts — путями;
+- `goals/program--<key>.expect.ts`, `goals/<goal>.expect.ts`,
+  `*.expect.json`, research, verdicts — путями;
 - `worktree`, `constraints`, `deadline`, `budget` — ограничения;
 - `output` — формат ответа и куда писать артефакт;
 - `questions` — что роль должна спросить, а не додумать.
@@ -963,25 +1074,29 @@ permissions рантайма (они path-level), а общим AST-валида
 
 ### 7.3 Цикл executor ↔ judge
 
-1. Executor работает над тикетом, запускает свои проверки, пишет отчёт.
-2. Judge работает в worktree executor: получает expectations, DoD и
-   результат; аргументов executor не видит; из файла цели читает только
-   свой `describe('ticket: …')`.
-3. Judge пишет вердикт: подробно executor, кратко оператору.
-4. Если judge меняет заголовок/механику — правит только свой блок в
+1. Оператор сбрасывает `*.expect.json` активной цели в
+   `{ timestamp: now, results: [] }`, коммитит его до создания worktree
+   и запускает executor в фоне.
+2. Executor работает, запускает judge; judge в worktree executor читает
+   expectations, DoD и результат; аргументов executor не видит; из файла
+   цели читает только свой `describe('ticket: …')`; пишет run 1
+   (`pass`/`fail`).
+3. Executor читает run 1, дорабатывает по замечаниям, запускает judge
+   снова; judge пишет run 2, негатив — `удовлетворительно`.
+4. Executor больше ничего не делает; оператор получает сводку по
+   последнему прогону.
+5. Оператор считает долю `pass` по `crit`/`warn`. ≥80% — тикет принят,
+   merge и baseline. <80% — оператор может один раз запустить повторный
+   цикл (run 3); после него — к человеку.
+6. Если judge меняет заголовок/механику — правит только свой блок в
    `goals/<goal>.expect.ts`; `ai goals check` с файлом цели и
    `--ticket <key>` проверяет AST и отклоняет добавление/удаление
    пунктов, смену бюджета и правки чужих тикетов.
-5. Если есть замечания — executor дорабатывает; цикл до 3. Внутри
-   цикла judge можно resume.
-6. Executor говорит «готово», а judge — «есть замечания»: конфликт
-   оператору сразу.
-7. Бюджет исчерпан: конфликт оператору.
-8. Вернулись к оператору — следующий judge свежий, старый контекст не
-   переиспользуется.
-9. Оператор решает: ещё цикл, замена executor, эскалация.
-10. Тикет принят — оператор мержит, обновляет baseline и закрывает
-    тикет; следующий тикет цели начинается с нового baseline.
+7. Judge не запускает никого; executor запускает только judge и
+   researcher; глубина — 2; запуски видны в GUI.
+8. Тикет принят — оператор мержит ветку вместе с `*.expect.json`,
+   обновляет baseline и закрывает тикет; следующий тикет цели
+   начинается с нового baseline.
 
 ### 7.4 Librarian
 
@@ -1052,6 +1167,7 @@ goal: <одна строка>
 priorities: [<ссылки на goals/program--<key>.expect.ts или goal>]
 programs: [<активные программы>]
 tickets: [<активный тикет и его цель>]
+results: [<активные *.expect.json>]
 waits: [<чего ждём и где>]
 open_questions: [<что требует решения>]
 pointers: [<файлы и сессии>]
@@ -1079,8 +1195,9 @@ docs. При смене машины или потере state оператор 
 
 ## 9. Строгость на краях
 
-- **Схемы:** `goals/*.expect.ts` (AST: цели и программы), verdict,
-  report, brief, feedback, state, role frontmatter, skills, skill
+- **Схемы:** `goals/*.expect.ts` (AST: цели и программы),
+  `*.expect.json` (timestamp + results), verdict, report, brief,
+  feedback, state, role frontmatter (включая model), skills, skill
   manifest, browser autonomy, watcher events.
 - **AST-валидаторы:** judge не меняет число/порядок
   `describe`/`crit`/`warn`/`it.todo` и `budget`; разрешены только
@@ -1090,21 +1207,29 @@ docs. При смене машины или потере state оператор 
 - **Валидатор целей:** `goals/program--*.expect.ts` содержит только
   импорты; одна цель — ровно в одной программе; у цели один активный
   тикет.
+- **Результаты прогонов:** `*.expect.json` рядом с любым
+  `*.expect.ts`; оператор сбрасывает `timestamp` и `results`, judge
+  добавляет `{run, items}`; первый прогон — `pass`/`fail`, второй и
+  последующие — негатив `удовлетворительно`; 80% считается по `pass` в
+  `crit`/`warn` активного тикета.
+- **Модели:** все роли — `deepseek/deepseek-flash`; по умолчанию
+  `#max`, judge — `#low`; бесплатные модели запрещены.
 - **Скрипты:** lint, typecheck, tests, build, docs consistency,
   expectations, goals check, goals status, roles check, skills check,
   operator state check.
 - **Locks:** docs (librarian), goal expectation (judge/operator),
   worktree (executor), файлы программ (operator); файловые, через CLI
   (`.ops/locks/`).
-- **Бюджеты:** циклы judge, время роли, размер scratchpad, активные
-  executor (≤5), paused не считается. Лимит и paused — протокол плюс
-  аудит, не механический запрет рантайма.
+- **Бюджеты:** два прогона judge за попытку, один повторный цикл
+  executor→judge, время роли, размер scratchpad, активные executor (≤5),
+  paused не считается. Лимит и paused — протокол плюс аудит, не
+  механический запрет рантайма.
 - **Аудит:** sessionID роли, задача, вердикт, артефакты, кто запустил,
   сколько токенов/времени.
 - **Permissions:** docs write только librarian; operator, executor и
   judge — deny на `edit` вне разрешённых путей (у judge — только
-  `goals/*.expect.ts`). Запись через shell покрывается аудитом, не
-  path-level permission.
+  `goals/*.expect.ts`, `.ops/<ticket>/verdicts/`, `*.expect.json`).
+  Запись через shell покрывается аудитом, не path-level permission.
 - **Memory guard:** memory-инструменты и memory-MCP запрещены; запись в
   memory-пути (`~/.claude/projects/*/memory/`, memory-каталоги Codex,
   аналоги) блокируется; OpenCode — deny memory-MCP/инструментов и
@@ -1130,24 +1255,32 @@ sync:
 
 Старый v3 без `edition` плагин не активирует.
 
-- оператор — primary-сессия;
+- оператор — primary-сессия; все запуски ролей — `background: true`;
+  оператор не блокируется и всегда доступен человеку, просыпается на
+  результате или сообщении;
 - роли — subagents с `mode: subagent`, включая кастомные; источник —
   `.agents/agents/<name>.md`, адаптер генерирует `.opencode/agents`;
 - `experimental.todo: true` — видимый чеклист;
-- `subagent` — запуск ролей; background для параллельных; active ≤5,
-  paused не считается; лимит — протокол и аудит, не запрет рантайма;
+- `experimental.subagent_depth: 2` — executor может запускать
+  `judge`/`researcher`; глубже нельзя; всё видно в Subagents tab/GUI;
+- `subagent` — запуск ролей; active ≤5, paused не считается; лимит —
+  протокол и аудит, не запрет рантайма;
+- модели: оператор, researcher, executor, external-executor, librarian —
+  `deepseek/deepseek-flash#max`; judge — `#low`; бесплатные модели deny;
 - `todowrite` — плоский список; иерархия кодируется текстом;
 - `.agents/skills` — skills нативно; привязка — из `context/skills.yml`;
 - `goals/program--<key>.expect.ts` и `goals/<goal>.expect.ts` —
-  `ai expect report` + `ai goals check`;
+  `ai expect report` + `ai goals check`; рядом — `*.expect.json` с
+  результатами прогонов;
 - `submit_result` — структурированный ответ ролей;
 - `operator-feedback` — операторский skill по запросу;
 - `browser`/`browser-read` — через browser namespace/MCP и autonomy;
   granular-запрет `browser-read` — только через MCP-провайдера, нативный
   `browser` — инструкция плюс аудит;
 - docs guard — `permission.hook("evaluate")` для `edit`: operator,
-  executor и judge; judge — только `goals/*.expect.ts`. Запись в docs
-  через shell ловится аудитом;
+  executor и judge; judge — только `goals/*.expect.ts`,
+  `.ops/<ticket>/verdicts/`, `*.expect.json`. Запись в docs через shell
+  ловится аудитом;
 - memory guard — auto-memory нет; memory-MCP и инструменты с `*memory*`
   deny; `permission.hook("evaluate")` блокирует `edit`/`write` в
   memory-пути; `ctx.storage` — только явные кэши;
@@ -1161,6 +1294,8 @@ sync:
 ### Claude Code
 
 - роли — субагенты `.claude/agents`, источник — `.agents/agents`;
+- модели — `deepseek/deepseek-flash#max`, judge — `#low`; запуски
+  оператора в фоне; executor → judge/researcher, глубина 2;
 - skills — `.claude/skills`, привязка из `context/skills.yml`;
 - browser — MCP (Playwright/browser-use);
 - docs guard — hooks;
@@ -1174,6 +1309,8 @@ sync:
 ### Codex
 
 - роли — `.codex/agents` или инструкции; источник — `.agents/agents`;
+- модели — `deepseek/deepseek-flash#max`, judge — `#low`; запуски
+  оператора в фоне; executor → judge/researcher, глубина 2;
 - skills — `.agents/skills`, привязка из `context/skills.yml`;
 - browser — MCP (Playwright/browser-use);
 - hooks/плагины ограничены;
@@ -1232,20 +1369,22 @@ librarian — не нужен.
 1. **Design.** Этот документ; согласование ролей, артефактов, границ.
 2. **Контракт и skills.** Оператор, researcher, executor, judge,
    librarian; плоские `goals/*.expect.ts` и
-   `goals/program--*.expect.ts`; тикеты внутри цели; scratchpad;
-   `operator-feedback`; кастомные роли; external executor; формальные
-   сообщения; реестр skills; привязка `roles` в `context/skills.yml`;
-   browser-capability; presets с
+   `goals/program--*.expect.ts`; тикеты внутри цели; `*.expect.json`;
+   модели ролей; фон; scratchpad; `operator-feedback`; кастомные роли;
+   external executor; формальные сообщения; реестр skills; привязка
+   `roles` в `context/skills.yml`; browser-capability; presets с
    `role_skills`/`role_exceptions`/`autonomy`; permissions; удаление
    обязательного FSM из интерактивной части.
 3. **OpenCode MVP.** v3-only плагин `packages/plugin`: оператор,
-   subagents, `todowrite`, skills из `context/skills.yml`, browser tool,
-   docs guard, `submit_result`, state guard, `operator-feedback`.
+   subagents в фоне, `subagent_depth: 2`, `todowrite`, skills из
+   `context/skills.yml`, browser tool, docs guard, `submit_result`,
+   state guard, `operator-feedback`.
 4. **Watcher MVP.** `packages/watcher`: один тип события (timer или CI),
    JSONL event log, MCP, Unix socket/named pipe/HTTP, plugin wake.
-5. **Гейты.** Task expectations, judge AST-валидатор, docs
-   consistency, check ladder, goals check, goals status, roles check,
-   skills check, operator state check, browser autonomy.
+5. **Гейты.** Task expectations, `*.expect.json` (80% `pass`), judge
+   AST-валидатор, docs consistency, check ladder, goals check, goals
+   status, roles check, skills check, operator state check, browser
+   autonomy.
 6. **Пилот.** Один проект: оператор, 2 researcher, executor, judge,
    librarian; параллельный и последовательный блоки; конфликт; пауза
    executor; feedback. Для external — external-executor, remote target
@@ -1256,6 +1395,14 @@ librarian — не нужен.
 ## 13. Критерии готовности пилота
 
 - оператор планирует задачу из 3 пунктов и ведёт её без FSM;
+- оператор запускает роли только в фоне и остаётся доступен человеку;
+- рядом с каждой целью лежит `*.expect.json`; первый прогон judge —
+  `pass`/`fail`, второй — негатив `удовлетворительно`; оператор считает 80%
+  по `pass` и может один раз запустить повторный цикл;
+- executor сам запускает judge и researcher; запуски видны в GUI,
+  глубина не больше 2;
+- модели закреплены: `deepseek/deepseek-flash#max`, judge — `#low`;
+  бесплатных моделей нет;
 - плагин активируется только при `sync.contract.edition:
   operator-centric`; старый v3 не затрагивается;
 - `goals/program--<key>.expect.ts` задаёт приоритет внутри программы;
@@ -1263,8 +1410,8 @@ librarian — не нужен.
   `describe('ticket: …')`; baseline снят в `.ops/<ticket>/baseline/`;
 - проверки запускаются в скоупе: одна цель или целая программа;
 - цель проходит этапы: `it.todo` — план, заглушек нет — готовый план,
-  нет `it.todo`/`crit.wip` и все проверки проходят — цель удалена из
-  `goals/` и файла программы;
+  все тикеты приняты (≥80% `pass`) — цель удалена из `goals/` и файла
+  программы;
 - два researcher работают параллельно, executor — в отдельном worktree;
   тикеты одной цели последовательны;
 - external executor работает в удалённом проекте и делает GUI/CI-работу;
@@ -1338,15 +1485,17 @@ librarian — не нужен.
   `browser-read`;
 - не даём оператору, executor и judge писать документацию;
 - не даём judge менять состав/budget expectations;
+- не запускаем роли оператора в foreground;
+- не используем бесплатные модели;
+- не даём глубину делегирования больше 2;
 - не делаем marketplace и упаковку skills.
 
 ## 16. Состояние и следующая итерация
 
 ### 16.1 Сейчас
 
-- Есть только этот design-документ.
-- Код, промпты, skills, контракт v3, пакеты и `prompts/index.yml` не
-  менялись.
+- Дизайн-документ; реализация контракта идёт по 16.2, состояние кода
+  здесь не фиксируется.
 - Принятые решения — раздел 0; открытые вопросы — раздел 14;
   решения итерации — 16.7.
 - Следующая итерация начинается с 16.2, а не с кода плагина.
@@ -1357,7 +1506,8 @@ librarian — не нужен.
    - `goals/*.expect.ts` (AST:
      `describe`/`crit`/`warn`/`budget`/`crit.wip`/`it.todo` +
      `describe('ticket: …')`), `goals/program--*.expect.ts` (программа:
-     импорты целей), `verdict.yml`, `report.yml`, `brief.yml`,
+     импорты целей), `*.expect.json` (timestamp + results), `verdict.yml`,
+     `report.yml`, `brief.yml`,
      `.ops/feedback/<ticket>.yml`, `context/project.yml`
      (`sync.contract.edition`, `roles.exceptions`),
      `context/autonomy.yml`, `context/skills.yml`,
@@ -1369,10 +1519,14 @@ librarian — не нужен.
 2. **Переписать контракт v3.**
    - роли operator/researcher/executor/judge/librarian;
    - external-executor для удалённого проекта/GUI;
+   - фон и модели: все роли через `background: true`, модель
+     `deepseek/deepseek-flash#max`, judge `#low`;
+   - executor запускает judge и researcher, глубина 2, видно в GUI;
    - формальные сообщения;
    - плоские `goals/` (цели и программы) вместо `context/views`
      (goals/programs);
    - цель и тикеты внутри файла цели;
+   - результаты прогонов `*.expect.json` рядом с каждым `*.expect.ts`;
    - scratchpad;
    - feedback;
    - кастомные роли одним файлом;
@@ -1396,8 +1550,8 @@ librarian — не нужен.
      `docs-keeper`);
    - `skills/browser` и `skills/browser-read` — core-skills контракта;
      требуют browser tool/MCP в проекте;
-   - роли — один файл `.agents/agents/<name>.md` (frontmatter + промпт);
-     `context/roles.yml` не создаётся;
+   - роли — один файл `.agents/agents/<name>.md` (frontmatter + промпт;
+     `model` обязателен); `context/roles.yml` не создаётся;
    - переименования жёсткие, без deprecated-алиасов: `implementer` →
      `executor`, `docs-keeper` → `librarian`;
    - убрать `oracle`/`reviewer`;
@@ -1409,9 +1563,13 @@ librarian — не нужен.
      `sync.contract.edition: operator-centric`;
    - `.opencode/agents` из `.agents/agents` и skills из
      `context/skills.yml`;
+   - оператор запускает роли в `background: true`; `subagent_depth: 2`;
+     executor → judge/researcher видны в GUI;
+   - модели ролей: `deepseek/deepseek-flash#max`, judge `#low`;
+     бесплатные модели deny;
    - `goals/program--<key>.expect.ts` и `goals/<goal>.expect.ts` —
-     `ai expect report`; `ai goals check/status` и
-     `ai operator state check` — шаг 6;
+     `ai expect report`; `*.expect.json` рядом; `ai goals check/status`
+     и `ai operator state check` — шаг 6;
    - `todowrite` + `subagent`;
    - `browser`/`browser-read` через browser tool/MCP;
    - `external-executor` и remote target;
@@ -1471,7 +1629,8 @@ librarian — не нужен.
 
 Проект-потребитель (устанавливается/создаётся):
 
-- `goals/*.expect.ts` (цели и `program--<key>.expect.ts`).
+- `goals/*.expect.ts` (цели и `program--<key>.expect.ts`),
+  `goals/*.expect.json` (результаты прогонов).
 - `.ops/<ticket>/{baseline,research,reports,verdicts,checks}/`,
   `.ops/feedback/<ticket>.yml`; `.ops/operator/state.yml` — локально;
   `.ops/locks/` — локальные локи.
@@ -1492,14 +1651,23 @@ librarian — не нужен.
 - Preset DoD: схема пресета валидна; каждая core-роль есть в
   `role_skills` или `role_exceptions`; skills модулей и ролей
   разрешаются в `roles` `context/skills.yml`; `autonomy` переносится в
-  `context/autonomy.yml`; external содержит полный `external-executor`.
+  `context/autonomy.yml`; external содержит полный `external-executor`;
+  у ролей `model` — `deepseek/deepseek-flash#max`, judge `#low`.
 - Operator DoD: `skills/operator` и `agents/operator` отсутствуют;
   оператор — primary, протокол в `AGENTS.md`, allowlist — в
-  `context/skills.yml`.
-- Goals DoD: файл цели содержит тикеты `describe('ticket: …')`;
-  `goals/program--*.expect.ts` — только импорты, цель входит ровно в
-  одну программу; `ai goals check` ловит правки вне активного тикета;
-  `ai goals status` различает план, готовый план и достигнутую цель;
+  `context/skills.yml`; запуски ролей только `background: true`, модель
+  `#max`.
+- Executor DoD: модель `#max`; запускает только judge и researcher,
+  глубина 2, запуски видны в GUI.
+- Judge DoD: модель `#low`; пишет `*.expect.json` и
+  `.ops/<ticket>/verdicts/<run>.yml`; `edit` разрешён на
+  `goals/*.expect.ts`, `verdicts/`, `*.expect.json`; первый прогон —
+  `pass`/`fail`, второй и последующие — негатив `удовлетворительно`.
+- Goals DoD: файл цели содержит тикеты `describe('ticket: …')`; рядом
+  `*.expect.json`; `goals/program--*.expect.ts` — только импорты, цель
+  входит ровно в одну программу; `ai goals check` ловит правки вне
+  активного тикета; `ai goals status` различает план, готовый план и
+  достигнутую цель; 80% `pass` по `crit`/`warn`, один повторный цикл;
   `goals/` не входит в CI-гейт `npm run expect`.
 - Browser DoD: `browser`/`browser-read` есть в `context/skills.yml`;
   `requires.tools` разрешается в runtime; granular permissions
@@ -1538,12 +1706,11 @@ librarian — не нужен.
 - **Тикет.** Тикет живёт блоком `describe('ticket: …')` внутри файла
   цели; артефакты — `.ops/<ticket>/`; один активный тикет на цель,
   параллель — между целями.
-- **Этапы цели.** `it.todo` — план; `it.todo` нет — готовый план; нет
-  `it.todo`/`crit.wip` и все `crit`/`warn` проходят — цель достигнута и
-  удаляется; стадию фиксирует `ai goals status` до удаления.
-- **Warn.** `warn` проходит наравне с `crit`: тикет закрыт, когда
-  зелёные все его `crit`/`warn`; разница — уровень внимания, не
-  закрытие.
+- **Этапы цели.** `it.todo` — план; `it.todo` нет — готовый план; все
+  тикеты приняты (≥80% `pass`) — цель достигнута и удаляется; стадию
+  фиксирует `ai goals status` до удаления.
+- **Warn.** `warn` входит в 80% наравне с `crit`; отдельного правила
+  «все warn зелёные» нет — остаток фиксируется `удовлетворительно`.
 - **Имена.** `goals/` — плоские цели и программы; программа —
   `goals/program--<key>.expect.ts` (импортирует свои цели); единой
   очереди нет. Старый `goals` (`context/views`) — deprecated, не
@@ -1554,6 +1721,18 @@ librarian — не нужен.
 - **Memory guard.** Часть ядра: Claude — settings + hook, Codex — config
   (+ trusted caveat), OpenCode — deny memory-MCP/инструментов и
   evaluate-hook; проверка — `ai adapters check`.
+- **Фон.** Оператор запускает роли только с `background: true`; он
+  всегда доступен человеку, просыпается на результате или сообщении.
+- **Модели.** Все роли — `deepseek/deepseek-flash`; по умолчанию `#max`,
+  judge `#low`; бесплатные модели запрещены.
+- **Результаты.** `*.expect.json` рядом с каждым `*.expect.ts`;
+  `timestamp` + `results`; первый прогон `pass`/`fail`, второй и
+  последующие — негатив `удовлетворительно`; 80% по `pass` в `crit`/`warn`
+  активного тикета.
+- **Циклы.** Два прогона judge за попытку; оператор может один раз
+  запустить повторный цикл executor→judge, затем — к человеку.
+- **Делегирование.** Executor запускает judge и researcher; глубина 2;
+  judge и researcher никого не запускают; запуски видны в GUI.
 - **Роли.** Один файл `.agents/agents/<role>.md` (кроме оператора: файла
   нет, протокол в `AGENTS.md`); `context/roles.yml` не существует;
   привязка skills — `roles` в `context/skills.yml`; `role_exceptions` —
@@ -1563,8 +1742,9 @@ librarian — не нужен.
   `ai expect report goals/program--<key>.expect.ts`.
 - **Context аддитивен.** `context/ai-core.yml`, `context/modules/`,
   `context/conventions/`, `context/index.yml` остаются.
-- **Baseline.** Снимок активного файла цели коммитится до создания
-  worktree; оператор обновляет baseline после merge тикета.
+- **Baseline.** Снимок активного файла цели и сброшенный
+  `*.expect.json` коммитятся до создания worktree; оператор обновляет
+  baseline после merge тикета.
 - **Locks.** Файловые, `.ops/locks/`, через CLI.
 - **Команды.** В итерации после контракта (шаг 16.2.6, до пилота):
   `ai goals check`, `ai goals status`, `ai roles check`,
@@ -1579,5 +1759,5 @@ librarian — не нужен.
 - **Лимиты.** ≤5 executor, paused, один librarian — протокол и аудит,
   не механический запрет рантайма.
 - **Docs guard.** `edit` deny для operator, executor и judge (у judge —
-  только `goals/*.expect.ts`); запись в docs через shell — аудит, не
-  hard-hook.
+  `goals/*.expect.ts`, `.ops/<ticket>/verdicts/`, `*.expect.json`);
+  запись в docs через shell — аудит, не hard-hook.

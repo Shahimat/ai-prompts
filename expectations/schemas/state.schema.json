@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Scratchpad оператора — .ops/operator/state.yml",
+  "description": "Явный локальный кэш оператора, не memory и не источник истины; в git не попадает",
+  "type": "object",
+  "required": ["updated_at"],
+  "additionalProperties": false,
+  "properties": {
+    "session": { "type": "string", "minLength": 1 },
+    "goal": { "type": "string", "minLength": 1 },
+    "priorities": { "$ref": "#/$defs/pointers" },
+    "programs": { "$ref": "#/$defs/pointers" },
+    "tickets": { "$ref": "#/$defs/pointers" },
+    "results": { "$ref": "#/$defs/pointers" },
+    "waits": { "$ref": "#/$defs/pointers" },
+    "open_questions": { "$ref": "#/$defs/pointers" },
+    "pointers": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1, "maxLength": 300 }
+    },
+    "updated_at": { "type": "string", "minLength": 1 }
+  },
+  "$defs": {
+    "pointers": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1, "maxLength": 300 }
+    }
+  }
+}

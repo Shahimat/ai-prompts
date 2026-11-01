@@ -3,7 +3,13 @@ import path from 'node:path';
 import type { AdapterName, HookKey } from '#shared/config';
 import type { Diagnostic } from '#shared/diagnostics';
 import { errorCode } from '#shared/guards';
-import { claudeMemory, CODEX_CONFIG, codexMemory } from './memory.ts';
+import {
+  claudeMemory,
+  CODEX_CONFIG,
+  codexMemory,
+  OPENCODE_CONFIG,
+  opencodeMemory,
+} from './memory.ts';
 import {
   claudeAgent,
   claudeMd,
@@ -198,6 +204,11 @@ export async function computeSync(
     diagnostics.push(...memory.diagnostics);
     if (adapter === 'codex') planned.add(CODEX_CONFIG);
   }
+
+  const opencode = await opencodeMemory(root);
+  actions.push(...opencode.actions);
+  diagnostics.push(...opencode.diagnostics);
+  planned.add(OPENCODE_CONFIG);
 
   actions.push(...(await staleActions(root, planned)));
   return { actions, diagnostics };

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Пресет — presets/<key>.yml",
   "type": "object",
-  "required": ["key", "title", "contract", "modules"],
+  "required": ["key", "title", "contract", "modules", "role_skills"],
   "additionalProperties": false,
   "properties": {
     "key": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
@@ -28,6 +28,67 @@
           }
         }
       }
-    }
+    },
+    "role_skills": {
+      "description": "Install-time дефолт: роль → skills; установщик инвертирует в roles записей context/skills.yml",
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "array",
+        "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" }
+      }
+    },
+    "role_exceptions": {
+      "description": "Core-роли, заменённые или исключённые этим пресетом; установщик пишет их в context/project.yml → roles.exceptions",
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" }
+    },
+    "roles": {
+      "description": "Install-time определения ролей пресета; установщик пишет .agents/agents/<name>.md",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "kind",
+          "description",
+          "model",
+          "permissions",
+          "lifecycle",
+          "concurrency",
+          "skills",
+          "output",
+          "artifacts"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "kind": { "enum": ["primary", "core", "custom"] },
+          "description": { "type": "string", "minLength": 20, "maxLength": 300 },
+          "model": {
+            "enum": ["deepseek/deepseek-flash#max", "deepseek/deepseek-flash#low"]
+          },
+          "permissions": {
+            "oneOf": [
+              { "type": "string", "minLength": 1 },
+              { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } }
+            ]
+          },
+          "lifecycle": { "enum": ["persistent", "fresh", "resumable", "paused"] },
+          "concurrency": {
+            "oneOf": [{ "type": "integer", "minimum": 1 }, { "const": "unlimited" }]
+          },
+          "skills": {
+            "type": "array",
+            "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" }
+          },
+          "output": { "enum": ["result", "verdict", "question"] },
+          "artifacts": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    },
+    "autonomy": { "$ref": "autonomy.schema.json" }
   }
 }

@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Автономия — context/autonomy.yml и дефолты пресета",
+  "description": "Единственный источник уровней self/ask/never; не перечисленное действие — ask",
+  "type": "object",
+  "required": ["levels"],
+  "additionalProperties": false,
+  "properties": {
+    "levels": {
+      "type": "object",
+      "required": ["self", "ask", "never"],
+      "additionalProperties": false,
+      "properties": {
+        "self": { "$ref": "#/$defs/actions" },
+        "ask": { "$ref": "#/$defs/actions" },
+        "never": { "$ref": "#/$defs/actions" }
+      }
+    },
+    "domains": {
+      "description": "Уровень по домену браузерной или внешней системы: <домен> → self | ask | never",
+      "type": "object",
+      "additionalProperties": { "enum": ["self", "ask", "never"] }
+    }
+  },
+  "$defs": {
+    "actions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 120,
+        "pattern": "^[a-z][a-z0-9-]*(\\.[a-z*][a-z0-9*-]*)?(@[^\\s]+)?$"
+      }
+    }
+  }
+}

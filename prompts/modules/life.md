@@ -89,7 +89,7 @@ provides:
 4. Подключён harness — тег `life` в `checks.changelog.tags`
    `context/ai-core.yml`.
 5. Спроси, с чего начать: 1–3 факта или сигнала со слов человека —
-   план → «да» → через docs-keeper. Значений в файлы не пишем.
+   план → «да» → через librarian. Значений в файлы не пишем.
 
 ## Миграция с personal-project
 

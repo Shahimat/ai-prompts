@@ -79,18 +79,42 @@ describe('форматы по схемам', () => {
   crit('примеры context/ai-core.yml в skill harness и README пакета соответствуют схеме', () =>
     Check.harnessConfigSchema(),
   );
+  crit('пример context/project.yml в контракте соответствует схеме project', () =>
+    Check.projectSchema(),
+  );
+  crit('пример context/autonomy.yml в контракте соответствует схеме autonomy', () =>
+    Check.autonomySchema(),
+  );
+  crit('пример context/skills.yml в контракте соответствует схеме skills-manifest', () =>
+    Check.skillsSchema(),
+  );
+  crit('пример state.yml в skill operator-feedback соответствует схеме state', () =>
+    Check.stateSchema(),
+  );
+  crit('пример формального brief в skill research соответствует схеме message', () =>
+    Check.messageSchema(),
+  );
+  crit('пример report в skill executor соответствует схеме report', () => Check.reportSchema());
+  crit('пример verdict в skill judge соответствует схеме verdict', () => Check.verdictSchema());
+  crit('схема expect-result валидирует пример *.expect.json', () => Check.expectResultSchema());
+  crit('пример feedback в skill operator-feedback соответствует схеме feedback', () =>
+    Check.feedbackSchema(),
+  );
+  crit('пример события watcher в модуле watchers соответствует схеме watcher-event', () =>
+    Check.watcherSchema(),
+  );
 });
 
 describe('документация проекта', () => {
   crit(
-    'в основной сессии файлы проектной документации только читаются; правки — только через docs-keeper, генерируемые файлы — через harness',
+    'в основной сессии файлы проектной документации только читаются; правки — только через librarian, генерируемые файлы — через harness',
     () => Check.docsReadonly(),
   );
   crit(
-    'при подключённом harness генерируемые файлы (context/index.yml, адаптеры под инструменты) меняет только harness, не агент и не docs-keeper',
+    'при подключённом harness генерируемые файлы (context/index.yml, адаптеры под инструменты) меняет только harness, не агент и не librarian',
     () => Check.generatedByHarness(),
   );
-  warn('docs-keeper меняет только слои документации проекта и не трогает код', () =>
+  warn('librarian меняет только слои документации проекта и не трогает код', () =>
     Check.docsKeeperScope(),
   );
   warn('правила контракта не копируются в context/conventions', () => Check.noRuleCopies());
@@ -188,6 +212,14 @@ const v3Modules = async (): Promise<Awaited<ReturnType<typeof modules>>> =>
 const feature = async (key: string): Promise<Record<string, unknown>> =>
   recordOrEmpty((await module(key)).frontmatter?.['feature'], `${key}: feature`);
 const parseYaml = (text: string): unknown => parse(text);
+const fillPlaceholders = (v: unknown): unknown =>
+  typeof v === 'string' && /^<.*>$/.test(v)
+    ? 'placeholder'
+    : Array.isArray(v)
+      ? v.map(fillPlaceholders)
+      : v !== null && typeof v === 'object'
+        ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, fillPlaceholders(x)]))
+        : v;
 const pathsOf = async (kind: string): Promise<string[]> =>
   (await indexEntries())
     .filter((e) => e.kind === kind)
@@ -366,6 +398,120 @@ class Check {
       })),
     );
     await expectSchema(instances, `${SCHEMAS}/ai-core-config.schema.json`);
+  }
+
+  static async projectSchema(): Promise<void> {
+    const block = codeBlock((await contract(KEY)).text, 'yaml', 'name: <project>');
+    expect(block).not.toBeNull();
+    await expectSchema(
+      [{ name: 'contract/project.yml', data: fillPlaceholders(parseYaml(block ?? 'null')) }],
+      `${SCHEMAS}/project.schema.json`,
+    );
+  }
+
+  static async autonomySchema(): Promise<void> {
+    const block = codeBlock((await contract(KEY)).text, 'yaml', 'levels:');
+    expect(block).not.toBeNull();
+    await expectSchema(
+      [{ name: 'contract/autonomy.yml', data: fillPlaceholders(parseYaml(block ?? 'null')) }],
+      `${SCHEMAS}/autonomy.schema.json`,
+    );
+  }
+
+  static async skillsSchema(): Promise<void> {
+    const block = codeBlock((await contract(KEY)).text, 'yaml', 'skills:');
+    expect(block).not.toBeNull();
+    await expectSchema(
+      [{ name: 'contract/skills.yml', data: fillPlaceholders(parseYaml(block ?? 'null')) }],
+      `${SCHEMAS}/skills-manifest.schema.json`,
+    );
+  }
+
+  static async stateSchema(): Promise<void> {
+    const block = codeBlock((await skill('operator-feedback')).text, 'yaml', 'session:');
+    expect(block).not.toBeNull();
+    await expectSchema(
+      [
+        {
+          name: 'skill operator-feedback: state',
+          data: fillPlaceholders(parseYaml(block ?? 'null')),
+        },
+      ],
+      `${SCHEMAS}/state.schema.json`,
+    );
+  }
+
+  static async messageSchema(): Promise<void> {
+    const block = codeBlock((await skill('research')).text, 'yaml', 'id:');
+    expect(block).not.toBeNull();
+    await expectSchema(
+      [{ name: 'skill research: brief', data: fillPlaceholders(parseYaml(block ?? 'null')) }],
+      `${SCHEMAS}/message.schema.json`,
+    );
+  }
+
+  static async reportSchema(): Promise<void> {
+    const block = codeBlock((await skill('executor')).text, 'yaml', 'done:');
+    expect(block).not.toBeNull();
+    await expectSchema(
+      [{ name: 'skill executor: report', data: fillPlaceholders(parseYaml(block ?? 'null')) }],
+      `${SCHEMAS}/report.schema.json`,
+    );
+  }
+
+  static async verdictSchema(): Promise<void> {
+    const block = codeBlock((await skill('judge')).text, 'yaml', 'run:');
+    expect(block).not.toBeNull();
+    await expectSchema(
+      [{ name: 'skill judge: verdict', data: fillPlaceholders(parseYaml(block ?? 'null')) }],
+      `${SCHEMAS}/verdict.schema.json`,
+    );
+  }
+
+  static async expectResultSchema(): Promise<void> {
+    const sample = {
+      timestamp: '2026-11-01T00:00:00Z',
+      results: [
+        {
+          run: 1,
+          items: [
+            {
+              key: 'crit: пример',
+              status: 'fail',
+              evidence: 'goals/example.expect.ts:1',
+              reason: 'что не сходится',
+            },
+          ],
+        },
+      ],
+    };
+    await expectSchema(
+      [{ name: '*.expect.json', data: sample }],
+      `${SCHEMAS}/expect-result.schema.json`,
+    );
+  }
+
+  static async feedbackSchema(): Promise<void> {
+    const block = codeBlock((await skill('operator-feedback')).text, 'yaml', 'ticket:');
+    expect(block).not.toBeNull();
+    await expectSchema(
+      [
+        {
+          name: 'skill operator-feedback: feedback',
+          data: fillPlaceholders(parseYaml(block ?? 'null')),
+        },
+      ],
+      `${SCHEMAS}/feedback.schema.json`,
+    );
+  }
+
+  static async watcherSchema(): Promise<void> {
+    const block = codeBlock((await module('watchers')).text, 'yaml', 'id:');
+    expect(block).not.toBeNull();
+    await expectSchema(
+      [{ name: 'module watchers: event', data: fillPlaceholders(parseYaml(block ?? 'null')) }],
+      `${SCHEMAS}/watcher-event.schema.json`,
+    );
   }
 
   static docsReadonly = (): Promise<void> => judged(['@docs-readonly']);

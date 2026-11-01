@@ -52,9 +52,10 @@ Mutation — `context index`, `adapters sync`, `delta close`,
   документации без записи.
 - `ai adapters sync` — файлы под Claude Code и Codex из
   `AGENTS.md` и `.agents/`: `CLAUDE.md`, копии skills, субагенты,
-  выключенная memory агента; при `hooks: [docs-guard]` — hook
-  `ai docs guard` в `.claude/settings.json` (свои hooks файла
-  сохраняются).
+  выключенная memory агента; при наличии `opencode.json(c)` —
+  `.opencode/opencode.jsonc` с deny memory-MCP; при
+  `hooks: [docs-guard]` — hook `ai docs guard` в `.claude/settings.json`
+  (свои hooks файла сохраняются).
 - `ai adapters check` — сверка файлов адаптеров с `AGENTS.md` и
   `.agents/` без записи.
 - `ai expect init` — каркас ожиданий в проекте: точка входа
@@ -196,8 +197,9 @@ planReview.whole(() => {
 ## Роли
 
 Роль — субагент из `agents/<name>.md` источника (в проекте —
-`.agents/agents/`): промпт, `tools`, `model` (`opus` по умолчанию,
-`sonnet`, `haiku`) и `output` — сообщение протокола, которым роль
+`.agents/agents/`): промпт, `tools`, `model` (`deepseek/deepseek-flash#max`
+по умолчанию, у judge — `#low`; старые `opus`/`sonnet`/`haiku` — только
+legacy harness) и `output` — сообщение протокола, которым роль
 возвращает итог. Одна и та же роль работает субагентом в сессии агента
 (адаптеры генерируют `.claude/agents/`, `.codex/agents/`) и
 headless-исполнителем в harness.
@@ -213,7 +215,7 @@ headless-исполнителем в harness.
   `submit_result`, режим `dontAsk`, задание — на stdin. Ответ текстом
   harness не читает: нет вызова `submit_result` с валидным ответом —
   ошибка роли.
-- Вход роли docs-keeper — схема `INTENTS_SCHEMA`: намерения `kind`
+- Вход роли librarian — схема `INTENTS_SCHEMA`: намерения `kind`
   (`decision`, `fact`, `rule`, `behavior-change`, `task`, `manual`),
   `summary`, `evidence`; пересмотр — `kind: revise` с обязательными
   `target`, `was`, `why`, `evidence`. Вход не по схеме — `InputError`
@@ -221,7 +223,7 @@ headless-исполнителем в harness.
   печатает короткое сообщение без полной справки, код `2`. Ответ судьи о документации — `verdict` с полем
   `conflicts` (`file_a`, `quote_a`, `file_b`, `quote_b`, `reason`).
 - Роли пакета используют: `expect judge --run` (роль `judge`),
-  `docs-delta` (роль `docs-keeper` в `apply` с `--file`, роль `judge` в
+  `docs-delta` (роль `librarian` в `apply` с `--file`, роль `judge` в
   `review`).
 
 Коды выхода: `0` — ok, `1` — нарушения, `2` — ошибка вызова или

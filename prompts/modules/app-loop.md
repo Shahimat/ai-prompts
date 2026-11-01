@@ -4,10 +4,10 @@ kind: module
 applicable_to: [agent-operational-contract-v3]
 patterns: [source-sync]
 title: Модуль app-loop — петля «домен ↔ приложение»
-use_case: Возможность ядра v3 для проектов, где в одном репозитории живут предметный домен (жизнь или анализ) и приложение, которое его автоматизирует. Связывает их двусторонней трассой serves ↔ automated_by, вводит провенанс app-telemetry (доверие = verified behavior-источника), поле domain у целей и проверку выравнивания петли поверх goal-consistency.
+use_case: Возможность ядра v3 для проектов, где в одном репозитории живут предметный домен (жизнь или анализ) и приложение, которое его автоматизирует. Связывает их двусторонней трассой serves ↔ automated_by, вводит провенанс app-telemetry (доверие = verified behavior-источника), поле domain у целей и планов goals/ и проверку выравнивания петли.
 tags: [docs-as-code, app-loop, provenance, agent-contract, module]
 feature:
-  summary: петля домен ↔ приложение — serves ↔ automated_by, провенанс app-telemetry, выравнивание целей
+  summary: петля домен ↔ приложение — serves ↔ automated_by, провенанс app-telemetry, выравнивание планов
   default: false
   requires: [domain]
   conflicts: []
@@ -16,8 +16,8 @@ feature:
       question: С каким предметным доменом приложение образует петлю?
       multi: false
       options: [life, analysis]
-    - key: goal-domain-field
-      question: Помечать цели полем domain (app или предметный домен)?
+    - key: plan-domain-field
+      question: Помечать цели и планы goals/ полем domain (app или предметный домен)?
       multi: false
       options: ["yes", "no"]
 ---
@@ -46,9 +46,9 @@ feature:
 
 - `counterpart` — предметный домен петли: `life` или `analysis`.
   Соответствующий модуль должен быть подключён (см. «Установка»).
-- `goal-domain-field` — помечать ли цели полем `domain`
-  (`app | <counterpart>`). `yes` — по умолчанию, если подключён `goals`:
-  одна очередь на оба домена читается проще с меткой.
+- `plan-domain-field` — помечать ли цели и планы в `goals/` полем
+  `domain` (`app | <counterpart>`). `yes` — по умолчанию: программа,
+  цель и тикет читаются проще с меткой домена.
 
 ## Что ставит
 
@@ -61,13 +61,11 @@ provides:
   harness_checks: []
   extends:
     domain: [serves]
-    goals: [domain, serves]
 ```
 
-`extends.goals` зависит от ответов и подключённых модулей:
-
-- `goal-domain-field: no` → `goals: [serves]`;
-- `goals` не подключён и пользователь его не хочет → ключа `goals` нет.
+Поле `domain` у целей и планов `goals/` модуль не объявляет через
+`extends`: goals не модуль и не YAML-слой. Метка — правило skill
+`app-loop`, включается ответом `plan-domain-field: yes`.
 
 Поле `automated_by` модуль не объявляет: его заводят сами модули
 `life` / `analysis` в своих форматах как необязательное поле «при
@@ -81,9 +79,9 @@ skill `app-loop`.
 <!-- module:app-loop -->
 ## app-loop
 
-- зачем фича приложения → `serves` у entity / behavior; что её автоматизирует → `automated_by` в `<counterpart>`;
-- доверие к данным `app-telemetry` = `verified` у behavior-источника;
-- serves, automated_by, поле domain у целей, выравнивание петли → skill `app-loop`.
+- зачем фича → `serves` у entity/behavior; что автоматизирует → `automated_by` в `<counterpart>`;
+- доверие `app-telemetry` = `verified` у behavior-источника;
+- serves, automated_by, поле domain у целей и планов → skill `app-loop`.
 <!-- /module:app-loop -->
 ```
 <!-- /expect:agents-md-readonly -->
@@ -95,10 +93,11 @@ skill `app-loop`.
 2. Поставь skill `app-loop` в `.agents/skills/app-loop/`, добавь блок в
    `AGENTS.md`, manifest с фактическим `extends`.
 3. Пройди entities и behavior приложения: план проставления `serves`
-   и встречных `automated_by` в домене → «да» → через docs-keeper.
+   и встречных `automated_by` в домене → «да» → через librarian.
    Привязку, которую не вывести из кода и документов, не выдумывай —
    список «фичи без serves» пользователю.
-4. `goal-domain-field: yes` → план разметки целей полем `domain`.
+4. `plan-domain-field: yes` → план разметки целей и планов `goals/`
+   полем `domain`.
 5. Прогони проверки петли из skill (включая выравнивание), находки —
    отчётом.
 

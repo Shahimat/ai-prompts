@@ -69,8 +69,7 @@ provides:
 <!-- module:book-corpus -->
 ## book-corpus
 
-- книга → проходы 0–3 по skill `book-corpus`; канал `corpus` → `context/data-access.yml`;
-- сырой текст книги не коммитится и целиком в контекст не читается: `map` и тезисы, глава — через канал по требованию;
+- книга → проходы 0–3 по skill `book-corpus`; канал `corpus` → `context/data-access.yml`; сырой текст не коммитится, в контекст — `map` и тезисы, глава по требованию;
 - канал недоступен → цитата остаётся `verified: false`, не по памяти.
 <!-- /module:book-corpus -->
 ```

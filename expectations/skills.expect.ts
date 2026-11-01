@@ -19,7 +19,7 @@ budget({ crit: 0, warn: 5 });
 
 describe('состав skills', () => {
   crit(
-    'skills ядра: contract-setup, workflow, docs-keeper, source-sync, source-feedback, cli, operator',
+    'skills ядра: contract-setup, workflow, librarian, source-sync, source-feedback, cli, operator-feedback, research, executor, judge, browser, browser-read',
     () => Check.coreSkills(),
   );
   crit(
@@ -40,9 +40,9 @@ describe('состав skills', () => {
         'knowledge-external-gui',
       ]),
   );
-  crit('других skills нет — всего 20', () => Check.skillCount());
+  crit('других skills нет — всего 25', () => Check.skillCount());
   crit(
-    'субагенты-роли: ядро — docs-keeper, judge, oracle, researcher, reviewer; модули — implementer, watch-triage, watch-request',
+    'субагенты-роли: ядро — executor, judge, librarian, researcher; external — external-executor; модули — watch-triage, watch-request',
     () => Check.onlyRoles(),
   );
 });
@@ -71,7 +71,9 @@ describe('копии источников', () => {
 });
 
 describe('субагенты', () => {
-  crit('субагент docs-keeper предзагружает skill docs-keeper', () => Check.docsKeeperPreload());
+  crit('субагент librarian не перечисляет skills: привязка — в context/skills.yml', () =>
+    Check.librarianNoSkills(),
+  );
   crit(
     'у каждого субагента name совпадает с файлом, а skills ссылаются на существующие skills',
     () => Check.agentsConsistent(),
@@ -86,11 +88,15 @@ describe('поведение ключевых skills', () => {
   warn('contract-setup: модули подключаются по одному, каждый — с manifest и отчётом', () =>
     Check.moduleInstall(),
   );
-  warn('docs-keeper: факт без evidence не записывается как проверенный', () =>
+  warn('librarian: факт без evidence не записывается как проверенный', () =>
     Check.intentsEvidence(),
   );
   warn(
-    'operator: роли и harness с ролями запускаются в фоне, перед запуском пользователь узнаёт, чего ждёт сессия',
+    'operator-feedback: метрики, причины и рекомендации отделены, оценки помечены как estimate',
+    () => Check.operatorFeedback(),
+  );
+  warn(
+    'operator-feedback: роли и harness с ролями запускаются в фоне, перед запуском пользователь узнаёт, чего ждёт сессия',
     () => Check.operatorResponsive(),
   );
   crit(
@@ -102,11 +108,16 @@ describe('поведение ключевых skills', () => {
 const CORE_SKILLS = [
   'contract-setup',
   'workflow',
-  'docs-keeper',
+  'librarian',
   'source-sync',
   'source-feedback',
   'cli',
-  'operator',
+  'operator-feedback',
+  'research',
+  'executor',
+  'judge',
+  'browser',
+  'browser-read',
 ];
 const SCHEMAS = 'expectations/schemas';
 
@@ -163,7 +174,7 @@ class Check {
   }
 
   static async skillCount(): Promise<void> {
-    expect((await skills()).length).toBe(20);
+    expect((await skills()).length).toBe(25);
   }
 
   static async onlyRoles(): Promise<void> {
@@ -173,12 +184,11 @@ class Check {
         .map((e) => e.key)
         .sort(),
     ).toEqual([
-      'docs-keeper',
-      'implementer',
+      'executor',
+      'external-executor',
       'judge',
-      'oracle',
+      'librarian',
       'researcher',
-      'reviewer',
       'watch-request',
       'watch-triage',
     ]);
@@ -232,8 +242,8 @@ class Check {
     }
   }
 
-  static async docsKeeperPreload(): Promise<void> {
-    expect((await doc('agents/docs-keeper.md')).frontmatter?.['skills']).toContain('docs-keeper');
+  static async librarianNoSkills(): Promise<void> {
+    expect((await doc('agents/librarian.md')).frontmatter?.['skills']).toBeUndefined();
   }
 
   static async agentsConsistent(): Promise<void> {
@@ -253,8 +263,17 @@ class Check {
 
   static blockingQuestion = (): Promise<void> => judged(['@blocking-question']);
   static moduleInstall = (): Promise<void> => judged(['@module-install']);
-  static intentsEvidence = (): Promise<void> => judged(['@docs-keeper-intents']);
+  static intentsEvidence = (): Promise<void> => judged(['@librarian-intents']);
   static operatorResponsive = (): Promise<void> => judged(['@operator-responsive']);
+
+  static async operatorFeedback(): Promise<void> {
+    const text = (await skill('operator-feedback')).text;
+    expect(text).toContain('estimate');
+    expect(text).toContain('human_distractions_empty');
+    expect(text).toContain('tokens_wasted_estimate');
+    expect(text).toContain('root_causes');
+    expect(text).toContain('recommendations');
+  }
 
   static async verifiedRule(): Promise<void> {
     const section = (await skill('domain')).section('Верификация') ?? '';

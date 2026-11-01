@@ -16,7 +16,7 @@ description: Как пользоваться CLI ai в проекте — refres
   `plan-review`; модуль harness. Без него `ai` автоматов не знает.
 
 Пакеты ставятся из npm-реестра по версиям, не из локальных архивов
-(`file:*.tgz`): с архивами `npm ci` в CI падает, а `ai outdated` читает
+(`file:*.tgz`): с архивами `npm ci` в CI падает, а `outdated` читает
 только `dependencies` и `devDependencies`.
 
 Конфиг команд — `context/ai-core.yml`.
@@ -59,7 +59,7 @@ npx ai <автомат> start | open <id> | …
 <!-- expect:skill-runs -->
 <!-- metadata.runs: refresh -->
 Сам skill запускает одно: `ai refresh` в конце каждой задачи и
-после записи docs-keeper — пересобрать производные файлы и проверить
+после записи librarian — пересобрать производные файлы и проверить
 проект. Остальное — справка: что делает команда и кто её запускает.
 
 - `ai refresh` — `context index` и `adapters sync` (если включены в
@@ -96,7 +96,7 @@ npx ai <автомат> start | open <id> | …
   документации с `HEAD` (знание без пункта `revise` — нарушение) и
   удаление принятой дельты; шаги `ai docs-delta`.
 - `ai docs-delta start` и `ai source-sync start` — harness
-  skills `docs-keeper` и `source-sync`: в состоянии агента harness
+  skills `librarian` и `source-sync`: в состоянии агента harness
   останавливается с заданием, `ai <имя> open <id>`
   продолжает.
 - `ai plan-review start <file>` — план в файле ожиданий: диалог с
@@ -145,7 +145,7 @@ checks:
 
 <!-- expect:skill-runs -->
 - `CHANGELOG.md:12: длина 180 символов > 120` — переписать строку через
-  docs-keeper: решение одной фразой, детали — в git log.
+  librarian: решение одной фразой, детали — в git log.
 - `docs/entities/x.yml: нет поля summary` — добавить однострочный
   `summary`, пересобрать индекс.
 - `context/index.yml: устарел` — `ai refresh`.

@@ -6,8 +6,6 @@ contract: agent-operational-contract-v3
 modules:
   - key: domain
   - key: manuals
-  - key: goals
-  - key: harness
   - key: privacy
     answers:
       outbound: none
@@ -18,10 +16,16 @@ modules:
   - key: app-loop
     answers:
       counterpart: analysis
-      goal-domain-field: "yes"
+      plan-domain-field: "yes"
   - key: data-access
     answers:
       kinds: [mcp]
   - key: book-corpus
     answers:
       corpus-kind: mcp
+role_skills:
+  operator: [operator-feedback]
+  researcher: [research, domain, manuals, analysis, book-corpus, data-access, browser-read, privacy]
+  executor: [executor, domain, manuals, analysis, data-access, privacy]
+  judge: [judge, domain, manuals, analysis, privacy]
+  librarian: [librarian, domain, manuals, analysis, privacy]

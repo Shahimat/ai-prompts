@@ -1,8 +1,13 @@
 ---
 name: watch-request
 description: Запрос наблюдателя — по изменению, которое триаж передал в работу, формирует запрос в job задачи и предлагает действия в PR. Вызывается рантаймом наблюдателей с diff статусов и карточкой задачи.
+kind: custom
+lifecycle: fresh
+permissions: [read]
+concurrency: unlimited
+artifacts: [.ops/watches/]
 tools: [Read, Glob, Grep]
-model: sonnet
+model: deepseek/deepseek-flash#max
 output: result
 ---
 

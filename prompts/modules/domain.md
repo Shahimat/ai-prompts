@@ -47,8 +47,8 @@ namespace, проверки. Берётся из индекса источник
 <!-- module:domain -->
 ## domain
 
-- как сейчас устроено X → `docs/entities/<id>.yml`, затем код;
-- как X должно себя вести и проверено ли → `docs/behavior/<id>.yml`;
+- как устроено X → `docs/entities/<id>.yml`, затем код;
+- как X должно себя вести → `docs/behavior/<id>.yml`;
 - правила слоя и `verified` → skill `domain`.
 <!-- /module:domain -->
 ```
@@ -60,7 +60,7 @@ namespace, проверки. Берётся из индекса источник
 2. Поставь skill `domain` в `.agents/skills/domain/`.
 3. Добавь блок в `AGENTS.md`.
 4. Предложи пользователю 1–3 стартовые entity по коду: план → «да» →
-   через docs-keeper.
+   через librarian.
 
 ## Миграция с v2
 

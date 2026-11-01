@@ -33,8 +33,8 @@ description: Параллельная работа в git worktree — где ж
 - `context/index.yml`, `prompts/index.yml` и другие генерируемые — при
   конфликте не правь руками: возьми любую сторону и пересобери
   генератором.
-- `context/views/goals.yaml` — union для YAML опасен: конфликт решай
-  руками, затем `goal-consistency` (skill `goals`).
+- `goals/*.expect.ts` — TypeScript; union не работает: конфликт
+  импортов и тикетов решай руками, правку тикета сверь с baseline.
 - Адаптеры (`CLAUDE.md`, `.claude/`, `.codex/`) — пересобрать.
 
 <!-- expect:skill-runs -->

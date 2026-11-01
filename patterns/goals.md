@@ -2,10 +2,15 @@
 key: goals
 kind: pattern
 title: Система целей и программ — internal-очередь работы проекта
+deprecated: "старая очередь context/views; в operator-centric v3 не применяется"
 use_case: Контракт разворачивает в проекте internal-очередь работы как систему целей (context/views/goals.yaml + goal--<key>.yaml) и программ (program--<key>.yaml) вместо одного плоского todo-файла. Приоритет = порядок, статусы без `done`, жизненный цикл через CHANGELOG + удаление, обязательная кросс-целевая проверка непротиворечивости.
 ---
 
 # goals
+
+> Deprecated в operator-centric v3: работа и приоритеты живут в
+> `goals/*.expect.ts` (цели и `program--<key>.expect.ts`). Эта очередь
+> `context/views/` остаётся для старых проектов и не ставится новым.
 
 Модель internal-очереди работы проекта. Заменяет плоский рабочий файл
 агента (один `active.todo` с секциями приоритета) на структуру **целей**

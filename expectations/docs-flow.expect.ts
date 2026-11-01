@@ -20,11 +20,11 @@ budget({ crit: 0, warn: 0 });
 
 describe('[flow] ownership', () => {
   crit(
-    'у каждой записи в проектную документацию один ответственный — skill docs-keeper или команда harness; таблица — в skill docs-keeper',
+    'у каждой записи в проектную документацию один ответственный — skill librarian или команда harness; таблица — в skill librarian',
     () => Check.owners(),
   );
   warn(
-    'основная сессия передаёт docs-keeper только намерения и получает отчёт не длиннее 10 строк',
+    'основная сессия передаёт librarian только намерения и получает отчёт не длиннее 10 строк',
     () => Check.shortReport(),
   );
 });
@@ -40,7 +40,7 @@ describe('[flow] delta', () => {
     () => Check.deltaOutOfContext(),
   );
   warn(
-    'дельту ведёт docs-keeper: собирает из намерений, сверяет с текущей документацией, применяет',
+    'дельту ведёт librarian: собирает из намерений, сверяет с текущей документацией, применяет',
     () => Check.deltaByKeeper(),
   );
   warn('add и refine не требуют внимания пользователя: строка в итоговом отчёте', () =>
@@ -55,7 +55,7 @@ describe('[flow] delta', () => {
     () => Check.deltaByKeeper(),
   );
   warn(
-    'утерянное знание восстанавливается из истории git через docs-keeper, причина потери записывается как rule',
+    'утерянное знание восстанавливается из истории git через librarian, причина потери записывается как rule',
     () => Check.recover(),
   );
   warn(
@@ -96,19 +96,19 @@ class Check {
     );
     const bad = rows.filter((r) => {
       const main = r.owner.split(';')[0]?.trim() ?? '';
-      return main !== 'docs-keeper' && !commands.includes(main.replace(/`/g, ''));
+      return main !== 'librarian' && !commands.includes(main.replace(/`/g, ''));
     });
     expect(bad).toEqual([]);
   }
 
   static shortReport = (): Promise<void> =>
-    judged(['@docs-keeper-report', '@docs-intents-triggers', '@attention']);
+    judged(['@librarian-report', '@docs-intents-triggers', '@attention']);
 
   static async deltaFormat(): Promise<void> {
     const block = codeBlock(await anchorEvidence('docs-delta'), 'yaml', 'summary:');
     expect(block).not.toBeNull();
     await expectSchema(
-      [{ name: 'skill docs-keeper', data: parse(block ?? '') }],
+      [{ name: 'skill librarian', data: parse(block ?? '') }],
       `${SCHEMAS}/docs-delta.schema.json`,
     );
   }
@@ -128,7 +128,7 @@ class Check {
   }
 
   static deltaByKeeper = (): Promise<void> => judged(['@docs-delta']);
-  static reviseTrace = (): Promise<void> => judged(['@docs-delta', '@docs-keeper-report']);
+  static reviseTrace = (): Promise<void> => judged(['@docs-delta', '@librarian-report']);
   static recover = (): Promise<void> => judged(['@recover']);
   static ownVoice = (): Promise<void> => judged(['@own-voice']);
 }

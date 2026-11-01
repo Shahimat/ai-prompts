@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Результаты прогонов — *.expect.json",
+  "type": "object",
+  "required": ["timestamp", "results"],
+  "additionalProperties": false,
+  "properties": {
+    "timestamp": { "type": "string", "minLength": 1 },
+    "results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["run", "items"],
+        "additionalProperties": false,
+        "properties": {
+          "run": { "type": "integer", "minimum": 1, "maximum": 3 },
+          "items": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/item" }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "item": {
+      "type": "object",
+      "required": ["key", "status"],
+      "additionalProperties": false,
+      "properties": {
+        "key": { "type": "string", "minLength": 1 },
+        "status": { "enum": ["pass", "satisfactorily", "fail"] },
+        "reason": { "type": "string", "minLength": 1 },
+        "evidence": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

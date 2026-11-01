@@ -190,9 +190,11 @@ feature:
 - [`domain`](domain.md) — entities и behavior с `verified`. v3.
 - [`manuals`](manuals.md) — ручные процедуры для человека. v3, требует
   `domain`.
-- [`goals`](goals.md) — цели и программы как очередь работы. v3.
-- [`harness`](harness.md) — проверки и генерация через
-  `@shahimat/harness`. v3.
+- [`goals`](goals.md) — deprecated: старая очередь целей и программ
+  (`context/views`). Для operator-centric v3 не ставится, работа живёт в
+  плоских `goals/*.expect.ts`.
+- [`harness`](harness.md) — headless/CI-автоматы через
+  `@shahimat/harness`; не по умолчанию.
 - [`worktrees`](worktrees.md) — параллельные сессии в git worktree. v3.
 - [`ticket-commits`](ticket-commits.md) — устарел: правила тикетов и
   коммитов — в глобальных инструкциях пользователя.

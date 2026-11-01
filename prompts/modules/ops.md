@@ -24,6 +24,11 @@ feature:
 
 # Модуль ops — jobs по задачам
 
+> Headless-рантайм прошлой редакции. В operator-centric интерактивной
+> работе не используется и по умолчанию не ставится; имена ролей —
+> текущие (`executor`, `judge`), но сам рантайм остаётся отдельным
+> модулем, не частью итерации контракта.
+
 ## Назначение
 
 Субагенты сессии не подходят для параллельных долгих работ: умирают
@@ -34,7 +39,7 @@ feature:
 
 Рантайм запускает роли через `claude -p` — только Claude Code. Роли
 ядра и протокол оператора нейтральны к агенту. Модуль добавляет роль
-`implementer` — правку в копии репозитория; `researcher` и `reviewer` —
+`executor` — правку в копии репозитория; `researcher` и `judge` —
 из ядра.
 
 ### Путь job
@@ -43,13 +48,13 @@ feature:
    DoD, ссылки, текст). Карточка без DoD в работу не берётся — вопрос
    пользователю.
 2. `research` — роль `researcher`, отчёт `research.md`.
-3. `plan` → `plan-gate` — роль `implementer` пишет `plan.md`; пауза до
+3. `plan` → `plan-gate` — роль `executor` пишет `plan.md`; пауза до
    «да» пользователя, замечание — новый план. «да» с хвостом — согласие,
    хвост уходит исполнителю замечанием.
-4. `implement` — роль `implementer` правит копию от провайдера `vcs`.
+4. `implement` — роль `executor` правит копию от провайдера `vcs`.
 5. `verify` — команды из `context/ops.yml` → `verify` в копии; в
    `commit.md` и `pr.md` нет строк атрибуции агента, иначе провал.
-6. `review` — роль `reviewer` по DoD; карточка перечитывается из
+6. `review` — роль `judge` по DoD; карточка перечитывается из
    источника, смена DoD — вопрос пользователю. Провал — назад в
    `implement`, лимит кругов.
 7. `publish` — публикация изменения методом `vcs.publish`, только если
@@ -163,7 +168,7 @@ name, …методы }`. Одно имя на двух уровнях — ош�
 ```yaml
 provides:
   layers: []
-  files: [context/ops.yml, .agents/agents/implementer.md]
+  files: [context/ops.yml, .agents/agents/executor.md]
   skills: []
   agents_md_block: true
   harness_checks: []
@@ -209,7 +214,7 @@ verify: []               # локальные проверки в копии: с
 ## Установка
 
 1. Проверь `harness` (иначе `contract-setup` добавит); поставь роль
-   `implementer` из индекса, SHA — в `parts.agents`.
+   `executor` из индекса, SHA — в `parts.agents`.
 2. Создай `context/ops.yml` по ответам: mapping по каждому интерфейсу
    таблицы, команды `verify`, путь `repo`, если код не в этом
    репозитории.

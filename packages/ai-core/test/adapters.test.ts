@@ -333,4 +333,26 @@ describe('adapters sync: memory выключена', () => {
     );
     expect(await sync(['codex'])).toEqual([]);
   });
+
+  it('opencode: без конфига OpenCode guard не создаётся', async () => {
+    await seed();
+    expect(await sync()).toEqual([]);
+    expect(await exists('.opencode/opencode.jsonc')).toBe(false);
+  });
+
+  it('opencode: при наличии конфига ставит deny memory и проходит check', async () => {
+    await seed();
+    await put('opencode.jsonc', '{}\n');
+    expect(await sync()).toEqual([]);
+    expect(await read('.opencode/opencode.jsonc')).toContain('"*memory*"');
+    expect(await checkAdapters(root, BOTH)).toEqual([]);
+  });
+
+  it('opencode: memory MCP в конфиге — ошибка', async () => {
+    await seed();
+    await put('opencode.jsonc', '{"mcp":{"memory":{"type":"local"}}}\n');
+    expect(await sync()).toEqual([
+      'opencode.jsonc: memory-MCP/инструмент запрещён контрактом: memory',
+    ]);
+  });
 });

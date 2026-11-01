@@ -1,7 +1,12 @@
 ---
 name: watch-triage
 description: Триаж наблюдателя — по изменениям в PR или проверках решает, игнорировать, сообщить пользователю или передать в работу. Вызывается рантаймом наблюдателей с diff статусов.
-model: haiku
+kind: custom
+lifecycle: fresh
+permissions: [read]
+concurrency: unlimited
+artifacts: [.ops/watches/]
+model: deepseek/deepseek-flash#max
 output: result
 ---
 

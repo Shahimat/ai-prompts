@@ -233,7 +233,7 @@ describe('[harness] source-sync', () => {
     back: 'update',
     limit: 3,
   });
-  crit('skill docs-keeper объявляет runs: docs-delta, skill source-sync — runs: source-sync', () =>
+  crit('skill librarian объявляет runs: docs-delta, skill source-sync — runs: source-sync', () =>
     Skills.processSkills(),
   );
 });
@@ -267,7 +267,7 @@ describe('[harness] ticket-work', () => {
     'роль в job — отдельный процесс claude -p; полный stream-json прогона пишется в журнал job',
     () => Ops.transcripts(),
   );
-  warn('git-запись по job делает пользователь: implementer не коммитит, ready ждёт «готово»', () =>
+  warn('git-запись по job делает пользователь: executor не коммитит, ready ждёт «готово»', () =>
     judged(['@job-git']),
   );
 });
@@ -624,7 +624,7 @@ describe('[harness] secrets', () => {
     Check.secretsFile(),
   );
   warn(
-    'docs-keeper не записывает секрет в документацию: вместо значения — указатель на хранилище',
+    'librarian не записывает секрет в документацию: вместо значения — указатель на хранилище',
     () => Check.docsKeeperSecrets(),
   );
 });
@@ -1760,7 +1760,7 @@ class Skills {
 
   static async processSkills(): Promise<void> {
     const runs = Object.fromEntries((await skillFiles()).map((s) => [s.name, s.runs]));
-    expect({ docs: runs['docs-keeper'], source: runs['source-sync'] }).toEqual({
+    expect({ docs: runs['librarian'], source: runs['source-sync'] }).toEqual({
       docs: 'docs-delta',
       source: 'source-sync',
     });
@@ -3141,8 +3141,8 @@ class Ops {
     const args = roleArgs({
       root: '/r',
       role: {
-        name: 'implementer',
-        source: 'agents/implementer.md',
+        name: 'executor',
+        source: 'agents/executor.md',
         description: 'd',
         skills: [],
         tools: [],

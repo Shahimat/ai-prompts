@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Реестр skills — context/skills.yml",
+  "type": "object",
+  "required": ["skills"],
+  "additionalProperties": false,
+  "properties": {
+    "skills": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["key", "kind", "path", "roles"],
+        "additionalProperties": false,
+        "properties": {
+          "key": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+          "kind": { "enum": ["core", "project"] },
+          "source": {
+            "description": "Источник core-skill; project-skill источник не объявляет",
+            "type": "string",
+            "minLength": 1
+          },
+          "path": { "type": "string", "pattern": "^\\.agents/skills/[a-z][a-z0-9-]*$" },
+          "sha": { "type": "string", "minLength": 1 },
+          "extends": {
+            "description": "Core-skill, который project-skill дополняет; без extends project-skill не подменяет core",
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$"
+          },
+          "requires": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "tools": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+              "mcp": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+            }
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]*(\\.[a-z*][a-z0-9*-]*)?$"
+            }
+          },
+          "roles": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" }
+          }
+        },
+        "allOf": [
+          {
+            "if": { "properties": { "kind": { "const": "core" } } },
+            "then": { "required": ["source"] }
+          },
+          {
+            "if": { "properties": { "kind": { "const": "project" } } },
+            "then": { "properties": { "extends": { "type": "string" } } }
+          }
+        ]
+      }
+    }
+  }
+}
