@@ -1,5 +1,5 @@
 # Автомат docs-delta: запись в проектную документацию через дельту.
-# Роль docs-keeper (или агент) работает в apply, роль judge — в review, остальное — скрипт.
+# Роль librarian (или агент) работает в apply, роль judge — в review, остальное — скрипт.
 # Схема — expectations/schemas/harness-fsm.schema.json.
 harness: docs-delta
 description: Дельта документации — применение агентом, проверка и закрытие

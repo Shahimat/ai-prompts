@@ -168,8 +168,8 @@ export function applyTask(ctx: ProcessContext): string {
   const file = `${DELTA_DIR}/${ctx.session.data.title}.yml`;
   const exists = existsSync(path.join(ctx.session.data.project, file));
   const what = exists
-    ? `дельта ${file} уже есть — дополни её, а не пересобирай: существующие пункты, включая ручные revise, сохрани; недостающие пункты добавь и примени по skill docs-keeper`
-    : `собери дельту ${file} из намерений и примени её пункты по skill docs-keeper`;
+    ? `дельта ${file} уже есть — дополни её, а не пересобирай: существующие пункты, включая ручные revise, сохрани; недостающие пункты добавь и примени по skill librarian`
+    : `собери дельту ${file} из намерений и примени её пункты по skill librarian`;
   return `${what}; намерение kind revise — пункт op: revise с его target, was, why; процесс docs-delta уже идёт — сам его не запускай, verify, review и close сделает harness${lastViolations(ctx)}${lastConflicts(ctx)}`;
 }
 
@@ -179,7 +179,7 @@ const FAILURE_HINT =
 function registry(): Registry<ProcessContext> {
   return {
     actions: new Map([
-      ['delta-apply', roleOrHandoff<ProcessContext>('docs-keeper', applyTask)],
+      ['delta-apply', roleOrHandoff<ProcessContext>('librarian', applyTask)],
       [
         'docs-verify',
         scriptAction<ProcessContext>(

@@ -159,7 +159,7 @@ export function scheduleName(name: string): string {
   if (name !== 'auto') return name;
   if (process.platform === 'darwin') return 'launchd';
   if (process.platform === 'linux') return 'systemd';
-  throw new UsageError(`schedule auto: нет встроенного планировщика для ${process.platform}`);
+  return 'none';
 }
 
 export interface WriteOutcome {

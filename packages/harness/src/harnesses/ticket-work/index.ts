@@ -232,7 +232,7 @@ const plan: ActionDef<ProcessContext> = {
       : '';
     const r = await roleStep(
       ctx,
-      'implementer',
+      'executor',
       PRIORITY.plan,
       `Режим плана: код не меняй. По карточке ${rel(s, 'task.md')} и исследованию ${rel(s, 'research.md')} составь план правки — шаги, файлы, проверки, связь с каждым пунктом DoD. План — в ${rel(s, 'plan.md')}.${remark}`,
     );
@@ -314,7 +314,7 @@ const implement: ActionDef<ProcessContext> = {
     ].filter((x) => x !== '');
     const r = await roleStep(
       ctx,
-      'implementer',
+      'executor',
       PRIORITY.implement,
       [
         `Правь код в копии ${dir} (только там) по карточке ${rel(s, 'task.md')} и принятому плану ${rel(s, 'plan.md')}.`,
@@ -393,6 +393,31 @@ export function parseVerdicts(report: string): Verdict[] {
   return out;
 }
 
+function verdictsOf(data: unknown): Verdict[] {
+  if (isRecord(data) && Array.isArray(data['items'])) {
+    const out: Verdict[] = [];
+    for (const item of data['items']) {
+      if (!isRecord(item)) continue;
+      const status =
+        item['status'] === 'pass'
+          ? 'ok'
+          : item['status'] === 'fail'
+            ? 'fail'
+            : item['status'] === 'satisfactorily'
+              ? 'unknown'
+              : undefined;
+      if (status === undefined) continue;
+      out.push({
+        status,
+        item: typeof item['key'] === 'string' ? item['key'] : '',
+        evidence: typeof item['reason'] === 'string' ? item['reason'] : '',
+      });
+    }
+    return out;
+  }
+  return parseVerdicts(reportOf(data));
+}
+
 const squash = (t: string): string => t.replace(/\s+/g, ' ').trim();
 
 export async function quoted(dir: string, evidence: string): Promise<boolean> {
@@ -444,7 +469,7 @@ const review: ActionDef<ProcessContext> = {
     await writeFile(jobFile(s, 'diff'), typeof diff === 'string' ? diff : '', 'utf8');
     const r = await roleStep(
       ctx,
-      'reviewer',
+      'judge',
       PRIORITY.review,
       [
         `Проверь результат по DoD карточки ${rel(s, 'task.md')}.${dodNote}`,
@@ -454,7 +479,7 @@ const review: ActionDef<ProcessContext> = {
       [dir],
     );
     if (isResult(r)) return r;
-    const verdicts = parseVerdicts(reportOf(r.data));
+    const verdicts = verdictsOf(r.data);
     const checked: Verdict[] = [];
     for (const v of verdicts)
       checked.push(

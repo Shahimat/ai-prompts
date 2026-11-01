@@ -124,7 +124,7 @@ export const INTENTS_SHAPE = `intents: [{kind, summary, evidence}] или тот
 
 export const INTENTS_SCHEMA = {
   $schema: 'https://json-schema.org/draft/2020-12/schema',
-  title: 'intents — вход роли docs-keeper: намерения записи в документацию',
+  title: 'intents — вход роли librarian: намерения записи в документацию',
   type: 'object',
   additionalProperties: false,
   required: ['intents'],

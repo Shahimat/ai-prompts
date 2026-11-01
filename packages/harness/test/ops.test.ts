@@ -62,7 +62,7 @@ async function project(): Promise<void> {
   await put('README.md', 'hello world\n');
   await put('tasks/t1.md', TASK);
   await put('context/ops.yml', 'verify:\n  - node -e "process.exit(0)"\n');
-  for (const r of ['researcher', 'implementer', 'reviewer', 'watch-triage', 'watch-request'])
+  for (const r of ['researcher', 'executor', 'judge', 'watch-triage', 'watch-request'])
     await put(`.agents/agents/${r}.md`, roleFile(r));
   git('init', '-q');
   git('add', '.');
@@ -125,8 +125,8 @@ describe('ticket-work: путь задачи', () => {
   it('start → план ждёт «да» → правка, проверка, ревью → ready ждёт «готово» → done', async () => {
     byRole({
       researcher: { submit: result('исследование') },
-      implementer: { submit: result('сделано') },
-      reviewer: { submit: OK_REVIEW },
+      executor: { submit: result('сделано') },
+      judge: { submit: OK_REVIEW },
     });
     expect(await run(['ticket-work', 'start', 'tasks/t1.md'])).toBe(0);
     expect(await stateOf()).toBe('plan-gate');
@@ -148,7 +148,7 @@ describe('ticket-work: путь задачи', () => {
     expect(existsSync(path.join(workdir, 'README.md'))).toBe(true);
     const implement = (await readFile(path.join(home, 'args.jsonl'), 'utf8'))
       .split('\n')
-      .filter((l) => l.includes('"role":"implementer"'))
+      .filter((l) => l.includes('"role":"executor"'))
       .at(-1);
     expect(implement).toContain('--add-dir');
 
@@ -166,7 +166,7 @@ describe('ticket-work: путь задачи', () => {
   it('вопросы роли: пауза, ответ попадает в задание повторного прогона', async () => {
     byRole({
       researcher: [{ submit: result('', ['Какой стиль приветствия?']) }, { submit: result('ок') }],
-      implementer: { submit: result('план') },
+      executor: { submit: result('план') },
     });
     expect(await run(['ticket-work', 'start', 'tasks/t1.md'])).toBe(0);
     expect(await stateOf()).toBe('research');
@@ -186,8 +186,8 @@ describe('ticket-work: путь задачи', () => {
   it('замечание к плану — новый план; ready с доработкой — снова implement', async () => {
     byRole({
       researcher: { submit: result('и') },
-      implementer: { submit: result('п') },
-      reviewer: { submit: OK_REVIEW },
+      executor: { submit: result('п') },
+      judge: { submit: OK_REVIEW },
     });
     await run(['ticket-work', 'start', 'tasks/t1.md']);
     const { short } = await job();
@@ -204,8 +204,8 @@ describe('ticket-work: путь задачи', () => {
   it('DoD изменился в источнике — вопрос; «нет» — ревью по прежнему DoD', async () => {
     byRole({
       researcher: { submit: result('и') },
-      implementer: { submit: result('п') },
-      reviewer: { submit: OK_REVIEW },
+      executor: { submit: result('п') },
+      judge: { submit: OK_REVIEW },
     });
     await run(['ticket-work', 'start', 'tasks/t1.md']);
     const { short } = await job();
@@ -217,17 +217,17 @@ describe('ticket-work: путь задачи', () => {
     expect(await read(`.ops/jobs/${short}/dod-previous.md`)).toContain(
       'README содержит hello world',
     );
-    const reviewer = (await readFile(path.join(home, 'args.jsonl'), 'utf8'))
+    const judge = (await readFile(path.join(home, 'args.jsonl'), 'utf8'))
       .split('\n')
-      .filter((l) => l.includes('"role":"reviewer"'))
+      .filter((l) => l.includes('"role":"judge"'))
       .at(-1);
-    expect(reviewer).toContain('по прежнему DoD');
+    expect(judge).toContain('по прежнему DoD');
   });
 
   it('лимит модели: очередь на паузе, событие rate-limit, работа продолжается', async () => {
     byRole({
       researcher: [{ error: 'API Error: 429 rate limit exceeded' }, { submit: result('и') }],
-      implementer: { submit: result('п') },
+      executor: { submit: result('п') },
     });
     expect(await run(['ticket-work', 'start', 'tasks/t1.md'])).toBe(0);
     expect(await stateOf()).toBe('plan-gate');
@@ -508,8 +508,8 @@ export default {
 describe('ticket-work: лестница проверок и публикация', () => {
   const ROLES = {
     researcher: { submit: result('исследование') },
-    implementer: { submit: result('сделано') },
-    reviewer: { submit: OK_REVIEW },
+    executor: { submit: result('сделано') },
+    judge: { submit: OK_REVIEW },
   };
 
   beforeEach(async () => {

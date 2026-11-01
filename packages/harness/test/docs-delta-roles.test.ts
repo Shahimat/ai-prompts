@@ -16,7 +16,7 @@ const RESULT = {
   changed: [],
   failed: [],
   questions: [],
-  report: 'отчёт docs-keeper',
+  report: 'отчёт librarian',
 };
 
 let root: string;
@@ -55,7 +55,7 @@ afterEach(async () => {
   await rm(home, { recursive: true, force: true });
 });
 
-describe('docs-delta: роли docs-keeper и judge', () => {
+describe('docs-delta: роли librarian и judge', () => {
   const git = (...args: string[]) => spawnSync('git', args, { cwd: root, encoding: 'utf8' });
   const DELTA =
     'summary: s\nitems:\n  - op: add\n    kind: rule\n    target: other\n    summary: новое\n    evidence: e\n';
@@ -75,7 +75,7 @@ describe('docs-delta: роли docs-keeper и judge', () => {
     await put('context/ai-core.yml', 'checks:\n  context-index: {}\n');
     await put('context/project.yml', 'name: demo\nnamespaces:\n  core: ядро\n');
     await put('context/conventions/naming.yml', 'key: naming\nsummary: kebab-case\nrule: x\n');
-    await put('.agents/agents/docs-keeper.md', roleFile('docs-keeper', 'result'));
+    await put('.agents/agents/librarian.md', roleFile('librarian', 'result'));
     await put('.agents/agents/judge.md', roleFile('judge', 'verdict'));
     await put('intents.yml', '- kind: rule\n  summary: новое\n  evidence: e\n');
     git('init', '-q');
@@ -110,7 +110,7 @@ describe('docs-delta: роли docs-keeper и judge', () => {
     process.env['FAKE_FILES'] = JSON.stringify(KEEPER_FILES);
   });
 
-  it('start --file: намерения по схеме хранятся в сессии; apply — docs-keeper, review — judge по изменённым файлам', async () => {
+  it('start --file: намерения по схеме хранятся в сессии; apply — librarian, review — judge по изменённым файлам', async () => {
     await project();
     process.env['FAKE_SUBMIT'] = JSON.stringify({ result: RESULT, verdict: { conflicts: [] } });
     const lines: string[] = [];
@@ -128,12 +128,9 @@ describe('docs-delta: роли docs-keeper и judge', () => {
     expect(keeper?.message).toBe('result');
     expect(keeper?.prompt).toContain('"summary":"новое"');
     expect(judge?.message).toBe('verdict');
-    expect((await readdir(s.file('runs'))).sort()).toEqual([
-      'docs-keeper-1.jsonl',
-      'judge-1.jsonl',
-    ]);
-    expect(await readFile(s.file('runs/docs-keeper-1.jsonl'), 'utf8')).toContain('"type":"result"');
-    expect(await readFile(s.file('progress.log'), 'utf8')).toContain('роль docs-keeper: запущена');
+    expect((await readdir(s.file('runs'))).sort()).toEqual(['judge-1.jsonl', 'librarian-1.jsonl']);
+    expect(await readFile(s.file('runs/librarian-1.jsonl'), 'utf8')).toContain('"type":"result"');
+    expect(await readFile(s.file('progress.log'), 'utf8')).toContain('роль librarian: запущена');
     expect(judge?.prompt).toContain('- context/conventions/other.yml');
     expect(judge?.prompt).toContain('target: other');
   });
@@ -243,7 +240,7 @@ describe('docs-delta: роли docs-keeper и judge', () => {
     });
     expect(await start('--file', 'intents.yml')).toBe(0);
     expect((await session()).data.state).toBe('apply');
-    expect(lines.join('\n')).toMatch(/роль docs-keeper: .*не вернула результат.*docs-delta open/s);
+    expect(lines.join('\n')).toMatch(/роль librarian: .*не вернула результат.*docs-delta open/s);
     expect(lines.join('\n')).toContain('Намерения: {"intents"');
   });
 });
