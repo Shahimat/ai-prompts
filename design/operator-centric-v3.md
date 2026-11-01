@@ -22,7 +22,8 @@
 Читать в этом порядке:
 
 1. Раздел 0 — принятые решения; они не пересматриваются без пользователя.
-2. Раздел 16 — текущее состояние и следующая итерация.
+2. Раздел 16 — текущее состояние, порядок итерации (16.2) и решения
+   вне §14 (16.7).
 3. Остальной документ — детали ролей, артефактов и протоколов.
 
 Текущее состояние: **только дизайн**. Код, промпты, skills и контракт
@@ -35,18 +36,37 @@ v3 ещё не менялись. Следующий шаг — **16.2.1: схе�
 - **Маркер редакции.** В `context/project.yml`:
   `sync.contract.edition: operator-centric`. Плагин активируется только
   при этом маркере; старые v3-проекты без него не затрагиваются.
-- **`plan/` — плоский набор `*.expect.ts`.** `plan/program.expect.ts`
-  импортирует цели в порядке приоритета. Других файлов в `plan/` нет:
-  ни `plan.md`, ни `expectations.yml`, ни `proposal/specs/design/tasks`.
-- **`plan/` коммитится.** В долгосроке это очередь работ — замена
-  goals/programs.
-- **goals/programs упраздняются.** Приоритет — порядок импортов в
-  `program.expect.ts`; завершённое удаляется, история — git.
+- **`goals/` — цели и программы.** Один файл — одна цель
+  `goals/<goal>.expect.ts` или одна программа
+  `goals/program--<key>.expect.ts`. Программа — агрегатор: импортирует
+  свои цели в порядке приоритета; программ много, единой очереди нет;
+  одна цель входит ровно в одну программу. Старый `program` из
+  `context/views` сюда не переносится. Проверки запускаются в скоупе:
+  одна цель или целая программа.
+- **Цель и тикеты.** Внутри файла цели — тикеты:
+  `describe('ticket: …')` со своими `crit`/`warn`/`it.todo`. Один
+  активный тикет на файл цели; параллель — между целями. Артефакты
+  тикета — `.ops/<ticket>/`.
+- **Этапы цели.** `it.todo` — план; `it.todo` нет — готовый план; нет
+  `it.todo`/`crit.wip` и все `crit`/`warn` проходят — цель достигнута,
+  файл и импорт удаляются. Стадию показывает `ai goals status`.
+- **`goals/` коммитится.** Это рабочее пространство целей, замена
+  `context/views`. Старая очередь goals/programs в новой модели не
+  используется; паттерн и модуль `goals` остаются deprecated для старых
+  проектов и в v3 не ставятся: приоритет — порядок импортов внутри
+  программы, завершённое удаляется, история — git.
 - **External executor.** Для external-проекта нужен executor, который
   работает в удалённом проекте и меняет его; GUI/CI-работы — его
   штатная нагрузка.
 - **Scratchpad локальный.** `.ops/operator/state.yml`, в git не
   попадает.
+- **Открытость и явность.** Долговременное состояние — только в git;
+  локальные файлы (scratchpad, locks, event log) — явные кэши, не
+  влияющие на решения; память инструментов выключена.
+- **Memory guard — часть ядра.** Память инструментов выключена не на
+  словах: memory-инструменты и memory-MCP запрещены, запись в
+  memory-пути блокируется, настройки и hooks ставят адаптеры и проверяет
+  `ai adapters check`.
 - **Judge resume** — только в цикле judge ↔ executor. Вернулись к
   оператору — новый свежий judge.
 - **Merge worktree** — оператор.
@@ -58,9 +78,14 @@ v3 ещё не менялись. Следующий шаг — **16.2.1: схе�
 - **Исполнители могут спать.** Пауза — штатное состояние; оператор не
   опрашивает и не «агрится» на спящих.
 - **Кастомные роли** — формальное пространство и схема.
-- **Skills проекта** — `.agents/skills` + `context/skills.yml` +
-  `context/roles.yml`; core через source-sync, project через
-  `extends`/новый skill; оператор — только allowlist.
+- **Skills проекта** — `.agents/skills` + `context/skills.yml`; core через
+  source-sync, project через `extends`/новый skill; оператор — только
+  allowlist.
+- **Роли — один файл.** `.agents/agents/<role>.md` — единственный
+  источник роли (frontmatter + промпт); `context/roles.yml` нет.
+  Привязка skills — `context/skills.yml`, исключения ролей —
+  `context/project.yml`. Оператор — исключение: файла роли нет, его
+  `kind`/`lifecycle` фиксирует контракт, allowlist — `skills.yml`.
 - **Browser** — capability, не роль: `browser` для executor,
   `browser-read` для judge/researcher; оператор — только исключение;
   отдельный `browser-executor` — только если нужен свой lifecycle.
@@ -95,22 +120,33 @@ jobs. Это хорошо для однозначных повторяемых �
   параллельно; librarian — один.
 - **Лимит исполнителей.** Не больше 5 одновременно работающих executor;
   пауза не считается.
-- **Чтение и запись разделены.** Оператор и executor документацию только
-  читают. Правки — через librarian.
+- **Чтение и запись разделены.** Оператор, executor и judge
+  документацию только читают. Правки — через librarian.
 - **Скиллы — ролям.** Оператор не загружает ролевые skills; его протокол
-  живёт в `AGENTS.md`. Исключение — операторский skill фидбека.
-- **Артефакты вместо FSM.** План, expectations, вердикты и отчёты — это
-  состояние задачи.
-- **`plan/` вместо goals.** Плоские `plan/<goal>.expect.ts`, агрегатор
-  `plan/program.expect.ts`; приоритет — порядок импортов. Никаких
-  `plan/index.yml`, `plan.md`, `expectations.yml`.
+  живёт в `AGENTS.md`. Исключения — `operator-feedback` и явный
+  `browser-read`.
+- **Артефакты вместо FSM.** `goals/`, expectations, вердикты и
+  отчёты — это состояние задачи.
+- **`goals/` вместо `context/views`.** Плоские
+  `goals/<goal>.expect.ts` и `goals/program--<key>.expect.ts`; программа
+  импортирует свои цели, приоритет — порядок импортов внутри программы.
+  Никаких `goals/index.yml`, `goals/README.md`, `expectations.yml`.
+- **Открытость и явность.** Всё, что влияет на решения, живёт явными
+  файлами в репозитории и переносится на другую машину. Скрытой памяти
+  инструмента, глобальных инструкций и hooks вне репозитория нет.
+  Локальны только явные кэши (`.ops/operator/state.yml`, `.ops/locks/`,
+  watcher event log): они не источник истины, не содержат решений и
+  восстанавливаются из `goals/`, docs и git.
+- **Memory guard.** Запрет memory — часть ядра, не опция: memory-MCP и
+  memory-инструменты запрещены, запись в memory-пути блокируется,
+  настройки и hooks ставят адаптеры, `ai adapters check` проверяет.
 - **Формальное общение.** Оператор и роли общаются сообщениями по схеме,
   не свободным чатом.
 - **Кастомные роли.** Проект может добавлять свои роли в формальном
-  пространстве `.agents/agents` + `context/roles.yml`.
-- **Skills проекта формальны.** `.agents/skills` + `context/skills.yml`
-  + `context/roles.yml`; core — source-sync, project — extends/новый
-  skill; оператор — allowlist.
+  пространстве `.agents/agents`.
+- **Skills проекта формальны.** `.agents/skills` + `context/skills.yml`;
+  core — source-sync, project — extends/новый skill; оператор —
+  allowlist.
 - **Browser — capability.** Не роль: `browser` для executor,
   `browser-read` для judge/researcher; отдельная роль — только по
   необходимости.
@@ -138,9 +174,10 @@ jobs. Это хорошо для однозначных повторяемых �
   работать и как инструкция агенту, и как механический запрет
   (документация только librarian, права ролей). Trade-off — нужны
   permissions/скрипты под каждый runtime.
-- **`goals`** — больше не применяется в v3: очередь и приоритеты
-  переезжают в `plan/`. Паттерн и модуль `goals` остаются для старых
-  проектов и помечаются deprecated.
+- **`goals`** — больше не применяется в v3: работа и приоритеты
+  переезжают в `goals/`. Паттерн и модуль `goals` (старая очередь
+  `context/views`) остаются для старых проектов, помечаются deprecated и
+  в v3-проектах не ставятся; с новым `goals/` их не путать.
 
 Рекомендация: `source-sync` — всегда; `guardrail-dual-level` — для
 документации и прав ролей; `goals` — не применять в новых v3-проектах.
@@ -151,11 +188,12 @@ jobs. Это хорошо для однозначных повторяемых �
 
 Один, primary, постоянная сессия.
 
-**Читает:** `AGENTS.md`, `context/`, `docs/`, `plan/`,
-`plan/program.expect.ts`, артефакты ролей.
+**Читает:** `AGENTS.md`, `context/`, `docs/`, `goals/` (цели и
+программы), артефакты ролей.
 
-**Пишет:** `plan/program.expect.ts`, `plan/<goal>.expect.ts`,
-`.ops/operator/state.yml`, `.ops/feedback/<ticket>.yml`.
+**Пишет:** `goals/program--<key>.expect.ts`,
+`goals/<goal>.expect.ts`, `.ops/operator/state.yml`,
+`.ops/feedback/<ticket>.yml`.
 
 **Не пишет:** `docs/`, `context/`, `CHANGELOG.md`, код.
 
@@ -166,19 +204,23 @@ jobs. Это хорошо для однозначных повторяемых �
 
 - принимает запрос и определяет сценарий: `plan`, `execute`, `audit`,
   `challenge`, `report`;
-- берёт приоритеты из порядка импортов `plan/program.expect.ts` и
-  указаний пользователя; не изобретает их;
-- фиксирует цели и шаги как `describe`/`crit` в `plan/<goal>.expect.ts`;
-  на первом проходе — `it.todo`/`crit.wip`, затем механика проверок;
-- держит `plan/program.expect.ts` как агрегатор и очередь;
-- состав целей и бюджет — его собственность;
+- берёт приоритеты из порядка импортов в файлах программ и указаний
+  пользователя; не изобретает их;
+- фиксирует цель как `goals/<goal>.expect.ts`: `describe` цели и
+  `describe('ticket: …')` на каждый тикет; на первом проходе —
+  `it.todo`/`crit.wip`, затем механика проверок;
+- ведёт тикеты: один активный на файл цели, следующий — после закрытия
+  предыдущего; тикет закрыт, когда все его `crit` и `warn` зелёные;
+- держит `goals/program--<key>.expect.ts` как агрегаторы; удаляет цель
+  из её программы и из `goals/`, когда все её тикеты закрыты;
+- состав целей, программы и бюджет — его собственность;
 - выдаёт брифы ролям; параллельные задачи — параллельно,
   зависимые — последовательно;
 - выделяет worktree исполнителям; для external — удалённый target;
   merge — его;
 - держит не больше 5 активных executor; paused не считает;
-- запускает проверки и гейты;
-- обновляет `plan/`, `todowrite` и scratchpad;
+- запускает проверки и гейты в скоупе: цель или программа;
+- обновляет `goals/`, `todowrite` и scratchpad;
 - по запросу собирает feedback по метрикам и причинам;
 - отчитывается пользователю коротко и по делу;
 - эскалирует только то, что не может решить сам.
@@ -199,7 +241,7 @@ jobs. Это хорошо для однозначных повторяемых �
 **Пишет:** только `.ops/<ticket>/research/<id>.md` (один артефакт на
 задание).
 
-**Не пишет:** код, документацию, план, expectations.
+**Не пишет:** код, документацию, `goals/`, expectations.
 
 **Возвращает:** находки, источники, уверенность, неизвестное,
 рекомендацию и указатели. Без сырых дампов.
@@ -214,15 +256,16 @@ jobs. Это хорошо для однозначных повторяемых �
 
 Возобновляемая сессия; работает в своём worktree.
 
-**Читает:** план, expectations, research, вердикты judge, код,
+**Читает:** цель и тикет, expectations, research, вердикты judge, код,
 документацию.
 
 **Пишет:** код, тесты, конфиги, `.ops/<ticket>/reports/<id>.md` в своём
 worktree.
 
-**Не пишет:** `docs/`, `context/`, `CHANGELOG.md`, план, expectations.
+**Не пишет:** `docs/`, `context/`, `CHANGELOG.md`, `goals/`,
+expectations.
 
-**Получает:** задачу, DoD, ограничения, worktree, указатели, бюджет
+**Получает:** тикет, DoD, ограничения, worktree, указатели, бюджет
 циклов, прошлые замечания judge (без аргументов в чате).
 
 **Возвращает:** что сделано, какие проверки прошли, что осталось, где
@@ -233,14 +276,16 @@ worktree.
 
 **Параллельность:** до 5 одновременно работающих executor; paused не
 считается. Один worktree — один executor. Два executor в одном checkout
-запрещены.
+запрещены. Тикеты одной цели последовательны: они живут в одном файле;
+параллель — между целями.
 
 **Пауза:** исполнитель может стоять на паузе в ожидании очереди, события
 или ответа пользователя. Это штатное состояние, а не сбой. Оператор не
 опрашивает paused-сессии и не шлёт им «ты как?». Возобновление — по
 событию, таймеру или просьбе пользователя. Пользователь может сказать
-«эта задача на паузе» — оператор фиксирует это в `plan/<goal>.expect.ts`
-(`it.todo('paused: ...')`) и scratchpad, не трогает исполнителя.
+«эта задача на паузе» — оператор переводит проверки тикета в `crit.wip`,
+ставит пометку `paused` и фиксирует паузу в scratchpad, не трогает
+исполнителя.
 
 #### External executor
 
@@ -270,27 +315,37 @@ worktree.
 Всегда читает только результат и expectations; **аргументов и чата
 executor не видит**.
 
-**Читает:** expectations, DoD, артефакты результата, проверки.
+**Читает:** expectations, DoD, артефакты результата, проверки; из файла
+цели — только свой `describe('ticket: …')`.
 
 **Пишет:** `.ops/<ticket>/verdicts/<cycle>.yml`; может править в
-`plan/<goal>.expect.ts` только `title` и механику проверки.
+`goals/<goal>.expect.ts` только `title` и механику проверки внутри
+своего тикета.
 
-**Не может:** добавлять/удалять `describe`/`crit`/`warn`, менять
-`budget`, писать код или документацию.
+**Не может:** добавлять/удалять `describe`/`crit`/`warn`/`it.todo`,
+менять `budget`, трогать чужие тикеты, писать код или документацию.
 
 **Если считает, что пункт лишний или заголовок искажает смысл:** правит
 заголовок/механику в разрешённых местах и отчитывается; добавить/удалить
 пункт — только предложение оператору.
 
-**Валидация:** runtime-neutral AST-проверка `ai plan check` сравнивает
-файл с baseline: число и порядок `describe`/`crit`/`warn` не меняются,
-`budget` не меняется, разрешены только строки заголовков и тела проверок.
+**Валидация:** runtime-neutral AST-проверка
+`ai goals check goals/<goal>.expect.ts --ticket <key>` сравнивает файл с
+baseline: число и порядок `describe`/`crit`/`warn`/`it.todo` не
+меняются, `budget` не меняется, разрешены только строки заголовков и
+тела проверок; изменения вне блока активного тикета отклоняются.
 Невалидная правка отклоняется.
 
-**Baseline.** На старте ticket оператор снимает копию `plan/` в
-`.ops/<ticket>/baseline/`; `ai plan check` сравнивает с ней. Baseline
-обновляет только оператор, когда принято новое состояние целей; judge
-baseline не трогает.
+**Baseline.** На старте ticket оператор снимает копию активного файла
+`goals/<goal>.expect.ts` в `.ops/<ticket>/baseline/`; `ai goals check`
+сравнивает с ней. Baseline обновляет только оператор — после merge
+тикета; вне ticket baseline не меняется. Judge baseline не трогает.
+
+**Где правит.** Judge работает в worktree executor: читает результат,
+правит свой блок, пишет вердикт и checks туда же. Baseline-копия лежит в
+том же worktree, потому что закоммичена до его создания. Оператор
+мержит ветку, затем обновляет baseline в main. Для external схема та же
+на target; детали — открытый вопрос §14.
 
 **Возвращает:**
 
@@ -318,11 +373,11 @@ baseline не трогает.
 
 Один, всегда свежий контекст, последовательный писатель документации.
 
-**Читает:** документацию, код, план, запрос оператора.
+**Читает:** документацию, код, `goals/`, запрос оператора.
 
 **Пишет:** `docs/`, `context/`, `CHANGELOG.md`.
 
-**Не пишет:** код, план, expectations, тесты.
+**Не пишет:** код, `goals/`, expectations, тесты.
 
 **Получает запрос:** что зафиксировать, зачем, evidence, целевой слой,
 критерий готовности.
@@ -343,8 +398,9 @@ baseline не трогает.
 
 ### 4.6 Skills ролей
 
-- **operator** — без ролевого skill; протокол в `AGENTS.md`. Единственное
-  исключение — `operator-feedback` по явному запросу пользователя.
+- **operator** — без ролевого skill; протокол в `AGENTS.md`. Исключения:
+  `operator-feedback` по явному запросу пользователя и `browser-read`
+  только как явное исключение.
 - **researcher** — `research`.
 - **executor** — `executor` (кодовые правила и проверки).
 - **judge** — `judge` (формат expectations и вердикта).
@@ -357,10 +413,11 @@ permissions, в Claude Code — `skills` субагента, в Codex — инс
 
 ### 4.7 Скилл `operator-feedback`
 
-Единственный операторский skill-исключение. Загружается по явному
-запросу: «собери фидбек по работе», «что улучшить в контракте».
+Операторский skill-исключение; второй допустимый — явный `browser-read`
+(см. 4.11/4.12). Загружается по явному запросу: «собери фидбек по
+работе», «что улучшить в контракте».
 
-**Вход:** plan, reports, verdicts, scratchpad, session stats, события
+**Вход:** `goals/`, reports, verdicts, scratchpad, session stats, события
 watcher, замечания пользователя.
 
 **Метрики:**
@@ -395,38 +452,42 @@ evidence: []
 классифицируется по логу сообщений и реакции пользователя, вторая — по
 session stats; в отчёте указывается метод и погрешность.
 
-### 4.8 Кастомные роли
+### 4.8 Роли и кастомные роли
 
-Формальное пространство:
+Роль — один файл; отдельного реестра нет. Исключение — оператор: файла
+роли нет, его метаданные фиксирует контракт.
 
-- источник роли — `.agents/agents/<name>.md`;
-- реестр — `context/roles.yml`;
-- схема роли — `expectations/schemas/role.schema.json`;
+- источник роли — `.agents/agents/<name>.md`: frontmatter + промпт;
+- схема frontmatter — `expectations/schemas/role.schema.json` (новый;
+  расширяет `agent-frontmatter.schema.json`);
+- привязка skills — `context/skills.yml` (`roles: [...]`), не в роли;
+- исключения ролей (`role_exceptions`) — `context/project.yml`;
 - адаптеры генерируют `.opencode/agents`, `.claude/agents`,
   `.codex/agents`.
 
-Реестр:
+Frontmatter роли:
 
 ```yaml
-roles:
-  - name: <kebab-case>
-    kind: primary | core | custom
-    description: <одна строка>
-    permissions: <capability или набор действий>
-    lifecycle: persistent | fresh | resumable | paused
-    concurrency: <число или unlimited>
-    skills: [<имена>]
-    output: <протокол>
-    artifacts: [<пути>]
+---
+name: <kebab-case>
+kind: primary | core | custom
+description: <одна строка>
+permissions: <capability или набор действий>
+lifecycle: persistent | fresh | resumable | paused
+concurrency: <число или unlimited>
+output: <протокол>
+artifacts: [<пути>]
+---
+<промпт роли>
 ```
 
 Правила:
 
 - все роли, включая core и `external-executor`, заполняют эту схему;
-  примеры в 4.11/4.12/4.13 — либо полные записи, либо явно помеченные
-  фрагменты;
-- `operator` — `kind: primary`, `lifecycle: persistent`; это не
-  субагент и не `.agents/agents/operator.md`;
+  примеры ролей — в 4.12 и 4.13, либо полные записи, либо явно
+  помеченные фрагменты;
+- `operator` — `kind: primary`, `lifecycle: persistent`; файла роли нет,
+  протокол в `AGENTS.md`, allowlist skills — в `context/skills.yml`;
 - role-level `permissions` — capability-уровень (`browser`,
   `remote-write`, `data-access`); гранулярные permissions
   (`browser.click`, `browser.type`) — в `context/skills.yml`; уровни
@@ -438,7 +499,7 @@ roles:
   primary`) его нет — протокол в `AGENTS.md`;
 - роль без `output` — просто субагент, не роль контракта;
 - проект может добавить роль, не меняя ядро;
-- валидация — схемой и `ai roles check` (имя условное).
+- валидация — схемой и `ai roles check`.
 
 ### 4.9 Формальное общение
 
@@ -469,7 +530,8 @@ roles:
 может иметь свой триаж, но он не входит в базовый набор.
 
 `implementer` переименовывается в `executor`; `docs-keeper` — в
-`librarian`. Ключи ролей и skills мигрируются отдельным решением.
+`librarian`. Переименование жёсткое, без deprecated-алиасов; ключи в
+`prompts/index.yml` обновляются в той же итерации.
 
 ### 4.11 Skills проекта
 
@@ -480,8 +542,7 @@ permissions; одно без другого не работает.
 
 ```text
 .agents/skills/<name>/SKILL.md   # проектные и установленные core-skills
-context/skills.yml               # каталог skills
-context/roles.yml                # привязка skills к ролям
+context/skills.yml               # каталог skills и привязка к ролям
 ```
 
 - `skills/` в источнике `ai-prompts` — core-skills контракта;
@@ -500,6 +561,7 @@ skills:
     source: ai-prompts
     path: .agents/skills/executor
     sha: <hex>
+    roles: [executor, external-executor]
   - key: browser
     kind: core
     source: ai-prompts
@@ -510,8 +572,11 @@ skills:
     permissions:
       - browser.navigate
       - browser.snapshot
+      - browser.screenshot
       - browser.click
       - browser.type
+      - browser.submit
+    roles: [executor, external-executor]
   - key: browser-read
     kind: core
     source: ai-prompts
@@ -522,52 +587,48 @@ skills:
     permissions:
       - browser.navigate
       - browser.snapshot
+      - browser.screenshot
+    roles: [judge, researcher]
+  - key: operator-feedback
+    kind: core
+    source: ai-prompts
+    path: .agents/skills/operator-feedback
+    sha: <hex>
+    roles: [operator]
 ```
 
 Autonomy в `skills.yml` не хранится: единственный источник —
 `context/autonomy.yml`. Пресет может задать дефолты autonomy, но
 установщик пишет их в `context/autonomy.yml`.
 
-`context/roles.yml` — единственный runtime-источник привязки. Пресет
-`role_skills` — install-time дефолт: установщик пишет его в
-`context/roles.yml`, дальше проект правит роли явно; второй источник
-не используется.
+`roles` в `context/skills.yml` — единственный runtime-источник привязки.
+Пресет `role_skills` — install-time дефолт: установщик инвертирует
+роль → skills в `roles` записей `context/skills.yml`; роль skills не
+перечисляет, второй источник не используется.
 
-```yaml
-roles:
-  - name: operator
-    kind: primary                  # протокол — AGENTS.md, не субагент
-    lifecycle: persistent
-    skills: [operator-feedback]    # только allowlist
-  - name: researcher
-    skills: [research, browser-read]
-  - name: executor
-    skills: [executor, browser]
-  - name: judge
-    skills: [judge, browser-read]
-```
-
-Полные определения остальных ролей — в `.agents/agents/<name>.md`;
-оператор — primary, отдельного файла роли у него нет.
+Роль без записей в `roles` не получает skills; оператор по умолчанию
+без skills, кроме allowlist. Полные определения ролей — в
+`.agents/agents/<name>.md`; оператор — primary, файла роли у него нет.
 
 Операции:
 
 - **добавить:** создать `.agents/skills/<name>/SKILL.md`, запись в
-  `context/skills.yml`, привязку в `context/roles.yml`, затем
-  `ai skills check`;
+  `context/skills.yml` с `roles`, затем `ai skills check`;
 - **обновить project skill:** править локально, обновить запись/`sha`,
   `ai skills check`;
 - **обновить core skill:** только source-sync; локальные дополнения —
   новым skill/`extends`;
-- **удалить:** отвязать от ролей, убрать из каталога; project-skill
+- **удалить:** убрать роль из `roles`, убрать из каталога; project-skill
   удалить, core оставить;
-- **привязать к оператору:** только через allowlist. По умолчанию
-  `skills: []`; всё остальное — ошибка валидатора.
+- **привязать к оператору:** только через allowlist. У оператора
+  допустимы `operator-feedback` и, как явное исключение, `browser-read`;
+  любая другая запись с `roles: [operator]` — ошибка валидатора.
 
 Валидация `ai skills check`:
 
 - `name` совпадает с каталогом, `description` есть;
-- все skills из `roles.yml` есть в `skills.yml`;
+- все `roles` ссылаются на существующую роль (`.agents/agents/<name>.md`
+  или `operator`);
 - project-skill не подменяет core без `extends`;
 - у роли есть tools/permissions для skill;
 - у оператора только разрешённые skills;
@@ -576,11 +637,12 @@ roles:
 
 Runtime:
 
-- OpenCode читает `.agents/skills` нативно; preload — через тело роли
-  или `skill` permissions;
+- OpenCode читает `.agents/skills` нативно; привязка — только из
+  `context/skills.yml`; `skill` permissions дают доступ, но не задают
+  привязку;
 - Claude Code — `.claude/skills` + `skills` у субагента;
 - Codex — `.agents/skills` + инструкции роли;
-- `context/roles.yml` — источник привязки для всех адаптеров.
+- `context/skills.yml` — источник привязки для всех адаптеров.
 
 ### 4.12 Browser capability
 
@@ -598,16 +660,20 @@ Browser-задачи с отдельным lifecycle, credentials, модель�
 ролью:
 
 ```yaml
-- name: browser-executor
-  kind: custom
-  description: executor с полноценным управлением браузером
-  lifecycle: resumable
-  concurrency: 1
-  skills: [browser]
-  permissions: [browser]           # capability; granular — в skills.yml
-  output: result
-  artifacts: [.ops/<ticket>/reports/]
+---
+name: browser-executor
+kind: custom
+description: executor с полноценным управлением браузером
+lifecycle: resumable
+concurrency: 1
+permissions: [browser]           # capability; granular — в skills.yml
+output: result
+artifacts: [.ops/<ticket>/reports/]
+---
+<промпт роли>
 ```
+
+`skills` в роли нет: привязка `[browser]` — в `context/skills.yml`.
 
 Но это не новый вид executor по умолчанию, а кастомная роль с теми же
 принципами.
@@ -616,8 +682,13 @@ Browser-задачи с отдельным lifecycle, credentials, модель�
 
 - tool/MCP: OpenCode browser namespace (desktop), Playwright MCP,
   browser-use или другой провайдер; адаптер отображает capability;
-- permissions: `browser.navigate`, `browser.snapshot`, `browser.click`,
-  `browser.type`, `browser.submit`;
+- permissions: `browser.navigate`, `browser.snapshot`,
+  `browser.screenshot`, `browser.click`, `browser.type`,
+  `browser.submit`;
+- `browser-read` на нативном `browser` OpenCode v2 механически не
+  ограничивается: действие одно на весь каталог. Это инструкция плюс
+  аудит; механический запрет — через MCP-провайдера, где permission
+  задаётся на каждый `<server>_<tool>`;
 - autonomy: `context/autonomy.yml` — `self`, `ask`, `never` по
   действиям и доменам; `submit`/платёж/удаление — по умолчанию `ask`
   или `never`;
@@ -633,18 +704,20 @@ Skill без browser-tool бесполезен; поэтому `context/skills.y
 ### 4.13 Пресеты
 
 Пресет задаёт modules, install-time `role_skills`, `role_exceptions` и
-дефолты `autonomy`; `plan_schema` нет — `plan/` плоский и одинаковый.
+дефолты `autonomy`; отдельной схемы `goals/` нет — она одна для всех.
 Core-роли одни и те же; external добавляет `external-executor`.
-`role_skills` — вход установки: установщик пишет `context/roles.yml`,
-дальше runtime читает только его; пресет не второй источник.
+`role_skills` — вход установки: установщик инвертирует его в `roles`
+записей `context/skills.yml`; дальше runtime читает только `skills.yml`;
+пресет не второй источник.
 `role_exceptions` — явные замены/исключения core-ролей (например,
-external заменяет executor на external-executor).
+external заменяет executor на external-executor); установщик пишет их в
+`context/project.yml` (`roles.exceptions`).
 
 Общее для всех:
 
-- `goals` и `context/views` не подключаются;
+- `goals` (старая очередь `context/views`) не подключается;
 - `harness` — только если нужны headless/CI jobs, не по умолчанию;
-- `plan/` — плоские `*.expect.ts` + `program.expect.ts`;
+- `goals/` — плоские `*.expect.ts`: цели и `program--<key>.expect.ts`;
 - `app-loop` использует `plan-domain-field`, а не `goal-domain-field`.
 
 **operational**
@@ -703,9 +776,10 @@ role_exceptions: [executor]   # заменён на external-executor
 GUI/CI-работу, снимает логи/скриншоты. `browser` — полный; judge и
 researcher — `browser-read`. `roles:` в пресете — install-time
 определения: установщик пишет `.agents/agents/external-executor.md` и
-запись в `context/roles.yml`; runtime-истина — `context/roles.yml`.
-`role_exceptions` фиксирует, что core executor в этом пресете заменён;
-это не ошибка покрытия.
+`roles` в `context/skills.yml`; runtime-истина — файл роли и
+`context/skills.yml`. `skills` в записи роли пресета — вход установки, а
+не поле роли. `role_exceptions` фиксирует, что core executor в этом
+пресете заменён; это не ошибка покрытия.
 
 **analytical**
 
@@ -728,18 +802,19 @@ skill.
 
 | Роль | Документация | Код | Артефакты | Сессия | Параллельность |
 | --- | --- | --- | --- | --- | --- |
-| operator | read | read | plan/, .ops/operator/state.yml, .ops/feedback | постоянная | один |
+| operator | read | read | goals/, .ops/operator/state.yml, .ops/feedback | постоянная | один |
 | researcher | read | read | .ops/<ticket>/research | свежая | много |
 | executor | read | write | .ops/<ticket>/reports, worktree | возобновляемая | ≤5 активных, paused не считается |
 | external-executor | read | write remote | .ops/<ticket>/reports, remote target | возобновляемая | ≤5 активных, paused не считается |
-| judge | read | read | .ops/<ticket>/verdicts, plan expect | resume в цикле; свежая после оператора | много, по файлу |
+| judge | read | read | .ops/<ticket>/verdicts, goals expect | resume в цикле; свежая после оператора | много, по файлу |
 | librarian | write | read | docs/, context/, CHANGELOG | свежая | один |
 
 Активных executor — не больше 5; paused не считается. Merge локального
 worktree — оператор; external publish — по autonomy. Judge меняет
-`plan/*.expect.ts` только в заголовках/механике; AST-валидатор не даёт
-менять состав и бюджет. Skills привязываются через `context/roles.yml`;
-browser-права — только через `browser`/`browser-read` и autonomy.
+`goals/*.expect.ts` только в заголовках/механике своего тикета;
+AST-валидатор не даёт менять состав и бюджет. Skills привязываются через
+`context/skills.yml`; browser-права — только через `browser`/`browser-read`
+и autonomy.
 
 Механическое исполнение:
 
@@ -751,48 +826,66 @@ browser-права — только через `browser`/`browser-read` и auton
   инструменты.
 
 Инвариант один: документацию пишет только librarian; оператор и
-executor — никогда.
+executor — никогда. Память инструментов выключена на всех runtime (см.
+§10).
 
 ## 6. Артефакты
 
 ```text
-plan/
-  program.expect.ts        # агрегатор: импорты целей в порядке приоритета
-  <goal>.expect.ts         # цель: describe + crit/warn/it.todo
+goals/
+  <goal>.expect.ts          # цель: describe('goal') → describe('ticket: …') → crit/warn
+  program--<key>.expect.ts  # программа: импорты своих целей в порядке приоритета
   ...
 
 .ops/
   operator/state.yml       # локальный scratchpad, в git не идёт
   feedback/<ticket>.yml    # фидбек по работе
   <ticket>/
-    baseline/              # снимок plan/ на старте ticket
+    baseline/              # снимок файла цели на старте ticket
     research/              # researcher
     reports/               # executor
     verdicts/              # judge
     checks/                # результаты проверок
 
 context/
-  project.yml              # sync.contract.key/edition, external targets
+  project.yml              # sync.contract.key/edition, external targets, roles.exceptions
   autonomy.yml             # единственный источник уровней self/ask/never
-  roles.yml                # runtime-роли и привязка skills
-  skills.yml               # каталог skills, requires, permissions
+  skills.yml               # каталог skills, requires, permissions, привязка roles
 .agents/
   skills/<name>/SKILL.md   # проектные и установленные core-skills
-  agents/<name>.md         # роли, включая кастомные
+  agents/<name>.md         # роли: frontmatter + промпт
 ```
 
-`plan/` — плоский набор `*.expect.ts`. Никаких `plan/index.yml`,
-`plan.md`, `expectations.yml`, `proposal/specs/design/tasks` нет.
+`goals/` — плоский набор `*.expect.ts`. Никаких `goals/index.yml`,
+`goals/README.md`, `expectations.yml`, `proposal/specs/design/tasks`
+нет. `context/ai-core.yml`, `context/modules/`, `context/conventions/` и
+`context/index.yml` остаются как в контракте v3: новые файлы аддитивны.
 
-- `program.expect.ts` импортирует цели в порядке приоритета; порядок
-  импортов = очередь.
-- Каждая цель — `describe` с `crit`/`warn`; незапущенная или paused —
-  `it.todo('paused: ...')`; в работе — `crit.wip`.
-- `plan/` коммитится. Завершённая цель удаляется из `program.expect.ts`
-  и из `plan/`; история — git.
+- Файл программы содержит только импорты своих целей; порядок импортов
+  = приоритет внутри программы. Программ много, единой очереди нет;
+  одна цель — в одной программе.
+- Проверки запускаются в скоупе: `ai expect report
+  goals/<goal>.expect.ts` — одна цель, `ai expect report
+  goals/program--<key>.expect.ts` — вся программа.
+- Каждая цель — `describe('goal: …')`; внутри — тикеты
+  `describe('ticket: …')`, в каждом — `crit`/`warn`.
+- Незапущенный тикет — `it.todo`; paused или в работе — `crit.wip`
+  (падение не блокирует); пометка паузы — в заголовке тикета и
+  scratchpad.
+- Этапы цели: есть `it.todo` — план; `it.todo` нет — готовый план; нет
+  `it.todo`/`crit.wip` и все `crit`/`warn` проходят — цель достигнута.
+- `ai goals status` показывает программы, их цели, стадии (план /
+  готовый план / достигнута) и тикет в работе (по `crit.wip`);
+  «достигнута» фиксируется до удаления файла. `ai goals check` требует
+  файл цели и явный `--ticket`: активный тикет не берётся из локального
+  кэша.
+- `goals/` не входит в `npm run expect`: цель или программа запускается
+  по запросу.
+- `goals/` коммитится. Завершённая цель удаляется из своего файла
+  программы и из `goals/`; история — git.
 - `.ops/<ticket>/` коммитится как след работы; `.ops/operator/` —
   локальный и не коммитится.
-- `plan/` — не проектная документация; docs guard его не трогает.
+- `goals/` — не проектная документация; docs guard его не трогает.
 - Это не `expectations/*.expect.ts` репозитория: там долгосрочные
   ожидания к промптам и коду; здесь — цели конкретной работы.
 
@@ -802,8 +895,12 @@ context/
 import { describe, crit, warn } from '@shahimat/ai-core/expect';
 
 describe('goal: обновить AGENTS.md', () => {
-  crit('AGENTS.md содержит маршрут к plan/', () => Check.route());
-  warn('CLAUDE.md остаётся прослойкой', () => Check.pointer());
+  describe('ticket: route', () => {
+    crit('AGENTS.md содержит маршрут к goals/', () => Check.route());
+  });
+  describe('ticket: pointer', () => {
+    warn('CLAUDE.md остаётся прослойкой', () => Check.pointer());
+  });
 });
 ```
 
@@ -817,15 +914,15 @@ import './judge.expect.ts';
 
 Правила judge:
 
-- judge может менять только строки заголовков и механику проверок в
-  `plan/<goal>.expect.ts`;
-- judge не добавляет/удаляет `describe`/`crit`/`warn`, не меняет
-  `budget` и не трогает `program.expect.ts`;
-- baseline — снимок `plan/` на старте ticket в
-  `.ops/<ticket>/baseline/`, обновляет только оператор;
-- `ai plan check` парсит AST и сравнивает с baseline: число и порядок
-  `describe`/`crit`/`warn`, `budget` неизменны; разрешены только
-  заголовки и тела проверок;
+- judge может менять только строки заголовков и механику проверок внутри
+  своего `describe('ticket: …')` в `goals/<goal>.expect.ts`;
+- judge не добавляет/удаляет `describe`/`crit`/`warn`/`it.todo`, не
+  меняет `budget`, не трогает чужие тикеты и файлы программ;
+- baseline — снимок активного `goals/<goal>.expect.ts` на старте ticket
+  в `.ops/<ticket>/baseline/`, обновляет только оператор после merge;
+- `ai goals check` парсит AST и сравнивает с baseline: число и порядок
+  `describe`/`crit`/`warn`/`it.todo`, `budget` неизменны; разрешены
+  только заголовки и тела проверок внутри активного тикета;
 - невалидная правка отклоняется, judge получает ошибку;
 - judge отчитывается, что именно изменил.
 
@@ -837,15 +934,18 @@ permissions рантайма (они path-level), а общим AST-валида
 
 ### 7.1 План
 
-1. Оператор читает маршрут, `plan/program.expect.ts`, документацию по
-   задаче.
+1. Оператор читает маршрут, `goals/` (цели и программы),
+   документацию по задаче.
 2. Определяет сценарий и DoD.
-3. Пишет `plan/<goal>.expect.ts`: `describe` цели, на первом проходе —
+3. Пишет `goals/<goal>.expect.ts`: `describe('goal: …')`, внутри —
+   `describe('ticket: …')` на каждый тикет; на первом проходе —
    `it.todo`/`crit.wip`, затем механика проверок.
-4. Добавляет импорт цели в `plan/program.expect.ts` в порядке
-   приоритета.
+4. Добавляет импорт цели в файл её программы
+   `goals/program--<key>.expect.ts` в порядке приоритета.
 5. Показывает пользователю план, если есть развилка; иначе идёт по
    согласованному сценарию.
+6. Тикеты раскрываются по одному: следующий — после закрытия
+   предыдущего. Цель удаляется, когда все её тикеты зелёные.
 
 ### 7.2 Бриф роли
 
@@ -853,7 +953,7 @@ permissions рантайма (они path-level), а общим AST-валида
 
 - `id`, `ticket`, `role`, `goal` — цель одной строкой и что считать
   готовым;
-- `plan/program.expect.ts`, `plan/<goal>.expect.ts`, research,
+- `goals/program--<key>.expect.ts`, `goals/<goal>.expect.ts`, research,
   verdicts — путями;
 - `worktree`, `constraints`, `deadline`, `budget` — ограничения;
 - `output` — формат ответа и куда писать артефакт;
@@ -863,13 +963,15 @@ permissions рантайма (они path-level), а общим AST-валида
 
 ### 7.3 Цикл executor ↔ judge
 
-1. Executor работает, запускает свои проверки, пишет отчёт.
-2. Judge получает expectations, DoD и результат; аргументов executor не
-   видит.
+1. Executor работает над тикетом, запускает свои проверки, пишет отчёт.
+2. Judge работает в worktree executor: получает expectations, DoD и
+   результат; аргументов executor не видит; из файла цели читает только
+   свой `describe('ticket: …')`.
 3. Judge пишет вердикт: подробно executor, кратко оператору.
-4. Если judge меняет заголовок/механику — правит `plan/<goal>.expect.ts`;
-   `ai plan check` проверяет AST и отклоняет добавление/удаление
-   пунктов или смену бюджета.
+4. Если judge меняет заголовок/механику — правит только свой блок в
+   `goals/<goal>.expect.ts`; `ai goals check` с файлом цели и
+   `--ticket <key>` проверяет AST и отклоняет добавление/удаление
+   пунктов, смену бюджета и правки чужих тикетов.
 5. Если есть замечания — executor дорабатывает; цикл до 3. Внутри
    цикла judge можно resume.
 6. Executor говорит «готово», а judge — «есть замечания»: конфликт
@@ -878,6 +980,8 @@ permissions рантайма (они path-level), а общим AST-валида
 8. Вернулись к оператору — следующий judge свежий, старый контекст не
    переиспользуется.
 9. Оператор решает: ещё цикл, замена executor, эскалация.
+10. Тикет принят — оператор мержит, обновляет baseline и закрывает
+    тикет; следующий тикет цели начинается с нового baseline.
 
 ### 7.4 Librarian
 
@@ -907,14 +1011,14 @@ permissions рантайма (они path-level), а общим AST-валида
 2. Плагин классифицирует: `ignore`, `notify`, `wake`, `start_job`.
 3. `wake` — сообщение оператору через `session.prompt`/`synthetic`;
    busy — в очередь.
-4. Оператор обновляет план/todo, решает, что делать.
+4. Оператор обновляет `goals/`/todo, решает, что делать.
 5. Событие подтверждается; повторно не доставляется.
 
 ### 7.7 Feedback
 
 1. Пользователь просит: «собери фидбек».
 2. Оператор загружает `operator-feedback`.
-3. Собирает метрики из session stats, plan, reports, verdicts,
+3. Собирает метрики из session stats, `goals/`, reports, verdicts,
    scratchpad, событий.
 4. Классифицирует пустые отвлечения и потери токенов; помечает оценки
    как estimate.
@@ -925,14 +1029,14 @@ permissions рантайма (они path-level), а общим AST-валида
 
 1. Пользователь: «эта задача на паузе» или оператор видит ожидание
    события/очереди.
-2. Оператор ставит `it.todo('paused: ...')` в `plan/<goal>.expect.ts` и
-   фиксирует паузу в scratchpad; executor-сессия остаётся, но не
-   считается активной.
+2. Оператор переводит проверки тикета в `crit.wip`, ставит пометку
+   `paused` в заголовок тикета и фиксирует паузу в scratchpad;
+   executor-сессия остаётся, но не считается активной.
 3. Оператор не опрашивает paused-сессию и не шлёт статусные пинги.
 4. Возобновление — событие, таймер, просьба пользователя или решение
    оператора.
 5. В `todowrite` пункт остаётся `pending` с пометкой «paused» в тексте;
-   в plan — точный статус.
+   в `goals/` — точный статус.
 
 ## 8. Операторский scratchpad
 
@@ -945,9 +1049,9 @@ memory и не проектная документация. В git не попа
 ```yaml
 session: <id>
 goal: <одна строка>
-priorities: [<ссылки на plan/program.expect.ts или goal>]
-plan: plan/program.expect.ts
-decisions: [<короткие решения>]
+priorities: [<ссылки на goals/program--<key>.expect.ts или goal>]
+programs: [<активные программы>]
+tickets: [<активный тикет и его цель>]
 waits: [<чего ждём и где>]
 open_questions: [<что требует решения>]
 pointers: [<файлы и сессии>]
@@ -958,35 +1062,55 @@ updated_at: <ISO>
 
 - лимит: 200 строк / 16 KB; без сырых логов и секретов;
 - 80% — предупреждение; 100% — блокировка записи до утилизации;
-- устойчивые факты — librarian; детали — plan; resolved — удалить;
-- на рестарте оператор читает state, сверяет с plan и продолжает;
+- state — только указатели, ожидания и открытые вопросы; решения
+  пишутся в `goals/` или docs, state на них только ссылается;
+- устойчивые факты — librarian; детали — `goals/`; resolved — удалить;
+- на рестарте оператор читает state, сверяет с `goals/` и продолжает;
+- state не переносится между машинами; на новой машине оператор
+  восстанавливается из `goals/` и docs;
 - проверка — `ai operator state check` или plugin/hook; одинаково для
   всех runtime.
 
 Scratchpad не является скрытой memory: он явный, ограниченный и
 читаемый пользователем. Всё, что влияет на решения надолго, уходит в
 docs. При смене машины или потере state оператор восстанавливается по
-`plan/program.expect.ts`, целям в `plan/` и документации; state — кэш,
-не истина.
+`goals/` (цели и программы), целям в `goals/` и документации; state —
+кэш, не истина.
 
 ## 9. Строгость на краях
 
-- **Схемы:** `plan/*.expect.ts` (AST), `plan/program.expect.ts`,
-  verdict, report, brief, feedback, state, roles, skills, skill
+- **Схемы:** `goals/*.expect.ts` (AST: цели и программы), verdict,
+  report, brief, feedback, state, role frontmatter, skills, skill
   manifest, browser autonomy, watcher events.
 - **AST-валидаторы:** judge не меняет число/порядок
-  `describe`/`crit`/`warn` и `budget`; разрешены только заголовки и
-  тела проверок; baseline — `.ops/<ticket>/baseline/`, обновляет
-  оператор.
+  `describe`/`crit`/`warn`/`it.todo` и `budget`; разрешены только
+  заголовки и тела проверок внутри тикета из `--ticket`; baseline —
+  снимок активного `goals/<goal>.expect.ts` в
+  `.ops/<ticket>/baseline/`, обновляет оператор после merge.
+- **Валидатор целей:** `goals/program--*.expect.ts` содержит только
+  импорты; одна цель — ровно в одной программе; у цели один активный
+  тикет.
 - **Скрипты:** lint, typecheck, tests, build, docs consistency,
-  expectations, roles check, skills check, plan check.
-- **Locks:** docs (librarian), plan expectation (judge/operator),
-  worktree (executor), `plan/program.expect.ts` (operator).
+  expectations, goals check, goals status, roles check, skills check,
+  operator state check.
+- **Locks:** docs (librarian), goal expectation (judge/operator),
+  worktree (executor), файлы программ (operator); файловые, через CLI
+  (`.ops/locks/`).
 - **Бюджеты:** циклы judge, время роли, размер scratchpad, активные
-  executor (≤5), paused не считается.
+  executor (≤5), paused не считается. Лимит и paused — протокол плюс
+  аудит, не механический запрет рантайма.
 - **Аудит:** sessionID роли, задача, вердикт, артефакты, кто запустил,
   сколько токенов/времени.
-- **Permissions:** docs write только librarian; operator/executor deny.
+- **Permissions:** docs write только librarian; operator, executor и
+  judge — deny на `edit` вне разрешённых путей (у judge — только
+  `goals/*.expect.ts`). Запись через shell покрывается аудитом, не
+  path-level permission.
+- **Memory guard:** memory-инструменты и memory-MCP запрещены; запись в
+  memory-пути (`~/.claude/projects/*/memory/`, memory-каталоги Codex,
+  аналоги) блокируется; OpenCode — deny memory-MCP/инструментов и
+  `permission.hook("evaluate")`; `ctx.storage` — только явные кэши.
+  Настройки и hooks ставит `ai adapters sync`, проверяет
+  `ai adapters check`.
 
 FSM не нужен для этой строгости. FSM остаётся для случаев, где переходы
 и повторяемость важнее свободы: CI, релиз, миграция, headless jobs.
@@ -1007,18 +1131,26 @@ sync:
 Старый v3 без `edition` плагин не активирует.
 
 - оператор — primary-сессия;
-- роли — subagents с `mode: subagent`, включая кастомные из
-  `context/roles.yml`;
+- роли — subagents с `mode: subagent`, включая кастомные; источник —
+  `.agents/agents/<name>.md`, адаптер генерирует `.opencode/agents`;
 - `experimental.todo: true` — видимый чеклист;
 - `subagent` — запуск ролей; background для параллельных; active ≤5,
-  paused не считается;
+  paused не считается; лимит — протокол и аудит, не запрет рантайма;
 - `todowrite` — плоский список; иерархия кодируется текстом;
-- `.agents/skills` — skills нативно; привязка — `context/roles.yml`;
-- `plan/program.expect.ts` — `ai expect report` + `ai plan check`;
+- `.agents/skills` — skills нативно; привязка — из `context/skills.yml`;
+- `goals/program--<key>.expect.ts` и `goals/<goal>.expect.ts` —
+  `ai expect report` + `ai goals check`;
 - `submit_result` — структурированный ответ ролей;
 - `operator-feedback` — операторский skill по запросу;
 - `browser`/`browser-read` — через browser namespace/MCP и autonomy;
-- docs guard — `permission.hook("evaluate")`;
+  granular-запрет `browser-read` — только через MCP-провайдера, нативный
+  `browser` — инструкция плюс аудит;
+- docs guard — `permission.hook("evaluate")` для `edit`: operator,
+  executor и judge; judge — только `goals/*.expect.ts`. Запись в docs
+  через shell ловится аудитом;
+- memory guard — auto-memory нет; memory-MCP и инструменты с `*memory*`
+  deny; `permission.hook("evaluate")` блокирует `edit`/`write` в
+  memory-пути; `ctx.storage` — только явные кэши;
 - watcher MCP — события/триггеры;
 - Subagents tab — видимость ролей;
 - resume executor/judge — через `sessionID`; paused — без опроса.
@@ -1028,28 +1160,42 @@ sync:
 
 ### Claude Code
 
-- роли — субагенты `.claude/agents`;
-- skills — `.claude/skills`, привязка из `context/roles.yml`;
+- роли — субагенты `.claude/agents`, источник — `.agents/agents`;
+- skills — `.claude/skills`, привязка из `context/skills.yml`;
 - browser — MCP (Playwright/browser-use);
 - docs guard — hooks;
+- memory guard — `autoMemoryEnabled: false` в `.claude/settings.json`;
+  hook `block-memory-write-for-<contract-key>.sh` на `PreToolUse`
+  блокирует запись в `~/.claude/projects/*/memory/`;
 - видимость — субагенты/транскрипты;
 - watcher — MCP;
 - headless/durable — внешний harness.
 
 ### Codex
 
-- роли — `.codex/agents` или инструкции;
-- skills — `.agents/skills`, привязка из `context/roles.yml`;
+- роли — `.codex/agents` или инструкции; источник — `.agents/agents`;
+- skills — `.agents/skills`, привязка из `context/skills.yml`;
 - browser — MCP (Playwright/browser-use);
 - hooks/плагины ограничены;
 - docs guard — проверки/раннер;
+- memory guard — `.codex/config.toml`: `features.memories=false`,
+  `memories.use_memories=false`, `memories.generate_memories=false`;
+  действует только в trusted-проекте, надёжнее глобально
+  `codex features disable memories`; hooks/runner блокирует запись;
 - watcher — MCP;
 - headless/durable — внешний harness.
+
+### Другие runtime
+
+Если у инструмента есть memory — выключается настройкой; если нет —
+memory-MCP и memory-инструменты запрещены. Правило одно: память вне
+репозитория не используется.
 
 ### Headless
 
 Внешний harness и FSM — только для детерминированных задач и CI. На этом
-этапе не развиваем.
+этапе не развиваем. Роль получает окружение без memory-инструментов;
+harness проверяет memory guard.
 
 ## 11. Watcher-демон
 
@@ -1057,12 +1203,14 @@ sync:
 
 - проекты регистрируют watches;
 - providers: timer, git, CI, manual, внешние системы;
-- event log — JSONL; dedupe, ack, retry;
+- event log — JSONL, локальный, вне git; dedupe, ack, retry;
 - транспорт: MCP (stdio) + Unix socket на POSIX; на Windows — named
   pipe (`\\.\pipe\...`) или HTTP-fallback;
 - API: добавить/удалить watch, получить события, подтвердить, trigger;
 - MCP — тонкий фасад для оператора и executor;
-- события не теряются при закрытой сессии; plugin доставляет при старте;
+- событие не теряется при закрытой сессии; plugin доставляет при старте;
+- event log — транспорт, не истина: решение по событию фиксируется в
+  `goals/` (или docs), не в локальном кэше;
 - daemon не управляет агентами: он публикует события.
 
 Unix socket на Windows в Node — это не Unix domain socket, а named
@@ -1083,19 +1231,21 @@ librarian — не нужен.
 
 1. **Design.** Этот документ; согласование ролей, артефактов, границ.
 2. **Контракт и skills.** Оператор, researcher, executor, judge,
-   librarian; плоский `plan/*.expect.ts` + `program.expect.ts`;
-   scratchpad; `operator-feedback`; кастомные роли; external
-   executor; формальные сообщения; реестр skills; browser-capability;
-   presets с `role_skills`/`role_exceptions`/`autonomy`; permissions;
-   удаление обязательного FSM из интерактивной части.
-3. **OpenCode MVP.** v3-only плагин: оператор, subagents, `todowrite`,
-   skills из `context/roles.yml`, browser tool, docs guard,
-   `submit_result`, state check, `operator-feedback`.
-4. **Watcher MVP.** Один тип события (timer или CI), JSONL event log,
-   MCP, Unix socket/named pipe/HTTP, plugin wake.
+   librarian; плоские `goals/*.expect.ts` и
+   `goals/program--*.expect.ts`; тикеты внутри цели; scratchpad;
+   `operator-feedback`; кастомные роли; external executor; формальные
+   сообщения; реестр skills; привязка `roles` в `context/skills.yml`;
+   browser-capability; presets с
+   `role_skills`/`role_exceptions`/`autonomy`; permissions; удаление
+   обязательного FSM из интерактивной части.
+3. **OpenCode MVP.** v3-only плагин `packages/plugin`: оператор,
+   subagents, `todowrite`, skills из `context/skills.yml`, browser tool,
+   docs guard, `submit_result`, state guard, `operator-feedback`.
+4. **Watcher MVP.** `packages/watcher`: один тип события (timer или CI),
+   JSONL event log, MCP, Unix socket/named pipe/HTTP, plugin wake.
 5. **Гейты.** Task expectations, judge AST-валидатор, docs
-   consistency, check ladder, roles check, skills check, plan check,
-   browser autonomy.
+   consistency, check ladder, goals check, goals status, roles check,
+   skills check, operator state check, browser autonomy.
 6. **Пилот.** Один проект: оператор, 2 researcher, executor, judge,
    librarian; параллельный и последовательный блоки; конфликт; пауза
    executor; feedback. Для external — external-executor, remote target
@@ -1108,51 +1258,63 @@ librarian — не нужен.
 - оператор планирует задачу из 3 пунктов и ведёт её без FSM;
 - плагин активируется только при `sync.contract.edition:
   operator-centric`; старый v3 не затрагивается;
-- `plan/program.expect.ts` задаёт очередь и приоритет, цели лежат
-  плоскими `*.expect.ts`; baseline снят в `.ops/<ticket>/baseline/`;
+- `goals/program--<key>.expect.ts` задаёт приоритет внутри программы;
+  цель — плоский `goals/<goal>.expect.ts` с тикетами
+  `describe('ticket: …')`; baseline снят в `.ops/<ticket>/baseline/`;
+- проверки запускаются в скоупе: одна цель или целая программа;
+- цель проходит этапы: `it.todo` — план, заглушек нет — готовый план,
+  нет `it.todo`/`crit.wip` и все проверки проходят — цель удалена из
+  `goals/` и файла программы;
 - два researcher работают параллельно, executor — в отдельном worktree;
+  тикеты одной цели последовательны;
 - external executor работает в удалённом проекте и делает GUI/CI-работу;
 - активных executor не больше 5; paused не считается и не опрашивается;
 - judge даёт подробный вердикт executor и краткий оператору; правка
-  `.expect.ts` проходит AST-валидатор;
+  `.expect.ts` проходит AST-валидатор в границах своего тикета;
 - librarian пишет документацию и прогоняет формальную проверку;
-- оператор и executor не могут писать docs;
+- оператор, executor и judge не могут писать docs через `edit`; запись
+  через shell ловится аудитом;
+- memory guard включён на каждом runtime: Claude — settings + hook,
+  Codex — config, OpenCode — deny memory-MCP/инструментов и
+  evaluate-hook, прочие — memory off/deny, headless — окружение без
+  memory; `ai adapters check` зелёный;
 - scratchpad не растёт бесконечно и чистится;
 - watcher-событие будит оператора; event log JSONL;
-- кастомная роль добавляется через `.agents/agents` + `context/roles.yml`;
+- кастомная роль добавляется файлом `.agents/agents/<name>.md` и
+  привязкой skills в `context/skills.yml`;
 - project-skill добавляется в `.agents/skills`, привязывается к executor
-  через `context/roles.yml` и проходит `ai skills check`;
-- пресет проходит схему: `role_skills` разрешаются, `autonomy`
-  переносится в `context/autonomy.yml`, external содержит полный
-  `external-executor`;
+  через `context/skills.yml` и проходит `ai skills check`;
+- пресет проходит схему: `role_skills` разрешаются в `roles`
+  `context/skills.yml`, `autonomy` переносится в
+  `context/autonomy.yml`, external содержит полный `external-executor`;
 - browser-задача выполняется executor с `browser`, judge проверяет через
-  `browser-read` без побочных действий;
+  `browser-read` или evidence executor без побочных действий;
 - `operator-feedback` даёт метрики, причины и рекомендации;
 - роли видны в Subagents tab;
-- после рестарта оператор продолжает по state/plan.
+- после рестарта оператор продолжает по state и `goals/`.
 
 ## 14. Открытые вопросы
 
-- Соглашение об именах `plan/*.expect.ts` и `program.expect.ts`;
-  как кодировать подпрограммы.
-- Гранулярность цели: один `describe` — одна цель или файл-тема.
+- Точные схемы `verdict.yml`, `report.yml`, `brief.yml`,
+  `.ops/feedback/<ticket>.yml`, `state.yml`, `context/project.yml`,
+  `context/autonomy.yml`.
 - Формулы метрик feedback: что считать «пустым отвлечением» и
   `tokens_wasted_estimate`; как не собирать секреты.
-- Точная схема `context/roles.yml` и правила композиции кастомных
-  ролей.
-- Схема preset: `role_skills`, `role_exceptions`, `autonomy`,
-  external roles; как установщик переносит их в `context/roles.yml` и
-  `context/autonomy.yml`.
+- Схема preset: точные поля `role_skills`, `role_exceptions`,
+  `autonomy`, external roles и порядок переноса установщиком.
 - External executor: target mapping, remote workspace/branch, publish
   policy, много web-приложений.
-- AST-валидатор `plan/*.expect.ts`: как ловить смысловое ослабление
+- AST-валидатор `goals/*.expect.ts`: как ловить смысловое ослабление
   проверки, не только структуру.
-- Точная схема skill manifest (`context/skills.yml`), правила
-  `core`/`project`/`extends` и allowlist оператора.
+- Skill manifest (`context/skills.yml`): как `requires.tools` и
+  `permissions` отображаются в tools/permissions каждого runtime;
+  правила `core`/`project`/`extends`.
 - Матрица browser-capability: какие tools у OpenCode/Claude/Codex,
   какие действия `self`/`ask`/`never`, какие домены.
-- Сколько живёт paused-исполнитель и когда его закрывать.
-- Схема watcher events, retention JSONL, ack/replay.
+- Сколько живёт paused-исполнитель и когда его закрывать; закрывать ли
+  worktree при закрытии тикета.
+- Схема watcher events, retention JSONL, ack/replay; автозапуск и
+  обновление демона.
 - Точные схемы формальных сообщений brief/report/verdict/docs_request.
 - Область формальной проверки документации: ссылки/схема/дубли или
   ещё смысловые проверки.
@@ -1164,12 +1326,17 @@ librarian — не нужен.
 - не тащим FSM в плагин;
 - не развиваем внешний harness сейчас;
 - не мигрируем существующие v3-проекты — это забота ответственного;
-- не сохраняем goals/programs в новой модели;
+- не сохраняем старую очередь goals/programs (`context/views`) в новой
+  модели;
+- не заводим `context/roles.yml` и второй реестр ролей;
+- не заводим `goals/index.yml`, `goals/README.md` и другие файлы в
+  `goals/`;
 - не держим `oracle`/`reviewer` «на всякий случай»;
 - не плодим `browser-executor` по умолчанию;
 - не даём skill без tool/permissions;
-- не даём оператору ролевые skills, кроме `operator-feedback`;
-- не даём оператору/executor писать документацию;
+- не даём оператору ролевые skills, кроме `operator-feedback` и явного
+  `browser-read`;
+- не даём оператору, executor и judge писать документацию;
 - не даём judge менять состав/budget expectations;
 - не делаем marketplace и упаковку skills.
 
@@ -1180,29 +1347,36 @@ librarian — не нужен.
 - Есть только этот design-документ.
 - Код, промпты, skills, контракт v3, пакеты и `prompts/index.yml` не
   менялись.
-- Принятые решения — раздел 0; открытые вопросы — раздел 14.
+- Принятые решения — раздел 0; открытые вопросы — раздел 14;
+  решения итерации — 16.7.
 - Следующая итерация начинается с 16.2, а не с кода плагина.
 
 ### 16.2 Порядок следующей итерации
 
 1. **Зафиксировать схемы и решения.**
-   - `plan/*.expect.ts` (AST + `describe`/`crit`/`warn`/`it.todo`),
-     `plan/program.expect.ts`, `verdict.yml`, `report.yml`,
-     `brief.yml`, `.ops/feedback/<ticket>.yml`, `context/project.yml`
-     (`sync.contract.edition`), `context/autonomy.yml`,
-     `context/roles.yml`, `context/skills.yml`, skill manifest,
-     browser autonomy, preset schema, `state.yml`, watcher event,
-     baseline `.ops/<ticket>/baseline/`.
+   - `goals/*.expect.ts` (AST:
+     `describe`/`crit`/`warn`/`budget`/`crit.wip`/`it.todo` +
+     `describe('ticket: …')`), `goals/program--*.expect.ts` (программа:
+     импорты целей), `verdict.yml`, `report.yml`, `brief.yml`,
+     `.ops/feedback/<ticket>.yml`, `context/project.yml`
+     (`sync.contract.edition`, `roles.exceptions`),
+     `context/autonomy.yml`, `context/skills.yml`,
+     `expectations/schemas/role.schema.json` (role frontmatter, расширяет
+     `agent-frontmatter.schema.json`), skill manifest, browser autonomy,
+     preset schema, `state.yml`, watcher event, baseline
+     `.ops/<ticket>/baseline/`.
    - Решить открытые вопросы из раздела 14, которые блокируют схемы.
 2. **Переписать контракт v3.**
    - роли operator/researcher/executor/judge/librarian;
    - external-executor для удалённого проекта/GUI;
    - формальные сообщения;
-   - плоский `plan/` вместо goals/programs;
+   - плоские `goals/` (цели и программы) вместо `context/views`
+     (goals/programs);
+   - цель и тикеты внутри файла цели;
    - scratchpad;
    - feedback;
-   - кастомные роли;
-   - реестр skills и привязка к ролям;
+   - кастомные роли одним файлом;
+   - реестр skills и привязка `roles` в `context/skills.yml`;
    - browser-capability и autonomy;
    - пресеты: `role_skills`, `role_exceptions`, `autonomy`;
    - матрица прав;
@@ -1222,29 +1396,43 @@ librarian — не нужен.
      `docs-keeper`);
    - `skills/browser` и `skills/browser-read` — core-skills контракта;
      требуют browser tool/MCP в проекте;
+   - роли — один файл `.agents/agents/<name>.md` (frontmatter + промпт);
+     `context/roles.yml` не создаётся;
+   - переименования жёсткие, без deprecated-алиасов: `implementer` →
+     `executor`, `docs-keeper` → `librarian`;
    - убрать `oracle`/`reviewer`;
-   - пометить `goals`/programs и `context/views` deprecated;
+   - пометить старую очередь `goals`/programs и `context/views`
+     deprecated;
    - обновить presets, modules, `prompts/index.yml`.
 4. **OpenCode MVP.**
-   - v3-only активация: `sync.contract.edition: operator-centric`;
-   - `.opencode/agents` и skills из `context/roles.yml` +
+   - плагин `packages/plugin`, v3-only активация:
+     `sync.contract.edition: operator-centric`;
+   - `.opencode/agents` из `.agents/agents` и skills из
      `context/skills.yml`;
-   - `plan/program.expect.ts` + `ai plan check`;
+   - `goals/program--<key>.expect.ts` и `goals/<goal>.expect.ts` —
+     `ai expect report`; `ai goals check/status` и
+     `ai operator state check` — шаг 6;
    - `todowrite` + `subagent`;
    - `browser`/`browser-read` через browser tool/MCP;
    - `external-executor` и remote target;
    - docs guard plugin;
+   - memory guard: memory-MCP deny, evaluate-hook на memory-пути,
+     `ctx.storage` только для явных кэшей;
    - `submit_result`;
-   - `operator state check`;
    - `operator-feedback` tool/skill.
 5. **Watcher MVP.**
+   - пакет `packages/watcher`;
    - JSONL event log;
    - MCP-фасад;
    - Unix socket/named pipe, HTTP-fallback;
    - plugin wake;
    - ack/replay.
 6. **Гейты.**
-   - `ai plan check` (AST), `ai skills check`, `ai roles check`;
+   - `ai goals check` (AST), `ai goals status`, `ai skills check`,
+     `ai roles check`, `ai operator state check`, `ai adapters check`;
+   - `ai adapters sync` ставит memory guard, `ai adapters check`
+     подтверждает memory off: Claude settings + hook, Codex config,
+     OpenCode deny memory-MCP/инструментов, прочие — off/deny;
    - docs consistency, check ladder, browser autonomy;
    - DoD пресетов;
    - гейты должны быть зелёными до пилота.
@@ -1274,16 +1462,20 @@ librarian — не нужен.
 - `agents/researcher`, `agents/executor`,
   `agents/external-executor`, `agents/judge`, `agents/librarian`.
 - `presets/*`, `prompts/modules/*`, `prompts/index.yml`.
-- `expectations/schemas/*`, `expectations/*.expect.ts`.
-- Пакеты/плагин/демон — только после контракта и схем.
+- `expectations/schemas/*` (включая `role.schema.json`),
+  `expectations/*.expect.ts`.
+- `packages/ai-core` — `adapters sync/check`: memory guard для
+  Claude/Codex/OpenCode.
+- Пакеты `packages/plugin` и `packages/watcher` — только после контракта
+  и схем; имена зафиксированы заранее.
 
 Проект-потребитель (устанавливается/создаётся):
 
-- `plan/program.expect.ts`, `plan/*.expect.ts`.
+- `goals/*.expect.ts` (цели и `program--<key>.expect.ts`).
 - `.ops/<ticket>/{baseline,research,reports,verdicts,checks}/`,
-  `.ops/feedback/<ticket>.yml`; `.ops/operator/state.yml` — локально.
-- `context/project.yml`, `context/autonomy.yml`, `context/roles.yml`,
-  `context/skills.yml`.
+  `.ops/feedback/<ticket>.yml`; `.ops/operator/state.yml` — локально;
+  `.ops/locks/` — локальные локи.
+- `context/project.yml`, `context/autonomy.yml`, `context/skills.yml`.
 - `.agents/agents/*`, `.agents/skills/*`.
 - `AGENTS.md`.
 
@@ -1295,17 +1487,30 @@ librarian — не нужен.
   `npm run expect:judge:opencode`.
 - Итерация контракта считается завершённой, когда контракт, skills,
   agents, presets, схемы и `prompts/index.yml` согласованы, а
-  `npm run ci` зелёный. Плагин, watcher и гейты — следующая итерация.
+  `npm run ci` зелёный. Плагин, watcher и гейты — шаги 16.2.4–16.2.6,
+  не итерация контракта.
 - Preset DoD: схема пресета валидна; каждая core-роль есть в
   `role_skills` или `role_exceptions`; skills модулей и ролей
-  разрешаются; `autonomy` переносится в `context/autonomy.yml`;
-  external содержит полный `external-executor`.
+  разрешаются в `roles` `context/skills.yml`; `autonomy` переносится в
+  `context/autonomy.yml`; external содержит полный `external-executor`.
 - Operator DoD: `skills/operator` и `agents/operator` отсутствуют;
-  оператор — primary в `context/roles.yml`, протокол в `AGENTS.md`.
+  оператор — primary, протокол в `AGENTS.md`, allowlist — в
+  `context/skills.yml`.
+- Goals DoD: файл цели содержит тикеты `describe('ticket: …')`;
+  `goals/program--*.expect.ts` — только импорты, цель входит ровно в
+  одну программу; `ai goals check` ловит правки вне активного тикета;
+  `ai goals status` различает план, готовый план и достигнутую цель;
+  `goals/` не входит в CI-гейт `npm run expect`.
 - Browser DoD: `browser`/`browser-read` есть в `context/skills.yml`;
   `requires.tools` разрешается в runtime; granular permissions
   (`browser.click`, `browser.type`) — в `context/skills.yml`, уровни
-  `self`/`ask`/`never` — в `context/autonomy.yml`.
+  `self`/`ask`/`never` — в `context/autonomy.yml`; механический
+  `browser-read` — только через MCP-провайдера.
+- Memory DoD: `ai adapters check` подтверждает memory off; Claude —
+  `autoMemoryEnabled: false` + hook, Codex — config + trusted caveat,
+  OpenCode — deny memory-MCP/инструментов и evaluate-hook, прочие —
+  memory off/deny, headless — окружение без memory; запись в
+  memory-пути блокируется.
 - Пилот — по разделу 13, после плагина, watcher и гейтов.
 
 ### 16.5 Что не начинать первым
@@ -1316,11 +1521,63 @@ librarian — не нужен.
 - Не делать marketplace.
 - Не добавлять `oracle`/`reviewer` обратно.
 - Не добавлять `proposal/specs/design/tasks` и другие планировочные
-  файлы: `plan/` — только `*.expect.ts` и `program.expect.ts`.
+  файлы: `goals/` — только `*.expect.ts` (цели и
+  `program--*.expect.ts`).
 
 ### 16.6 Если сессия перезапустилась
 
-Читать: раздел 0 → раздел 16.1 → раздел 16.2. Текущее состояние —
-только дизайн; следующий шаг — схемы и контракт, не код плагина. Все
-решения и открытые вопросы — в этом документе, внешнего контекста не
-требуется.
+Читать: раздел 0 → раздел 16.1 → раздел 16.2 → раздел 16.7. Текущее
+состояние — только дизайн; следующий шаг — схемы и контракт, не код
+плагина. Все решения и открытые вопросы — в этом документе, внешнего
+контекста не требуется.
+
+### 16.7 Решения итерации (вне §14)
+
+Зафиксировано 2026-11-01; пересматривается только пользователем.
+
+- **Тикет.** Тикет живёт блоком `describe('ticket: …')` внутри файла
+  цели; артефакты — `.ops/<ticket>/`; один активный тикет на цель,
+  параллель — между целями.
+- **Этапы цели.** `it.todo` — план; `it.todo` нет — готовый план; нет
+  `it.todo`/`crit.wip` и все `crit`/`warn` проходят — цель достигнута и
+  удаляется; стадию фиксирует `ai goals status` до удаления.
+- **Warn.** `warn` проходит наравне с `crit`: тикет закрыт, когда
+  зелёные все его `crit`/`warn`; разница — уровень внимания, не
+  закрытие.
+- **Имена.** `goals/` — плоские цели и программы; программа —
+  `goals/program--<key>.expect.ts` (импортирует свои цели); единой
+  очереди нет. Старый `goals` (`context/views`) — deprecated, не
+  ставится.
+- **Открытость.** Долговременное состояние — в git; локальные файлы
+  (scratchpad, locks, event log) — явные кэши без решений; память
+  инструментов выключена.
+- **Memory guard.** Часть ядра: Claude — settings + hook, Codex — config
+  (+ trusted caveat), OpenCode — deny memory-MCP/инструментов и
+  evaluate-hook; проверка — `ai adapters check`.
+- **Роли.** Один файл `.agents/agents/<role>.md` (кроме оператора: файла
+  нет, протокол в `AGENTS.md`); `context/roles.yml` не существует;
+  привязка skills — `roles` в `context/skills.yml`; `role_exceptions` —
+  `roles.exceptions` в `context/project.yml`.
+- **Гейт.** `goals/` не входит в `npm run expect`; запуск в скоупе:
+  `ai expect report goals/<goal>.expect.ts` или
+  `ai expect report goals/program--<key>.expect.ts`.
+- **Context аддитивен.** `context/ai-core.yml`, `context/modules/`,
+  `context/conventions/`, `context/index.yml` остаются.
+- **Baseline.** Снимок активного файла цели коммитится до создания
+  worktree; оператор обновляет baseline после merge тикета.
+- **Locks.** Файловые, `.ops/locks/`, через CLI.
+- **Команды.** В итерации после контракта (шаг 16.2.6, до пилота):
+  `ai goals check`, `ai goals status`, `ai roles check`,
+  `ai skills check`, `ai operator state check`, `ai adapters check`;
+  AST — TypeScript compiler API; установка memory guard —
+  `ai adapters sync`.
+- **Пакеты.** `packages/plugin` (OpenCode v2 only) и
+  `packages/watcher`.
+- **Renames.** Сразу, без deprecated-алиасов.
+- **browser-read.** Механический запрет — через MCP-провайдера; нативный
+  `browser` — инструкция плюс аудит.
+- **Лимиты.** ≤5 executor, paused, один librarian — протокол и аудит,
+  не механический запрет рантайма.
+- **Docs guard.** `edit` deny для operator, executor и judge (у judge —
+  только `goals/*.expect.ts`); запись в docs через shell — аудит, не
+  hard-hook.
