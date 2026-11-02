@@ -12,12 +12,15 @@ import {
   type CommandNode,
 } from '@shahimat/ai-core';
 import { runInit } from '#init';
+import { runBriefing } from '#briefing';
 
 export const BIN = 'oc3';
 
 export const OC3_COMMANDS = {
   modelsList: (args: CommandArgs): Promise<number> => runModels('list', args),
   modelsSet: (args: CommandArgs): Promise<number> => runModels('set', args),
+  briefingShow: (args: CommandArgs): Promise<number> => runBriefing('show', args),
+  briefingSet: (args: CommandArgs): Promise<number> => runBriefing('set', args),
   goalsCheck: (args: CommandArgs): Promise<number> => runGoals('check', args),
   goalsStatus: (args: CommandArgs): Promise<number> => runGoals('status', args),
   operatorCheck: (args: CommandArgs): Promise<number> => runOperator('check', args),
@@ -37,6 +40,19 @@ const NODES: readonly CommandNode[] = [
     kind: 'command',
     effect: 'mutation',
     run: OC3_COMMANDS.modelsSet,
+  },
+  { path: ['briefing'], kind: 'command', effect: 'query', run: OC3_COMMANDS.briefingShow },
+  {
+    path: ['briefing', 'set', '<mode>'],
+    kind: 'command',
+    effect: 'mutation',
+    run: OC3_COMMANDS.briefingSet,
+  },
+  {
+    path: ['briefing', 'set', '<mode>', '<routing>', '<research>', '<judge>', '<ticket_mode>'],
+    kind: 'command',
+    effect: 'mutation',
+    run: OC3_COMMANDS.briefingSet,
   },
   {
     path: ['goals', 'check', '<file>'],

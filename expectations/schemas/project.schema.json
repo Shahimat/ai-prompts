@@ -35,6 +35,22 @@
         }
       }
     },
+    "briefing": {
+      "description": "Дефолты брифинга оператора; cheap — тикеты делает оператор (доку — librarian, judge — off), roles — конвейер executor → judge, custom — поля явно; запись — oc3 briefing set",
+      "type": "object",
+      "required": ["mode"],
+      "additionalProperties": false,
+      "properties": {
+        "mode": { "enum": ["cheap", "roles", "custom"] },
+        "routing": { "description": "Кто делает тикеты", "enum": ["operator", "executor"] },
+        "research": { "description": "Кто делает код-разведку", "enum": ["self", "researcher"] },
+        "judge": { "description": "Приёмка тикета judge'ом", "enum": ["on", "off"] },
+        "ticket_mode": {
+          "description": "Стоп на коммит после каждого тикета или все подряд",
+          "enum": ["stop", "all"]
+        }
+      }
+    },
     "sync": {
       "type": "object",
       "required": ["index_source", "contract"],

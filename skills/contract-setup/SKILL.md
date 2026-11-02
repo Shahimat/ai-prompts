@@ -41,6 +41,14 @@ skill — протокол их выбора, подключения и откл
 ролей; пресет вторым источником не остаётся.
 <!-- /expect:preset-first -->
 
+Тут же спроси режим работы сессии: «cheap» — тикеты делает оператор,
+доку — librarian, judge — off (дефолт и экономия); «roles» — тикеты
+executor'у, разведка researcher'у, judge on; «custom» — с полями
+(`routing`: operator|executor, `research`: self|researcher, `judge`:
+on|off, `ticket_mode`: stop|all). Запиши ответ:
+`oc3 briefing set ...` → `context/project.yml` → `briefing`; текущий
+режим — `oc3 briefing`.
+
 ## Шаг 3. Чеклист
 
 <!-- expect:checklist-fallback -->

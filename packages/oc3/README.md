@@ -35,6 +35,8 @@ npm i -D @shahimat/ai-core @shahimat/oc3
 
 ```bash
 npx oc3 init                        # проверка маркера, пакетов и plugin-записи
+npx oc3 briefing                    # режим работы сессии из project.yml
+npx oc3 briefing set cheap          # пресеты: cheap | roles, custom — с полями
 npx oc3 models                      # роль → модель
 npx oc3 models set judge zai-coding-plan/glm-5.3-flash#low
 npx oc3 goals status

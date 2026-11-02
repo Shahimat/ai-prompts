@@ -188,17 +188,6 @@
       "reason": "Без harness проверка вручную по тем же типам.",
       "at": "2026-10-28"
     },
-    "63aaccc6f834": {
-      "question": "[harness] layers > skill запускает только то, что объявлено в metadata.runs; остальные команды harness лишь упоминает",
-      "evidence": {
-        "@skill-runs": "f0cb01acc80b5500bbd58bc3be80a5ce099d85cdeadb3cdb44d9d8a003e5e833"
-      },
-      "verdict": true,
-      "quote": "Сам skill запускает одно: `ai refresh` в конце каждой задачи и",
-      "ref": "@skill-runs",
-      "reason": "Каждый skill объявляет единственную команду в metadata.runs, остальные команды harness идут как справка.",
-      "at": "2026-11-01"
-    },
     "694f0f4b5141": {
       "question": "[harness] expect > в кэше вердиктов только вердикты живых ожиданий",
       "evidence": {
@@ -253,6 +242,17 @@
       "ref": "@memory-off",
       "reason": "claudeMemory принудительно ставит autoMemoryEnabled: false, а codexConfig() пишет memories = false в .codex/config.toml.",
       "at": "2026-11-01"
+    },
+    "7ae991731433": {
+      "question": "поведение ключевых skills > executor: прогон expectations и вердикты — не его; приёмка — judge или оператор при judge-off",
+      "evidence": {
+        "@acceptance-owner": "7dac5af6508461f90577a2eb2f4e5a164f8b7a1554463b58d016ef5afa692246"
+      },
+      "verdict": true,
+      "quote": "прогон expectations и вердикты делает judge, при judge-off —\n  оператор; сам `ai expect` не оцениваешь и вердикты не пишешь.",
+      "ref": "@acceptance-owner",
+      "reason": "Прямо сказано: вердикты не executor, приёмка — judge или оператор при judge-off.",
+      "at": "2026-11-02"
     },
     "8213ac9cfc7f": {
       "question": "документация проекта > при подключённом harness генерируемые файлы (context/index.yml, адаптеры под инструменты) меняет только harness, не агент и не librarian",
@@ -510,6 +510,17 @@
       "reason": "Revise не блокирует работу: объявлен в дельте, попадает в отчёт и в тело сообщения коммита.",
       "at": "2026-11-01"
     },
+    "cc7a387de090": {
+      "question": "поведение ключевых skills > workflow: брифинг перед первым запуском ролей — схема запуска, модели, разведка, judge, режим тикетов",
+      "evidence": {
+        "@briefing": "ca5bfe8c6e66ce8453917a72d9b9ea66f23e8815cc5cd68241456d9b8552f4c2"
+      },
+      "verdict": true,
+      "quote": "Перед первым запуском ролей в сессии — один вопрос: схема работы\n«дефолтная» или «кастомная»? Без ответа тикеты не запускаешь.",
+      "ref": "@briefing",
+      "reason": "Брифинг перед первым запуском ролей; в кастомном чеклисте пункты: схема запуска, модели, разведка, judge, режим тикетов.",
+      "at": "2026-11-02"
+    },
     "cd9313efe910": {
       "question": "внимание пользователя — самый дорогой ресурс > основная сессия тратит контекст на доменную область; документацию и проверки ведут субагенты и harness",
       "evidence": {
@@ -700,10 +711,10 @@
       "at": "2026-10-14"
     },
     "expectations/skills.expect.ts": {
-      "titles": "efea2312385a6cda697bb698dc02a549e7908e678e3f1e6423245e3bacccae6c",
+      "titles": "f7911755f897327950cb068241b5bdb83c9000775605c73f88f4b846a9108519",
       "contradictions": [],
       "unmeasurable": [],
-      "at": "2026-11-01"
+      "at": "2026-11-02"
     }
   }
 }

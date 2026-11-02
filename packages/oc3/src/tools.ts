@@ -83,6 +83,32 @@ const TOOLS: readonly Oc3Tool[] = [
     args: (input, root) => withParams(input, root, ['role', 'model']),
   },
   {
+    name: 'briefing_show',
+    description: 'Режим работы сессии оператора из context/project.yml → briefing',
+    input: { type: 'object', properties: {}, additionalProperties: false },
+    command: OC3_COMMANDS.briefingShow,
+    args: (_input, root) => base(root),
+  },
+  {
+    name: 'briefing_set',
+    description: 'Задать режим сессии: cheap или roles — пресеты, custom — с четырьмя полями',
+    input: {
+      type: 'object',
+      properties: {
+        mode: str('cheap | roles | custom'),
+        routing: str('custom: operator | executor'),
+        research: str('custom: self | researcher'),
+        judge: str('custom: on | off'),
+        ticket_mode: str('custom: stop | all'),
+      },
+      required: ['mode'],
+      additionalProperties: false,
+    },
+    command: OC3_COMMANDS.briefingSet,
+    args: (input, root) =>
+      withParams(input, root, ['mode', 'routing', 'research', 'judge', 'ticket_mode']),
+  },
+  {
     name: 'goals_check',
     description: 'AST-проверка правок файла цели по baseline тикета',
     input: {

@@ -8,6 +8,8 @@
   `models set`, `ROLE_MODELS`, `roles check` и схемы принимают и
   `zai`, и `zai-coding-plan`; дефолт — `zai-coding-plan/glm-5.3#max`,
   judge — `zai-coding-plan/glm-5.3-flash#low`.
+- `models list` помечает провайдера: план (`zai-coding-plan`) и
+  платный API (`zai`).
 
 ## 0.1.2
 

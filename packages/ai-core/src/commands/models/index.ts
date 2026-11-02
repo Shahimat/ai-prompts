@@ -48,6 +48,12 @@ function replaceModel(text: string, model: string): string {
   return lines.join('\n');
 }
 
+function modelProviderMarker(model: string): string | null {
+  if (model.startsWith('zai-coding-plan/')) return 'план';
+  if (model.startsWith('zai/')) return 'платный API';
+  return null;
+}
+
 async function list(args: CommandArgs): Promise<number> {
   let listed = 0;
   for (const dir of ROLE_DIRS) {
@@ -56,7 +62,8 @@ async function list(args: CommandArgs): Promise<number> {
       if (text === null) continue;
       const fm = parseFrontmatter(text);
       const model = fm === null || typeof fm['model'] !== 'string' ? '—' : fm['model'];
-      console.log(`${name.slice(0, -3)}: ${model}`);
+      const marker = modelProviderMarker(model);
+      console.log(`${name.slice(0, -3)}: ${model}${marker === null ? '' : ` (${marker})`}`);
       listed++;
     }
   }

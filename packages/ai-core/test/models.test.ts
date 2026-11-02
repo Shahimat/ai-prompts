@@ -1,7 +1,7 @@
 import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { main } from '@shahimat/cli';
 import { ROLE_MODEL_PATTERN, runModels } from '@shahimat/ai-core';
 
@@ -75,6 +75,27 @@ describe('models', () => {
         params: { role: 'judge', model: 'zai/glm-5.3#low' },
       }),
     ).rejects.toThrow('не найдена');
+  });
+
+  it('list помечает провайдера: план и платный API', async () => {
+    const root = await mkdtemp(path.join(tmpdir(), 'ai-models-'));
+    await mkdir(path.join(root, 'agents'), { recursive: true });
+    await writeFile(
+      path.join(root, 'agents/executor.md'),
+      ROLE('zai-coding-plan/glm-5.3#max'),
+      'utf8',
+    );
+    await writeFile(path.join(root, 'agents/judge.md'), ROLE('zai/glm-5.3-flashx#low'), 'utf8');
+    const logs: string[] = [];
+    const spy = vi.spyOn(console, 'log').mockImplementation((line) => logs.push(String(line)));
+    try {
+      const code = await runModels('list', { root, now: new Date(), params: {} });
+      expect(code).toBe(0);
+    } finally {
+      spy.mockRestore();
+    }
+    expect(logs).toContain('executor: zai-coding-plan/glm-5.3#max (план)');
+    expect(logs).toContain('judge: zai/glm-5.3-flashx#low (платный API)');
   });
 
   it('паттерн модели допускает семейство glm-5.3 (zai, zai-coding-plan) и запрещает остальное', () => {

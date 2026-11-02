@@ -26,6 +26,8 @@ use_case: Скармливается AI-агенту одной ссылкой, 
   GLM-5.3 (`zai-coding-plan/glm-5.3#max`), judge — flash `#low`,
   override — `oc3 models set`; бесплатные запрещены. Executor запускает
   judge и researcher (≤2 на тикет), глубина 2.
+- **Брифинг.** Старт — «дефолтная или кастомная»: дефолтная — `briefing`
+  из проекта (cheap — всё сам, доку — librarian), запись — `oc3 briefing set`.
 - **Результаты.** Рядом с `*.expect.ts` — `*.expect.json`: run 1
   `pass`/`fail`, run 2+ негатив «satisfactorily»; 80% `pass` по
   `crit`/`warn` активного тикета, один повторный цикл; judge всегда
@@ -74,10 +76,9 @@ context/
   agents/                          ← роли: frontmatter + промпт
 goals/                             ← цели и программы: *.expect.ts и *.expect.json
 ```
-Роли `operator` нет: оператор — primary-сессия, его `kind` и `lifecycle`
-фиксирует контракт, протокол — в `AGENTS.md`, allowlist skills — в
-`context/skills.yml`. `context/roles.yml` не создаётся: роль — один файл
-`.agents/agents/<name>.md`.
+Роли `operator` нет: оператор — primary-сессия, `kind` и `lifecycle` —
+из контракта; протокол — в `AGENTS.md`, allowlist — в `context/skills.yml`.
+`context/roles.yml` не создаётся: роль — файл `.agents/agents/<name>.md`.
 Канон для всех агентов — `AGENTS.md` и `.agents/`; файлы под инструмент
 (`CLAUDE.md`, `.claude/`, `.codex/`, `.opencode/`) — производные.
 
@@ -504,8 +505,7 @@ dashboard — модули headless-рантайма, в интерактивн�
 ## Синхронизация с источниками
 
 Применение паттерна `source-sync` (см. `patterns/source-sync.md`).
-Протокол обновления живёт в skill `source-sync`; ниже — нужное при
-установке.
+Протокол обновления живёт в skill `source-sync`; ниже — нужное при установке.
 
 ### Единый fetch-канал: только `curl`
 

@@ -99,6 +99,14 @@ describe('поведение ключевых skills', () => {
     'operator-feedback: роли и harness с ролями запускаются в фоне, перед запуском пользователь узнаёт, чего ждёт сессия',
     () => Check.operatorResponsive(),
   );
+  warn(
+    'workflow: брифинг перед первым запуском ролей — схема запуска, модели, разведка, judge, режим тикетов',
+    () => Check.briefing(),
+  );
+  warn(
+    'executor: прогон expectations и вердикты — не его; приёмка — judge или оператор при judge-off',
+    () => Check.acceptanceOwner(),
+  );
   crit(
     'domain: verified: true ставится только вместе с verified_at (дата) и verified_note (чем проверено)',
     () => Check.verifiedRule(),
@@ -262,6 +270,8 @@ class Check {
   }
 
   static blockingQuestion = (): Promise<void> => judged(['@blocking-question']);
+  static briefing = (): Promise<void> => judged(['@briefing']);
+  static acceptanceOwner = (): Promise<void> => judged(['@acceptance-owner']);
   static moduleInstall = (): Promise<void> => judged(['@module-install']);
   static intentsEvidence = (): Promise<void> => judged(['@librarian-intents']);
   static operatorResponsive = (): Promise<void> => judged(['@operator-responsive']);
