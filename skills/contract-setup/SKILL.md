@@ -49,6 +49,9 @@ on|off, `ticket_mode`: stop|all). Запиши ответ:
 `oc3 briefing set ...` → `context/project.yml` → `briefing`; текущий
 режим — `oc3 briefing`.
 
+На время установки держи маркер `.ops/locks/install` (пустой файл):
+docs guard пропускает установщика; в конце установки сними его.
+
 ## Шаг 3. Чеклист
 
 <!-- expect:checklist-fallback -->

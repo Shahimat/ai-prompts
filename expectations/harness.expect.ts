@@ -3,6 +3,7 @@ import { existsSync, watch } from 'node:fs';
 import { mkdtemp, readdir, readFile, realpath, rm, writeFile, mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { createRequire } from 'node:module';
 import { describe, expect, it } from 'vitest';
 import * as cliPkg from '@shahimat/cli';
 import { BUILTIN_TREE, splitWords } from '@shahimat/cli';
@@ -2384,7 +2385,10 @@ M.whole(() => { crit('весь автомат', () => {}); });
   }
 
   static async machineTypos(): Promise<void> {
-    const tsc = path.join(repoRoot(), 'node_modules/typescript/bin/tsc');
+    const tscManifest = createRequire(
+      path.join(repoRoot(), 'packages/ai-core/package.json'),
+    ).resolve('typescript/package.json');
+    const tsc = path.join(path.dirname(tscManifest), 'bin/tsc');
     const good = `${PLAN_IMPORTS}${DEMO_MACHINE}M.state('a', () => {});\nM.transition('b', 'back', () => {});\n`;
     const bad = [
       `M.state('zzz', () => {});`,

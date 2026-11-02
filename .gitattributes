@@ -1,3 +1,5 @@
 # LF везде: SHA-256 в prompts/index.yml считается от байтов файла,
 # CRLF на Windows (core.autocrlf) дал бы другой хэш.
 * text=auto eol=lf
+# параллельные ветки не конфликтуют на вставке записи в начало журнала
+CHANGELOG.md merge=union

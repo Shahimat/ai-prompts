@@ -1,0 +1,5 @@
+levels:
+  self: [browser.navigate, browser.snapshot, browser.screenshot]
+  ask: [browser.submit, vcs.publish]
+  never: [vcs.write]
+domains: {}

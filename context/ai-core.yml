@@ -1,0 +1,13 @@
+adapters: [claude-code]
+hooks: [docs-guard]
+checks:
+  changelog:
+    max_line: 120
+    tags: [arch, stack, dep, milestone]
+  context-index: {}
+  adapters: {}
+  secrets:
+    allow:
+      - path: packages/harness/src/harnesses/core/ops/runner.ts
+        line: 162
+        reason: генерация случайного токена сессии в коде, не секрет

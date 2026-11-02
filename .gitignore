@@ -11,3 +11,5 @@ dist/
 coverage/
 expectations/.judge/
 packages/harness/test/.tmp/
+.ops/operator/
+.ops/locks/

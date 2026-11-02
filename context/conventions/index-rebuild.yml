@@ -1,0 +1,7 @@
+key: index-rebuild
+summary: правка промпта, паттерна, модуля или skill — пересборка prompts/index.yml в том же коммите
+rule: |
+  После правки любого файла из prompts/, patterns/, skills/, agents/,
+  presets/ запусти `npm run index:build` и включи обновлённый
+  `prompts/index.yml` в тот же коммит: CI гоняет `npm run index:check`
+  и валит билд при рассинхроне SHA.

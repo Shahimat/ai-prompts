@@ -531,11 +531,8 @@ frontmatter с ожидаемым. Не совпало — стоп: защит�
 ### Развилка
 
 - **greenfield** — документации нет или только пустой `README.md`;
-- **v2** — в `context/project.yml` есть `sync.contract.key:
-  agent-operational-contract-v2`;
-- **brownfield** — своя документация в любом виде.
-
-Не уверен — спроси.
+- **v2** — в `context/project.yml` есть `sync.contract.key: agent-operational-contract-v2`;
+- **brownfield** — своя документация в любом виде. Не уверен — спроси.
 
 ### greenfield
 
@@ -550,8 +547,10 @@ frontmatter с ожидаемым. Не совпало — стоп: защит�
    `context/autonomy.yml`, `context/skills.yml` (роли по `role_skills`
    плюс core `contract-setup`, `workflow`, `source-sync`, `cli` с
    `roles: []`), пустой `goals/`; `.gitignore` — `.ops/operator/`,
-   `.ops/locks/`; затем `oc3 context index` и `oc3 adapters sync`; в
-   конце добавь `"@shahimat/oc3"` в `plugins` `opencode.jsonc` (`/reload`).
+   `.ops/locks/`; маркер установки — пустой файл `.ops/locks/install`,
+   guard пропускает установщика, сними после `/reload`; затем
+   `oc3 context index` и `oc3 adapters sync`; в конце добавь
+   `"@shahimat/oc3"` в `plugins` `opencode.jsonc` (`/reload`).
 4. Запусти skill `contract-setup`: чеклист возможностей.
 5. Отчёт: что поставлено, где лежит, что дальше.
 
@@ -585,7 +584,8 @@ manuals и, для старых проектов, deprecated-модуля goals.
 2. Карта: «файл X — это Y» и целевое место: слой ядра, слой возможности
    или «шум — удалить».
 3. Конфликты с моделью — с вариантом разрешения и trade-off.
-4. Ядро + `contract-setup`, затем перенос шагами.
+4. Ядро + `contract-setup` с маркером `.ops/locks/install` на время
+   ядра, сними в конце; затем перенос шагами.
 
 Чужие трекеры, wiki, IaC и release notes не мигрируют: в
 `context/project.yml` → `external` — только указатель.

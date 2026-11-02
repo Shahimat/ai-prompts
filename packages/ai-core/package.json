@@ -1,6 +1,6 @@
 {
   "name": "@shahimat/ai-core",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Команды для проектов на контрактах ai-prompts: генераторы, проверки, механизм ожиданий и роли",
   "license": "MIT",
   "author": "Gevorg Nakhapetyan",
@@ -52,7 +52,7 @@
   ],
   "scripts": {
     "build": "node ../build.ts",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "node node_modules/typescript/bin/tsc --noEmit",
     "test": "vitest run",
     "prepublishOnly": "npm run typecheck && npm test && npm run build"
   },
@@ -63,7 +63,7 @@
     "yaml": "^2.9.1"
   },
   "devDependencies": {
-    "@shahimat/cli": "0.1.2",
+    "@shahimat/cli": "0.1.3",
     "@types/node": "^24.19.2",
     "vitest": "^5.0.4"
   },

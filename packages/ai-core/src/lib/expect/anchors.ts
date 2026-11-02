@@ -9,7 +9,16 @@ export interface AnchorRegion {
   text: string;
 }
 
-const SKIP_DIRS = new Set(['.git', 'node_modules', 'dist', 'expectations', '.claude', '.codex']);
+const SKIP_DIRS = new Set([
+  '.git',
+  'node_modules',
+  'dist',
+  'expectations',
+  '.claude',
+  '.codex',
+  '.agents',
+  '.opencode',
+]);
 const MD = /\.md$/;
 const CONF = /\.(ya?ml|toml)$/;
 const CODE = /\.ts$/;

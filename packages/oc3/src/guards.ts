@@ -1,4 +1,5 @@
 import { readFile, readdir } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import path from 'node:path';
 import { parse } from 'yaml';
@@ -35,13 +36,15 @@ export async function isOperatorCentric(root: string): Promise<boolean> {
   return data['sync']['contract']['edition'] === 'operator-centric';
 }
 
-export function docsGuard(agent: string | undefined, paths: readonly string[]): string | undefined {
+export async function docsGuard(
+  agent: string | undefined,
+  paths: readonly string[],
+  root: string,
+): Promise<string | undefined> {
+  if (existsSync(path.join(root, '.ops/locks/install'))) return undefined;
   for (const p of paths) {
     const rel = p.replace(/^\.\//, '');
-    const hit =
-      DOCS_AREAS.some((a) => rel.startsWith(a) || rel.includes(`/${a}`)) ||
-      rel === 'CHANGELOG.md' ||
-      rel.endsWith('/CHANGELOG.md');
+    const hit = DOCS_AREAS.some((a) => rel.startsWith(a)) || rel === 'CHANGELOG.md';
     if (hit && agent !== 'librarian')
       return `docs guard: документацию пишет только librarian; правка ${p} агентом ${agent ?? 'main'} отклонена`;
   }
@@ -102,7 +105,7 @@ export async function registerGuards(ctx: Plugin.Context): Promise<void> {
   const root = ctx.location.directory;
   await ctx.permission.hook('evaluate', async (event) => {
     if (event.action === 'edit' || event.action === 'write') {
-      const docs = docsGuard(event.agent, event.resources);
+      const docs = await docsGuard(event.agent, event.resources, root);
       if (docs !== undefined) {
         event.effect = 'deny';
         event.message = docs;

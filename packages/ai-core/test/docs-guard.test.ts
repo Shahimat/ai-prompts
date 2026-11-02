@@ -49,6 +49,14 @@ describe('ai docs guard', () => {
     );
   });
 
+  it('маркер установки снимает guard, вложенные CHANGELOG не охраняются', async () => {
+    expect((await guardDecision(root, edit('packages/cli/CHANGELOG.md'))).block).toBe(false);
+    expect((await guardDecision(root, edit('src/commands/docs/index.ts'))).block).toBe(false);
+    await put('.ops/locks/install', '');
+    expect((await guardDecision(root, edit('context/project.yml'))).block).toBe(false);
+    expect((await guardDecision(root, edit('CHANGELOG.md'))).block).toBe(false);
+  });
+
   it('слои модулей — из provides.layers манифестов', async () => {
     await put('context/modules/goals.yml', 'provides:\n  layers: [context/views/]\n');
     expect((await guardDecision(root, edit('context/views/goals.yaml'))).block).toBe(true);

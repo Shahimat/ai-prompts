@@ -1,6 +1,6 @@
 {
   "name": "@shahimat/oc3",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "OpenCode-плагин и CLI oc3 для проектов на контракте v3: guards документации и памяти, гейт прогонов judge, команды целей и моделей",
   "license": "MIT",
   "author": "Gevorg Nakhapetyan",
@@ -48,18 +48,18 @@
   ],
   "scripts": {
     "build": "node ../build.ts",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "node node_modules/typescript/bin/tsc --noEmit",
     "test": "vitest run",
     "prepublishOnly": "npm run typecheck && npm test && npm run build"
   },
   "dependencies": {
     "@opencode/plugin": "latest",
-    "@shahimat/ai-core": "0.1.2",
+    "@shahimat/ai-core": "0.1.4",
     "yaml": "^2.9.1"
   },
   "devDependencies": {
     "@types/node": "^24.19.2",
-    "typescript": "^7.0.2",
+    "typescript": "^5.9.3",
     "vitest": "^5.0.4"
   },
   "publishConfig": {

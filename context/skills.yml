@@ -1,0 +1,83 @@
+skills:
+  - key: contract-setup
+    kind: core
+    source: ai-prompts
+    path: .agents/skills/contract-setup
+    sha: 65f0563710960c4c5b965a464197be191a24745ee24f4f4b3863fdb1c5a82d5d
+    roles: [librarian]
+  - key: workflow
+    kind: core
+    source: ai-prompts
+    path: .agents/skills/workflow
+    sha: d3ec24bee3a781f1e55d5de72366fe9f19b6ced6ec56ec06bee62ccf04bcc7c7
+    roles: [librarian]
+  - key: librarian
+    kind: core
+    source: ai-prompts
+    path: .agents/skills/librarian
+    sha: fa448751b970ab024f28a911a47610e3721c4235ffd01c414f88878816b8b98d
+    roles: [librarian]
+  - key: source-sync
+    kind: core
+    source: ai-prompts
+    path: .agents/skills/source-sync
+    sha: 0f23df915aae0a269ebc6fe17ee235b8c26580f6247ceb66b8451981f64b442d
+    roles: [librarian]
+  - key: source-feedback
+    kind: core
+    source: ai-prompts
+    path: .agents/skills/source-feedback
+    sha: 21f947ef089d50e86785afe98a867ee79aa09b9ff11ad1e1f470e32ebd577bae
+    roles: [librarian]
+  - key: cli
+    kind: core
+    source: ai-prompts
+    path: .agents/skills/cli
+    sha: d2e72714c8628c9541339f7413c438a9ed530533accd94991d20a387eaf9d6ef
+    roles: [librarian]
+  - key: operator-feedback
+    kind: core
+    source: ai-prompts
+    path: .agents/skills/operator-feedback
+    sha: 0c04f0e40c897eb2f6976af070f648312b91b7599af03e44bd5a104a4f4c9b0e
+    roles: [operator]
+  - key: research
+    kind: core
+    source: ai-prompts
+    path: .agents/skills/research
+    sha: 25838c9b9231be96671a70058a7febdc5a83259fc4beff994c44ad88cf506bd2
+    roles: [researcher]
+  - key: executor
+    kind: core
+    source: ai-prompts
+    path: .agents/skills/executor
+    sha: 1dcb4c9be0a22c7b2d6105d3b3752f098ceccdb62409ffd2253daccd78b2f9c3
+    roles: [executor]
+  - key: judge
+    kind: core
+    source: ai-prompts
+    path: .agents/skills/judge
+    sha: 10371178f17102184bd2222953ffa726e2f93d40a12756cba33c55ec98ac1ad8
+    roles: [judge]
+  - key: browser
+    kind: core
+    source: ai-prompts
+    path: .agents/skills/browser
+    sha: abe951b2e4a29eb11a31fec2ac7fcd3533b2d3ffec41551a1c0ca167608084fa
+    requires: {tools: [browser]}
+    permissions: [browser.navigate, browser.snapshot, browser.screenshot, browser.click, browser.type, browser.submit]
+    roles: [executor]
+  - key: browser-read
+    kind: core
+    source: ai-prompts
+    path: .agents/skills/browser-read
+    sha: ea692fd7f46fb6887a792f4b56a5baa9e2a045078e47156069bc5675478e0d75
+    requires: {tools: [browser]}
+    permissions: [browser.navigate, browser.snapshot, browser.screenshot]
+    roles: [judge, researcher]
+  - key: worktrees
+    kind: core
+    source: ai-prompts
+    path: .agents/skills/worktrees
+    sha: cdccdd02c7db1a30e9add5968f9cd903d13fa775b98f8a3462830dec89ba3fe8
+    roles: [executor]

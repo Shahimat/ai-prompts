@@ -1,6 +1,6 @@
 {
   "name": "@shahimat/cli",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "CLI ai для проектов на контрактах ai-prompts: команды ai-core, скрипты, автоматы harness и расширения проекта",
   "license": "MIT",
   "author": "Gevorg Nakhapetyan",
@@ -48,17 +48,17 @@
   ],
   "scripts": {
     "build": "node ../build.ts",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "node node_modules/typescript/bin/tsc --noEmit",
     "test": "vitest run",
     "prepublishOnly": "npm run typecheck && npm test && npm run build"
   },
   "dependencies": {
-    "@shahimat/ai-core": "0.1.2",
+    "@shahimat/ai-core": "0.1.4",
     "yaml": "^2.9.1"
   },
   "devDependencies": {
     "@types/node": "^24.19.2",
-    "typescript": "^7.0.2",
+    "typescript": "^5.9.3",
     "vitest": "^5.0.4"
   },
   "peerDependencies": {

@@ -10,7 +10,14 @@
   ],
   "scripts": {
     "build": "npm run build -w @shahimat/ai-core && npm run build -w @shahimat/harness && npm run build -w @shahimat/cli && npm run build -w @shahimat/oc3",
-    "typecheck": "npm run build -w @shahimat/ai-core && npm run build -w @shahimat/harness && npm run build -w @shahimat/cli && npm run build -w @shahimat/oc3 && npm run typecheck -w @shahimat/ai-core && npm run typecheck -w @shahimat/harness && npm run typecheck -w @shahimat/cli && npm run typecheck -w @shahimat/oc3 && tsc -p expectations && tsc -p packages && tsc -p scripts",
+    "typecheck:ai-core": "node packages/ai-core/node_modules/typescript/bin/tsc --noEmit -p packages/ai-core/tsconfig.json",
+    "typecheck:harness": "node packages/harness/node_modules/typescript/bin/tsc --noEmit -p packages/harness/tsconfig.json",
+    "typecheck:cli": "node packages/cli/node_modules/typescript/bin/tsc --noEmit -p packages/cli/tsconfig.json",
+    "typecheck:oc3": "node packages/oc3/node_modules/typescript/bin/tsc --noEmit -p packages/oc3/tsconfig.json",
+    "tsc:expectations": "node packages/ai-core/node_modules/typescript/bin/tsc -p expectations",
+    "tsc:packages": "node packages/ai-core/node_modules/typescript/bin/tsc -p packages",
+    "tsc:scripts": "node packages/ai-core/node_modules/typescript/bin/tsc -p scripts",
+    "typecheck": "npm run build -w @shahimat/ai-core && npm run build -w @shahimat/harness && npm run build -w @shahimat/cli && npm run build -w @shahimat/oc3 && npm run typecheck:ai-core && npm run typecheck:harness && npm run typecheck:cli && npm run typecheck:oc3 && npm run tsc:expectations && npm run tsc:packages && npm run tsc:scripts",
     "test": "npm test -w @shahimat/ai-core && npm test -w @shahimat/harness && npm test -w @shahimat/cli && npm test -w @shahimat/oc3",
     "lint": "oxlint --type-aware --deny-warnings",
     "format": "prettier --write .",
@@ -21,11 +28,14 @@
     "expect:judge": "node packages/cli/dist/bin.js expect judge expectations/index.expect.ts --root .",
     "expect:judge:opencode": "node scripts/expect-judge-opencode.ts",
     "expect:apply": "node packages/cli/dist/bin.js expect judge expectations/index.expect.ts --apply --root .",
-    "ci": "npm run format:check && npm run build -w @shahimat/ai-core && npm run build -w @shahimat/harness && npm run build -w @shahimat/cli && npm run build -w @shahimat/oc3 && npm run typecheck -w @shahimat/ai-core && npm run typecheck -w @shahimat/harness && npm run typecheck -w @shahimat/cli && npm run typecheck -w @shahimat/oc3 && tsc -p expectations && tsc -p packages && tsc -p scripts && npm run lint && npm test -w @shahimat/ai-core && npm test -w @shahimat/harness && npm test -w @shahimat/cli && npm test -w @shahimat/oc3 && npm run index:check && npm run expect"
+    "ci": "npm run format:check && npm run build -w @shahimat/ai-core && npm run build -w @shahimat/harness && npm run build -w @shahimat/cli && npm run build -w @shahimat/oc3 && npm run typecheck:ai-core && npm run typecheck:harness && npm run typecheck:cli && npm run typecheck:oc3 && npm run tsc:expectations && npm run tsc:packages && npm run tsc:scripts && npm run lint && npm test -w @shahimat/ai-core && npm test -w @shahimat/harness && npm test -w @shahimat/cli && npm test -w @shahimat/oc3 && npm run index:check && npm run expect"
   },
   "devDependencies": {
+    "@shahimat/ai-core": "*",
+    "@shahimat/oc3": "*",
     "oxlint": "^1.88.0",
     "oxlint-tsgolint": "^7.0.2004",
-    "prettier": "^3.9.10"
+    "prettier": "^3.9.10",
+    "vitest": "^5.0.4"
   }
 }

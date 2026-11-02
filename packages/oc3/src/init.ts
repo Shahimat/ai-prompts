@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
+import { existsSync } from 'node:fs';
 import { parse } from 'yaml';
 import type { CommandArgs } from '@shahimat/ai-core';
 import { isRecord } from '@shahimat/ai-core';
@@ -62,6 +63,10 @@ export async function runInit(args: CommandArgs): Promise<number> {
   if (!wired)
     problems.push(
       'opencode.json(c): в plugins нет "@shahimat/oc3" — добавь запись и выполни /reload',
+    );
+  if (existsSync(path.join(args.root, '.ops/locks/install')))
+    problems.push(
+      'есть .ops/locks/install — установка не завершена: сними маркер в конце установки',
     );
   if (problems.length > 0) {
     for (const problem of problems) console.error(problem);

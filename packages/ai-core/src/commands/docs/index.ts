@@ -1,11 +1,12 @@
 import { readdir, readFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { parse } from 'yaml';
 import type { CommandArgs } from '#shared/args';
 import { errorCode, isRecord } from '#shared/guards';
 import { CONTEXT_INDEX_PATH, DELTA_DIR } from '#shared/layout';
 
-export const DOCS_FILES = ['CHANGELOG.md', 'context/project.yml', CONTEXT_INDEX_PATH, 'CLAUDE.md'];
+export const DOCS_FILES = ['context/project.yml', CONTEXT_INDEX_PATH, 'CLAUDE.md'];
 export const DOCS_DIRS = [
   'context/conventions/',
   'docs/',
@@ -36,6 +37,7 @@ export async function moduleLayers(root: string): Promise<string[]> {
 }
 
 export function guardedReason(rel: string, layers: readonly string[]): string | undefined {
+  if (rel === 'CHANGELOG.md') return `${rel} — журнал решений проекта`;
   if (DOCS_FILES.includes(rel)) return `${rel} — файл проектной документации`;
   const dir = [...DOCS_DIRS, ...layers.map((l) => (l.endsWith('/') ? l : `${l}/`))].find((d) =>
     rel.startsWith(d),
@@ -57,6 +59,7 @@ export async function guardDecision(root: string, input: unknown): Promise<Guard
   if (typeof file !== 'string' || file === '') return { block: false };
   const rel = path.relative(path.resolve(root), path.resolve(root, file)).split(path.sep).join('/');
   if (rel.startsWith('..') || path.isAbsolute(rel)) return { block: false };
+  if (existsSync(path.join(root, '.ops/locks/install'))) return { block: false };
   const reason = guardedReason(rel, await moduleLayers(root));
   if (reason === undefined) return { block: false };
   return {
