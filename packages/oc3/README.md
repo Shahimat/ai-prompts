@@ -36,7 +36,7 @@ npm i -D @shahimat/ai-core @shahimat/oc3
 ```bash
 npx oc3 init                        # проверка маркера, пакетов и plugin-записи
 npx oc3 models                      # роль → модель
-npx oc3 models set judge zai/glm-5.3#max
+npx oc3 models set judge zai-coding-plan/glm-5.3-flash#low
 npx oc3 goals status
 npx oc3 goals check goals/a.expect.ts --ticket a
 npx oc3 operator state check
@@ -47,5 +47,6 @@ npx oc3 expect report goals/a.expect.ts
 ```
 
 Смена модели правит `model` в `.agents/agents/<role>.md` и синхронно в
-производной `.opencode/agents/<role>.md`; допустимо только платное семейство
-`zai/glm-5.3` (`-flash`, `-flashx`; `#max|#high|#low`).
+производной `.opencode/agents/<role>.md`; допустимо семейство glm-5.3 у
+провайдеров `zai` и `zai-coding-plan` (`-flash`, `-flashx`;
+`#max|#high|#low`).

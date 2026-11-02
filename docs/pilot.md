@@ -76,12 +76,13 @@ npx oc3 init
 
 ```bash
 npx oc3 models                              # роль → модель
-npx oc3 models set judge zai/glm-5.3#low    # override судьи
-npx oc3 models set executor zai/glm-5.3-flashx#max
+npx oc3 models set judge zai-coding-plan/glm-5.3-flash#low    # override судьи
+npx oc3 models set executor zai-coding-plan/glm-5.3-flash#max
 ```
 
-Дефолты — `zai/glm-5.3#max`, judge — `zai/glm-5.3-flashx#low`.
-Допустимо только платное семейство `zai/glm-5.3` (`-flash`,
+Дефолты — `zai-coding-plan/glm-5.3#max`, judge —
+`zai-coding-plan/glm-5.3-flash#low`. Допустимо семейство glm-5.3 у
+провайдеров `zai` и `zai-coding-plan` (`-flash`,
 `-flashx`; `#max|#high|#low`). Правка синхронно обновляет
 `.agents/agents/<role>.md` и `.opencode/agents/<role>.md`.
 

@@ -72,10 +72,10 @@ const TOOLS: readonly Oc3Tool[] = [
   },
   {
     name: 'models_set',
-    description: 'Сменить модель роли; допустимо платное семейство zai/glm-5.3',
+    description: 'Сменить модель роли; допустимое семейство glm-5.3 (zai, zai-coding-plan)',
     input: {
       type: 'object',
-      properties: { role: str('имя роли'), model: str('модель вида zai/glm-5.3#max') },
+      properties: { role: str('имя роли'), model: str('модель вида zai-coding-plan/glm-5.3#max') },
       required: ['role', 'model'],
       additionalProperties: false,
     },

@@ -5,7 +5,9 @@ import { OC3_TREE } from '#tree';
 describe('oc3 tree', () => {
   it('потребительский срез: models, goals, operator, roles, skills, adapters, expect report, init', () => {
     expect(OC3_TREE.findCommand(['models'])).toBeDefined();
-    expect(OC3_TREE.findCommand(['models', 'set', 'judge', 'zai/glm-5.3#max'])).toBeDefined();
+    expect(
+      OC3_TREE.findCommand(['models', 'set', 'judge', 'zai-coding-plan/glm-5.3#max']),
+    ).toBeDefined();
     expect(OC3_TREE.findCommand(['goals', 'check', 'goals/a.expect.ts'])).toBeDefined();
     expect(OC3_TREE.findCommand(['goals', 'status'])).toBeDefined();
     expect(OC3_TREE.findCommand(['operator', 'state', 'check'])).toBeDefined();

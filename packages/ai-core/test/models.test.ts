@@ -51,7 +51,11 @@ describe('models', () => {
   it('models set через дерево CLI', async () => {
     const root = await mkdtemp(path.join(tmpdir(), 'ai-models-'));
     await mkdir(path.join(root, '.agents/agents'), { recursive: true });
-    await writeFile(path.join(root, '.agents/agents/judge.md'), ROLE('zai/glm-5.3-flashx#low'), 'utf8');
+    await writeFile(
+      path.join(root, '.agents/agents/judge.md'),
+      ROLE('zai/glm-5.3-flashx#low'),
+      'utf8',
+    );
     const code = await main(['models', 'set', 'judge', 'zai/glm-5.3#low', '--root', root]);
     expect(code).toBe(0);
     expect(await readFile(path.join(root, '.agents/agents/judge.md'), 'utf8')).toContain(
@@ -73,13 +77,17 @@ describe('models', () => {
     ).rejects.toThrow('не найдена');
   });
 
-  it('паттерн модели допускает платное семейство glm-5.3 и запрещает остальное', () => {
+  it('паттерн модели допускает семейство glm-5.3 (zai, zai-coding-plan) и запрещает остальное', () => {
     expect(ROLE_MODEL_PATTERN.test('zai/glm-5.3#max')).toBe(true);
     expect(ROLE_MODEL_PATTERN.test('zai/glm-5.3#high')).toBe(true);
     expect(ROLE_MODEL_PATTERN.test('zai/glm-5.3-flash#max')).toBe(true);
     expect(ROLE_MODEL_PATTERN.test('zai/glm-5.3-flashx#low')).toBe(true);
+    expect(ROLE_MODEL_PATTERN.test('zai-coding-plan/glm-5.3#max')).toBe(true);
+    expect(ROLE_MODEL_PATTERN.test('zai-coding-plan/glm-5.3-flash#max')).toBe(true);
+    expect(ROLE_MODEL_PATTERN.test('zai-coding-plan/glm-5.3-flash#low')).toBe(true);
     expect(ROLE_MODEL_PATTERN.test('deepseek/deepseek-flash#max')).toBe(false);
     expect(ROLE_MODEL_PATTERN.test('zai/glm-4.7#max')).toBe(false);
+    expect(ROLE_MODEL_PATTERN.test('zai-coding-plan/glm-4.7#low')).toBe(false);
     expect(ROLE_MODEL_PATTERN.test('opus')).toBe(false);
   });
 });

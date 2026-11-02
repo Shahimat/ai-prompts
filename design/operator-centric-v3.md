@@ -154,12 +154,12 @@ v3 ещё не менялись. Следующий шаг — **7.1, шаг 1: 
 
 | Роль | Модель по умолчанию |
 | --- | --- |
-| operator | `zai/glm-5.3#max` |
-| researcher | `zai/glm-5.3#max` |
-| executor | `zai/glm-5.3#max` |
-| external-executor | `zai/glm-5.3#max` |
-| librarian | `zai/glm-5.3#max` |
-| judge | `zai/glm-5.3-flashx#low` |
+| operator | `zai-coding-plan/glm-5.3#max` |
+| researcher | `zai-coding-plan/glm-5.3#max` |
+| executor | `zai-coding-plan/glm-5.3#max` |
+| external-executor | `zai-coding-plan/glm-5.3#max` |
+| librarian | `zai-coding-plan/glm-5.3#max` |
+| judge | `zai-coding-plan/glm-5.3-flash#low` |
 
 Override в проекте: оператор правит `model` в frontmatter роли
 `.agents/agents/<role>.md` по явной просьбе пользователя, либо то же
@@ -167,7 +167,7 @@ Override в проекте: оператор правит `model` в frontmatter
 фиксируется в git, дефолты возвращаются при переустановке контракта. У
 оператора файла роли нет — его модель задаётся запуском primary-сессии
 по таблице. Например, проект может перевести массовые роли на
-`zai/glm-5.3-flash#max`.
+`zai-coding-plan/glm-5.3-flash#max`.
 
 ### Skills и browser
 
@@ -757,7 +757,7 @@ Browser-задачи с отдельным lifecycle, credentials, модель�
 name: browser-executor
 kind: custom
 description: executor с полноценным управлением браузером
-model: zai/glm-5.3#max
+model: zai-coding-plan/glm-5.3#max
 lifecycle: resumable
 concurrency: 1
 permissions: [browser]           # capability; granular — в skills.yml
@@ -853,7 +853,7 @@ roles:
   external-executor:
     kind: custom
     description: executor в удалённом проекте, GUI/CI-работы
-    model: zai/glm-5.3#max
+    model: zai-coding-plan/glm-5.3#max
     permissions: [remote-write, browser, data-access]
     lifecycle: resumable
     concurrency: 5
@@ -898,12 +898,12 @@ skill.
 
 | Роль | Модель | Документация | Код | Артефакты | Сессия | Параллельность |
 | --- | --- | --- | --- | --- | --- | --- |
-| operator | zai/glm-5.3#max | read | read | goals/, .ops/operator/state.yml, .ops/feedback | постоянная | один |
-| researcher | zai/glm-5.3#max | read | read | .ops/<ticket>/research | свежая | много |
-| executor | zai/glm-5.3#max | read | write | .ops/<ticket>/reports, worktree | возобновляемая | ≤5 активных, paused не считается |
-| external-executor | zai/glm-5.3#max | read | write remote | .ops/<ticket>/reports, remote target | возобновляемая | ≤5 активных, paused не считается |
-| judge | zai/glm-5.3-flashx#low | read | read | .ops/<ticket>/verdicts, goals expect, *.expect.json | всегда свежая; run 3 — по команде оператора | много, по файлу |
-| librarian | zai/glm-5.3#max | write | read | docs/, context/, CHANGELOG | свежая | один |
+| operator | zai-coding-plan/glm-5.3#max | read | read | goals/, .ops/operator/state.yml, .ops/feedback | постоянная | один |
+| researcher | zai-coding-plan/glm-5.3#max | read | read | .ops/<ticket>/research | свежая | много |
+| executor | zai-coding-plan/glm-5.3#max | read | write | .ops/<ticket>/reports, worktree | возобновляемая | ≤5 активных, paused не считается |
+| external-executor | zai-coding-plan/glm-5.3#max | read | write remote | .ops/<ticket>/reports, remote target | возобновляемая | ≤5 активных, paused не считается |
+| judge | zai-coding-plan/glm-5.3-flash#low | read | read | .ops/<ticket>/verdicts, goals expect, *.expect.json | всегда свежая; run 3 — по команде оператора | много, по файлу |
+| librarian | zai-coding-plan/glm-5.3#max | write | read | docs/, context/, CHANGELOG | свежая | один |
 
 Активных executor — не больше 5; paused не считается. Merge локального
 worktree — оператор; external publish — по autonomy. Judge меняет
@@ -1670,6 +1670,10 @@ librarian — не нужен.
 - Ревизия 2026-11-02: модели — `zai/glm-5.3` с override (judge —
   `zai/glm-5.3-flashx#low`); judge всегда свежий, механический гейт
   прогонов; researcher от executor — ≤2 на тикет.
+- Ревизия 2026-11-02: семейство моделей переведено на провайдера
+  `zai-coding-plan` — роли `glm-5.3#max`, watch-роли `flash#max`,
+  judge `flash#low`; `zai` остаётся допустимым (override), бесплатные
+  запрещены.
 
 ### Если сессия перезапустилась
 

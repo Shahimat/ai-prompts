@@ -6,7 +6,7 @@ permissions: [write, browser, data-access]
 lifecycle: resumable
 concurrency: 5
 tools: [Read, Glob, Grep, Edit, Write, Bash]
-model: zai/glm-5.3#max
+model: zai-coding-plan/glm-5.3#max
 output: result
 artifacts: [.ops/<ticket>/reports/]
 ---

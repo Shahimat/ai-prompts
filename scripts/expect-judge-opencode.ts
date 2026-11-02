@@ -97,7 +97,7 @@ const ask = (task: Task, kind: 'batch' | 'lint'): unknown => {
     '--agent',
     'judge',
     '--model',
-    'zai/glm-5.3-flashx#low',
+    'zai-coding-plan/glm-5.3-flash#low',
     prompt,
   ]);
   if (result.status !== 0) throw new Error(`opencode run judge: код ${result.status}: ${result.stderr.slice(-500)}`);

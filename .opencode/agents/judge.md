@@ -3,7 +3,7 @@
 description: Судья — проверяет тикет по expectations и DoD без аргументов executor, пишет вердикт и правит только заголовки и механику своего тикета; также отвечает на задания ожиданий репозитория. Вызывай с заданием.
 mode: subagent
 steps: 60
-model: zai/glm-5.3-flashx#low
+model: zai-coding-plan/glm-5.3-flash#low
 permissions:
   - action: edit
     resource: "*"

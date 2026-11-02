@@ -108,11 +108,11 @@ class Check {
 
   static async roleModels(): Promise<void> {
     const expected: Record<string, string> = {
-      researcher: 'zai/glm-5.3#max',
-      executor: 'zai/glm-5.3#max',
-      'external-executor': 'zai/glm-5.3#max',
-      librarian: 'zai/glm-5.3#max',
-      judge: 'zai/glm-5.3-flashx#low',
+      researcher: 'zai-coding-plan/glm-5.3#max',
+      executor: 'zai-coding-plan/glm-5.3#max',
+      'external-executor': 'zai-coding-plan/glm-5.3#max',
+      librarian: 'zai-coding-plan/glm-5.3#max',
+      judge: 'zai-coding-plan/glm-5.3-flash#low',
     };
     for (const [name, model] of Object.entries(expected)) {
       const fm = (await doc(`agents/${name}.md`)).frontmatter ?? {};

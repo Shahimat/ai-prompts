@@ -2,6 +2,13 @@
 
 Свежее сверху. Одна версия — список новых команд и проверок.
 
+## 0.1.3
+
+- Семейство моделей ролей расширено провайдером `zai-coding-plan`:
+  `models set`, `ROLE_MODELS`, `roles check` и схемы принимают и
+  `zai`, и `zai-coding-plan`; дефолт — `zai-coding-plan/glm-5.3#max`,
+  judge — `zai-coding-plan/glm-5.3-flash#low`.
+
 ## 0.1.2
 
 - `models list` / `models set <role> <model>`: роли и их модели, override

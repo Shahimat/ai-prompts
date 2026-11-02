@@ -23,9 +23,9 @@ use_case: Скармливается AI-агенту одной ссылкой, 
   `goals/program--<key>.expect.ts`; программа импортирует свои цели,
   приоритет — порядок импортов, тикет — `describe('ticket: …')`.
 - **Фон и модели.** Оператор запускает роли только в фоне; модели —
-  GLM-5.3 (`zai/glm-5.3#max`), judge — FlashX `#low`, override —
-  `oc3 models set`; бесплатные запрещены. Executor запускает judge и
-  researcher (≤2 на тикет), глубина 2.
+  GLM-5.3 (`zai-coding-plan/glm-5.3#max`), judge — flash `#low`,
+  override — `oc3 models set`; бесплатные запрещены. Executor запускает
+  judge и researcher (≤2 на тикет), глубина 2.
 - **Результаты.** Рядом с `*.expect.ts` — `*.expect.json`: run 1
   `pass`/`fail`, run 2+ негатив «satisfactorily»; 80% `pass` по
   `crit`/`warn` активного тикета, один повторный цикл; judge всегда
@@ -274,9 +274,9 @@ harness поток идёт через `docs-delta`; без модуля librari
 - **librarian** — читает документацию, код, `goals/`; пишет `docs/`,
   `context/`, `CHANGELOG.md`; свежий, один.
 
-Модели — дефолты с override: все роли, кроме judge, — `zai/glm-5.3#max`,
-judge — `zai/glm-5.3-flashx#low`; override — оператор по просьбе
-пользователя или `oc3 models set` (валидация схемой, только платные).
+Модели — дефолты с override: роли — `zai-coding-plan/glm-5.3#max`,
+watch-роли watchers — `zai-coding-plan/glm-5.3-flash#max`, judge —
+`zai-coding-plan/glm-5.3-flash#low` (валидация схемой, только платные).
 
 Инвариант: документацию пишет только librarian; оператор, executor и
 judge — никогда. Merge worktree — оператор; external publish — по

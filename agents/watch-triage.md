@@ -6,7 +6,7 @@ lifecycle: fresh
 permissions: [read]
 concurrency: unlimited
 artifacts: [.ops/watches/]
-model: zai/glm-5.3#max
+model: zai-coding-plan/glm-5.3-flash#max
 output: result
 ---
 

@@ -6,7 +6,7 @@ permissions: [docs-write]
 lifecycle: fresh
 concurrency: 1
 tools: [Read, Grep, Glob, Edit, Write, Bash]
-model: zai/glm-5.3#max
+model: zai-coding-plan/glm-5.3#max
 output: result
 artifacts: [docs/, context/, CHANGELOG.md]
 ---

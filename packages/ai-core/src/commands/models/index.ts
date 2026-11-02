@@ -5,7 +5,8 @@ import { UsageError } from '#shared/diagnostics';
 import { errorCode } from '#shared/guards';
 import { parseFrontmatter } from '#shared/frontmatter';
 
-export const ROLE_MODEL_PATTERN = /^zai\/glm-5\.3(-flash|-flashx)?#(max|high|low)$/;
+export const ROLE_MODEL_PATTERN =
+  /^(zai|zai-coding-plan)\/glm-5\.3(-flash|-flashx)?#(max|high|low)$/;
 const ROLE_DIRS = ['.agents/agents', 'agents'];
 const DERIVED = '.opencode/agents';
 
@@ -68,7 +69,7 @@ async function set(args: CommandArgs): Promise<number> {
   const model = args.params?.['model'];
   if (role === undefined || model === undefined) throw new UsageError('models set <role> <model>');
   if (!ROLE_MODEL_PATTERN.test(model))
-    throw new UsageError(`модель вне платного семейства glm-5.3: ${model}`);
+    throw new UsageError(`модель вне семейства glm-5.3 (zai, zai-coding-plan): ${model}`);
   const changed: string[] = [];
   for (const dir of [...ROLE_DIRS, DERIVED]) {
     const rel = path.posix.join(dir, `${role}.md`);
