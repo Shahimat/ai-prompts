@@ -8,5 +8,5 @@
     "todo": true,
     "subagent_depth": 2
   },
-  "plugins": ["./plugins/ai-config-guards", "@shahimat/oc3"]
+  "plugins": ["@shahimat/oc3"]
 }
