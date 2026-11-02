@@ -10,11 +10,11 @@ briefing:
 
 sync:
   index_source: https://raw.githubusercontent.com/Shahimat/ai-prompts/main/prompts/index.yml
-  index_sha: bdbcccaa7256294f54c5446455b1c7a8de1f305c58bf8bdb0faee17c64513296
+  index_sha: e8d9d6037cf2f0be117a9c0d912f3c41950030860df1ab840707fd95f848c502
   contract:
     key: agent-operational-contract-v3
     edition: operator-centric
-    synced_sha: 8ad7806a05f34a9acd46b7dfa8dc2846a348e4baf6d2467b5f13b4bfbabb9b8d
+    synced_sha: 01e3973232a63ed5e8c30dcd397ef9515db9316d6ca66c909eaf039dfa1feab2
     parts:
       skills: {}
       agents: {}
