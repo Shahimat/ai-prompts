@@ -97,7 +97,7 @@ const ask = (task: Task, kind: 'batch' | 'lint'): unknown => {
     '--agent',
     'judge',
     '--model',
-    'deepseek/deepseek-flash#low',
+    'zai/glm-5.3-flashx#low',
     prompt,
   ]);
   if (result.status !== 0) throw new Error(`opencode run judge: код ${result.status}: ${result.stderr.slice(-500)}`);

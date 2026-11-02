@@ -15,7 +15,7 @@ const CORE_ROLES = [
   'judge',
   'librarian',
 ];
-const MODELS = ['deepseek/deepseek-flash#max', 'deepseek/deepseek-flash#low'];
+const MODELS = ['zai/glm-5.3#max', 'zai/glm-5.3-flashx#max', 'zai/glm-5.3-flashx#low'];
 const OPERATOR_SKILLS = ['operator-feedback', 'browser-read'];
 const CONTRACT_SKILLS = ['contract-setup', 'workflow', 'source-sync', 'source-feedback', 'cli'];
 
@@ -136,11 +136,14 @@ async function checkRoles(args: CommandArgs): Promise<number> {
       if (fm[key] === undefined) diagnostics.push({ file, message: `нет поля ${key}` });
     }
     if (!MODELS.includes(String(fm['model'])))
-      diagnostics.push({ file, message: `model — deepseek/deepseek-flash#max|low` });
-    if (name === 'judge' && fm['model'] !== 'deepseek/deepseek-flash#low')
-      diagnostics.push({ file, message: 'judge должен быть на #low' });
-    if (name !== 'judge' && fm['model'] === 'deepseek/deepseek-flash#low')
-      diagnostics.push({ file, message: 'low разрешён только judge' });
+      diagnostics.push({
+        file,
+        message: `model — zai/glm-5.3#max | zai/glm-5.3-flashx#max|low`,
+      });
+    if (name === 'judge' && fm['model'] !== 'zai/glm-5.3-flashx#low')
+      diagnostics.push({ file, message: 'judge должен быть на flashx#low' });
+    if (name !== 'judge' && fm['model'] === 'zai/glm-5.3-flashx#low')
+      diagnostics.push({ file, message: 'flashx#low разрешён только judge' });
     if (fm['output'] === undefined) diagnostics.push({ file, message: 'нет output' });
     const skills = m.roles.get(name) ?? [];
     for (const skill of skills) {

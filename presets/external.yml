@@ -17,7 +17,7 @@ roles:
   external-executor:
     kind: custom
     description: executor в удалённом проекте, GUI/CI-работы
-    model: deepseek/deepseek-flash#max
+    model: zai/glm-5.3#max
     permissions: [remote-write, browser, data-access]
     lifecycle: resumable
     concurrency: 5

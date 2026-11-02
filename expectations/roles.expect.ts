@@ -108,11 +108,11 @@ class Check {
 
   static async roleModels(): Promise<void> {
     const expected: Record<string, string> = {
-      researcher: 'deepseek/deepseek-flash#max',
-      executor: 'deepseek/deepseek-flash#max',
-      'external-executor': 'deepseek/deepseek-flash#max',
-      librarian: 'deepseek/deepseek-flash#max',
-      judge: 'deepseek/deepseek-flash#low',
+      researcher: 'zai/glm-5.3#max',
+      executor: 'zai/glm-5.3#max',
+      'external-executor': 'zai/glm-5.3#max',
+      librarian: 'zai/glm-5.3#max',
+      judge: 'zai/glm-5.3-flashx#low',
     };
     for (const [name, model] of Object.entries(expected)) {
       const fm = (await doc(`agents/${name}.md`)).frontmatter ?? {};

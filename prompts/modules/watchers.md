@@ -38,8 +38,8 @@ feature:
   которому привязан.
 - **Лестница моделей**: L0 — код сравнивает статусы с прошлым тиком,
   без изменений — ноль токенов; L1 — роль `watch-triage`
-  (`deepseek/deepseek-flash#max`): `ignore`, `notify` или `act`; L2 —
-  роль `watch-request` (`deepseek/deepseek-flash#max`):
+  (`zai/glm-5.3#max`): `ignore`, `notify` или `act`; L2 —
+  роль `watch-request` (`zai/glm-5.3#max`):
   запрос в job задачи (событие `feedback`, job возвращается в правку)
   и действия строками `act:` — `review.comment`, `checks.start` — по
   политике автономии.

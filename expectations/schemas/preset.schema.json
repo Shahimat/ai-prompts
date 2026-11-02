@@ -64,7 +64,7 @@
           "kind": { "enum": ["primary", "core", "custom"] },
           "description": { "type": "string", "minLength": 20, "maxLength": 300 },
           "model": {
-            "enum": ["deepseek/deepseek-flash#max", "deepseek/deepseek-flash#low"]
+            "pattern": "^zai/glm-5\\.3(-flash|-flashx)?#(max|high|low)$"
           },
           "permissions": {
             "oneOf": [

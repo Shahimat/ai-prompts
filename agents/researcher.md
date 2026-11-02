@@ -6,7 +6,7 @@ permissions: [read, data-access, browser]
 lifecycle: fresh
 concurrency: unlimited
 tools: [Read, Glob, Grep, Bash, Write]
-model: deepseek/deepseek-flash#max
+model: zai/glm-5.3#max
 output: result
 artifacts: [.ops/<ticket>/research/]
 ---

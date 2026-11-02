@@ -6,7 +6,7 @@ permissions: [docs-write]
 lifecycle: fresh
 concurrency: 1
 tools: [Read, Grep, Glob, Edit, Write, Bash]
-model: deepseek/deepseek-flash#max
+model: zai/glm-5.3#max
 output: result
 artifacts: [docs/, context/, CHANGELOG.md]
 ---

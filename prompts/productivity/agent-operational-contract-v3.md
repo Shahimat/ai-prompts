@@ -23,11 +23,13 @@ use_case: Скармливается AI-агенту одной ссылкой, 
   `goals/program--<key>.expect.ts`; программа импортирует свои цели,
   приоритет — порядок импортов, тикет — `describe('ticket: …')`.
 - **Фон и модели.** Оператор запускает роли только в фоне; модели —
-  DeepSeek V4.1 Flash 1017 (`deepseek/deepseek-flash#max`, judge `#low`),
-  бесплатные запрещены. Executor запускает judge и researcher, глубина 2.
+  GLM-5.3 (`zai/glm-5.3#max`), judge — FlashX `#low`, override —
+  `ai models set`; бесплатные запрещены. Executor запускает judge и
+  researcher (≤2 на тикет), глубина 2.
 - **Результаты.** Рядом с `*.expect.ts` — `*.expect.json`: run 1
   `pass`/`fail`, run 2+ негатив «satisfactorily»; 80% `pass` по
-  `crit`/`warn` активного тикета, один повторный цикл.
+  `crit`/`warn` активного тикета, один повторный цикл; judge всегда
+  свежий, сверх двух run'ов (с `retry: true` — трёх) — гейт.
 - **Skills — ролям.** Оператор не загружает ролевые skills; исключения —
   `operator-feedback` и явный `browser-read`. Привязка — `roles` в
   `context/skills.yml`. Документацию пишет только librarian.
@@ -220,7 +222,7 @@ skills:
 - одна primary-сессия: приоритеты — порядок импортов программ и указания пользователя; пишет `goals/`, `.ops/operator/state.yml`, `.ops/feedback/`, сбрасывает `*.expect.json`, не пишет `docs/`, `context/`, `CHANGELOG.md`, код;
 - роли запускает только с `background: true`; не блокируется и остаётся доступен человеку, просыпается на результате или сообщении;
 - цель — `goals/<goal>.expect.ts`, программа — `goals/program--<key>.expect.ts`, тикет — `describe('ticket: …')`; один активный тикет на цель, paused — `crit.wip`;
-- ролям — `brief` до 15 строк, от них — `report`; judge — `verdict`, librarian — `docs_request`; researcher — сколько угодно, executor — ≤5 активных (paused не считается), librarian — один;
+- ролям — `brief` до 15 строк, от них — `report`; judge — `verdict`, librarian — `docs_request`; researcher от оператора — сколько угодно, от executor — ≤2 на тикет; executor — ≤5 активных (paused не считается); librarian — один;
 - worktree и merge — оператор; external публикует по autonomy; проверки — в скоупе цели или программы; фидбек — skill `operator-feedback`.
 
 ## Skills
@@ -268,14 +270,13 @@ harness поток идёт через `docs-delta`; без модуля librari
   target и `.ops/<ticket>/reports/`; возобновляемый; ≤5 активных.
 - **judge** — читает expectations, DoD и результат; пишет
   `.ops/<ticket>/verdicts/<run>.yml`, `*.expect.json` и разрешённые
-  строки `goals/<goal>.expect.ts`; resume только в цикле judge ↔
-  executor; после возврата к оператору — свежий.
+  строки `goals/<goal>.expect.ts`; всегда свежий, без resume.
 - **librarian** — читает документацию, код, `goals/`; пишет `docs/`,
   `context/`, `CHANGELOG.md`; свежий, один.
 
-Модели: все роли — `deepseek/deepseek-flash#max`, judge — `#low`;
-бесплатные модели запрещены. Модель — обязательное поле frontmatter
-роли.
+Модели — дефолты с override: все роли, кроме judge, — `zai/glm-5.3#max`,
+judge — `zai/glm-5.3-flashx#low`; override — оператор по просьбе
+пользователя или `ai models set` (валидация схемой, только платные).
 
 Инвариант: документацию пишет только librarian; оператор, executor и
 judge — никогда. Merge worktree — оператор; external publish — по
@@ -313,10 +314,10 @@ autonomy. Judge не меняет состав `describe`/`crit`/`warn`/`it.todo
   цель достигнута, файл и импорт удаляются. Стадию показывает
   `ai goals status` до удаления.
 - **Результаты.** Рядом с `*.expect.ts` — `*.expect.json`:
-  `timestamp` + `results` с записями `{run, items}`. Оператор сбрасывает
+  `timestamp` + `retry` + `results` с `{run, items}`. Оператор сбрасывает
   перед циклом; judge пишет run 1 (`pass`/`fail`), run 2+ — негатив
-  «satisfactorily». 80% — по `pass` в активном тикете; меньше —
-  один повторный цикл, затем к человеку.
+  «satisfactorily»; 80% — по `pass`, меньше — один повторный цикл
+  (`retry: true`), затем к человеку. Запуск сверх бюджета — гейт.
 - **Baseline.** На старте тикета оператор снимает копию активного файла
   в `.ops/<ticket>/baseline/`; `ai goals check goals/<goal>.expect.ts
   --ticket <key>` сравнивает AST: число и порядок
@@ -468,12 +469,11 @@ dashboard — модули headless-рантайма, в интерактивн�
 - **Codex** — читает `AGENTS.md` и `.agents/skills/` сам; субагенты в
   `.codex/agents/`, memory выключена в `.codex/config.toml`;
 - **OpenCode** — `.opencode/agents` из `.agents/agents`, skills из
-  `context/skills.yml`, browser MCP и autonomy,
-  `experimental.subagent_depth: 2`.
+  `context/skills.yml`, browser MCP, autonomy, experimental.subagent_depth:
+  2 и гейт прогонов judge по счётчику `*.expect.json`.
 
-Модели — `deepseek/deepseek-flash#max`, judge — `#low`; бесплатные
-запрещены. Оператор запускает роли в фоне; executor → judge/researcher,
-глубина 2, запуски видны в GUI.
+Модели — дефолты контракта, override — `ai models set`, бесплатные
+запрещены; роли в фоне, executor → judge/researcher (≤2 на тикет), глубина 2.
 
 Производные генерирует `ai adapters sync`, проверяет
 `ai adapters check`; руками их не создаёшь и не правишь. Существующий

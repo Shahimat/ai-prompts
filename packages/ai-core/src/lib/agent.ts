@@ -4,8 +4,9 @@ import { normalizeEol, parseFrontmatter } from '#shared/frontmatter';
 import { isProtocolMessage, type ProtocolMessage } from './protocol.ts';
 
 export const ROLE_MODELS = [
-  'deepseek/deepseek-flash#max',
-  'deepseek/deepseek-flash#low',
+  'zai/glm-5.3#max',
+  'zai/glm-5.3-flashx#max',
+  'zai/glm-5.3-flashx#low',
   'opus',
   'sonnet',
   'haiku',

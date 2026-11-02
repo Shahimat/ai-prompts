@@ -197,9 +197,10 @@ planReview.whole(() => {
 ## Роли
 
 Роль — субагент из `agents/<name>.md` источника (в проекте —
-`.agents/agents/`): промпт, `tools`, `model` (`deepseek/deepseek-flash#max`
-по умолчанию, у judge — `#low`; старые `opus`/`sonnet`/`haiku` — только
-legacy harness) и `output` — сообщение протокола, которым роль
+`.agents/agents/`): промпт, `tools`, `model` (`zai/glm-5.3#max`
+по умолчанию, у judge — `zai/glm-5.3-flashx#low`; старые
+`opus`/`sonnet`/`haiku` — только legacy harness) и `output` — сообщение
+протокола, которым роль
 возвращает итог. Одна и та же роль работает субагентом в сессии агента
 (адаптеры генерируют `.claude/agents/`, `.codex/agents/`) и
 headless-исполнителем в harness.

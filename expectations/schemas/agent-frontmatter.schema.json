@@ -9,8 +9,8 @@
     "description": { "type": "string", "minLength": 20, "maxLength": 300, "pattern": "^[^\\n]+$" },
     "tools": { "type": "array", "items": { "type": "string", "minLength": 1 } },
     "model": {
-      "description": "Модель роли: DeepSeek V4.1 Flash 1017; max кроме judge — low",
-      "enum": ["deepseek/deepseek-flash#max", "deepseek/deepseek-flash#low"]
+      "description": "Модель роли: семейство GLM-5.3, только платное; max кроме judge — low; override — ai models set",
+      "pattern": "^zai/glm-5\\.3(-flash|-flashx)?#(max|high|low)$"
     },
     "output": {
       "description": "Сообщение протокола harness, которым роль возвращает итог",

@@ -268,13 +268,13 @@
     "8ae3547551f3": {
       "question": "AGENTS.md > CLAUDE.md для Claude Code — импорт @AGENTS.md, генерирует ai adapters sync",
       "evidence": {
-        "@claude-md-import": "1c675807ff0e34f5e5968f239a3f65606c54e9812175602a20718f3aeb38c6f9"
+        "@claude-md-import": "bfbf0334379115e34ce37bd87a3f13f69b7ac59ae735df6f5d108a52efef21a0"
       },
       "verdict": true,
-      "quote": "- **Claude Code** — `CLAUDE.md` (`@AGENTS.md`)",
+      "quote": "return `<!-- ${GENERATED_MARK} — do not edit, правь AGENTS.md -->\\n@AGENTS.md\\n`;",
       "ref": "@claude-md-import",
-      "reason": "claudeMd() возвращает прослойку с @AGENTS.md, а в том же доказательстве сказано, что производные генерирует ai adapters sync.",
-      "at": "2026-11-01"
+      "reason": "claudeMd() генерирует CLAUDE.md с импортом @AGENTS.md под маркером GENERATED_MARK, а контракт относит производные к 'ai adapters sync'.",
+      "at": "2026-11-02"
     },
     "8db8efa7768f": {
       "question": "[flow] ownership > основная сессия передаёт librarian только намерения и получает отчёт не длиннее 10 строк",
@@ -590,13 +590,13 @@
     "f586544d451f": {
       "question": "документация проекта > шаблон AGENTS.md и блоки модулей не содержат указаний основной сессии самой править документацию — только ссылки на skills и harness; guardrail о достоверности знания допустим",
       "evidence": {
-        "@agents-md-readonly": "b5a9633db7ae3b90d95abfabe43dae560f1998c4de8492fa108d57324045d95a"
+        "@agents-md-readonly": "25ee925ecb13395b5d757ea0b62d4029195a0e733ec933dac680729d9e4794d0"
       },
       "verdict": true,
       "quote": "Документацию пишет только librarian по `docs_request`: оператор, executor и judge её читают; генерируемое меняет `ai`.",
       "ref": "@agents-md-readonly",
-      "reason": "Шаблон AGENTS.md прямо запрещает основной сессии писать документацию, а блок модуля harness направляет запись через `npx ai docs-delta`.",
-      "at": "2026-11-01"
+      "reason": "Шаблон и все блоки модулей дают только маршруты к skills, data-файлам и командам harness (docs-delta), указаний основной сессии править документацию нет.",
+      "at": "2026-11-02"
     },
     "f7310dcbc6e4": {
       "question": "plan-review › переход clarify_form —answered→ > после ответа планер записывает ожидания выбранным блоком",

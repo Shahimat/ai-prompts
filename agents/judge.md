@@ -3,10 +3,10 @@ name: judge
 kind: core
 description: Судья — проверяет тикет по expectations и DoD без аргументов executor, пишет вердикт и правит только заголовки и механику своего тикета; также отвечает на задания ожиданий репозитория. Вызывай с заданием.
 permissions: [read, goals-expect-write, verdicts-write, results-write, browser]
-lifecycle: resumable
+lifecycle: fresh
 concurrency: unlimited
 tools: [Read, Glob, Grep, Edit, Bash]
-model: deepseek/deepseek-flash#low
+model: zai/glm-5.3-flashx#low
 output: verdict
 artifacts: [.ops/<ticket>/verdicts/]
 ---
@@ -48,10 +48,11 @@ artifacts: [.ops/<ticket>/verdicts/]
    трогать чужие тикеты нельзя. Правку проверяет AST-валидатор по
    baseline; невалидная правка отклоняется.
 5. Executor дорабатывает по run 1 и запускает judge снова; это run 2.
-   Больше двух прогонов за попытку нет; повторный цикл — только по
-   команде оператора.
-6. Вернулись к оператору — следующий judge свежий; старый контекст не
-   переиспользуется; запускает его executor по команде оператора.
+   Больше двух прогонов за попытку нет; повторный цикл (run 3) — только
+   по команде оператора с маркером `retry: true`. Запуск сверх бюджета
+   механически блокирует гейт по счётчику run'ов в `*.expect.json`.
+6. Judge всегда свежий: один прогон — одна сессия, без resume; вердикт
+   самодостаточен, уточняющий диалог не нужен.
 
 Вердикт подробно — executor; оператору короткая сводка по последнему
 run: сколько `crit`/`warn` `pass`, `satisfactorily`, `fail`, и 80%

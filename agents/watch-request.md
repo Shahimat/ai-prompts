@@ -7,7 +7,7 @@ permissions: [read]
 concurrency: unlimited
 artifacts: [.ops/watches/]
 tools: [Read, Glob, Grep]
-model: deepseek/deepseek-flash#max
+model: zai/glm-5.3#max
 output: result
 ---
 
