@@ -1,0 +1,69 @@
+{
+  "name": "@shahimat/oc3",
+  "version": "0.1.0",
+  "description": "OpenCode-плагин и CLI oc3 для проектов на контракте v3: guards документации и памяти, гейт прогонов judge, команды целей и моделей",
+  "license": "MIT",
+  "author": "Gevorg Nakhapetyan",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Shahimat/ai-prompts.git",
+    "directory": "packages/oc3"
+  },
+  "homepage": "https://github.com/Shahimat/ai-prompts/tree/main/packages/oc3#readme",
+  "bugs": {
+    "url": "https://github.com/Shahimat/ai-prompts/issues"
+  },
+  "keywords": [
+    "ai-agents",
+    "opencode",
+    "agents-md",
+    "operator-centric"
+  ],
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "bin": {
+    "oc3": "dist/bin.js"
+  },
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "imports": {
+    "#*": {
+      "source": "./src/*.ts",
+      "types": "./dist/*.d.ts",
+      "default": "./dist/*.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "build": "node ../build.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "prepublishOnly": "npm run typecheck && npm test && npm run build"
+  },
+  "dependencies": {
+    "@opencode/plugin": "latest",
+    "@shahimat/ai-core": "0.1.2",
+    "yaml": "^2.9.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.4"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
+}

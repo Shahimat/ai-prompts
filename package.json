@@ -9,9 +9,9 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build -w @shahimat/ai-core && npm run build -w @shahimat/harness && npm run build -w @shahimat/cli",
-    "typecheck": "npm run build -w @shahimat/ai-core && npm run build -w @shahimat/harness && npm run build -w @shahimat/cli && npm run typecheck -w @shahimat/ai-core && npm run typecheck -w @shahimat/harness && npm run typecheck -w @shahimat/cli && tsc -p expectations && tsc -p packages && tsc -p scripts",
-    "test": "npm test -w @shahimat/ai-core && npm test -w @shahimat/harness && npm test -w @shahimat/cli",
+    "build": "npm run build -w @shahimat/ai-core && npm run build -w @shahimat/harness && npm run build -w @shahimat/cli && npm run build -w @shahimat/oc3",
+    "typecheck": "npm run build -w @shahimat/ai-core && npm run build -w @shahimat/harness && npm run build -w @shahimat/cli && npm run build -w @shahimat/oc3 && npm run typecheck -w @shahimat/ai-core && npm run typecheck -w @shahimat/harness && npm run typecheck -w @shahimat/cli && npm run typecheck -w @shahimat/oc3 && tsc -p expectations && tsc -p packages && tsc -p scripts",
+    "test": "npm test -w @shahimat/ai-core && npm test -w @shahimat/harness && npm test -w @shahimat/cli && npm test -w @shahimat/oc3",
     "lint": "oxlint --type-aware --deny-warnings",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -21,7 +21,7 @@
     "expect:judge": "node packages/cli/dist/bin.js expect judge expectations/index.expect.ts --root .",
     "expect:judge:opencode": "node scripts/expect-judge-opencode.ts",
     "expect:apply": "node packages/cli/dist/bin.js expect judge expectations/index.expect.ts --apply --root .",
-    "ci": "npm run format:check && npm run build -w @shahimat/ai-core && npm run build -w @shahimat/harness && npm run build -w @shahimat/cli && npm run typecheck -w @shahimat/ai-core && npm run typecheck -w @shahimat/harness && npm run typecheck -w @shahimat/cli && tsc -p expectations && tsc -p packages && tsc -p scripts && npm run lint && npm test -w @shahimat/ai-core && npm test -w @shahimat/harness && npm test -w @shahimat/cli && npm run index:check && npm run expect"
+    "ci": "npm run format:check && npm run build -w @shahimat/ai-core && npm run build -w @shahimat/harness && npm run build -w @shahimat/cli && npm run build -w @shahimat/oc3 && npm run typecheck -w @shahimat/ai-core && npm run typecheck -w @shahimat/harness && npm run typecheck -w @shahimat/cli && npm run typecheck -w @shahimat/oc3 && tsc -p expectations && tsc -p packages && tsc -p scripts && npm run lint && npm test -w @shahimat/ai-core && npm test -w @shahimat/harness && npm test -w @shahimat/cli && npm test -w @shahimat/oc3 && npm run index:check && npm run expect"
   },
   "devDependencies": {
     "oxlint": "^1.88.0",

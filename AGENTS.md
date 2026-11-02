@@ -108,8 +108,11 @@ shebang: пояснения — в именах, ожиданиях и README. �
 `commands`, библиотека без бинаря; `@shahimat/harness`
 (`packages/harness/src`) — `harnesses` поверх публичного API
 `ai-core`; `@shahimat/cli` (`packages/cli/src`) — `scripts` и бинарь
-`ai`, загружает `harness` динамически. `ai-core` не знает ни `cli`, ни
-`harness`; скрипты и команду CLI автоматы берут через `runtime`.
+`ai`, загружает `harness` динамически; `@shahimat/oc3`
+(`packages/oc3/src`) — лицо контракта v3 в проекте-потребителе:
+OpenCode-плагин (guards, гейт прогонов, tools `oc3_*`) и бинарь `oc3`,
+зависит только от `ai-core`. `ai-core` не знает ни `cli`, ни `harness`,
+ни `oc3`; скрипты и команду CLI автоматы берут через `runtime`.
 
 - Команда — атомарная операция; другие команды, скрипты и harness не
   вызывает.

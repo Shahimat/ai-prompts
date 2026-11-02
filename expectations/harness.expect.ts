@@ -68,11 +68,11 @@ budget({ crit: 0, warn: 5 });
 
 describe('[harness] common', () => {
   crit(
-    'состав: команды ai-core — check, refresh, changelog, context, adapters, delta, docs, outdated, expect, goals, roles, skills, operator, index, secrets, role',
+    'состав: команды ai-core — check, refresh, changelog, context, adapters, delta, docs, outdated, expect, goals, roles, skills, operator, models, index, secrets, role',
     () => Check.composition(),
   );
   crit(
-    'пакеты: @shahimat/cli — точка входа ai и скрипты; @shahimat/ai-core — ядро: команды, ожидания, роли; @shahimat/harness — автоматы; других нет',
+    'пакеты: @shahimat/cli — точка входа ai и скрипты; @shahimat/ai-core — ядро: команды, ожидания, роли; @shahimat/harness — автоматы; @shahimat/oc3 — плагин и CLI потребителя; других нет',
     () => Check.packages(),
   );
   crit(
@@ -744,6 +744,8 @@ const DECLARED_COMMANDS = [
   'roles check',
   'skills check',
   'operator state check',
+  'models',
+  'models set <role> <model>',
   'delta check',
   'delta close',
   'outdated',
@@ -852,7 +854,12 @@ class Check {
         stringAt(parseJson(await readRepo(`packages/${d}/package.json`)), 'name'),
       ),
     );
-    expect(names.sort()).toEqual(['@shahimat/ai-core', '@shahimat/cli', '@shahimat/harness']);
+    expect(names.sort()).toEqual([
+      '@shahimat/ai-core',
+      '@shahimat/cli',
+      '@shahimat/harness',
+      '@shahimat/oc3',
+    ]);
   }
 
   static async commands(list: string[]): Promise<void> {
@@ -872,6 +879,7 @@ class Check {
       'expect',
       'goals',
       'index',
+      'models',
       'operator',
       'ops',
       'outdated',

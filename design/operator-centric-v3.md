@@ -1254,7 +1254,7 @@ docs. При смене машины или потере state оператор 
   `satisfactorily`; 80% считается по `pass` в `crit`/`warn`
   активного тикета.
 - **Модели:** роли — по таблице §0, override — оператор или
-  `ai models set`; бесплатные модели запрещены и deny на runtime.
+  `oc3 models set`; бесплатные модели запрещены и deny на runtime.
 - **Скрипты:** lint, typecheck, tests, build, docs consistency,
   expectations, goals check, goals status, roles check, skills check,
   operator state check.
@@ -1277,8 +1277,8 @@ docs. При смене машины или потере state оператор 
   memory-пути (`~/.claude/projects/*/memory/`, memory-каталоги Codex,
   аналоги) блокируется; OpenCode — deny memory-MCP/инструментов и
   `permission.hook("evaluate")`; `ctx.storage` — только явные кэши.
-  Настройки и hooks ставит `ai adapters sync`, проверяет
-  `ai adapters check`.
+  Настройки и hooks ставит `oc3 adapters sync`, проверяет
+  `oc3 adapters check`.
 
 FSM не нужен для этой строгости. FSM остаётся для случаев, где переходы
 и повторяемость важнее свободы: CI, релиз, миграция, headless jobs.
@@ -1297,6 +1297,13 @@ sync:
 ```
 
 Старый v3 без `edition` плагин не активирует.
+
+Плагин — пакет `@shahimat/oc3` (`packages/oc3`, лицо контракта в
+проекте-потребителе): permission-хуки docs guard, memory guard и гейт
+прогонов judge; tools `oc3_*` (модели, цели, проверки) в namespace `oc3`;
+bin `oc3` — те же команды для человека без токенов; `oc3 init` — проверка
+маркера, пакетов и plugin-записи. Инструмент источника и harness — `ai`
+(`@shahimat/cli`); потребитель `ai` не ставит.
 
 - оператор — primary-сессия; все запуски ролей — `background: true`;
   оператор не блокируется и всегда доступен человеку, просыпается на
@@ -1446,43 +1453,34 @@ librarian — не нужен.
    `librarian`; убрать `oracle`/`reviewer`; пометить старую очередь
    goals/programs и `context/views` deprecated; обновить presets,
    modules, `prompts/index.yml`. Полный список файлов — 7.2.
-4. **OpenCode MVP.**
-   - плагин `packages/plugin`, v3-only активация:
+4. **OpenCode MVP — `packages/oc3` (готово).**
+   - плагин `@shahimat/oc3`, v3-only активация:
      `sync.contract.edition: operator-centric`;
+   - permission-хуки: docs guard (edit/write в `docs/`, `context/`,
+     `CHANGELOG.md` — только librarian), memory guard (memory-пути вне
+     репозитория), гейт прогонов judge по счётчику run'ов в
+     `*.expect.json` (2 без `retry: true`, 3 с ним);
+   - tools `oc3_*`: models list/set, goals check/status, operator/roles/
+     skills/adapters check;
+   - bin `oc3`: models, goals, operator, roles, skills, adapters,
+     context, expect report, init;
    - `.opencode/agents` из `.agents/agents` и skills из
-     `context/skills.yml`;
+     `context/skills.yml` — ставит `oc3 adapters sync`;
    - оператор запускает роли в `background: true`; `subagent_depth: 2`;
-     executor → judge/researcher видны в GUI;
-   - модели ролей — по таблице §0; бесплатные модели deny;
-   - гейт прогонов: permission hook на запуск judge по счётчику run'ов
-     в `*.expect.json`;
-   - `goals/program--<key>.expect.ts` и `goals/<goal>.expect.ts` —
-     `ai expect report`; `*.expect.json` рядом; `ai goals check/status`
-     и `ai operator state check` — шаг 6;
-   - `todowrite` + `subagent`;
+     executor → judge/researcher видны в GUI; `todowrite` + `subagent`;
+   - модели ролей — по таблице §0; override — `oc3 models set`;
    - `browser`/`browser-read` через browser tool/MCP;
    - `external-executor` и remote target;
-   - docs guard plugin;
-   - memory guard: memory-MCP deny, evaluate-hook на memory-пути,
-     `ctx.storage` только для явных кэшей;
-   - `submit_result`;
    - `operator-feedback` tool/skill.
-5. **Watcher MVP.**
-   - пакет `packages/watcher`;
-   - JSONL event log;
-   - MCP-фасад;
-   - Unix socket/named pipe, HTTP-fallback;
-   - plugin wake;
-   - ack/replay.
-6. **Гейты.**
-   - `ai goals check` (AST), `ai goals status`, `ai skills check`,
-     `ai roles check`, `ai operator state check`, `ai adapters check`;
-   - `ai adapters sync` ставит memory guard, `ai adapters check`
-     подтверждает memory off: Claude settings + hook, Codex config,
-     OpenCode deny memory-MCP/инструментов, прочие — off/deny;
-   - docs consistency, check ladder, browser autonomy;
-   - DoD пресетов;
-   - гейты должны быть зелёными до пилота.
+5. **Watcher MVP — отложен** (решение пользователя, 2026-11-02):
+   будущая фича; автопробуждение по таймеру/CI не требуется для пилота.
+   Когда вернётся: пакет `packages/watcher`, JSONL event log, MCP-фасад,
+   Unix socket/named pipe с HTTP-fallback, plugin wake, ack/replay.
+6. **Гейты — готовы** (в `@shahimat/ai-core`, лицо — `oc3`):
+   `oc3 goals check` (AST), `oc3 goals status`, `oc3 skills check`,
+   `oc3 roles check`, `oc3 operator state check`, `oc3 models list/set`,
+   `oc3 adapters check`; `oc3 adapters sync` ставит memory guard; docs
+   consistency, check ladder, browser autonomy; гейты зелёные до пилота.
 7. **Пилот.**
    - один проект;
    - критерии — 7.3;
@@ -1511,10 +1509,11 @@ librarian — не нужен.
 - `presets/*`, `prompts/modules/*`, `prompts/index.yml`.
 - `expectations/schemas/*` (включая `role.schema.json`),
   `expectations/*.expect.ts`.
-- `packages/ai-core` — `adapters sync/check`: memory guard для
-  Claude/Codex/OpenCode.
-- Пакеты `packages/plugin` и `packages/watcher` — только после контракта
-  и схем; имена зафиксированы заранее.
+- `packages/ai-core` — команды и библиотека; `adapters sync/check`:
+  memory guard для Claude/Codex/OpenCode.
+- `packages/oc3` (`@shahimat/oc3`) — плагин OpenCode и bin `oc3`: лицо
+  контракта в проекте-потребителе.
+- `packages/watcher` — отложен (решение пользователя, 2026-11-02).
 
 Проект-потребитель (устанавливается/создаётся):
 
@@ -1660,18 +1659,21 @@ librarian — не нужен.
 
 ## 10. Состояние
 
-- Дизайн-документ; реализация контракта идёт по разделу 7, состояние
-  кода здесь не фиксируется.
+- Итерация контракта завершена: контракт, skills, agents, presets, схемы
+  и `prompts/index.yml` согласованы, `npm run ci` зелёный.
+- Шаг 4 (плагин `@shahimat/oc3`) и шаг 6 (гейты-команды) — готовы.
+  Watcher (шаг 5) отложен; Claude Code/Codex (шаг 8) — пауза; оба —
+  решения пользователя от 2026-11-02.
+- Следующий шаг — пилот (7.1, шаг 7; критерии — 7.3) по
+  `docs/pilot.md`.
 - Принятые решения — раздел 0; открытые вопросы — раздел 8.
-- Следующая итерация начинается с 7.1, шаг 1 (схемы и решения), а не с
-  кода плагина.
 - Ревизия 2026-11-02: модели — `zai/glm-5.3` с override (judge —
   `zai/glm-5.3-flashx#low`); judge всегда свежий, механический гейт
   прогонов; researcher от executor — ≤2 на тикет.
 
 ### Если сессия перезапустилась
 
-Читать: раздел 0 → раздел 10 → раздел 7. Текущее состояние — только
-дизайн; следующий шаг — схемы и контракт, не код плагина. Все решения
-и открытые вопросы — в этом документе, внешнего контекста не
+Читать: раздел 0 → раздел 10 → раздел 7. Готово: контракт, skills,
+agents, presets, схемы, плагин `oc3`, команды. Осталось: пилот. Все
+решения и открытые вопросы — в этом документе, внешнего контекста не
 требуется.

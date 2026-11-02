@@ -33,12 +33,14 @@ export { WARNING_PREFIX } from './shared/report.ts';
 export {
   buildContextIndex,
   checkContextIndex,
+  runContext,
   type ContextIndexResult,
 } from './commands/context/index.ts';
 export {
   applyActions,
   checkAdapters,
   computeSync,
+  runAdapters,
   type Action,
   type SyncResult,
 } from './commands/adapters/index.ts';
@@ -50,6 +52,10 @@ export {
 } from './commands/outdated/index.ts';
 export { commandTree, type Command, type CommandTree, type Match } from './lib/tree.ts';
 export { runtime, setRuntime, type Runtime } from './lib/runtime.ts';
+export { runModels, ROLE_MODEL_PATTERN } from './commands/models/index.ts';
+export { runGoals } from './commands/goals/index.ts';
+export { runOperator } from './commands/operator/index.ts';
+export { runRoles, runSkills } from './commands/roles/index.ts';
 export { COMMAND_NODES } from './registry.ts';
 export {
   checkDelta,

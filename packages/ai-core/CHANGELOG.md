@@ -4,6 +4,12 @@
 
 ## 0.1.2
 
+- `models list` / `models set <role> <model>`: роли и их модели, override
+  проекта с валидацией платного семейства `zai/glm-5.3` (`-flash`,
+  `-flashx`; `#max|#high|#low`); правка синхронна в `.agents/agents/` и
+  `.opencode/agents/`.
+- Модели ролей: `zai/glm-5.3#max`, judge — `zai/glm-5.3-flashx#low`;
+  `ROLE_MODELS` и проверки `roles check` — по новому семейству.
 - Намерения `intents` принимают `kind: revise` с `target`, `was`, `why`:
   правка существующего знания без ручного ремонта дельты.
 - `delta check --name`: правка знания без `revise` вне целей своей

@@ -24,7 +24,7 @@ use_case: Скармливается AI-агенту одной ссылкой, 
   приоритет — порядок импортов, тикет — `describe('ticket: …')`.
 - **Фон и модели.** Оператор запускает роли только в фоне; модели —
   GLM-5.3 (`zai/glm-5.3#max`), judge — FlashX `#low`, override —
-  `ai models set`; бесплатные запрещены. Executor запускает judge и
+  `oc3 models set`; бесплатные запрещены. Executor запускает judge и
   researcher (≤2 на тикет), глубина 2.
 - **Результаты.** Рядом с `*.expect.ts` — `*.expect.json`: run 1
   `pass`/`fail`, run 2+ негатив «satisfactorily»; 80% `pass` по
@@ -58,7 +58,7 @@ skills, роли, модули, пресеты — ты берёшь сам по
 AGENTS.md                          ← протокол оператора, маршрут, правила
 CLAUDE.md                          ← @AGENTS.md
 CHANGELOG.md                       ← журнал решений
-package.json                       ← devDependencies: @shahimat/cli, @shahimat/ai-core
+package.json                       ← devDependencies: @shahimat/ai-core, @shahimat/oc3
 .gitattributes                     ← eol=lf, CHANGELOG.md merge=union
 .gitignore                         ← .ops/operator/, .ops/locks/ — локальные
 context/
@@ -276,7 +276,7 @@ harness поток идёт через `docs-delta`; без модуля librari
 
 Модели — дефолты с override: все роли, кроме judge, — `zai/glm-5.3#max`,
 judge — `zai/glm-5.3-flashx#low`; override — оператор по просьбе
-пользователя или `ai models set` (валидация схемой, только платные).
+пользователя или `oc3 models set` (валидация схемой, только платные).
 
 Инвариант: документацию пишет только librarian; оператор, executor и
 judge — никогда. Merge worktree — оператор; external publish — по
@@ -312,19 +312,18 @@ autonomy. Judge не меняет состав `describe`/`crit`/`warn`/`it.todo
   `satisfactorily` — принятый остаток.
 - **Стадии.** `it.todo` — план; нет — готовый план; все тикеты приняты —
   цель достигнута, файл и импорт удаляются. Стадию показывает
-  `ai goals status` до удаления.
+  `oc3 goals status` до удаления.
 - **Результаты.** Рядом с `*.expect.ts` — `*.expect.json`:
   `timestamp` + `retry` + `results` с `{run, items}`. Оператор сбрасывает
   перед циклом; judge пишет run 1 (`pass`/`fail`), run 2+ — негатив
   «satisfactorily»; 80% — по `pass`, меньше — один повторный цикл
   (`retry: true`), затем к человеку. Запуск сверх бюджета — гейт.
 - **Baseline.** На старте тикета оператор снимает копию активного файла
-  в `.ops/<ticket>/baseline/`; `ai goals check goals/<goal>.expect.ts
-  --ticket <key>` сравнивает AST: число и порядок
-  `describe`/`crit`/`warn`/`it.todo` и `budget` неизменны; разрешены
-  только заголовки и тела проверок активного тикета. Baseline обновляет
+  в `.ops/<ticket>/baseline/`; `oc3 goals check goals/<goal>.expect.ts
+  --ticket <key>` сравнивает AST: состав и `budget` неизменны, разрешены
+  только заголовки и тела проверок активного тикета. Обновляет baseline
   только оператор после merge.
-- **Скоуп.** `ai expect report goals/<goal>.expect.ts` — цель,
+- **Скоуп.** `oc3 expect report goals/<goal>.expect.ts` — цель,
   `goals/program--<key>.expect.ts` — программа. `goals/` не входит в
   `npm run expect`.
 - **Коммит.** `goals/` коммитится; завершённая цель удаляется из
@@ -469,14 +468,14 @@ dashboard — модули headless-рантайма, в интерактивн�
 - **Codex** — читает `AGENTS.md` и `.agents/skills/` сам; субагенты в
   `.codex/agents/`, memory выключена в `.codex/config.toml`;
 - **OpenCode** — `.opencode/agents` из `.agents/agents`, skills из
-  `context/skills.yml`, browser MCP, autonomy, experimental.subagent_depth:
-  2 и гейт прогонов judge по счётчику `*.expect.json`.
+  `context/skills.yml`, плагин `@shahimat/oc3` (guards и гейт прогонов
+  judge), `experimental.subagent_depth: 2`.
 
-Модели — дефолты контракта, override — `ai models set`, бесплатные
+Модели — дефолты контракта, override — `oc3 models set`, бесплатные
 запрещены; роли в фоне, executor → judge/researcher (≤2 на тикет), глубина 2.
 
-Производные генерирует `ai adapters sync`, проверяет
-`ai adapters check`; руками их не создаёшь и не правишь. Существующий
+Производные генерирует `oc3 adapters sync`, проверяет
+`oc3 adapters check`; руками их не создаёшь и не правишь. Существующий
 `CLAUDE.md` с содержимым не затирай: перенеси по слоям (план —
 пользователю), затем замени прослойкой.
 <!-- /expect:claude-md-import -->
@@ -496,8 +495,8 @@ dashboard — модули headless-рантайма, в интерактивн�
   действует только в trusted-проекте; надёжнее глобально
   `codex features disable memories` — решение пользователя); OpenCode —
   deny memory-MCP/инструментов и evaluate-hook.
-- Настройки и hooks ставит `ai adapters sync`, проверяет
-  `ai adapters check`. Прочие runtime: memory off или запрет memory-MCP;
+- Настройки и hooks ставит `oc3 adapters sync`, проверяет
+  `oc3 adapters check`. Прочие runtime: memory off или запрет memory-MCP;
   headless — окружение без memory. `ctx.storage` — только явные кэши.
 - При установке найди memory по проекту: факты — в документацию через
   librarian, memory — очистить.
@@ -544,14 +543,15 @@ frontmatter с ожидаемым. Не совпало — стоп: защит�
 2. Спроси одним блоком: название и одна строка о проекте, стек,
    namespaces, инструменты (Claude Code, Codex, OpenCode, другие), нужен
    ли hook docs guard.
-3. Поставь ядро: `@shahimat/cli`, `@shahimat/ai-core` и `vitest` в
+3. Поставь ядро: `@shahimat/ai-core`, `@shahimat/oc3` и `vitest` в
    `devDependencies` (версии из `npm view`; нет `package.json` — создай
    минимальный), `npm install` после «да»; skills и роли из индекса,
    `AGENTS.md` по шаблону, `context/project.yml`, `context/ai-core.yml`,
    `context/autonomy.yml`, `context/skills.yml` (роли по `role_skills`
    плюс core `contract-setup`, `workflow`, `source-sync`, `cli` с
-   `roles: []`), пустой `goals/`; в `.gitignore` — `.ops/operator/` и
-   `.ops/locks/`; затем `npx ai refresh`.
+   `roles: []`), пустой `goals/`; `.gitignore` — `.ops/operator/`,
+   `.ops/locks/`; затем `oc3 context index` и `oc3 adapters sync`; в
+   конце добавь `"@shahimat/oc3"` в `plugins` `opencode.jsonc` (`/reload`).
 4. Запусти skill `contract-setup`: чеклист возможностей.
 5. Отчёт: что поставлено, где лежит, что дальше.
 

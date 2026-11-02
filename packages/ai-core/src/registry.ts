@@ -5,6 +5,7 @@ import { runDelta } from '#commands/delta/index';
 import { runDocsGuard } from '#commands/docs/index';
 import { runExpect } from '#commands/expect/index';
 import { runGoals } from '#commands/goals/index';
+import { runModels } from '#commands/models/index';
 import { runOperator } from '#commands/operator/index';
 import { runOutdated } from '#commands/outdated/index';
 import { runIndex } from '#commands/prompt-index/index';
@@ -149,6 +150,18 @@ export const COMMAND_NODES: readonly CommandNode[] = [
     kind: 'command',
     effect: 'query',
     run: (args) => runOperator('check', args),
+  },
+  {
+    path: ['models'],
+    kind: 'command',
+    effect: 'query',
+    run: (args) => runModels('list', args),
+  },
+  {
+    path: ['models', 'set', '<role>', '<model>'],
+    kind: 'command',
+    effect: 'mutation',
+    run: (args) => runModels('set', args),
   },
   {
     path: ['index', 'build'],
