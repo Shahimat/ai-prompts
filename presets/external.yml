@@ -17,7 +17,7 @@ roles:
   external-executor:
     kind: custom
     description: executor в удалённом проекте, GUI/CI-работы
-    model: zai-coding-plan/glm-5.3#max
+    model: zai-coding-plan/glm-5.3-flash#max
     permissions: [remote-write, browser, data-access]
     lifecycle: resumable
     concurrency: 5

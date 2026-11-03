@@ -106,7 +106,7 @@ describe('роль: запуск', () => {
     });
     expect(args).toContain('--strict-mcp-config');
     expect(args[args.indexOf('--setting-sources') + 1]).toBe('');
-    expect(args[args.indexOf('--model') + 1]).toBe('zai-coding-plan/glm-5.3#max');
+    expect(args[args.indexOf('--model') + 1]).toBe('zai-coding-plan/glm-5.3-flash#max');
     expect(args[args.indexOf('--tools') + 1]).toBe('Read,Glob,Grep');
     expect(args.at(-1)).toBe(`Read,Glob,Grep,${SUBMIT_TOOL_ID}`);
     expect(args.join(' ')).not.toContain('ЗАДАНИЕ');
@@ -193,7 +193,7 @@ describe('роль: запуск', () => {
     expect(live).toBe(true);
     await expect(running).rejects.toThrow('не вернула результат');
     expect(seen).toEqual([
-      'роль judge: запущена (zai-coding-plan/glm-5.3#max)',
+      'роль judge: запущена (zai-coding-plan/glm-5.3-flash#max)',
       'роль judge: шаг 1 — Read',
       'роль judge: готово, шагов 1',
     ]);

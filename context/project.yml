@@ -5,6 +5,11 @@ reality: [this-repo]
 namespaces: {}
 roles:
   exceptions: []
+  models:
+    researcher: zai-coding-plan/glm-5.3-flash#max
+    librarian: zai-coding-plan/glm-5.3-flash#max
+    external-executor: zai-coding-plan/glm-5.3-flash#max
+    executor: zai-coding-plan/glm-5.3-flash#max
 briefing:
   mode: roles
 

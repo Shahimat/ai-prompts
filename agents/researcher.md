@@ -6,7 +6,7 @@ permissions: [read, data-access, browser]
 lifecycle: fresh
 concurrency: unlimited
 tools: [Read, Glob, Grep, Bash, Write]
-model: zai-coding-plan/glm-5.3#max
+model: zai-coding-plan/glm-5.3-flash#max
 output: result
 artifacts: [.ops/<ticket>/research/]
 ---

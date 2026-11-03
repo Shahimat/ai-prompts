@@ -23,7 +23,7 @@ use_case: Скармливается AI-агенту одной ссылкой, 
   `goals/program--<key>.expect.ts`; программа импортирует свои цели,
   приоритет — порядок импортов, тикет — `describe('ticket: …')`.
 - **Фон и модели.** Оператор запускает роли только в фоне; модели —
-  дефолты (`zai-coding-plan/glm-5.3#max`, judge — flash `#low`); override
+  дефолты (`zai-coding-plan/glm-5.3-flash#max`, judge — flash `#low`); override
   — `oc3 models set` в `roles.models`, после синка — `oc3 models apply`.
   Executor запускает judge и researcher (≤2 на тикет), глубина 2.
 - **Брифинг.** Старт — «дефолтная или кастомная»: дефолтная — `briefing`
@@ -277,7 +277,7 @@ harness поток идёт через `docs-delta`; без модуля librari
 - **librarian** — читает документацию, код, `goals/`; пишет `docs/`,
   `context/`, `CHANGELOG.md`; свежий, один.
 
-Модели — дефолты с override: роли — `zai-coding-plan/glm-5.3#max`,
+Модели — дефолты с override: роли — `zai-coding-plan/glm-5.3-flash#max`,
 watch-роли — flash `#max`, judge — flash `#low`; override — `oc3 models
 set` (любая модель каталога) в `roles.models`; вернуть — `models apply`.
 

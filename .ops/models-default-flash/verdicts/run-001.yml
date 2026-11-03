@@ -1,0 +1,33 @@
+run: 1
+status: pass
+summary: дефолт моделей переведён на glm-5.3-flash#max, diff минимален, проверки зелёные; единственный crit в ci основного checkout — падение параллельного тикета oc3-first-input-briefing, к моделям не относится
+items:
+  - key: dod-1-default-model
+    status: pass
+    evidence: packages/ai-core/src/lib/role.ts:16 — "const DEFAULT_MODEL = 'zai-coding-plan/glm-5.3-flash#max';"
+    reason: DEFAULT_MODEL заменён на zai-coding-plan/glm-5.3-flash#max
+  - key: dod-2-minimal-diff
+    status: pass
+    evidence: git diff worktree — только role.ts:16 и role.test.ts:109,196 (модельные строки); git status worktree — без правок expectations/, agents/, presets/, prompts/, context/, harness/, oc3/src/, tree.test.ts; смысл проверок не ослаблен (заменялись только литералы модели)
+    reason: diff минимален, запрещённые зоны не тронуты; некоммиченного мусора нет (в worktree только отчёт executor в .ops/, не код)
+  - key: dod-3-build-ci-worktree
+    status: pass
+    evidence: npm run build → exit 0; npm run ci → exit 0, "ожиданий 332: crit 0 · warn 5 · info 4 · ? 0 — в бюджете"
+    reason: сборка и ci в worktree зелёные
+  - key: dod-4-expectations-literals
+    status: pass
+    evidence: expectations/roles.expect.ts:111–114 — researcher, executor, external-executor, librarian = 'zai-coding-plan/glm-5.3-flash#max'; строка 115 judge = 'zai-coding-plan/glm-5.3-flash#low' не тронута; заголовки it не менялись
+    reason: литералы моделей обновлены только в рамках механики тикета
+  - key: dod-5-ci-main
+    status: pass
+    evidence: /tmp/ci-main.log:513 "✓ модели ролей: researcher, executor, external-executor, librarian — max, judge — low"; при контрольном stash канон-правок оператора этот тест падал (агенты откатывались на #max) — правка expectations согласована с agents/*.md
+    reason: >
+      npm run ci в основном checkout падает по одному crit — "паттерны проверки
+      автоматов лежат в @shahimat/harness/expect…" (expectations/harness-plan-review.expect.ts,
+      expected 6 vs []). Падение не относится к тикету моделей: в worktree ci
+      полностью зелёный, а в основном checkout в этот же момент присутствуют
+      незакоммиченные правки packages/oc3, packages/cli, packages/ai-core
+      параллельного тикета oc3-first-input-briefing (worktree
+      .opencode/worktrees/oc3-first-input-briefing существует). Мой stash/push/pop
+      канон-правок оператора эти файлы не трогал: на момент stash push их в git
+      status не было. Все ожидания по моделям ролей проходят.
