@@ -601,12 +601,12 @@
     "f586544d451f": {
       "question": "документация проекта > шаблон AGENTS.md и блоки модулей не содержат указаний основной сессии самой править документацию — только ссылки на skills и harness; guardrail о достоверности знания допустим",
       "evidence": {
-        "@agents-md-readonly": "63ce98f19d233540f406cb60d6034743f07ecb5061ca6f2b85224fbe8ce0b559"
+        "@agents-md-readonly": "514b2708ffe2363c4d53508a79767d92b5f60ad58ae6f5089973b7a2b3a54a7d"
       },
       "verdict": true,
-      "quote": "Полный обход `docs/`, `context/` и `goals/` запрещён: иди по маршруту.",
+      "quote": "Документацию пишет только librarian по `docs_request`: оператор, executor и judge её читают; генерируемое меняет `ai`",
       "ref": "@agents-md-readonly",
-      "reason": "Шаблон и модули содержат только маршруты к skills/harness; guardrail о достоверности (verified: false) присутствует, указаний сессии править документацию нет",
+      "reason": "В шаблоне и блоках модулей нет инструкций основной сессии править документацию самой: только маршруты к skill и harness (npx ai docs-delta start), запись в доку закреплена за librarian; guardrail про verified-знание допустим.",
       "at": "2026-11-03"
     },
     "f7310dcbc6e4": {
@@ -705,10 +705,10 @@
       "at": "2026-11-01"
     },
     "expectations/shared/any-contract.expect.ts": {
-      "titles": "c5f9a68bcba0dbca8e1c32c4b8665c90e6714c379af7c52d844250f634ae1413",
+      "titles": "cee8f07d4df9250232e302f0d84df7c44ae2a12982f188c7988738b06208b021",
       "contradictions": [],
       "unmeasurable": [],
-      "at": "2026-10-14"
+      "at": "2026-11-03"
     },
     "expectations/skills.expect.ts": {
       "titles": "f7911755f897327950cb068241b5bdb83c9000775605c73f88f4b846a9108519",

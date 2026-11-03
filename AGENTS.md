@@ -4,6 +4,8 @@
 
 ## Где искать ответ
 
+Любой запрос — сначала документация: `context/index.yml` → conventions, design, docs — точный ответ или указатель, где искать. Дока молчит — источники ниже, а добытое вне доки знание верни через librarian.
+
 - как сейчас устроено X → источник реальности (`context/project.yml` → `reality`: код этого репозитория); почему X → `CHANGELOG.md`, затем `git log`;
 - как договорились → `context/conventions/<key>.yml`; реквизиты, sync, roles.exceptions, roles.models → `context/project.yml`;
 - цели, программы, тикеты → `goals/`; роли → `agents/`, skills → `context/skills.yml`, автономия → `context/autonomy.yml`; возможности → `context/modules/*.yml`;

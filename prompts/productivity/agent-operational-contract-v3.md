@@ -198,6 +198,8 @@ skills:
 
 ## Где искать ответ
 
+Любой запрос — сначала документация (`context/index.yml` → conventions, design, docs): точный ответ или указатель, где искать; дока молчит — источники ниже, а добытое вне доки знание верни через librarian.
+
 - как сейчас устроено X → источник реальности (`context/project.yml` → `reality`: код репозитория или целевые системы); почему X → `CHANGELOG.md`, затем `git log`;
 - как договорились → `context/conventions/<key>.yml`; реквизиты, namespaces, external, roles.exceptions, roles.models → `context/project.yml`;
 - цели, программы, тикеты → `goals/`; роль, skills, browser, autonomy → `.agents/agents/`, `context/skills.yml`, `context/autonomy.yml`; возможности → `context/modules/*.yml`.

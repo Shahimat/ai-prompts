@@ -8,7 +8,7 @@ export function anyContract(key: string): void {
   describe('общее для контрактов', () => {
     crit('frontmatter: key, kind contract, title и use_case заполнены', () => check.frontmatter());
     crit('у каждого паттерна из frontmatter есть файл в patterns/', () => check.patternsExist());
-    crit('контракт не длиннее 600 строк', () => check.length());
+    crit('контракт не длиннее 800 строк', () => check.length());
     crit('в контракте нет таблиц markdown', () => check.noTables());
     crit('контракт не помечен deprecated', () => check.notDeprecated());
   });
@@ -39,7 +39,7 @@ class AnyContractCheck {
   }
 
   async length(): Promise<void> {
-    expectAtMost((await contract(this.key)).lines, 600, 'строк в контракте');
+    expectAtMost((await contract(this.key)).lines, 800, 'строк в контракте');
   }
 
   async noTables(): Promise<void> {

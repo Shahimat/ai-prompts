@@ -54,7 +54,7 @@
   },
   "dependencies": {
     "@opencode/plugin": "latest",
-    "@shahimat/ai-core": "0.1.4",
+    "@shahimat/ai-core": "0.1.5",
     "yaml": "^2.9.1"
   },
   "devDependencies": {
