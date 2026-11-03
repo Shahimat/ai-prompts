@@ -197,10 +197,10 @@ planReview.whole(() => {
 ## Роли
 
 Роль — субагент из `agents/<name>.md` источника (в проекте —
-`.agents/agents/`): промпт, `tools`, `model`
-(`zai-coding-plan/glm-5.3#max`
-по умолчанию, у judge — `zai-coding-plan/glm-5.3-flash#low`; старые
-`opus`/`sonnet`/`haiku` — только legacy harness) и `output` — сообщение
+`.agents/agents/`): промпт, `tools`, `model` (дефолт —
+`zai-coding-plan/glm-5.3#max`, у judge — `zai-coding-plan/glm-5.3-flash#low`;
+override проекта — любая модель каталога OpenCode, см. `models set`)
+и `output` — сообщение
 протокола, которым роль
 возвращает итог. Одна и та же роль работает субагентом в сессии агента
 (адаптеры генерируют `.claude/agents/`, `.codex/agents/`) и

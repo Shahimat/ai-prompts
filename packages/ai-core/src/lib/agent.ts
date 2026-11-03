@@ -3,18 +3,8 @@ import { errorMessage } from '#shared/guards';
 import { normalizeEol, parseFrontmatter } from '#shared/frontmatter';
 import { isProtocolMessage, type ProtocolMessage } from './protocol.ts';
 
-export const ROLE_MODELS = [
-  'zai/glm-5.3#max',
-  'zai/glm-5.3-flashx#max',
-  'zai/glm-5.3-flashx#low',
-  'zai-coding-plan/glm-5.3#max',
-  'zai-coding-plan/glm-5.3-flash#max',
-  'zai-coding-plan/glm-5.3-flash#low',
-  'opus',
-  'sonnet',
-  'haiku',
-] as const;
-export type RoleModel = (typeof ROLE_MODELS)[number];
+export const ROLE_MODEL_PATTERN =
+  /^[A-Za-z0-9][A-Za-z0-9_-]*\/[A-Za-z0-9][A-Za-z0-9._:/-]*(#[A-Za-z0-9][A-Za-z0-9._-]+)?$/;
 
 export interface AgentDef {
   name: string;
@@ -22,7 +12,7 @@ export interface AgentDef {
   description: string;
   skills: string[];
   tools: string[];
-  model?: RoleModel;
+  model?: string;
   output?: ProtocolMessage;
   instructions: string;
 }
@@ -41,7 +31,8 @@ const AGENT_KEYS = [
   'artifacts',
 ];
 
-const isRoleModel = (v: unknown): v is RoleModel => ROLE_MODELS.some((m) => m === v);
+const isRoleModel = (v: unknown): v is string =>
+  typeof v === 'string' && ROLE_MODEL_PATTERN.test(v);
 
 function stringList(value: unknown): string[] | null {
   if (value === undefined || value === null) return [];
@@ -78,7 +69,7 @@ export function parseAgent(
   const tools = stringList(fm['tools']);
   if (tools === null) report('tools должно быть списком строк');
   const badModel = model !== undefined && !isRoleModel(model);
-  if (badModel) report(`model — одно из ${ROLE_MODELS.join(', ')}`);
+  if (badModel) report('model — вне формата provider/model[#variant]');
   const badOutput = output !== undefined && !isProtocolMessage(output);
   if (badOutput) report(`output — сообщение протокола: result, verdict или question`);
 

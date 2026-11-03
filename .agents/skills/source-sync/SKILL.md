@@ -56,6 +56,11 @@ Manifest каждого модуля — `context/modules/<key>.yml` со сво
 Совпало имя своей роли с новой ролью источника — стоп, вопрос
 пользователю.
 
+Модели ролей — override в `context/project.yml` → `roles.models`: синк
+его не трогает. Правка `model` руками в `.agents/agents/<name>.md`
+слетает — файл часть контракта. После применения плана запусти
+`oc3 models apply`: вернёт override в файлы ролей и производные.
+
 ## Обновление из источника
 
 <!-- expect:sync-warns-deprecated -->
@@ -100,11 +105,13 @@ Manifest каждого модуля — `context/modules/<key>.yml` со сво
 7. Отчёт «Что нового» (ниже) и один блокирующий вопрос.
 8. После «да»: применяешь план к артефактам контракта — `.agents/`,
    блоки `AGENTS.md`, manifest'ы `context/modules/`, блок `sync` в
-   `context/project.yml`; правки слоёв документации проекта — только
-   через librarian. Затем обнови `sync.index_sha`, `synced_sha`
-   контракта и модулей, SHA в `parts`, `synced_at`; при обновлении
-   harness — `version` в `context/ai-core.yml`. Адаптеры и проверку с
-   harness делает resume процесса (шаг 2), без harness — вручную.
+   `context/project.yml`; затем `oc3 models apply` — override моделей
+   из `roles.models` возвращается в перезаписанные роли; правки слоёв
+   документации проекта — только через librarian. После — обнови
+   `sync.index_sha`, `synced_sha` контракта и модулей, SHA в `parts`,
+   `synced_at`; при обновлении harness — `version` в
+   `context/ai-core.yml`. Адаптеры и проверку с harness делает resume
+   процесса (шаг 2), без harness — вручную.
 <!-- /expect:sync-warns-deprecated -->
 
 ## Отчёт «Что нового»

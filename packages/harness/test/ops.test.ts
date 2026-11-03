@@ -39,7 +39,7 @@ const read = (rel: string, base = root): Promise<string> => readFile(path.join(b
 const git = (...args: string[]) => spawnSync('git', args, { cwd: root, encoding: 'utf8' });
 
 const roleFile = (name: string): string =>
-  `---\nname: ${name}\ndescription: Тестовая роль ${name} для проверки ops\nmodel: sonnet\noutput: result\n---\n\nИнструкции роли ${name}.\n`;
+  `---\nname: ${name}\ndescription: Тестовая роль ${name} для проверки ops\nmodel: zai-coding-plan/glm-5.3#max\noutput: result\n---\n\nИнструкции роли ${name}.\n`;
 
 const TASK = [
   '# Добавить приветствие',

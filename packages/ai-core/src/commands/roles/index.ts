@@ -6,6 +6,7 @@ import { UsageError, type Diagnostic } from '#shared/diagnostics';
 import { parseFrontmatter } from '#shared/frontmatter';
 import { errorCode, isRecord } from '#shared/guards';
 import { report } from '#shared/report';
+import { ROLE_MODEL_PATTERN } from '#lib/agent';
 
 const CORE_ROLES = [
   'operator',
@@ -15,15 +16,6 @@ const CORE_ROLES = [
   'judge',
   'librarian',
 ];
-const MODELS = [
-  'zai/glm-5.3#max',
-  'zai/glm-5.3-flashx#max',
-  'zai/glm-5.3-flashx#low',
-  'zai-coding-plan/glm-5.3#max',
-  'zai-coding-plan/glm-5.3-flash#max',
-  'zai-coding-plan/glm-5.3-flash#low',
-];
-const LIGHT_MODELS = ['zai/glm-5.3-flashx#low', 'zai-coding-plan/glm-5.3-flash#low'];
 const OPERATOR_SKILLS = ['operator-feedback', 'browser-read'];
 const CONTRACT_SKILLS = ['contract-setup', 'workflow', 'source-sync', 'source-feedback', 'cli'];
 
@@ -143,15 +135,8 @@ async function checkRoles(args: CommandArgs): Promise<number> {
     ]) {
       if (fm[key] === undefined) diagnostics.push({ file, message: `нет поля ${key}` });
     }
-    if (!MODELS.includes(String(fm['model'])))
-      diagnostics.push({
-        file,
-        message: `model — zai-coding-plan/glm-5.3#max | zai-coding-plan/glm-5.3-flash#max|low | zai/glm-5.3#max | zai/glm-5.3-flashx#max|low`,
-      });
-    if (name === 'judge' && !LIGHT_MODELS.includes(String(fm['model'])))
-      diagnostics.push({ file, message: 'judge должен быть на flash#low' });
-    if (name !== 'judge' && LIGHT_MODELS.includes(String(fm['model'])))
-      diagnostics.push({ file, message: 'flash#low разрешён только judge' });
+    if (!ROLE_MODEL_PATTERN.test(String(fm['model'])))
+      diagnostics.push({ file, message: 'model — вне формата provider/model[#variant]' });
     if (fm['output'] === undefined) diagnostics.push({ file, message: 'нет output' });
     const skills = m.roles.get(name) ?? [];
     for (const skill of skills) {

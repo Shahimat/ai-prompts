@@ -164,6 +164,12 @@ export const COMMAND_NODES: readonly CommandNode[] = [
     run: (args) => runModels('set', args),
   },
   {
+    path: ['models', 'apply'],
+    kind: 'command',
+    effect: 'mutation',
+    run: (args) => runModels('apply', args),
+  },
+  {
     path: ['index', 'build'],
     kind: 'command',
     effect: 'mutation',

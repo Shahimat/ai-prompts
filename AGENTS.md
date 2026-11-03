@@ -5,7 +5,7 @@
 ## Где искать ответ
 
 - как сейчас устроено X → источник реальности (`context/project.yml` → `reality`: код этого репозитория); почему X → `CHANGELOG.md`, затем `git log`;
-- как договорились → `context/conventions/<key>.yml`; реквизиты, sync, roles.exceptions → `context/project.yml`;
+- как договорились → `context/conventions/<key>.yml`; реквизиты, sync, roles.exceptions, roles.models → `context/project.yml`;
 - цели, программы, тикеты → `goals/`; роли → `agents/`, skills → `context/skills.yml`, автономия → `context/autonomy.yml`; возможности → `context/modules/*.yml`;
 - как добавить промпт → `CONTRIBUTING.md` и `patterns/README.md`; индекс источников — `prompts/index.yml` (навигация, не правда); дизайн пакетов, автомата и оператора — `design/`.
 

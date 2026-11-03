@@ -32,6 +32,14 @@
           "description": "Core-роли, заменённые или исключённые пресетом",
           "type": "array",
           "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" }
+        },
+        "models": {
+          "description": "Override моделей ролей; место, которое source-sync не трогает — применяется к .agents/agents и .opencode/agents командой oc3 models apply",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*\\/[A-Za-z0-9][A-Za-z0-9._:\\/-]*(#[A-Za-z0-9][A-Za-z0-9._-]+)?$"
+          }
         }
       }
     },

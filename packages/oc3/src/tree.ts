@@ -19,6 +19,7 @@ export const BIN = 'oc3';
 export const OC3_COMMANDS = {
   modelsList: (args: CommandArgs): Promise<number> => runModels('list', args),
   modelsSet: (args: CommandArgs): Promise<number> => runModels('set', args),
+  modelsApply: (args: CommandArgs): Promise<number> => runModels('apply', args),
   briefingShow: (args: CommandArgs): Promise<number> => runBriefing('show', args),
   briefingSet: (args: CommandArgs): Promise<number> => runBriefing('set', args),
   goalsCheck: (args: CommandArgs): Promise<number> => runGoals('check', args),
@@ -40,6 +41,12 @@ const NODES: readonly CommandNode[] = [
     kind: 'command',
     effect: 'mutation',
     run: OC3_COMMANDS.modelsSet,
+  },
+  {
+    path: ['models', 'apply'],
+    kind: 'command',
+    effect: 'mutation',
+    run: OC3_COMMANDS.modelsApply,
   },
   { path: ['briefing'], kind: 'command', effect: 'query', run: OC3_COMMANDS.briefingShow },
   {

@@ -2,6 +2,20 @@
 
 Свежее сверху. Одна версия — список новых команд и проверок.
 
+## 0.1.5
+
+- Модели ролей — любые из каталога OpenCode: `ROLE_MODEL_PATTERN`
+  принимает `provider/model[#variant]` любого провайдера, включая
+  бесплатные; закрытый список `ROLE_MODELS` снят, `parseAgent` и
+  `roles check` проверяют формат, а не принадлежность семейству.
+- `models set` пишет override в `context/project.yml` → `roles.models`:
+  место, которое source-sync не трогает, — настройка переживает
+  обновление контракта.
+- `models apply`: применяет `roles.models` к `.agents/agents/` и
+  `.opencode/agents/` — восстановление после source-sync.
+- `models list` помечает override и расхождение с `roles.models`
+  («прогони models apply»).
+
 ## 0.1.4
 
 - `docs guard` пропускает установщика: пока есть маркер

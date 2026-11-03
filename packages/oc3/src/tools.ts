@@ -72,15 +72,24 @@ const TOOLS: readonly Oc3Tool[] = [
   },
   {
     name: 'models_set',
-    description: 'Сменить модель роли; допустимое семейство glm-5.3 (zai, zai-coding-plan)',
+    description:
+      'Сменить модель роли: любая из каталога OpenCode вида provider/model[#variant]; сохраняется в context/project.yml → roles.models',
     input: {
       type: 'object',
-      properties: { role: str('имя роли'), model: str('модель вида zai-coding-plan/glm-5.3#max') },
+      properties: { role: str('имя роли'), model: str('модель вида provider/model#variant') },
       required: ['role', 'model'],
       additionalProperties: false,
     },
     command: OC3_COMMANDS.modelsSet,
     args: (input, root) => withParams(input, root, ['role', 'model']),
+  },
+  {
+    name: 'models_apply',
+    description:
+      'Применить roles.models из context/project.yml к .agents/agents и .opencode/agents — восстановление после source-sync',
+    input: { type: 'object', properties: {}, additionalProperties: false },
+    command: OC3_COMMANDS.modelsApply,
+    args: (_input, root) => base(root),
   },
   {
     name: 'briefing_show',

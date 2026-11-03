@@ -83,16 +83,17 @@ npx oc3 init
 Без оператора и без токенов:
 
 ```bash
-npx oc3 models                              # роль → модель
-npx oc3 models set judge zai-coding-plan/glm-5.3-flash#low    # override судьи
-npx oc3 models set executor zai-coding-plan/glm-5.3-flash#max
+npx oc3 models                              # роль → модель, override и расхождения
+npx oc3 models set judge deepseek/deepseek-v4-pro             # любая модель каталога
+npx oc3 models apply                        # вернуть override после source-sync
 ```
 
 Дефолты — `zai-coding-plan/glm-5.3#max`, judge —
-`zai-coding-plan/glm-5.3-flash#low`. Допустимо семейство glm-5.3 у
-провайдеров `zai` и `zai-coding-plan` (`-flash`,
-`-flashx`; `#max|#high|#low`). Правка синхронно обновляет
-`.agents/agents/<role>.md` и `.opencode/agents/<role>.md`.
+`zai-coding-plan/glm-5.3-flash#low`. Допустима любая модель каталога
+OpenCode вида `provider/model[#variant]`, включая бесплатные. Override
+хранится в `context/project.yml` → `roles.models` и переживает
+source-sync; правка синхронно обновляет `.agents/agents/<role>.md` и
+`.opencode/agents/<role>.md`.
 
 Агенту те же операции доступны tools'ами: `oc3_models_set`,
 `oc3_goals_check`, `oc3_goals_status`, `oc3_roles_check` и другие.
@@ -147,7 +148,7 @@ npx oc3 init                        # проверка установки
   второй — негатив `satisfactorily`; 80% `pass` — тикет принят;
 - executor сам запускает judge и researcher (researcher ≤2 на тикет);
   глубина не больше 2; запуски видны в GUI;
-- модели закреплены по таблице §0; бесплатных нет;
+- модели — дефолты по таблице §0, override — `roles.models`; бесплатные не запрещены;
 - judge всегда свежий; гейт отклоняет запуск сверх бюджета;
 - librarian пишет документацию; попытка оператора/executor/judge править
   `docs/` через `edit` отклоняется плагином;

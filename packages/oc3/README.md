@@ -37,8 +37,9 @@ npm i -D @shahimat/ai-core @shahimat/oc3
 npx oc3 init                        # проверка маркера, пакетов и plugin-записи
 npx oc3 briefing                    # режим работы сессии из project.yml
 npx oc3 briefing set cheap          # пресеты: cheap | roles, custom — с полями
-npx oc3 models                      # роль → модель
-npx oc3 models set judge zai-coding-plan/glm-5.3-flash#low
+npx oc3 models                      # роль → модель, override и расхождения
+npx oc3 models set judge deepseek/deepseek-v4-pro
+npx oc3 models apply                # вернуть override после source-sync
 npx oc3 goals status
 npx oc3 goals check goals/a.expect.ts --ticket a
 npx oc3 operator state check
@@ -49,6 +50,7 @@ npx oc3 expect report goals/a.expect.ts
 ```
 
 Смена модели правит `model` в `.agents/agents/<role>.md` и синхронно в
-производной `.opencode/agents/<role>.md`; допустимо семейство glm-5.3 у
-провайдеров `zai` и `zai-coding-plan` (`-flash`, `-flashx`;
-`#max|#high|#low`).
+производной `.opencode/agents/<role>.md`, а также пишет override в
+`context/project.yml` → `roles.models` — он переживает source-sync,
+восстановление после синка — `oc3 models apply`. Допустима любая модель
+каталога OpenCode вида `provider/model[#variant]`, включая бесплатные.

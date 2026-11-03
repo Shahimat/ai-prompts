@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## 0.1.2
+
+- `oc3 models apply` и tool `oc3_models_apply`: применяют
+  `roles.models` из `context/project.yml` к файлам ролей и производным —
+  восстановление override после source-sync.
+- `oc3 models set` / `oc3_models_set`: любая модель каталога OpenCode
+  (`provider/model[#variant]`, включая бесплатные); override сохраняется
+  в `context/project.yml` → `roles.models`.
+
 ## 0.1.1
 
 - `oc3 briefing` и `oc3 briefing set` + tools `oc3_briefing_show`/

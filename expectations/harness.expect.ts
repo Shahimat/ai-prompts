@@ -747,6 +747,7 @@ const DECLARED_COMMANDS = [
   'operator state check',
   'models',
   'models set <role> <model>',
+  'models apply',
   'delta check',
   'delta close',
   'outdated',

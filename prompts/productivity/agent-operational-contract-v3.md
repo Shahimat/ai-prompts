@@ -23,9 +23,9 @@ use_case: Скармливается AI-агенту одной ссылкой, 
   `goals/program--<key>.expect.ts`; программа импортирует свои цели,
   приоритет — порядок импортов, тикет — `describe('ticket: …')`.
 - **Фон и модели.** Оператор запускает роли только в фоне; модели —
-  GLM-5.3 (`zai-coding-plan/glm-5.3#max`), judge — flash `#low`,
-  override — `oc3 models set`; бесплатные запрещены. Executor запускает
-  judge и researcher (≤2 на тикет), глубина 2.
+  дефолты (`zai-coding-plan/glm-5.3#max`, judge — flash `#low`); override
+  — `oc3 models set` в `roles.models`, после синка — `oc3 models apply`.
+  Executor запускает judge и researcher (≤2 на тикет), глубина 2.
 - **Брифинг.** Старт — «дефолтная или кастомная»: дефолтная — `briefing`
   из проекта (cheap — всё сам, доку — librarian), запись — `oc3 briefing set`.
 - **Результаты.** Рядом с `*.expect.ts` — `*.expect.json`: run 1
@@ -64,7 +64,7 @@ package.json                       ← devDependencies: @shahimat/ai-core, @shah
 .gitattributes                     ← eol=lf, CHANGELOG.md merge=union
 .gitignore                         ← .ops/operator/, .ops/locks/ — локальные
 context/
-  project.yml                      ← реквизиты, reality, external, sync, roles.exceptions
+  project.yml                      ← реквизиты, reality, external, sync, roles.exceptions, roles.models
   ai-core.yml                      ← конфиг CLI: adapters, hooks, checks
   autonomy.yml                     ← единственный источник self/ask/never
   skills.yml                       ← каталог skills, requires, permissions, roles
@@ -98,7 +98,7 @@ reality: [this-repo]              # где правда о «как сейчас
 preset: <key пресета, если выбран>
 namespaces: {<namespace>: <описание>}
 external: {<name>: <url или указатель>}
-roles: {exceptions: []}           # core-роли, заменённые пресетом
+roles: {exceptions: [], models: {}}  # exceptions — core-роли пресета; models — override моделей (переживает синк)
 sync:
   index_source: https://raw.githubusercontent.com/Shahimat/ai-prompts/main/prompts/index.yml
   index_sha: <hex>
@@ -199,7 +199,7 @@ skills:
 ## Где искать ответ
 
 - как сейчас устроено X → источник реальности (`context/project.yml` → `reality`: код репозитория или целевые системы); почему X → `CHANGELOG.md`, затем `git log`;
-- как договорились → `context/conventions/<key>.yml`; реквизиты, namespaces, external, roles.exceptions → `context/project.yml`;
+- как договорились → `context/conventions/<key>.yml`; реквизиты, namespaces, external, roles.exceptions, roles.models → `context/project.yml`;
 - цели, программы, тикеты → `goals/`; роль, skills, browser, autonomy → `.agents/agents/`, `context/skills.yml`, `context/autonomy.yml`; возможности → `context/modules/*.yml`.
 
 Полный обход `docs/`, `context/` и `goals/` запрещён: иди по маршруту.
@@ -276,8 +276,8 @@ harness поток идёт через `docs-delta`; без модуля librari
   `context/`, `CHANGELOG.md`; свежий, один.
 
 Модели — дефолты с override: роли — `zai-coding-plan/glm-5.3#max`,
-watch-роли watchers — `zai-coding-plan/glm-5.3-flash#max`, judge —
-`zai-coding-plan/glm-5.3-flash#low` (валидация схемой, только платные).
+watch-роли — flash `#max`, judge — flash `#low`; override — `oc3 models
+set` (любая модель каталога) в `roles.models`; вернуть — `models apply`.
 
 Инвариант: документацию пишет только librarian; оператор, executor и
 judge — никогда. Merge worktree — оператор; external publish — по
@@ -472,8 +472,8 @@ dashboard — модули headless-рантайма, в интерактивн�
   `context/skills.yml`, плагин `@shahimat/oc3` (guards и гейт прогонов
   judge), `experimental.subagent_depth: 2`.
 
-Модели — дефолты контракта, override — `oc3 models set`, бесплатные
-запрещены; роли в фоне, executor → judge/researcher (≤2 на тикет), глубина 2.
+Модели — дефолты; override — `oc3 models set` в `roles.models`, после
+синка — `oc3 models apply`; роли в фоне, executor → judge/researcher (≤2 на тикет), глубина 2.
 
 Производные генерирует `oc3 adapters sync`, проверяет
 `oc3 adapters check`; руками их не создаёшь и не правишь. Существующий

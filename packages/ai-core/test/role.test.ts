@@ -54,11 +54,19 @@ afterEach(async () => {
 describe('роль: формат', () => {
   it('model и output — из закрытых списков', () => {
     const problems: string[] = [];
-    const ok = parseAgent('agents/x.md', roleFile('x', 'verdict', 'model: haiku\n'), (m) =>
-      problems.push(m),
+    const ok = parseAgent(
+      'agents/x.md',
+      roleFile('x', 'verdict', 'model: zai/glm-5.3#max\n'),
+      (m) => problems.push(m),
     );
-    expect(ok?.model).toBe('haiku');
+    expect(ok?.model).toBe('zai/glm-5.3#max');
     expect(ok?.output).toBe('verdict');
+    expect(
+      parseAgent('agents/x.md', roleFile('x', 'verdict', 'model: haiku\n'), (m) =>
+        problems.push(m),
+      ),
+    ).toBeNull();
+    expect(problems.join('\n')).toContain('model — вне формата');
     expect(parseAgent('agents/x.md', roleFile('x', 'answer'), (m) => problems.push(m))).toBeNull();
     expect(problems.join('\n')).toContain('output — сообщение протокола');
   });

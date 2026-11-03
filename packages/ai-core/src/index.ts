@@ -77,7 +77,7 @@ export {
   type Validate,
 } from './shared/schema.ts';
 export type { CommandNode, Effect, ScriptDef, ScriptNode, ScriptStep } from './shared/node.ts';
-export { parseAgent, ROLE_MODELS, type AgentDef, type RoleModel } from './lib/agent.ts';
+export { parseAgent, type AgentDef } from './lib/agent.ts';
 export {
   isProtocolMessage,
   PROTOCOL,
