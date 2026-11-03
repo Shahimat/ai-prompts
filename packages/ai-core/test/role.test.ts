@@ -5,20 +5,31 @@ import path from 'node:path';
 import { PassThrough } from 'node:stream';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { main, selfCommand } from '@shahimat/cli';
-import { parseAgent, type AgentDef } from '#lib/agent';
+import { parseAgent } from '#lib/agent';
 import { advertisedSchema, serveChannel } from '#lib/mcp';
-import { PROTOCOL, SUBMIT_TOOL, SUBMIT_TOOL_ID } from '#lib/protocol';
-import { askRole, finalLine, findRole, roleArgs, roleTimeoutMs, stepOf } from '#lib/role';
+import { PROTOCOL, SUBMIT_TOOL } from '#lib/protocol';
+import { askRole, findRole, roleTimeoutMs } from '#lib/role';
+import { openCodeStepOf, opencodeArgs } from '#lib/opencode';
 import { setRuntime } from '#lib/runtime';
 import { isRecord } from '#shared/guards';
-import { FAKE_CLAUDE } from './fake-claude.ts';
+import { FAKE_OPENCODE } from './fake-opencode.ts';
 
 const NOW = new Date('2026-10-28T12:00:00Z');
 
 let root: string;
 let home: string;
-let fake: string;
-const ENV = ['HARNESS_CLAUDE', 'FAKE_SUBMIT', 'FAKE_ARGS', 'FAKE_FILES', 'SLOW_MS'];
+let fakeOc: string;
+const ENV = [
+  'HARNESS_OPENCODE',
+  'FAKE_SUBMIT',
+  'FAKE_ARGS',
+  'FAKE_FILES',
+  'SLOW_MS',
+  'FAKE_SLEEP',
+  'FAKE_STEPS',
+  'FAKE_EXIT',
+  'FAKE_ERROR',
+];
 let saved: [string, string | undefined][];
 
 async function put(rel: string, content: string): Promise<void> {
@@ -31,12 +42,12 @@ const roleFile = (name: string, output: string, extra = ''): string =>
 
 beforeEach(async () => {
   root = await mkdtemp(path.join(tmpdir(), 'harness-role-'));
-  await mkdir(path.join(root, '.claude'));
+  await mkdir(path.join(root, '.opencode'));
   home = await mkdtemp(path.join(tmpdir(), 'harness-role-home-'));
-  fake = path.join(home, 'fake-claude.mjs');
-  await writeFile(fake, FAKE_CLAUDE, 'utf8');
+  fakeOc = path.join(home, 'fake-opencode.mjs');
+  await writeFile(fakeOc, FAKE_OPENCODE, 'utf8');
   saved = ENV.map((k) => [k, process.env[k]]);
-  process.env['HARNESS_CLAUDE'] = fake;
+  process.env['HARNESS_OPENCODE'] = fakeOc;
   vi.spyOn(console, 'log').mockImplementation(() => undefined);
   vi.spyOn(console, 'error').mockImplementation(() => undefined);
 });
@@ -86,40 +97,58 @@ describe('роль: формат', () => {
 });
 
 describe('роль: запуск', () => {
-  const role: AgentDef = {
-    name: 'judge',
-    source: 'agents/judge.md',
-    description: 'd',
-    skills: [],
-    tools: [],
-    output: 'verdict',
-    instructions: 'i',
-  };
-
-  it('claude -p изолирован, канал harness — единственный MCP, задание не в аргументах', () => {
-    const args = roleArgs({
-      root,
-      role,
-      task: 'ЗАДАНИЕ',
-      out: '/o.json',
-      self: ['node', 'bin.js'],
-    });
-    expect(args).toContain('--strict-mcp-config');
-    expect(args[args.indexOf('--setting-sources') + 1]).toBe('');
-    expect(args[args.indexOf('--model') + 1]).toBe('zai-coding-plan/glm-5.3-flash#max');
-    expect(args[args.indexOf('--tools') + 1]).toBe('Read,Glob,Grep');
-    expect(args.at(-1)).toBe(`Read,Glob,Grep,${SUBMIT_TOOL_ID}`);
-    expect(args.join(' ')).not.toContain('ЗАДАНИЕ');
-    const config: unknown = JSON.parse(args[args.indexOf('--mcp-config') + 1] ?? '');
-    expect(JSON.stringify(config)).toContain(
-      '["bin.js","role","channel","verdict","--out","/o.json"]',
-    );
+  it('команда: opencode run --format json --auto --agent --model; вариант — часть --model', () => {
+    expect(opencodeArgs('judge', 'zai-coding-plan/glm-5.3#max')).toEqual([
+      'run',
+      '--format',
+      'json',
+      '--auto',
+      '--agent',
+      'judge',
+      '--model',
+      'zai-coding-plan/glm-5.3#max',
+    ]);
+    expect(opencodeArgs('judge', 'zai/glm-5.3')).toEqual([
+      'run',
+      '--format',
+      'json',
+      '--auto',
+      '--agent',
+      'judge',
+      '--model',
+      'zai/glm-5.3',
+    ]);
+    expect(openCodeStepOf('{"type":"tool_use","part":{"tool":"read"}}')).toBe('read');
+    expect(openCodeStepOf('{"type":"text","part":{"text":"ok"}}')).toBeUndefined();
   });
 
-  it('role run: ответ через submit_result попадает в --out', async () => {
+  it('изолированный прогон: итог из HARNESS_SUBMIT_OUT, конфиг с инструкциями, стоимость из события', async () => {
     await put('agents/judge.md', roleFile('judge', 'verdict'));
-    await put('task.md', 'Задание судье');
-    process.env['FAKE_SUBMIT'] = JSON.stringify({ verdict: { answers: [] } });
+    process.env['FAKE_SUBMIT'] = JSON.stringify({ judge: { answers: [] } });
+    process.env['FAKE_ARGS'] = path.join(home, 'args.jsonl');
+    const outcome = await askRole(root, 'judge', 'Задание судье');
+    expect(outcome).toEqual({ data: { answers: [] }, costUsd: 0.25 });
+    const seen: unknown = JSON.parse(await readFile(path.join(home, 'args.jsonl'), 'utf8'));
+    expect(isRecord(seen) ? seen['agent'] : undefined).toBe('judge');
+    expect(isRecord(seen) ? seen['model'] : undefined).toBe('zai-coding-plan/glm-5.3-flash#max');
+    expect(isRecord(seen) ? seen['prompt'] : undefined).toBe('Задание судье');
+    const env = isRecord(seen) && isRecord(seen['env']) ? seen['env'] : {};
+    expect(typeof env['submit']).toBe('string');
+    expect(path.basename(String(env['submit']))).toBe('out.json');
+    const config: unknown = JSON.parse(typeof env['config'] === 'string' ? env['config'] : '{}');
+    const instructions = isRecord(config) ? config['instructions'] : undefined;
+    expect(Array.isArray(instructions) && instructions.length === 1).toBe(true);
+    const first = Array.isArray(instructions) ? String(instructions[0]) : '';
+    expect(first.startsWith(String(env['dir']))).toBe(true);
+    expect(first.endsWith('instructions.md')).toBe(true);
+    expect(env['dir']).toBeDefined();
+    expect(env['dir']).not.toBe(path.dirname(String(env['submit'])));
+  });
+
+  it('role run: итог через HARNESS_SUBMIT_OUT попадает в --out', async () => {
+    await put('agents/judge.md', roleFile('judge', 'verdict'));
+    await put('task.md', 'Задание');
+    process.env['FAKE_SUBMIT'] = JSON.stringify({ judge: { answers: [] } });
     process.env['FAKE_ARGS'] = path.join(home, 'args.jsonl');
     expect(
       await main(
@@ -129,87 +158,46 @@ describe('роль: запуск', () => {
     ).toBe(0);
     expect(JSON.parse(await readFile(path.join(root, 'a.json'), 'utf8'))).toEqual({ answers: [] });
     const seen: unknown = JSON.parse(await readFile(path.join(home, 'args.jsonl'), 'utf8'));
-    expect(isRecord(seen) ? seen['prompt'] : undefined).toBe('Задание судье');
+    const env = isRecord(seen) && isRecord(seen['env']) ? seen['env'] : {};
+    expect(typeof env['submit']).toBe('string');
+    expect(path.basename(String(env['submit']))).toBe('out.json');
   });
 
-  it('журнал прогона: stream-json пишется в файл, итог — из последней строки result', async () => {
-    const args = roleArgs({
-      root,
-      role,
-      task: 'т',
-      out: '/o.json',
-      self: ['node', 'bin.js'],
-      transcript: '/t.jsonl',
-      addDirs: ['/work'],
-    });
-    expect(args[args.indexOf('--output-format') + 1]).toBe('stream-json');
-    expect(args[args.indexOf('--add-dir') + 1]).toBe('/work');
-    expect(args).toContain('--verbose');
-    expect(finalLine('{"type":"system"}\n{"type":"result","result":"ok"}\n{"type":"x"}\n')).toBe(
-      '{"type":"result","result":"ok"}',
-    );
+  it('журнал прогона: json-поток пишется в файл, прогресс — по tool_use события', async () => {
     await put('agents/judge.md', roleFile('judge', 'verdict'));
-    process.env['FAKE_SUBMIT'] = JSON.stringify({ verdict: { answers: [] } });
+    process.env['FAKE_SUBMIT'] = JSON.stringify({ judge: { answers: [] } });
+    process.env['FAKE_STEPS'] = '1';
     setRuntime({ self: selfCommand(), runScript: async () => 0 });
-    const transcript = path.join(home, 'runs', 'judge-1.jsonl');
-    const { data } = await askRole(root, 'judge', 'Задание', { transcript });
-    expect(data).toEqual({ answers: [] });
-    expect(await readFile(transcript, 'utf8')).toContain('"type":"result"');
-  });
-
-  it('журнал пишется по ходу прогона, прогресс — по шагам роли, таймаут останавливает процесс', async () => {
-    await put('agents/judge.md', roleFile('judge', 'verdict'));
-    setRuntime({ self: selfCommand(), runScript: async () => 0 });
-    const slow = path.join(home, 'slow-claude.mjs');
-    await writeFile(
-      slow,
-      [
-        'for await (const _ of process.stdin) {}',
-        "const out = (o) => process.stdout.write(JSON.stringify(o) + '\\n');",
-        "out({ type: 'assistant', message: { content: [{ type: 'tool_use', name: 'Read' }] } });",
-        "await new Promise((r) => setTimeout(r, Number(process.env.SLOW_MS ?? '400')));",
-        "out({ type: 'result', is_error: false, result: 'ok' });",
-      ].join('\n'),
-      'utf8',
-    );
-    process.env['HARNESS_CLAUDE'] = slow;
-    const transcript = path.join(home, 'runs', 'judge-live.jsonl');
+    const transcript = path.join(home, 'runs', 'judge-oc.jsonl');
     const seen: string[] = [];
-    let settled = false;
-    const running = askRole(root, 'judge', 'т', {
+    const { data } = await askRole(root, 'judge', 'Задание', {
       transcript,
       onProgress: (t) => seen.push(t),
-    }).finally(() => {
-      settled = true;
     });
-    let live = false;
-    for (let i = 0; i < 50 && !live; i++) {
-      await new Promise((r) => setTimeout(r, 20));
-      live =
-        !settled &&
-        existsSync(transcript) &&
-        (await readFile(transcript, 'utf8')).includes('tool_use');
-    }
-    expect(live).toBe(true);
-    await expect(running).rejects.toThrow('не вернула результат');
+    expect(data).toEqual({ answers: [] });
+    expect(await readFile(transcript, 'utf8')).toContain('"type":"step_finish"');
     expect(seen).toEqual([
       'роль judge: запущена (zai-coding-plan/glm-5.3-flash#max)',
-      'роль judge: шаг 1 — Read',
+      'роль judge: шаг 1 — read',
       'роль judge: готово, шагов 1',
     ]);
-    process.env['SLOW_MS'] = '5000';
-    await expect(askRole(root, 'judge', 'т', { timeoutMs: 200 })).rejects.toThrow('таймаут');
-    delete process.env['SLOW_MS'];
-    expect(stepOf('{"type":"assistant","message":{"content":[{"type":"text"}]}}')).toBeUndefined();
     expect(roleTimeoutMs()).toBe(30 * 60_000);
   });
 
-  it('role run: роль без submit_result — ошибка, а не пустой ответ', async () => {
+  it('роль без итога — ошибка «не вернула итог»; неуспешный код — ошибки потока в сообщении', async () => {
     await put('agents/judge.md', roleFile('judge', 'verdict'));
-    await put('task.md', 'Задание');
-    await expect(
-      main(['role', 'run', 'judge', '--file', 'task.md', '--root', root], NOW),
-    ).rejects.toThrow('не вернула результат');
+    await expect(askRole(root, 'judge', 'т')).rejects.toThrow('не вернула итог');
+    process.env['FAKE_EXIT'] = '1';
+    process.env['FAKE_ERROR'] = 'модель недоступна';
+    await expect(askRole(root, 'judge', 'т')).rejects.toThrow(
+      'opencode run: код 1: модель недоступна',
+    );
+  });
+
+  it('таймаут останавливает прогон', async () => {
+    await put('agents/judge.md', roleFile('judge', 'verdict'));
+    process.env['FAKE_SLEEP'] = '5000';
+    await expect(askRole(root, 'judge', 'т', { timeoutMs: 200 })).rejects.toThrow('таймаут');
   });
 });
 

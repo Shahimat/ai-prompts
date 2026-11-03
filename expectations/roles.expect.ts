@@ -7,8 +7,9 @@ import {
   parseIntents,
   PROTOCOL,
   PROTOCOL_MESSAGES,
-  roleArgs,
-  SUBMIT_TOOL_ID,
+  roleSystemPrompt,
+  SUBMIT_TOOL,
+  opencodeArgs,
   type AgentDef,
 } from '@shahimat/ai-core';
 import {
@@ -52,7 +53,7 @@ describe('[roles] протокол', () => {
     () => Check.intentsSchema(),
   );
   crit(
-    'роль запускается изолированно: claude -p без настроек пользователя, единственный MCP — канал harness с submit_result',
+    'роль запускается изолированно: opencode run без пользовательских настроек; итог — через tool submit_result',
     () => Check.isolatedRun(),
   );
 });
@@ -180,14 +181,13 @@ class Check {
       output: 'verdict',
       instructions: 'i',
     };
-    const args = roleArgs({ root: '.', role, task: 't', out: 'o.json', self: ['harness'] });
-    const config = JSON.stringify(JSON.parse(args[args.indexOf('--mcp-config') + 1] ?? '{}'));
     expect({
-      sources: args[args.indexOf('--setting-sources') + 1],
-      strict: args.includes('--strict-mcp-config'),
-      channel: config.includes('"role","channel","verdict"'),
-      submit: args.at(-1)?.split(',').includes(SUBMIT_TOOL_ID),
-    }).toEqual({ sources: '', strict: true, channel: true, submit: true });
+      submitInPrompt: roleSystemPrompt(role).includes(SUBMIT_TOOL),
+      args: opencodeArgs(role.name, 'm').filter((a) => a !== 'judge' && a !== 'm'),
+    }).toEqual({
+      submitInPrompt: true,
+      args: ['run', '--format', 'json', '--auto', '--agent', '--model'],
+    });
   }
 
   static optionOf(command: string, option: string): void {

@@ -15,7 +15,7 @@ use_case: Скармливается AI-агенту одной ссылкой, 
   приоритеты, план, распределение и отчёт; строгость — на краях: схемы,
   permissions, проверки, бюджеты, locks.
 - **Точка входа — `AGENTS.md`:** маршрут, семь жёстких правил, сценарии,
-  протокол оператора. `CLAUDE.md` — одна строка `@AGENTS.md`.
+  протокол оператора.
 - **Роли:** `researcher`, `executor`, `judge`, `librarian`;
   `external-executor` — external-пресет. `oracle` и `reviewer` не
   существуют: быстрый ответ — researcher, оценка DoD — judge.
@@ -58,7 +58,6 @@ skills, роли, модули, пресеты — ты берёшь сам по
 
 ```
 AGENTS.md                          ← протокол оператора, маршрут, правила
-CLAUDE.md                          ← @AGENTS.md
 CHANGELOG.md                       ← журнал решений
 package.json                       ← devDependencies: @shahimat/ai-core, @shahimat/oc3
 .gitattributes                     ← eol=lf, CHANGELOG.md merge=union
@@ -80,7 +79,7 @@ goals/                             ← цели и программы: *.expect.
 из контракта; протокол — в `AGENTS.md`, allowlist — в `context/skills.yml`.
 `context/roles.yml` не создаётся: роль — файл `.agents/agents/<name>.md`.
 Канон для всех агентов — `AGENTS.md` и `.agents/`; файлы под инструмент
-(`CLAUDE.md`, `.claude/`, `.codex/`, `.opencode/`) — производные.
+(`.codex/`, `.opencode/`) — производные.
 
 <!-- expect:no-rule-copies -->
 Правила самого контракта в `context/conventions/` **не копируются**.
@@ -382,9 +381,8 @@ context/skills.yml               # каталог skills и привязка к 
   project-skill не подменяет core без `extends`; у роли есть
   tools/permissions; у оператора только allowlist; нет секретов и
   skills без роли.
-- Runtime: OpenCode читает `.agents/skills` нативно, Claude Code —
-  `.claude/skills` + `skills` субагента, Codex — `.agents/skills` +
-  инструкции роли; привязка везде из `context/skills.yml`.
+- Runtime: OpenCode и Codex читают `.agents/skills` (Codex — плюс
+  инструкции роли); привязка везде из `context/skills.yml`.
 
 ## Browser
 
@@ -462,12 +460,8 @@ dashboard — модули headless-рантайма, в интерактивн�
 
 ## Адаптеры под инструменты
 
-<!-- expect:claude-md-import -->
 Канон — `AGENTS.md` и `.agents/`. Производные:
 
-- **Claude Code** — `CLAUDE.md` (`@AGENTS.md`), копии skills в
-  `.claude/skills/`, субагенты в `.claude/agents/`,
-  `autoMemoryEnabled: false` и hook на memory-путь;
 - **Codex** — читает `AGENTS.md` и `.agents/skills/` сам; субагенты в
   `.codex/agents/`, memory выключена в `.codex/config.toml`;
 - **OpenCode** — `.opencode/agents` из `.agents/agents`, skills из
@@ -478,10 +472,7 @@ dashboard — модули headless-рантайма, в интерактивн�
 синка — `oc3 models apply`; роли в фоне, executor → judge/researcher (≤2 на тикет), глубина 2.
 
 Производные генерирует `oc3 adapters sync`, проверяет
-`oc3 adapters check`; руками их не создаёшь и не правишь. Существующий
-`CLAUDE.md` с содержимым не затирай: перенеси по слоям (план —
-пользователю), затем замени прослойкой.
-<!-- /expect:claude-md-import -->
+`oc3 adapters check`; руками их не создаёшь и не правишь.
 
 ## Memory агента
 
@@ -491,10 +482,9 @@ dashboard — модули headless-рантайма, в интерактивн�
 
 - «Запомни», «зафиксируй», «сохрани» — `docs_request` librarian.
 - Memory-инструменты и memory-MCP запрещены; запись в memory-пути
-  (`~/.claude/projects/*/memory/`, memory-каталоги Codex, аналоги)
+  (memory-каталоги Codex, аналоги)
   блокируется.
-- Claude Code — `"autoMemoryEnabled": false` в `.claude/settings.json` и
-  hook `PreToolUse`; Codex — `.codex/config.toml` (project config
+- Codex — `.codex/config.toml` (project config
   действует только в trusted-проекте; надёжнее глобально
   `codex features disable memories` — решение пользователя); OpenCode —
   deny memory-MCP/инструментов и evaluate-hook.
@@ -540,8 +530,7 @@ frontmatter с ожидаемым. Не совпало — стоп: защит�
 
 1. Проверь `node --version` ≥ 24: без Node контракт не ставится.
 2. Спроси одним блоком: название и одна строка о проекте, стек,
-   namespaces, инструменты (Claude Code, Codex, OpenCode, другие), нужен
-   ли hook docs guard.
+   namespaces, инструменты (Codex, OpenCode, другие).
 3. Поставь ядро: `@shahimat/ai-core`, `@shahimat/oc3` и `vitest` в
    `devDependencies` (версии из `npm view`; нет `package.json` — создай
    минимальный), `npm install` после «да»; skills и роли из индекса,
@@ -562,8 +551,8 @@ v2-слои (`docs/entities`, `docs/behavior`, `docs/manuals`,
 `context/views`) сохраняются: они становятся слоями модулей domain,
 manuals и, для старых проектов, deprecated-модуля goals.
 
-1. `CLAUDE.md` → `AGENTS.md` по шаблону; маршруты и правила — из
-   старого `CLAUDE.md`, лишнее — в слои.
+1. Старую точку входа → `AGENTS.md` по шаблону; маршруты и правила —
+   из неё, лишнее — в слои.
 2. Удалить `context/workflow.md` и копии правил контракта в
    `context/conventions/`; добавить `summary` в `conventions/*.yml` и
    `docs/entities/*.yml`.
@@ -581,7 +570,7 @@ manuals и, для старых проектов, deprecated-модуля goals.
 
 ### brownfield
 
-1. Инвентаризация: `CLAUDE.md`, `AGENTS.md`, `README.md`, `docs/**`,
+1. Инвентаризация: `AGENTS.md`, `README.md`, `docs/**`,
    wiki, ADR / RFC, todo-файлы, свои YAML.
 2. Карта: «файл X — это Y» и целевое место: слой ядра, слой возможности
    или «шум — удалить».
