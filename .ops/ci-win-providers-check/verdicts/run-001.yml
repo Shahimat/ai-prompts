@@ -1,0 +1,25 @@
+run: 1
+status: pass
+summary: providersReport различает machine 'none' и project 'none'; регресс-тест на win32 зелёный с правкой и падает на main; ci зелёный; посторонних правок нет
+items:
+  - key: dod-1-providers-report-none
+    status: pass
+    evidence: packages/harness/src/harnesses/core/ops/inspect.ts:71-76 — `if (machine) { row.status = 'none'; row.probe = mapping?.why ?? 'на платформе нет планировщика' } else { row.status = mapping?.why === undefined ? 'unmapped' : 'none' }`
+    reason: machine-интерфейс (MACHINE_INTERFACES = ['schedule'], inspect.ts:30) с resolved 'none' — status 'none' с пояснением; project-маппинг 'none' без why — 'unmapped', с why — 'none'
+  - key: dod-2-regression-test-win32
+    status: pass
+    evidence: packages/harness/test/ops.test.ts:615-641; прогон: с правкой — 1 passed; после `git stash push inspect.ts` + rebuild — 1 failed на `expect(text).toContain('на платформе нет планировщика')`; правка возвращена `git stash pop`, пересборка выполнена
+    reason: подмена platform на win32 даёт run(['ops','providers','check']) === 0; на коде main тест падает
+  - key: dod-3-existing-expectations-intact
+    status: pass
+    evidence: `git diff main -- packages/harness/test/ops.test.ts` — только +28 добавленных строк, ни одного удаления или смягчения старых it/expect
+    reason: старые ожидания не тронуты
+  - key: dod-4-npm-run-ci
+    status: pass
+    evidence: `npm run ci` в worktree — exit 0, «ожиданий 332: crit 0 · warn 5 · info 4 · ? 0 — в бюджете»
+    reason: полный CI зелёный; единственный warn вне бюджета ожиданий — существующий, не от этой правки
+  - key: dod-5-style-and-scope
+    status: pass
+    evidence: git status — только inspect.ts и ops.test.ts; в diff нет `as T`/`!`/`any`/`==`, комментариев и путей `../`; CHANGELOG.md, context/, prompts/index.yml не изменены
+    reason: стиль и границы правки соблюдены
+changes: []

@@ -612,6 +612,34 @@ describe('ops: mapping, проверка провайдеров и строка 
     expect(await run(['ops', 'providers', 'check'])).toBe(0);
   });
 
+  it('providers check на платформе без планировщика: schedule none — платформенный факт, код 0', async () => {
+    await put(
+      'context/ops.yml',
+      [
+        'providers:',
+        '  tasks: { provider: local, system: файлы задач }',
+        '  vcs: git',
+        '  review: { provider: none, why: ревью нет }',
+        '  checks: { provider: none, why: CI нет }',
+        '  notify: { provider: none, why: нет }',
+        'probe:',
+        '  tasks: tasks/t1.md',
+        '',
+      ].join('\n'),
+    );
+    const was = process.platform;
+    Object.defineProperty(process, 'platform', { value: 'win32' });
+    try {
+      out = [];
+      expect(await run(['ops', 'providers', 'check'])).toBe(0);
+      const text = out.join('\n');
+      expect(text).toContain('на платформе нет планировщика');
+      expect(text).toMatch(/schedule\t.*\tnone/);
+    } finally {
+      Object.defineProperty(process, 'platform', { value: was });
+    }
+  });
+
   it('line: живая сессия автомата проекта — имя, задача, состояние, ожидание ответа', async () => {
     byRole({ researcher: { submit: result('', ['вопрос?']) } });
     await run(['ticket-work', 'start', 'tasks/t1.md']);

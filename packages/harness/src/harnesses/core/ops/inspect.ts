@@ -68,8 +68,13 @@ export async function providersReport(root: string, home: string): Promise<Inter
       continue;
     }
     if (name === 'none') {
-      row.status = mapping?.why === undefined ? 'unmapped' : 'none';
-      row.probe = mapping?.why ?? `provider: none без why — запиши, почему аналога нет`;
+      if (machine) {
+        row.status = 'none';
+        row.probe = mapping?.why ?? 'на платформе нет планировщика';
+      } else {
+        row.status = mapping?.why === undefined ? 'unmapped' : 'none';
+        row.probe = mapping?.why ?? `provider: none без why — запиши, почему аналога нет`;
+      }
       continue;
     }
     try {
