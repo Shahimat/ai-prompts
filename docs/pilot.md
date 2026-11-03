@@ -3,7 +3,8 @@
 Руководство для человека: как развернуть оператор-центричный контракт
 v3 в проекте и начать им пользоваться. Модель работы — `design/operator-centric-v3.md`;
 сам контракт — `prompts/productivity/agent-operational-contract-v3.md`.
-Watcher и адаптеры Claude Code/Codex отложены; пилот — только OpenCode.
+Watcher и Codex-адаптер отложены; пилот — только OpenCode,
+он же хост миграции.
 
 ## Предпосылки
 
@@ -26,14 +27,13 @@ https://raw.githubusercontent.com/Shahimat/ai-prompts/main/prompts/productivity/
 
 - **greenfield** — документации нет или пустой `README.md`;
 - **миграция** — своя документация в любом виде: агент инвентаризирует
-  (`CLAUDE.md`, `docs/**`, wiki, todo-файлы), построит карту «файл X —
+  (`AGENTS.md`, `docs/**`, wiki, todo-файлы), построит карту «файл X —
   это слой Y» и перенесёт по слоям.
 
 Что должно появиться (проверь чеклистом):
 
 ```
 AGENTS.md                  ← протокол оператора, маршрут, жёсткие правила
-CLAUDE.md                  ← одна строка @AGENTS.md
 context/project.yml        ← реквизиты, sync.contract.edition: operator-centric
 context/autonomy.yml       ← уровни self/ask/never
 context/skills.yml         ← каталог skills и привязка к ролям
@@ -180,7 +180,7 @@ npx oc3 init                        # проверка установки
 
 - Watcher-демон отложен: автопробуждения по таймеру/CI нет — работу
   инициирует человек.
-- Claude Code и Codex — пауза: контракт описывает их адаптеры, но
+- Codex — пауза: контракт описывает его адаптер, но
   пилотный прогон только под OpenCode.
 - Гейт прогонов судит по всем `goals/*.expect.json` сразу: завершённый,
   но не разобранный цикл в одной цели блокирует запуск judge'а в любой.

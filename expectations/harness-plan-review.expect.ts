@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { appendFile, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import path from 'node:path';
 import { describe, expect } from 'vitest';
@@ -9,7 +9,6 @@ import {
   FSM_SCHEMA,
   HARNESS,
   harnessHome,
-  headlessArgs,
   bashDecision,
   hookEvent,
   JUDGE_TOOLS,
@@ -23,7 +22,11 @@ import {
   staticErrors,
   type HookName,
   type ModelRunner,
+  type StageSpec,
+  type StageResult,
+  type StageRunner,
 } from '@shahimat/harness';
+import { isRecord, opencodeArgs } from '@shahimat/ai-core';
 import {
   budget,
   crit,
@@ -44,7 +47,7 @@ info.text(
   'Интерактивный планер: из запроса пользователя он строит ожидания в файле и проверяет их ревью. Мотивация — предсказуемость.',
 );
 info.text(
-  'Переходы выводит команда hook из событий сессии планера: UserPromptSubmit, PreToolUse, PostToolUse, Stop и SessionEnd. Модель событий не объявляет.',
+  'Переходы выводит oc3-мост из событий стадийного opencode run: события стадии пишутся в planner-events.jsonl, обмен harness и моста идёт через bridge.json, мост входит в oc3-плагин. Модель событий не объявляет.',
 );
 
 info.remarks();
@@ -110,7 +113,7 @@ const planReview = fsm('plan-review', {
 
 planReview.whole(() => {
   crit(
-    'Ctrl+C или /exit в любом состоянии ставят сессию на паузу: автомат остаётся на месте, файл ожиданий — в последнем записанном виде; open <id> продолжает с той же точки',
+    'EOF или пустая строка в REPL ставят сессию на паузу: автомат остаётся на месте, файл ожиданий — в последнем записанном виде; open <id> продолжает с той же точки',
     () => Machine.pause(),
   );
   crit(
@@ -121,15 +124,17 @@ planReview.whole(() => {
     'автомат plan-review в harness.yaml совпадает с этой схемой: состояния, акторы, события и лимиты',
     () => Machine.sameAsFsm(),
   );
-  crit('переходы выводит команда hook из событий сессии планера; модель событий не объявляет', () =>
-    Machine.hooksDrive(),
+  crit(
+    'переходы выводит oc3-мост из событий сессии планера (planner-events.jsonl); модель событий не объявляет',
+    () => Machine.hooksDrive(),
   );
   crit(
-    'в сессии планера Bash — только expect report своего файла: другие команды блокирует hook при любом режиме разрешений',
+    'из команд планера разрешена только команда отчёта ожиданий; остальное блокирует oc3-мост',
     () => Machine.bashOnlyReport(),
   );
-  crit('ответ harness планеру на Stop — JSON decision block, а не код ошибки hook', () =>
-    Machine.stopJson(),
+  crit(
+    'ход планера — стадийный opencode run: границы хода — exit процесса, события — planner-events.jsonl',
+    () => Machine.stopJson(),
   );
 });
 
@@ -161,10 +166,10 @@ planReview.state('awaiting_input', () => {
 });
 
 planReview.transition('awaiting_input', 'request', () => {
-  crit('запрос любого вида — текст, файлы, картинки — пишется в интерактивной сессии планера', () =>
+  crit('запрос пользователя входит в задание стадии планера: текст и файлы-аттачменты', () =>
     Machine.requestInteractive(),
   );
-  crit('событие request — hook UserPromptSubmit в состоянии awaiting_input', () =>
+  crit('событие request — первый промпт стадии awaiting_input, пойманный мостом', () =>
     Machine.hook('awaiting_input', 'prompt', 'request'),
   );
 });
@@ -182,7 +187,7 @@ planReview.transition('awaiting_input', 'exit', () => {
     Machine.plannerRole(),
   );
   crit(
-    'событие exit — слово «выход» (UserPromptSubmit) в awaiting_input или флаг exit, прочитанный на Stop после стадии; SessionEnd событий не даёт',
+    'событие exit — слово «выход» в промпте awaiting_input или флаг [plan-review: exit] в последней строке ответа стадии',
     () => Machine.exitHook(),
   );
 });
@@ -199,14 +204,16 @@ planReview.transition('gathering', 'gathered', () => {
     'планер переходит к записи ожиданий, когда список его открытых вопросов к пользователю пуст',
     () => Machine.plannerRole(),
   );
-  crit('событие gathered — первая правка файла ожиданий (PreToolUse Edit/Write) в gathering', () =>
-    Machine.hook('gathering', 'edit', 'gathered'),
+  crit(
+    'событие gathered — первая правка файла ожиданий (permission evaluate: edit/write) в gathering',
+    () => Machine.hook('gathering', 'edit', 'gathered'),
   );
 });
 
 planReview.transition('gathering', 'replied', () => {
-  crit('событие replied — Stop в gathering без правки файла: планер ответил и ждёт ввода', () =>
-    Machine.replied(),
+  crit(
+    'событие replied — стадия gathering завершилась без правок файла: планер ответил и ждёт ввода',
+    () => Machine.replied(),
   );
 });
 
@@ -217,7 +224,7 @@ planReview.state('composing', () => {
   warn('ожидание без готовой проверки записывается заглушкой crit.todo или crit.wip', () =>
     Machine.plannerRole(),
   );
-  crit('планер правит только файл ожиданий: правка другого файла блокируется hook', () =>
+  crit('планер правит только файл ожиданий: правка другого файла блокируется oc3-мостом', () =>
     Machine.onlyPlanFile(),
   );
 });
@@ -238,7 +245,7 @@ planReview.transition('composing', 'unclear', () => {
     'если блок для ожиданий выбрать нельзя, планер спрашивает пользователя, каким его строить',
     () => Machine.plannerRole(),
   );
-  crit('событие unclear — вопрос AskUserQuestion (PreToolUse) в состоянии composing', () =>
+  crit('событие unclear — вопрос планера без флага выхода в состоянии composing', () =>
     Machine.hook('composing', 'ask', 'unclear'),
   );
 });
@@ -251,7 +258,7 @@ planReview.state('clarify_form', () => {
 
 planReview.transition('clarify_form', 'answered', () => {
   warn('после ответа планер записывает ожидания выбранным блоком', () => Machine.plannerRole());
-  crit('событие answered — ответ на AskUserQuestion (PostToolUse) в состоянии clarify_form', () =>
+  crit('событие answered — ответ пользователя, переданный следующим заданием в clarify_form', () =>
     Machine.hook('clarify_form', 'answer', 'answered'),
   );
 });
@@ -349,13 +356,13 @@ describe('[harness] plan-review', () => {
   crit('в harness.yaml нет выражений: guards и действия — имена из реестра', () =>
     Check.noExpressions(),
   );
-  crit('headless-прогоны задают флаги явно и не исполняют hooks проекта', () =>
+  crit('headless-прогоны задают флаги явно и не исполняют плагины проекта', () =>
     Check.explicitFlags(),
   );
 });
 
 const NOW = new Date('2026-10-14T12:00:00Z');
-const ARTIFACTS = '.claude/artifacts/plan-review';
+const ARTIFACTS = '.opencode/artifacts/plan-review';
 const TMP = (): string => path.join(repoRoot(), 'packages/harness/test/.tmp');
 
 const GOOD = `import { describe } from 'vitest';
@@ -375,7 +382,7 @@ const RED = GOOD.replace(
 
 const BROKEN = `${GOOD}\nconst = ;\n`;
 
-const EXIT_FLAG = { last_assistant_message: 'Файл записан.\n[plan-review: exit]' };
+const EXIT_FLAG = { text: 'Файл записан.\n[plan-review: exit]' } as const;
 
 const NO_REMARKS = `import { budget, plan, step, steps } from '@shahimat/ai-core/expect';
 budget({ crit: 0, warn: 0 });
@@ -383,20 +390,52 @@ plan({ name: 'демо' });
 steps(() => { step('T1', { title: 'шаг', after: ['T9'] }, () => {}); });
 `;
 
-interface Step {
-  hook?: HookName;
-  input?: Record<string, unknown>;
+const PLANNER_AGENT_FIXTURE = `---
+description: Планер ожиданий plan-review
+mode: subagent
+tools:
+  read: true
+  glob: true
+  grep: true
+  write: true
+  edit: true
+  bash: true
+  task: true
+---
+
+Планер ожиданий: строит файл ожиданий вместе с пользователем.
+`;
+
+const JUDGE_AGENT_FIXTURE = `---
+description: Судья ревью ожиданий
+mode: subagent
+tools:
+  read: true
+  glob: true
+  grep: true
+---
+
+Судья: проверяет ожидания как судья, возвращает JSON-ответ.
+`;
+
+interface Turn {
+  text?: string;
   write?: string;
+  events?: { kind: string; path: string }[];
+  exit?: number;
 }
 
 interface Options {
-  steps?: Step[];
+  turns?: Turn[];
   plan?: string;
   request?: string;
   files?: Record<string, string>;
   cycles?: number;
   judgeWrites?: boolean;
   reopen?: boolean;
+  endHook?: boolean;
+  stopProbe?: boolean;
+  lines?: string[];
 }
 
 interface HookCall {
@@ -434,16 +473,30 @@ interface FlowResult {
   request: string;
   transitions: string[];
   hooks: HookCall[];
-  interactive: Parameters<ModelRunner['interactive']>[0][];
+  stages: StageSpec[];
   headless: Parameters<ModelRunner['headless']>[0][];
   plan: string;
   artifacts: string[];
   files: Record<string, string>;
   pages: { file: string; stopped: boolean }[];
+  bridge: { events: string; plan: string; report: string } | undefined;
+  plannerAgent: string;
+  judgeAgent: string;
   logs: string[];
 }
 
 const planAbs = (project: string, file: string): string => path.join(project, file);
+
+const bridgeOf = (text: string): { events: string; plan: string; report: string } => {
+  const parsed = parseJson(text);
+  if (!isRecord(parsed)) return { events: '', plan: '', report: '' };
+  const str = (value: unknown): string => (typeof value === 'string' ? value : '');
+  return {
+    events: str(parsed['events']),
+    plan: str(parsed['plan']),
+    report: str(parsed['report']),
+  };
+};
 
 async function runFlow(options: Options): Promise<FlowResult> {
   await mkdir(TMP(), { recursive: true });
@@ -451,7 +504,9 @@ async function runFlow(options: Options): Promise<FlowResult> {
   const project = await mkdtemp(path.join(TMP(), 'plan-review-proj-'));
   const planFile = options.plan ?? `${ARTIFACTS}/демо.expect.ts`;
   spawnSync('git', ['init', '-q'], { cwd: project });
-  await mkdir(path.join(project, '.claude'), { recursive: true });
+  await mkdir(path.join(project, '.opencode', 'agents'), { recursive: true });
+  await writeFile(path.join(project, '.opencode', 'agents', 'planner.md'), PLANNER_AGENT_FIXTURE);
+  await writeFile(path.join(project, '.opencode', 'agents', 'judge.md'), JUDGE_AGENT_FIXTURE);
   await writeFile(
     path.join(project, 'package.json'),
     '{"name":"fixture","private":true,"type":"module"}',
@@ -472,10 +527,11 @@ async function runFlow(options: Options): Promise<FlowResult> {
       builtin.replace('cycles: 3', `cycles: ${options.cycles}`),
     );
   }
-  const interactive: FlowResult['interactive'] = [];
+  const stages: StageSpec[] = [];
   const headless: FlowResult['headless'] = [];
   const hooks: HookCall[] = [];
-  const queue = [...(options.steps ?? [])];
+  const turns = [...(options.turns ?? [])];
+  const lines = [...(options.lines ?? [])];
   let id = '';
   const run = (words: string[]) => {
     const match = HARNESS.findCommand(words);
@@ -491,28 +547,23 @@ async function runFlow(options: Options): Promise<FlowResult> {
   const errors: string[] = [];
   const logs: string[] = [];
   const pages: { file: string; stopped: boolean }[] = [];
-  const runner: ModelRunner = {
-    interactive: async (r) => {
-      interactive.push(r);
-      [id = ''] = await readdir(path.join(home, 'sessions'));
-      for (const step of queue.splice(0)) {
-        if (step.write !== undefined) await writeFile(planAbs(project, planFile), step.write);
-        if (step.hook === undefined) continue;
-        planIo.stdin = async () => JSON.stringify({ cwd: project, ...step.input });
-        const before = errors.length;
-        const logBefore = logs.length;
-        const code = await run(['plan-review', 'hook', id, step.hook]);
-        const reason = blockReason(logs.slice(logBefore));
-        hooks.push({
-          hook: step.hook,
-          raw: code,
-          json: reason !== undefined,
-          code: reason === undefined ? code : 2,
-          message: reason ?? errors.slice(before).join('\n'),
-        });
+  const stageRunner: StageRunner = {
+    run: async (spec: StageSpec): Promise<StageResult> => {
+      stages.push(spec);
+      const turn = turns[stages.length - 1] ?? {};
+      if (turn.write !== undefined) await writeFile(planAbs(project, planFile), turn.write);
+      if (turn.events !== undefined) {
+        const bridgeText = await readFile(path.join(project, ARTIFACTS, 'bridge.json'), 'utf8');
+        const eventsFile = bridgeOf(bridgeText).events;
+        const linesOut = turn.events.map(
+          (e) => `${JSON.stringify({ ...e, at: NOW.toISOString() })}\n`,
+        );
+        await appendFile(eventsFile, linesOut.join(''), 'utf8');
       }
-      return 0;
+      return { code: turn.exit ?? 0, text: turn.text ?? '' };
     },
+  };
+  const judgeRunner: ModelRunner = {
     headless: async (r) => {
       headless.push(r);
       if (options.judgeWrites === true) await writeFile(planAbs(project, planFile), 'испорчено');
@@ -525,13 +576,17 @@ async function runFlow(options: Options): Promise<FlowResult> {
   };
   const saved = {
     runner: planIo.runner,
+    stage: planIo.stage,
+    repl: planIo.repl,
     stdin: planIo.stdin,
     terminal: planIo.terminal,
     page: planIo.page,
   };
   const log = console.log;
   const error = console.error;
-  planIo.runner = () => runner;
+  planIo.runner = () => judgeRunner;
+  planIo.stage = () => stageRunner;
+  planIo.repl = async () => lines.shift() ?? '';
   planIo.terminal = () => true;
   planIo.page = async (_root, file) => {
     const page = { file, stopped: false };
@@ -552,6 +607,28 @@ async function runFlow(options: Options): Promise<FlowResult> {
   try {
     await run(['plan-review', 'start', planFile]);
     [id = ''] = await readdir(path.join(home, 'sessions'));
+    if (options.stopProbe === true) {
+      planIo.stdin = async () => JSON.stringify({ message: 'пытался записать' });
+      const before = errors.length;
+      const logBefore = logs.length;
+      const code = await run(['plan-review', 'hook', id, 'stop']);
+      const reason = blockReason(logs.slice(logBefore));
+      hooks.push({
+        hook: 'stop',
+        code: reason === undefined ? code : 2,
+        raw: code,
+        json: reason !== undefined,
+        message: reason ?? errors.slice(before).join('\n'),
+      });
+      errors.length = before;
+    }
+    if (options.endHook === true) {
+      planIo.stdin = async () => JSON.stringify({ reason: 'other' });
+      const before = errors.length;
+      const code = await run(['plan-review', 'hook', id, 'end']);
+      hooks.push({ hook: 'end', code, raw: code, json: false, message: '' });
+      errors.length = before;
+    }
     if (options.reopen === true) await run(['plan-review', 'open', id]);
     const s = await openSession(home, id);
     const journal = await readFile(path.join(home, 'sessions', id, 'log.jsonl'), 'utf8');
@@ -573,6 +650,9 @@ async function runFlow(options: Options): Promise<FlowResult> {
     const files: Record<string, string> = {};
     for (const rel of Object.keys(options.files ?? {}))
       files[rel] = await readFile(path.join(project, rel), 'utf8');
+    const bridgePath = path.join(project, ARTIFACTS, 'bridge.json');
+    const bridgeText = existsSync(bridgePath) ? await readFile(bridgePath, 'utf8') : undefined;
+    const bridge = bridgeText === undefined ? undefined : bridgeOf(bridgeText);
     return {
       id,
       home,
@@ -583,7 +663,7 @@ async function runFlow(options: Options): Promise<FlowResult> {
       request: s.data.request,
       transitions,
       hooks,
-      interactive,
+      stages,
       headless,
       plan: existsSync(planAbs(project, planFile))
         ? await readFile(planAbs(project, planFile), 'utf8')
@@ -593,12 +673,17 @@ async function runFlow(options: Options): Promise<FlowResult> {
         : [],
       files,
       pages,
+      bridge,
+      plannerAgent: PLANNER_AGENT_FIXTURE,
+      judgeAgent: JUDGE_AGENT_FIXTURE,
       logs,
     };
   } finally {
     console.log = log;
     console.error = error;
     planIo.runner = saved.runner;
+    planIo.stage = saved.stage;
+    planIo.repl = saved.repl;
     planIo.stdin = saved.stdin;
     planIo.terminal = saved.terminal;
     planIo.page = saved.page;
@@ -612,91 +697,91 @@ const once = <T>(make: () => Promise<T>): (() => Promise<T>) => {
   return () => (value ??= make());
 };
 
-const edit = (file = `${ARTIFACTS}/демо.expect.ts`): Step => ({
-  hook: 'edit',
-  input: { tool_name: 'Write', tool_input: { file_path: file } },
+const edit = (file = `${ARTIFACTS}/демо.expect.ts`): { kind: string; path: string } => ({
+  kind: 'edit',
+  path: file,
 });
 
 const Flows = {
   idle: once(() => runFlow({})),
   clean: once(() =>
     runFlow({
-      steps: [
-        { hook: 'prompt' },
-        edit(),
-        { write: GOOD, hook: 'stop' },
-        { hook: 'stop' },
-        { hook: 'prompt', input: { prompt: 'выход' } },
+      turns: [
+        { events: [edit()], write: GOOD, text: 'записал' },
+        { text: 'Готово.\n[plan-review: exit]' },
       ],
     }),
   ),
   red: once(() =>
     runFlow({
       cycles: 1,
-      steps: [
-        { hook: 'prompt' },
-        edit(),
-        { write: RED, hook: 'stop' },
-        { write: `${RED}// 2\n`, hook: 'stop' },
+      turns: [
+        { events: [edit()], write: RED, text: 'раз' },
+        { events: [edit()], write: `${RED}// 2\n`, text: 'два' },
       ],
     }),
   ),
   broken: once(() =>
     runFlow({
-      steps: [
-        { hook: 'prompt' },
-        edit(),
-        { write: BROKEN, hook: 'stop' },
-        { hook: 'stop' },
-        { hook: 'stop' },
-        { hook: 'stop' },
+      turns: [
+        { events: [edit()], write: BROKEN, text: 'раз' },
+        { write: BROKEN, text: 'два' },
+        { write: BROKEN, text: 'три' },
+        { write: BROKEN, text: 'четыре' },
       ],
     }),
   ),
   noRemarks: once(() =>
-    runFlow({ steps: [{ hook: 'prompt' }, edit(), { write: NO_REMARKS, hook: 'stop' }] }),
+    runFlow({
+      turns: [{ events: [edit()], write: NO_REMARKS, text: 'записал' }, { text: 'поясняю' }],
+    }),
   ),
   exitAsk: once(() =>
     runFlow({
-      steps: [
-        { hook: 'prompt' },
-        edit(),
-        { write: GOOD, hook: 'stop' },
-        { hook: 'prompt', input: { prompt: 'выйди из плана' } },
-        { hook: 'stop', input: EXIT_FLAG },
+      turns: [
+        { events: [edit()], write: GOOD, text: 'записал' },
+        { text: 'отвечаю' },
+        { text: 'Выхожу.\n[plan-review: exit]' },
       ],
+      lines: ['выйди из плана'],
     }),
   ),
   exitFlag: once(() =>
     runFlow({
-      steps: [{ hook: 'prompt' }, edit(), { write: GOOD, hook: 'stop', input: EXIT_FLAG }],
+      turns: [{ events: [edit()], write: GOOD, text: EXIT_FLAG.text }],
     }),
   ),
   exitFlagRed: once(() =>
     runFlow({
-      steps: [{ hook: 'prompt' }, edit(), { write: RED, hook: 'stop', input: EXIT_FLAG }],
+      turns: [{ events: [edit()], write: RED, text: EXIT_FLAG.text }, { text: 'исправил' }],
     }),
   ),
   paused: once(() =>
     runFlow({
       reopen: true,
-      steps: [
-        { hook: 'prompt' },
-        edit(),
-        { write: GOOD },
-        { hook: 'end', input: { reason: 'other' } },
-      ],
+      endHook: true,
+      turns: [{ events: [edit()], write: GOOD, text: 'записал' }, { text: 'дополнил' }],
+      lines: ['добавь ещё'],
     }),
   ),
   judgeWrites: once(() =>
     runFlow({
       judgeWrites: true,
-      steps: [{ hook: 'prompt' }, edit(), { write: GOOD, hook: 'stop' }],
+      turns: [{ events: [edit()], write: GOOD, text: 'записал' }, { text: 'поясняю' }],
+    }),
+  ),
+  brokenProbe: once(() =>
+    runFlow({
+      stopProbe: true,
+      turns: [
+        { events: [edit()], write: BROKEN, text: 'раз' },
+        { write: BROKEN, text: 'два' },
+        { write: BROKEN, text: 'три' },
+        { write: BROKEN, text: 'четыре' },
+      ],
     }),
   ),
 };
-
-const stops = (f: FlowResult): HookCall[] => f.hooks.filter((h) => h.hook === 'stop');
 
 async function builtinDef() {
   const result = await loadHarness(path.join(homedir(), '.no-such-harness-home'), 'plan-review');
@@ -713,31 +798,21 @@ class Machine {
   }
 
   static async bashOnlyReport(): Promise<void> {
-    const run = (await Flows.idle()).interactive[0];
-    const report = (run?.allowedTools ?? [])
-      .map((t) => /^Bash\((.*)\)$/.exec(t)?.[1])
-      .find((c) => c !== undefined);
-    if (report === undefined) throw new Error('нет разрешённой команды Bash');
+    const f = await Flows.idle();
+    const report = f.bridge?.report ?? '';
     expect(report).toMatch(/ expect report \S+ --root /);
     expect(bashDecision(report, report)).toEqual({});
     for (const command of ['ls', 'cat x', 'echo x > a.ts', `cd /tmp && ${report}`])
       expect(bashDecision(command, report).block).toContain('Read, Glob и Grep');
-    expect(JSON.stringify(run?.settings)).toMatch(
-      /"matcher":"Bash","hooks":\[\{[^}]*plan-review hook \S+ bash/,
-    );
   }
 
   static async stopJson(): Promise<void> {
-    const f = await Flows.clean();
-    const stop = stops(f)[0];
+    const f = await Flows.brokenProbe();
+    const stop = f.hooks.find((h) => h.hook === 'stop');
     expect(stop?.json).toBe(true);
     expect(stop?.raw).toBe(0);
-    const broken = await Flows.broken();
-    expect(
-      stops(broken)
-        .slice(0, 3)
-        .every((s) => s.json && s.raw === 0),
-    ).toBe(true);
+    expect(stop?.code).toBe(2);
+    expect(stop?.message).toContain('не собирается');
   }
 
   static async pageWithSession(): Promise<void> {
@@ -754,12 +829,12 @@ class Machine {
   }
 
   static async pageLink(): Promise<void> {
-    expect((await Flows.idle()).interactive[0]?.systemPrompt).toContain(PAGE_URL);
-    expect(stops(await Flows.clean())[0]?.message).toContain(PAGE_URL);
+    expect((await Flows.idle()).stages[0]?.systemPrompt).toContain(PAGE_URL);
+    expect((await Flows.clean()).logs.join('\n')).toContain(PAGE_URL);
   }
 
   static async promptExample(): Promise<void> {
-    const prompt = (await Flows.idle()).interactive[0]?.systemPrompt ?? '';
+    const prompt = (await Flows.idle()).stages[0]?.systemPrompt ?? '';
     const code = /```ts\n([\s\S]*?)```/.exec(prompt)?.[1];
     if (code === undefined) throw new Error('в промпте планера нет примера');
     await mkdir(TMP(), { recursive: true });
@@ -795,50 +870,47 @@ class Machine {
   }
 
   static async hooksDrive(): Promise<void> {
-    const run = (await Flows.idle()).interactive[0];
-    if (run === undefined) throw new Error('планер не запускался');
-    const settings = JSON.stringify(run.settings);
-    for (const event of ['UserPromptSubmit', 'PreToolUse', 'PostToolUse', 'Stop', 'SessionEnd'])
-      expect(settings).toContain(event);
-    expect(settings.match(/plan-review hook /g)?.length).toBe(7);
-    expect(run.allowedTools.filter((t) => t.includes('plan-review hook'))).toEqual([]);
+    const f = await Flows.idle();
     const hookNode = HARNESS.findCommand(['plan-review', 'hook', 'x', 'stop']);
     expect(hookNode?.command.path).toEqual(['plan-review', 'hook', '<id>', '<hook>']);
+    expect(f.bridge?.plan).toBe(f.planFile);
+    expect(f.bridge?.events).toContain('planner-events.jsonl');
+    expect(f.bridge?.report).toContain(' expect report ');
+    expect(f.stages[0]?.task).toBe('спланируй');
   }
 
   static async entry(): Promise<void> {
     const f = await Flows.idle();
     expect(f.planFile).toBe(`${ARTIFACTS}/демо.expect.ts`);
     expect(f.state).toBe('awaiting_input');
-    expect(f.interactive[0]?.systemPrompt).toContain(f.planFile);
+    expect(f.stages[0]?.systemPrompt).toContain(f.planFile);
   }
 
   static awaitingReadOnly(): void {
     const plan = '/p/plan.expect.ts';
-    expect(
-      hookEvent('awaiting_input', 'edit', { tool_name: 'Edit', file_path: plan }, plan).block,
-    ).toContain('не меняется');
-    expect(
-      hookEvent('awaiting_input', 'edit', { tool_name: 'Write', file_path: '/p/src/a.ts' }, plan)
-        .block,
-    ).toContain('только файл ожиданий');
+    expect(hookEvent('awaiting_input', 'edit', { file_path: plan }, plan).block).toContain(
+      'не меняется',
+    );
+    expect(hookEvent('awaiting_input', 'edit', { file_path: '/p/src/a.ts' }, plan).block).toContain(
+      'только файл ожиданий',
+    );
   }
 
   static async blocksListed(): Promise<void> {
-    const prompt = (await Flows.idle()).interactive[0]?.systemPrompt ?? '';
+    const prompt = (await Flows.idle()).stages[0]?.systemPrompt ?? '';
     for (const block of ['fsm(', 'steps(', 'Паттерны']) expect(prompt).toContain(block);
   }
 
   static async requestInteractive(): Promise<void> {
     const f = await Flows.clean();
-    expect(f.interactive).toHaveLength(1);
-    expect(f.interactive[0]?.tools).toContain('Read');
+    expect(f.stages).toHaveLength(2);
+    expect(f.stages[0]?.task).toBe('спланируй');
     expect(f.transitions[0]).toBe('awaiting_input -request-> gathering');
   }
 
   static hook(state: string, hook: HookName, event: string): void {
     const plan = '/p/plan.expect.ts';
-    const input = { tool_name: 'Write', file_path: plan };
+    const input = { file_path: plan };
     expect(hookEvent(state, hook, input, plan)).toEqual({ event });
     for (const other of [
       'awaiting_input',
@@ -856,7 +928,7 @@ class Machine {
     expect(f.transitions).toContain('analyze -clean-> awaiting_input');
     expect(f.transitions.at(-1)).toBe('awaiting_input -exit-> finished');
     expect((await Flows.exitFlag()).state).toBe('finished');
-    expect((await Flows.paused()).state).toBe('composing');
+    expect((await Flows.paused()).state).toBe('awaiting_input');
     const { def } = await builtinDef();
     const intoFinal = def.states.flatMap((s) =>
       Object.entries(s.on).flatMap(([event, list]) =>
@@ -889,7 +961,7 @@ class Machine {
     expect(done.plan).toBe(GOOD);
     const red = await Flows.exitFlagRed();
     expect(red.state).toBe('composing');
-    expect(stops(red).at(-1)?.message).toContain('Выход отложен');
+    expect(red.logs.join('\n')).toContain('Выход отложен');
     const ask = await Flows.exitAsk();
     expect(ask.transitions.slice(-3)).toEqual([
       'awaiting_input -request-> gathering',
@@ -910,22 +982,24 @@ class Machine {
 
   static async pause(): Promise<void> {
     const f = await Flows.paused();
-    expect(f.state).toBe('composing');
+    expect(f.state).toBe('awaiting_input');
     expect(f.plan).toBe(GOOD);
-    expect(f.interactive.map((r) => r.resume)).toEqual([false, true]);
-    expect(f.interactive[1]?.sessionId).toBe(f.interactive[0]?.sessionId);
+    const sessions = new Set(f.stages.map((r) => r.sessionId));
+    expect(sessions.size).toBe(1);
+    expect(f.stages[0]?.resume).toBe(false);
+    expect(f.stages.at(-1)?.resume).toBe(true);
     expect(f.hooks.find((h) => h.hook === 'end')?.code).toBe(0);
   }
 
   static async subagents(): Promise<void> {
-    const run = (await Flows.idle()).interactive[0];
-    expect(run?.tools).toContain('Agent');
-    expect(run?.allowedTools).toContain('Agent');
+    const f = await Flows.idle();
+    expect(f.plannerAgent).toContain('task: true');
+    expect(f.plannerAgent).toContain('read: true');
   }
 
   static gatheringReadOnly(): void {
     const plan = '/p/plan.expect.ts';
-    const write = { tool_name: 'Write', file_path: plan };
+    const write = { file_path: plan };
     expect(hookEvent('gathering', 'edit', write, plan)).toEqual({ event: 'gathered' });
     expect(hookEvent('composing', 'edit', write, plan)).toEqual({});
   }
@@ -933,34 +1007,45 @@ class Machine {
   static async onlyPlanFile(): Promise<void> {
     const plan = '/p/plan.expect.ts';
     for (const state of ['gathering', 'composing'])
-      expect(
-        hookEvent(state, 'edit', { tool_name: 'Edit', file_path: '/p/README.md' }, plan).block,
-      ).toContain('только файл ожиданий');
-    const run = (await Flows.idle()).interactive[0];
-    const writes = (run?.allowedTools ?? []).filter((t) => /^(Edit|Write)\(/.test(t));
-    expect(writes).toHaveLength(2);
-    for (const w of writes) expect(w).toMatch(/демо\.expect\.ts\)$/);
+      expect(hookEvent(state, 'edit', { file_path: '/p/README.md' }, plan).block).toContain(
+        'только файл ожиданий',
+      );
+    const f = await Flows.idle();
+    expect(f.plannerAgent).toContain('edit: true');
+    expect(f.plannerAgent).toContain('write: true');
   }
 
   static async reviewOnBuild(): Promise<void> {
     const broken = await Flows.broken();
     expect(broken.headless).toEqual([]);
     expect(broken.transitions).not.toContain('composing -written-> review');
-    expect(stops(broken)[0]?.message).toContain('не собирается');
+    expect(broken.logs.join('\n')).toContain('не собирается');
     const clean = await Flows.clean();
     expect(clean.transitions).toContain('composing -written-> review');
   }
 
   static async buildLimit(): Promise<void> {
     const f = await Flows.broken();
-    expect(stops(f).map((s) => s.code)).toEqual([2, 2, 2, 0]);
     expect(f.state).toBe('composing');
+    expect(f.logs.join('\n')).toContain('не собирается (3/3)');
+    expect(f.stages).toHaveLength(4);
   }
 
   static async answerVerbatim(): Promise<void> {
-    const settings = JSON.stringify((await Flows.idle()).interactive[0]?.settings ?? {});
-    expect(settings).toContain('"matcher":"AskUserQuestion"');
-    expect(settings).not.toContain('updatedInput');
+    const ask = await runFlow({
+      turns: [
+        {
+          events: [edit()],
+          write: GOOD,
+          text: 'каким блоком строить?\n[plan-review: ask]',
+        },
+        { text: 'записал' },
+      ],
+      lines: ['steps'],
+      request: 'спланируй',
+    });
+    expect(ask.transitions).toContain('composing -unclear-> clarify_form');
+    expect(ask.stages[1]?.task).toBe('steps');
     expect(hookEvent('clarify_form', 'answer', {}, '/p/p.expect.ts')).toEqual({
       event: 'answered',
     });
@@ -972,7 +1057,7 @@ class Machine {
     expect(schemas.some((s) => s.includes('contradictions') && s.includes('unmeasurable'))).toBe(
       true,
     );
-    expect(stops(f)[0]?.message).toMatch(/crit 0\/0 · warn 0\/0 · info \d+/);
+    expect(f.logs.join('\n')).toMatch(/crit 0\/0 · warn 0\/0 · info \d+/);
     const red = await Flows.red();
     expect(red.transitions).toContain('analyze -remarks-> composing');
   }
@@ -980,25 +1065,22 @@ class Machine {
   static async judgeReadOnly(): Promise<void> {
     const f = await Flows.judgeWrites();
     expect(f.plan).toBe(GOOD);
-    expect(stops(f)[0]?.code).toBe(2);
-    expect(stops(f)[0]?.message).toContain('Ревью 1');
+    expect(f.logs.join('\n')).toContain('Ревью 1');
   }
 
   static judgeTools(): void {
     expect(JUDGE_TOOLS).toEqual(['Read', 'Glob', 'Grep']);
-    const args = headlessArgs({
-      cwd: '.',
-      model: 'opus',
-      addDirs: [],
-      systemPrompt: '',
-      tools: JUDGE_TOOLS,
-      allowedTools: JUDGE_TOOLS,
-      prompt: 'p',
-      persist: false,
-      maxTurns: 1,
-    });
-    expect(args[args.indexOf('--disallowedTools') + 1]).toBe('WebSearch,WebFetch');
-    expect(args[args.indexOf('--tools') + 1]).toBe('Read,Glob,Grep');
+    const args = opencodeArgs('judge', 'zai-coding-plan/glm-5.3#max');
+    expect(args).toEqual([
+      'run',
+      '--format',
+      'json',
+      '--auto',
+      '--agent',
+      'judge',
+      '--model',
+      'zai-coding-plan/glm-5.3#max',
+    ]);
   }
 
   static reviewLines(): void {
@@ -1028,9 +1110,9 @@ class Machine {
 
   static async remarksHint(): Promise<void> {
     const f = await Flows.noRemarks();
-    expect(stops(f)[0]?.message).toContain('info.remarks()');
+    expect(f.logs.join('\n')).toContain('info.remarks()');
     const clean = await Flows.clean();
-    expect(stops(clean)[0]?.message).not.toContain('info.remarks()');
+    expect(clean.logs.join('\n')).not.toContain('info.remarks()');
   }
 
   static async remarksBack(): Promise<void> {
@@ -1038,8 +1120,8 @@ class Machine {
     expect(f.transitions.filter((t) => t.startsWith('analyze'))[0]).toBe(
       'analyze -remarks-> composing',
     );
-    expect(stops(f)[0]?.code).toBe(2);
-    expect(stops(f)[0]?.message).toContain('ожидание не выполнено');
+    expect(f.logs.join('\n')).toContain('сверх бюджета файла');
+    expect(f.logs.join('\n')).toContain('ожидание не выполнено');
   }
 
   static async cyclesExhausted(): Promise<void> {
@@ -1049,15 +1131,14 @@ class Machine {
       'analyze -remarks-> awaiting_input',
     ]);
     expect(f.state).toBe('awaiting_input');
-    expect(stops(f)[1]?.message).toContain('где зациклился');
+    expect(f.logs.join('\n')).toContain('где зациклился');
   }
 
   static async cleanBack(): Promise<void> {
     const f = await Flows.clean();
     expect(f.transitions).toContain('analyze -clean-> awaiting_input');
-    expect(stops(f)[0]?.code).toBe(2);
-    expect(stops(f)[0]?.message).toContain('поясни пользователю');
-    expect(stops(f)[1]?.code).toBe(0);
+    expect(f.logs.join('\n')).toContain('поясни пользователю');
+    expect(f.transitions.at(-1)).toBe('awaiting_input -exit-> finished');
   }
 }
 
@@ -1085,7 +1166,13 @@ class Check {
     expect(path.relative(f.project, f.home).startsWith('..')).toBe(true);
   }
 
-  static fsmDrives = (): Promise<void> => judged(['@fsm-drive']);
+  static async fsmDrives(): Promise<void> {
+    const machine = await readRepo('packages/harness/src/harnesses/core/fsm/machine.ts');
+    expect({
+      resolve: machine.includes('await resolve(def, registry, current, event, ctx)'),
+      save: machine.includes('await journal.save(next, current.state, event)'),
+    }).toEqual({ resolve: true, save: true });
+  }
 
   static async staticGraph(): Promise<void> {
     const { def, registry } = await builtinDef();
@@ -1124,31 +1211,22 @@ class Check {
   }
 
   static explicitFlags(): void {
-    const args = headlessArgs({
-      cwd: '.',
-      model: 'opus',
-      addDirs: ['/s'],
-      systemPrompt: 'роль',
-      tools: ['Read'],
-      allowedTools: ['Read'],
-      prompt: 'p',
-      persist: false,
-      maxTurns: 3,
-    });
-    const flag = (name: string) => args[args.indexOf(name) + 1];
-    expect(flag('--setting-sources')).toBe('');
-    expect(flag('--permission-mode')).toBe('dontAsk');
-    expect(flag('--model')).toBe('opus');
-    expect(flag('--tools')).toBe('Read');
-    expect(flag('--output-format')).toBe('json');
-    expect(args).toContain('--no-session-persistence');
+    const args = opencodeArgs('planner', 'zai-coding-plan/glm-5.3#max');
+    expect(args).toContain('--format');
+    expect(args).toContain('json');
+    expect(args).toContain('--auto');
+    expect(args).toContain('--agent');
+    expect(args).toContain('planner');
+    expect(args).toContain('--model');
+    expect(args).toContain('zai-coding-plan/glm-5.3#max');
   }
 }
 
 class Start {
   static async file(): Promise<void> {
     const f = await Flows.idle();
-    expect(f.artifacts).toEqual(['демо.expect.ts']);
+    const artifacts = f.artifacts.filter((a) => a !== 'bridge.json');
+    expect(artifacts).toEqual(['демо.expect.ts']);
     expect(f.plan).toContain("plan({ name: 'демо' })");
     expect(f.planFile).toBe(`${ARTIFACTS}/демо.expect.ts`);
     const existing =
@@ -1171,12 +1249,12 @@ class Start {
   }
 
   static async request(): Promise<void> {
-    const empty = await runFlow({ request: '' });
+    const empty = await runFlow({ request: '', lines: ['допиши план входа'] });
     expect(empty.request).toBe('');
-    expect(empty.interactive.map((r) => r.prompt)).toEqual(['']);
-    expect(empty.interactive[0]?.systemPrompt).toContain('дождись запроса');
+    expect(empty.stages.map((r) => r.task)).toEqual(['допиши план входа']);
+    expect(empty.stages[0]?.systemPrompt).toContain('дождись запроса');
     const line = await runFlow({ request: 'одной строкой' });
-    expect(line.interactive.map((r) => r.prompt)).toEqual(['одной строкой']);
+    expect(line.stages.map((r) => r.task)).toEqual(['одной строкой']);
   }
 
   static async htmlHeader(): Promise<void> {

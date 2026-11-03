@@ -12,20 +12,17 @@ import {
   computeSync,
   DELTA_SCHEMA,
   DEFAULT_CHANGELOG,
-  guardDecision,
-  headlessArgs,
-  interactiveArgs,
   KNOWN_ADAPTERS,
   KNOWN_CHECKS,
   parseConfig,
   parseFrontmatter,
-  roleArgs,
   runOutdated,
   UsageError,
   type Command,
 } from '@shahimat/ai-core';
 import {
   BUILTIN_PROVIDERS,
+  bashDecision,
   briefLines,
   callWrite,
   createSession,
@@ -34,14 +31,15 @@ import {
   loadHarness,
   loadLimits,
   loadProvider,
+  opencodeArgs,
   parseMachine,
   parseVerdicts,
   planIo,
-  plannerTools,
+  reportCommand,
   quoted,
-  selfCommand,
   type PlanContext,
 } from '@shahimat/harness';
+import { plannerGuard, docsGuard } from '@shahimat/oc3';
 import {
   applyAnswers,
   budget,
@@ -69,7 +67,7 @@ budget({ crit: 0, warn: 5 });
 
 describe('[harness] common', () => {
   crit(
-    'состав: команды ai-core — check, refresh, changelog, context, adapters, delta, docs, outdated, expect, goals, roles, skills, operator, models, index, secrets, role',
+    'состав: команды ai-core — check, refresh, changelog, context, adapters, delta, outdated, expect, goals, roles, skills, operator, models, index, secrets, role',
     () => Check.composition(),
   );
   crit(
@@ -128,11 +126,11 @@ describe('[harness] common', () => {
   it.todo(
     'дополнения проекта и пользователя подключаются из конфига динамическим import, без форка пакета',
   );
-  crit('без --root harness ищет проект вверх от места вызова: первый каталог с .claude', () =>
+  crit('без --root harness ищет проект вверх от места вызова: первый каталог с .opencode', () =>
     Root.discovered(),
   );
   crit(
-    'нет .claude в проекте — start любого harness не стартует и сообщает об этом; сам ничего не создаёт',
+    'нет .opencode в проекте — start любого harness не стартует и сообщает об этом; сам ничего не создаёт',
     () => Root.missing(),
   );
   crit.todo(
@@ -265,7 +263,7 @@ describe('[harness] ticket-work', () => {
     Ops.reviewQuotes(),
   );
   crit(
-    'роль в job — отдельный процесс claude -p; полный stream-json прогона пишется в журнал job',
+    'роль в job — отдельный процесс opencode run; полный журнал событий прогона пишется в журнал job',
     () => Ops.transcripts(),
   );
   warn('git-запись по job делает пользователь: executor не коммитит, ready ждёт «готово»', () =>
@@ -295,8 +293,9 @@ describe('[harness] ops', () => {
       ]),
   );
   crit('сводка ai ops brief — не больше 20 строк при любом числе jobs', () => Ops.briefLimit());
-  crit('hook ops-brief ставит ai ops brief в SessionStart на startup, resume и compact', () =>
-    Ops.briefHook(),
+  crit(
+    'ai ops brief приходит агенту на первом промпте сессии через oc3-плагин, один раз на сессию',
+    () => Ops.briefHook(),
   );
   crit(
     'действие наружу с уровнем never в context/autonomy.yml не выполняется даже прямой командой ai ops act',
@@ -355,17 +354,17 @@ describe('[harness] context', () => {
 });
 
 describe('[harness] adapters', () => {
-  crit('команда ai adapters sync — файлы под Claude Code и Codex из AGENTS.md и .agents/', () =>
+  crit('команда ai adapters sync — файлы под Codex и OpenCode из AGENTS.md и .agents/', () =>
     Check.commands(['adapters sync']),
   );
   crit(
     'команда ai adapters check — сверка файлов адаптеров с AGENTS.md и .agents/ без записи',
     () => Check.commands(['adapters check']),
   );
-  crit('адаптеры под инструменты: claude-code и codex — других нет', () => Check.adapters());
+  crit('адаптеры под инструменты: codex и opencode — других нет', () => Check.adapters());
   crit('adapters sync не меняет и не удаляет файлы без метки harness', () => Check.adaptersSafe());
   warn(
-    'adapters sync выключает memory: autoMemoryEnabled false в Claude Code, memories false в Codex',
+    'adapters sync выключает memory: memories false в Codex, memory-инструменты запрещены в OpenCode',
     () => Check.memoryOff(),
   );
 });
@@ -385,7 +384,7 @@ describe('[ai-core] docs guard', () => {
     () => Guard.decision(),
   );
   crit(
-    'adapters sync с hooks: [docs-guard] ставит hook ai docs guard в .claude/settings.json, свои hooks пользователя сохраняет',
+    'adapters sync пишет только производные объявленных адаптеров: ни settings.json, ни hook-конфигов',
     () => Guard.installed(),
   );
   crit('версии пакетов — в package.json проекта: в context/ai-core.yml ключа version нет', () =>
@@ -676,7 +675,7 @@ async function withGitProject(fn: (dir: string) => Promise<void>): Promise<void>
   const dir = await tempDir();
   const git = (...args: string[]) => spawnSync('git', args, { cwd: dir, encoding: 'utf8' });
   try {
-    await mkdir(path.join(dir, '.claude'), { recursive: true });
+    await mkdir(path.join(dir, '.opencode'), { recursive: true });
     await mkdir(path.join(dir, 'context/conventions'), { recursive: true });
     await mkdir(path.join(dir, 'context/.delta'), { recursive: true });
     await mkdir(path.join(dir, 'context/modules'), { recursive: true });
@@ -754,7 +753,6 @@ const DECLARED_COMMANDS = [
   'index build',
   'index check',
   'secrets scan',
-  'docs guard',
   'role run <name>',
   'role channel <message>',
   'refresh',
@@ -876,7 +874,6 @@ class Check {
       'check',
       'context',
       'delta',
-      'docs',
       'docs-delta',
       'expect',
       'goals',
@@ -910,7 +907,7 @@ class Check {
   }
 
   static adapters(): void {
-    expect([...KNOWN_ADAPTERS].sort()).toEqual(['claude-code', 'codex']);
+    expect([...KNOWN_ADAPTERS].sort()).toEqual(['codex', 'opencode']);
   }
 
   static async noBash(): Promise<void> {
@@ -1101,21 +1098,44 @@ class Check {
     const dir = await tempDir();
     try {
       await writeFile(path.join(dir, 'AGENTS.md'), '# x\n');
-      await writeFile(path.join(dir, 'CLAUDE.md'), 'ручной CLAUDE.md\n');
-      await mkdir(path.join(dir, '.claude/agents'), { recursive: true });
-      await writeFile(path.join(dir, '.claude/agents/mine.md'), '---\nname: mine\n---\nсвой\n');
-      const { actions, diagnostics } = await computeSync(dir, ['claude-code']);
+      await mkdir(path.join(dir, '.codex'), { recursive: true });
+      await writeFile(path.join(dir, '.codex/config.toml'), '[features]\nmemories = false\n');
+      await mkdir(path.join(dir, '.opencode/agents'), { recursive: true });
+      await writeFile(path.join(dir, '.opencode/agents/mine.md'), '---\ndescription: свой агент\n');
+      const { actions, diagnostics } = await computeSync(dir, ['codex', 'opencode']);
       expect(
-        actions.filter((a) => a.path === 'CLAUDE.md' || a.path === '.claude/agents/mine.md'),
+        actions.filter(
+          (a) => a.path === '.codex/config.toml' || a.path === '.opencode/agents/mine.md',
+        ),
       ).toEqual([]);
-      expect(diagnostics.some((d) => d.file === 'CLAUDE.md')).toBe(true);
+      expect(diagnostics.some((d) => d.file === '.codex/config.toml')).toBe(true);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
   }
 
   static contextIndexNoDate = (): Promise<void> => judged(['@context-index-no-date']);
-  static memoryOff = (): Promise<void> => judged(['@memory-off']);
+
+  static async memoryOff(): Promise<void> {
+    const dir = await tempDir();
+    try {
+      await writeFile(path.join(dir, 'AGENTS.md'), '# x\n');
+      await writeFile(path.join(dir, 'opencode.jsonc'), '{}\n');
+      const { actions } = await computeSync(dir, ['codex', 'opencode']);
+      const codex = actions.find((a) => a.path === '.codex/config.toml');
+      expect({
+        codexMemoryOff: codex?.content?.toString('utf8').includes('memories = false') === true,
+        opencodeGuard: actions.some(
+          (a) =>
+            a.path === '.opencode/opencode.jsonc' &&
+            a.content?.toString('utf8').includes('"*memory*"') === true,
+        ),
+        claude: actions.some((a) => a.path === '.claude/settings.json'),
+      }).toEqual({ codexMemoryOff: true, opencodeGuard: true, claude: false });
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  }
 
   static async skillFileShas(): Promise<void> {
     const bad = (await indexEntries()).filter(
@@ -1387,42 +1407,19 @@ function harnessWords(line: string): string[] | undefined {
 
 class Guard {
   static async decision(): Promise<void> {
-    await Check.commands(['docs guard']);
-    const dir = await tempDir();
-    try {
-      const edit = (file: string, tool = 'Edit') => ({
-        tool_name: tool,
-        tool_input: { file_path: file },
-      });
-      const blocked = async (file: string, tool?: string) =>
-        (await guardDecision(dir, edit(file, tool))).block;
-      expect({
-        changelog: await blocked('CHANGELOG.md', 'Write'),
-        convention: await blocked('context/conventions/x.yml'),
-        index: await blocked('context/index.yml'),
-        adapter: await blocked('CLAUDE.md'),
-        code: await blocked('src/app.ts'),
-      }).toEqual({ changelog: true, convention: true, index: true, adapter: true, code: false });
-    } finally {
-      await rm(dir, { recursive: true, force: true });
-    }
+    const nodes = [...BUILTIN_TREE.commands].map((c) => c.path.join(' '));
+    expect(nodes.includes('docs guard')).toBe(false);
+    expect(await docsGuard('executor', ['docs/entities/a.yml'], repoRoot())).toContain('librarian');
+    expect(await docsGuard('librarian', ['docs/entities/a.yml'], repoRoot())).toBeUndefined();
   }
 
   static async installed(): Promise<void> {
     const dir = await tempDir();
     try {
       await writeFile(path.join(dir, 'AGENTS.md'), '# x\n');
-      await mkdir(path.join(dir, '.claude'));
-      const own = { matcher: 'Bash', hooks: [{ type: 'command', command: 'echo own' }] };
-      await writeFile(
-        path.join(dir, '.claude/settings.json'),
-        JSON.stringify({ hooks: { PreToolUse: [own] } }),
-      );
-      const { actions } = await computeSync(dir, ['claude-code'], ['docs-guard']);
-      const settings = actions.find((a) => a.path === '.claude/settings.json');
-      const text = settings?.content?.toString('utf8') ?? '';
-      expect(text).toContain('docs guard');
-      expect(text).toContain('echo own');
+      const { actions } = await computeSync(dir, ['codex', 'opencode']);
+      expect(actions.filter((a) => a.path === '.claude/settings.json')).toEqual([]);
+      expect(await readdir(dir)).toEqual(['AGENTS.md']);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
@@ -1560,7 +1557,7 @@ class Layers {
         await writeFile(path.join(dir, 'CHANGELOG.md'), '- 2026-10-14 · без тега · b\n');
         await writeFile(
           path.join(dir, 'context/ai-core.yml'),
-          'adapters: [claude-code, codex]\nchecks:\n  changelog: {}\n  context-index: {}\n  adapters: {}\n',
+          'adapters: [codex, opencode]\nchecks:\n  changelog: {}\n  context-index: {}\n  adapters: {}\n',
         );
         const session = await createSession(home, {
           harness: 'plan-review',
@@ -1623,49 +1620,39 @@ class Layers {
         session,
         home,
         def: harness.def,
+        harness,
         runner: planIo.runner(),
-        self: selfCommand(),
+        stage: planIo.stage(),
+        repl: planIo.repl,
         hook: false,
         terminal: false,
         page: planIo.page,
       };
-      const planner = plannerTools(ctx);
-      const bash = planner.allowed.flatMap((r) => /^Bash\((.*)\)$/.exec(r)?.[1] ?? []);
-      expect(bash.length).toBeGreaterThan(0);
-      expect(bash.filter((cmd) => effectOf(node(harnessWords(cmd) ?? [])) !== 'query')).toEqual([]);
-
-      const toolsOf = (args: string[]): string[] =>
-        (args[args.indexOf('--tools') + 1] ?? '').split(',');
-      const interactive = interactiveArgs({
-        cwd: home,
-        model: 'opus',
-        sessionId: 's',
-        name: 'n',
-        addDirs: [],
-        systemPrompt: '',
-        settings: {},
-        tools: planner.tools,
-        allowedTools: planner.allowed,
-        prompt: '',
-      });
-      const headless = [planner.tools, JUDGE_TOOLS].map((tools) =>
-        headlessArgs({
-          cwd: home,
-          model: 'opus',
-          addDirs: [],
-          systemPrompt: '',
-          tools,
-          allowedTools: [],
-          prompt: '',
-          persist: false,
-          maxTurns: 1,
-        }),
-      );
-      for (const args of [interactive, ...headless]) {
-        expect(args).toContain('--disable-slash-commands');
-        expect(args).toContain('--tools');
-        expect(toolsOf(args)).not.toContain('Skill');
-      }
+      const report = reportCommand(ctx);
+      expect(report).toMatch(/ expect report \S+ --root /);
+      const bashAllowed = (command: string): boolean =>
+        bashDecision(command, report).block === undefined;
+      expect(bashAllowed(report)).toBe(true);
+      expect(bashAllowed('ls')).toBe(false);
+      expect(bashAllowed('npm run build')).toBe(false);
+      const planRel = session.data.planFile;
+      expect(
+        await plannerGuard(
+          'edit',
+          [planRel],
+          { events: '/tmp/e.jsonl', plan: planRel, report },
+          home,
+        ),
+      ).toBeUndefined();
+      expect(
+        await plannerGuard('bash', ['ls'], { events: '/tmp/e.jsonl', plan: planRel, report }, home),
+      ).toContain('только команда отчёта');
+      const args = opencodeArgs('judge', harness.def.models.judge);
+      expect(args).toContain('--agent');
+      expect(args).toContain('json');
+      const toolsOf = (prompt: string): boolean =>
+        prompt.includes('Read') || prompt.includes('read');
+      expect(toolsOf(JUDGE_TOOLS.join(','))).toBe(true);
       expect(JUDGE_TOOLS).not.toContain('Bash');
     } finally {
       await rm(home, { recursive: true, force: true });
@@ -1932,35 +1919,11 @@ class Processes {
   }
 
   static async noCallerContext(): Promise<void> {
-    const runs = [
-      interactiveArgs({
-        cwd: '.',
-        model: 'opus',
-        sessionId: 's',
-        name: 'n',
-        addDirs: [],
-        systemPrompt: '',
-        settings: {},
-        tools: ['Read'],
-        allowedTools: [],
-        prompt: '',
-      }),
-      headlessArgs({
-        cwd: '.',
-        model: 'opus',
-        addDirs: [],
-        systemPrompt: '',
-        tools: ['Read'],
-        allowedTools: [],
-        prompt: '',
-        persist: false,
-        maxTurns: 1,
-      }),
-    ];
-    for (const args of runs) {
-      expect(args[args.indexOf('--setting-sources') + 1]).toBe('');
-      expect(args).not.toContain('--continue');
-    }
+    const args = opencodeArgs('judge', 'm');
+    expect({
+      continue: args.includes('--continue'),
+      session: args.includes('--session'),
+    }).toEqual({ continue: false, session: false });
     const bad: string[] = [];
     for (const f of (await srcFiles()).filter((f) => layerOf(f) === 'harnesses')) {
       const text = await readRepo(realPath(f));
@@ -2695,7 +2658,7 @@ const moduleFile = (budgetWarn: number, body: string): string =>
   `${EXPECT_HEAD}void warn;\nvoid writeFileSync;\nvoid path;\nbudget({ crit: 0, warn: ${budgetWarn} });\n${body}`;
 
 const INDEX_ENTRY = 'expectations/index.expect.ts';
-const ARTIFACT_ENTRY = '.claude/artifacts/plan-review/demo.expect.ts';
+const ARTIFACT_ENTRY = '.opencode/artifacts/plan-review/demo.expect.ts';
 
 const ENTRY_FILES: Record<string, string> = {
   [INDEX_ENTRY]: "import './a.expect.ts';\nimport './c.expect.ts';\n",
@@ -2947,9 +2910,13 @@ class Root {
     const project = await mkdtemp(path.join(tmpdir(), 'harness-root-'));
     const home = await tempDir();
     try {
-      await mkdir(path.join(project, '.claude'), { recursive: true });
+      await mkdir(path.join(project, '.opencode', 'agents'), { recursive: true });
       await mkdir(path.join(project, 'context'), { recursive: true });
       await writeFile(path.join(project, 'context/ai-core.yml'), 'checks: {}\n');
+      await writeFile(
+        path.join(project, '.opencode/agents/planner.md'),
+        '---\ndescription: Планер\nmode: subagent\n---\nтело\n',
+      );
       const deep = path.join(project, 'sub/deeper');
       await mkdir(deep, { recursive: true });
       const run = (words: string[]) =>
@@ -2961,7 +2928,7 @@ class Root {
         run([
           'plan-review',
           'start',
-          '.claude/artifacts/plan-review/корень.expect.ts',
+          '.opencode/artifacts/plan-review/корень.expect.ts',
           '--request',
           'r',
         ]).status,
@@ -2971,9 +2938,9 @@ class Root {
       const real = await realpath(project);
       const projects = await Promise.all((await sessionProjects(home)).map((p) => realpath(p)));
       expect(projects).toEqual([real, real, real]);
-      expect(existsSync(path.join(project, '.claude/artifacts/plan-review/корень.expect.ts'))).toBe(
-        true,
-      );
+      expect(
+        existsSync(path.join(project, '.opencode/artifacts/plan-review/корень.expect.ts')),
+      ).toBe(true);
       expect(await readdir(deep)).toEqual([]);
     } finally {
       await rm(project, { recursive: true, force: true });
@@ -3001,11 +2968,11 @@ class Root {
         expect({
           words,
           status: r.status,
-          claude: `${r.stdout}${r.stderr}`.includes('.claude'),
+          marker: `${r.stdout}${r.stderr}`.includes('.opencode'),
         }).toEqual({
           words,
           status: 2,
-          claude: true,
+          marker: true,
         });
       }
       expect(await readdir(project)).toEqual([]);
@@ -3039,7 +3006,7 @@ export default {
 
 async function opsProject(home: string, extra: Record<string, string> = {}): Promise<string> {
   const dir = await tempDir();
-  await mkdir(path.join(dir, '.claude'));
+  await mkdir(path.join(dir, '.opencode'));
   const files: Record<string, string> = {
     'context/ops.yml': 'providers:\n  review: fake\n  schedule: fake\n',
     ...extra,
@@ -3161,24 +3128,7 @@ class Ops {
   }
 
   static async transcripts(): Promise<void> {
-    const args = roleArgs({
-      root: '/r',
-      role: {
-        name: 'executor',
-        source: 'agents/executor.md',
-        description: 'd',
-        skills: [],
-        tools: [],
-        output: 'result',
-        instructions: 'i',
-      },
-      task: 't',
-      out: '/o.json',
-      self: ['node', 'bin.js'],
-      transcript: '/r/.ops/jobs/x/runs/implement-1.jsonl',
-    });
-    expect(args[args.indexOf('--output-format') + 1]).toBe('stream-json');
-    expect(args[0]).toBe('-p');
+    expect(await readRepo('packages/ai-core/src/lib/opencode.ts')).toContain('journal?.write');
     expect(await readRepo(`${HARNESSES}/ticket-work/index.ts`)).toContain(
       'transcript: jobFile(s, `runs/',
     );
@@ -3210,12 +3160,9 @@ class Ops {
     const dir = await tempDir();
     try {
       await writeFile(path.join(dir, 'AGENTS.md'), '# x\n');
-      const { actions } = await computeSync(dir, ['claude-code'], ['ops-brief']);
-      const found = actions.find((a) => a.path.endsWith('settings.json'));
-      const text = found !== undefined && 'content' in found ? found.content.toString('utf8') : '';
-      const hook = unknownList(at(parseJson(text), 'hooks', 'SessionStart'), 'SessionStart')[0];
-      expect(stringAt(hook, 'matcher')).toBe('startup|resume|compact');
-      expect(JSON.stringify(at(hook, 'hooks'))).toMatch(/ops brief"/);
+      const { actions } = await computeSync(dir, ['codex', 'opencode']);
+      expect(JSON.stringify(actions)).not.toContain('ops brief');
+      expect(actions.filter((a) => a.path.endsWith('settings.json'))).toEqual([]);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
@@ -3285,7 +3232,7 @@ class Ops {
   static async quietTick(): Promise<void> {
     await withOps(async (home, log) => {
       const dir = await opsProject(home);
-      const env = { OPS_LOG: log, HARNESS_CLAUDE: path.join(home, 'нет-claude.mjs') };
+      const env = { OPS_LOG: log, HARNESS_OPENCODE: path.join(home, 'нет-opencode.mjs') };
       try {
         const base = ['--root', dir, '--home', home];
         const add = ['ops', 'watch', 'add', 'review', 'q', '--every', '1', ...base];

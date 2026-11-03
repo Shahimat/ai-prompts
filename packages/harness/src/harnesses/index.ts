@@ -10,6 +10,7 @@ export * from './plan-review/index.ts';
 export { DOCS_DELTA } from './docs-delta/index.ts';
 export { SOURCE_SYNC } from './source-sync/index.ts';
 export { TICKET_WORK, parseVerdicts, quoted, type Verdict } from './ticket-work/index.ts';
+export { opencodeArgs } from '@shahimat/ai-core';
 
 export const HARNESS_NODES: readonly CommandNode[] = [
   ...[PLAN_REVIEW, DOCS_DELTA, SOURCE_SYNC, TICKET_WORK].flatMap(harnessNodes),

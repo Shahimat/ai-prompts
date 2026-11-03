@@ -94,12 +94,11 @@ skills:
 - `cli` и `harness` публикуются при собственных изменениях; их пины на
   ai-core поднимаются в том же тикете, что и версия ai-core.
 
-## Hook `docs-guard`
+## Guards документации
 
-`ai docs guard` — hook `PreToolUse` Claude Code: правка документации и
-генерируемых файлов основной сессией — отказ с подсказкой передать
-намерения `ai docs-delta`. Ставит его `ai adapters sync` при
-`hooks: [docs-guard]`; вызов — `node node_modules/@shahimat/cli/dist/bin.js
-docs guard`, без `npx` на каждую правку. Роли запускаются с
-`--setting-sources ""` и hooks проекта не грузят. Запись через Bash hook
-не видит — её держит правило 4 `AGENTS.md`.
+Guards контракта — плагин `@shahimat/oc3` (подключается в
+`opencode.jsonc`): правка документации и генерируемых файлов основной
+сессией — отказ с подсказкой передать
+намерения `ai docs-delta`. Роли запускаются с конфигом из
+`OPENCODE_CONFIG_CONTENT` и плагинов проекта не грузят. Запись через
+Bash guard не видит — её держит правило 4 `AGENTS.md`.

@@ -1,0 +1,29 @@
+run: 1
+status: pass
+summary: Заголовки переписаны по утверждённому списку, warn CLAUDE.md удалён, info.text описывает oc3-мост; вердикты пересобраны, CI зелёный; все 6 пунктов DoD подтверждены самостоятельными проверками judge
+items:
+  - key: DoD-1 заголовки переписаны, старых упоминаний нет, новые формулировки соответствуют одобренным
+    status: pass
+    evidence: grep по заголовочным строкам (crit(/warn(/it(/it.todo) четырёх *.expect.ts на claude/.claude/UserPromptSubmit/PreToolUse/AskUserQuestion/PostToolUse/SessionStart/statusLine/Stop — rc=1 (пусто); в diff заголовков против базы purge-7 присутствуют одобренные формулировки: 'первый каталог с .opencode', 'отдельный процесс opencode run', 'через oc3-плагин', 'под Codex и OpenCode', 'codex и opencode — других нет', 'planner-events.jsonl', 'tool submit_result' (roles.expect.ts:56)
+    reason: старая лексика из заголовков удалена, новые совпадают с утверждённым списком; grep-фильтр DoD (длина >200) по заголовочным строкам пуст
+  - key: DoD-2 warn CLAUDE.md удалён целиком, тела проверок не изменены
+    status: pass
+    evidence: diff agent-operational-contract-v3.expect.ts против purge-7 — только 'warn('CLAUDE.md для Claude Code — импорт @AGENTS.md, генерирует ai adapters sync'', () => Check.claudeMd())' удалён (3 строки), других изменений нет; счётчик crit/warn/it 59→58 ровно на один пункт; в остальных трёх файлах diff — только строковые литералы заголовков/описаний и неизбежный перенос crit(...) на несколько строк (вызовы Check.*/Ops.*/Machine.* сохранены)
+    reason: пункт удалён целиком, тела проверок не тронуты
+  - key: DoD-3 info.text описывает мост без старых механик
+    status: pass
+    evidence: harness-plan-review.expect.ts:49-51 — info.text 'Переходы выводит oc3-мост из событий стадийного opencode run: события стадии пишутся в planner-events.jsonl, обмен harness и моста идёт через bridge.json, мост входит в oc3-плагин. Модель событий не объявляет.'
+    reason: все ключевые элементы моста (opencode run, planner-events.jsonl, bridge.json, oc3) на месте, hook-механик Claude нет
+  - key: DoD-4 вердикты свежие, противоречий 0, @claude-md-import отсутствует
+    status: pass
+    evidence: expectations/.verdicts.json — lint по 4 правленым файлам с 'at': '2026-11-03' (сегодня), contradictions: [] во всех 9 записях; grep claude-md-import по .verdicts.json — 0 совпадений; 55 вердиктов
+    reason: .verdicts.json пересобран штатной командой судьи по новым заголовкам
+  - key: DoD-5 npm run ci зелёный
+    status: pass
+    evidence: npm install + npm run ci в worktree — exit code 0; итог 'ожиданий 331: crit 0 · warn 5 · info 4 · ? 0 — в бюджете'; совпадений fail/error в выводе нет (только тексты тестов)
+    reason: прогон judge самостоятельно, зелёный
+  - key: DoD-6 границы правок, стиль, лимит заголовка
+    status: pass
+    evidence: diff -rq против purge-7 — различаются только 4 expectation-файла и .verdicts.json (пустой каталог expectations/.judge — артефакт сессии судьи, не контент); src/README/CHANGELOG/prompts не тронуты; grep по 4 файлам на 'as T'/!/any/== — только строки baseline-кода, в diff новые отсутствуют; новых комментариев нет; самый длинный заголовок ≤200 символов (grep-фильтр пуст; длинные строки — только template-литералы тел проверок)
+    reason: правки строго в границах тикета
+changes: []

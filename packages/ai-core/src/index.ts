@@ -19,7 +19,6 @@ export {
   DEFAULT_CHANGELOG,
   KNOWN_ADAPTERS,
   KNOWN_CHECKS,
-  KNOWN_HOOKS,
   loadConfig,
   type AdapterName,
   parseConfig,
@@ -95,20 +94,16 @@ export { advertisedSchema, serveChannel, type Channel } from './lib/mcp.ts';
 export {
   cliCommand,
   askRole,
-  finalLine,
   findRole,
-  READ_ONLY_TOOLS,
   ROLE_DIRS,
-  roleArgs,
   roleSystemPrompt,
   roleTimeoutMs,
-  stepOf,
   runRole,
   type AskOptions,
   type RoleOutcome,
   type RoleRun,
 } from './lib/role.ts';
-export * from './lib/claude.ts';
+export * from './lib/opencode.ts';
 export { readIntents } from './lib/intents.ts';
 export { errorCode, errorMessage, isOneOf, isRecord, isStringArray } from './shared/guards.ts';
 export type { CommandArgs } from './shared/args.ts';
@@ -118,12 +113,3 @@ export {
   runExpect,
   type ExpectSummary,
 } from './commands/expect/index.ts';
-export {
-  DOCS_DIRS,
-  DOCS_FILES,
-  guardDecision,
-  guardedReason,
-  GUARDED_TOOLS,
-  moduleLayers,
-  type GuardDecision,
-} from './commands/docs/index.ts';

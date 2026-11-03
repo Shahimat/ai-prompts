@@ -1,5 +1,4 @@
-adapters: [claude-code]
-hooks: [docs-guard]
+adapters: [opencode]
 checks:
   changelog:
     max_line: 120

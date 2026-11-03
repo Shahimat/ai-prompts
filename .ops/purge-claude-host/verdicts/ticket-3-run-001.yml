@@ -1,0 +1,29 @@
+run: 1
+status: pass
+summary: все 6 пунктов DoD подтверждены фактически в worktree purge-3-adapter-opencode; npm run ci зелёный, формат валиден для opencode v2.2.5
+items:
+  - key: dod-1-sync-check
+    status: pass
+    evidence: temp-проект /tmp/opencode/judge-t3, собранный CLI worktree (packages/cli/dist/bin.js): sync записал .opencode/agents/judge-agent.md и librarian.md; повторный sync — «adapters: без изменений»; check — «adapters check: ok»; удаление источника (.agents/agents/judge-agent.md) → sync «deleted .opencode/agents/judge-agent.md»; ручной .opencode/agents/manual.md без метки остался нетронутым с диагностикой конфликта
+    reason: генерация, идемпотентность, stale-очистка и защита ручных файлов работают через CLI, не только в тестах
+  - key: dod-2-opencode-format
+    status: pass
+    evidence: `opencode debug agents --standalone` (opencode v2.2.5) в temp-проекте: librarian — mode subagent, description «Раскладывает факты: по слоям»; агент с model: zai/glm-5.3#max распарсен как {id: glm-5.3, providerID: zai, variant: max}; tools нормализованы в read/edit/grep (packages/ai-core/src/commands/adapters/opencode.ts:6-10)
+    reason: frontmatter description/mode/model/tools и тело-инструкция приняты opencode v2.2.5 без ошибок
+  - key: dod-3-registration
+    status: pass
+    evidence: packages/ai-core/src/shared/config.ts:29 KNOWN_ADAPTERS = ['claude-code', 'codex', 'opencode']; expectations/schemas/ai-core-config.schema.json:10 enum дополнен opencode; expectations/harness.expect.ts:913 список содержит 'opencode'; строка 365 `crit('адаптеры под инструменты: claude-code и codex — других нет', ...)` — git diff harness.expect.ts ровно 1 строка (913), заголовок не изменён ни на байт
+    reason: регистрация полная, заголовок expectation сохранён
+  - key: dod-4-no-touch
+    status: pass
+    evidence: git diff -- context/ai-core.yml packages/ai-core/src/shared/models.ts — пусто; диффа файлов claude-code/codex (render.ts, memory.ts) нет — sync.ts только добавляет opencode-ветки, существующие строки не тронуты
+    reason: чужие адаптеры, конфиг и models.ts не изменены
+  - key: dod-5-ci-tests
+    status: pass
+    evidence: npm run ci в worktree зелёный (ожиданий 332: crit 0, warn 5 в бюджете); vitest adapters.test.ts — 29 passed; новые describe 'opencodeAgent' и 'adapters sync: opencode' покрывают генерацию+frontmatter+skills-preface, перенос model и нормализацию tools, идемпотентность+check, stale (выключен адаптер/удалён источник), ручной файл, устаревший агент через check, экранирование description
+    reason: ci зелёный, покрытие тестами соответствует перечню DoD
+  - key: dod-6-boundaries
+    status: pass
+    evidence: git status --short = 5 M (harness.expect.ts, schema, sync.ts, config.ts, adapters.test.ts) + ?? packages/ai-core/src/commands/adapters/opencode.ts + ?? .ops/ (отчёт executor .ops/purge-claude-host/reports/03-adapter-opencode.md, не код); в opencode.ts нет as T/!/any/== и комментариев (grep подтверждён)
+    reason: границы соблюдены; единственный незаявлённый файл — отчёт executor'а, кодом не является
+changes: []

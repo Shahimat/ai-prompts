@@ -1,5 +1,19 @@
 # CHANGELOG
 
+## 0.1.3
+
+- `submit_result` (tool oc3-плагина): роль в opencode-прогоне возвращает
+  итог — сообщение протокола (result, verdict, question) валидируется по
+  схеме и пишется в файл результата роли.
+- `ops-brief`: стартовая сводка `ai ops brief` дописывается к первому
+  запросу сессии — раз на сессию.
+- `plan-bridge` и `plannerGuard`: события FSM plan-review из событий
+  плагина пишутся в `.opencode/artifacts/plan-review/bridge.json`,
+  правки планера в чужие файлы отклоняются.
+- `generatedGuard`: правка сгенерированного (`context/index.yml`,
+  `.opencode/agents/`) отклоняется — правь источник и пересобери.
+- `@shahimat/ai-core` 0.1.6.
+
 ## 0.1.2
 
 - `oc3 models apply` и tool `oc3_models_apply`: применяют

@@ -19,6 +19,7 @@ export const shaOf = (text: string): string =>
 export function containsQuote(text: string, quote: string): boolean {
   const norm = (s: string): string =>
     s
+      .replace(/<!--[\s\S]*?-->/g, ' ')
       .replace(/[`*_>]/g, '')
       .replace(/\s+/g, ' ')
       .trim()

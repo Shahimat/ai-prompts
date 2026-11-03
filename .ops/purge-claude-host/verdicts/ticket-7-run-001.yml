@@ -1,0 +1,36 @@
+run: 1
+status: pass
+summary: Claude Code удалён из кода полностью; все 8 пунктов DoD подтверждены самостоятельными проверками judge
+items:
+  - key: DoD-1 grep -ril claude по src/test всех пакетов — пусто
+    status: pass
+    evidence: grep -ril claude packages/ai-core/src packages/ai-core/test packages/harness/src packages/harness/test packages/cli/src packages/cli/test packages/oc3/src packages/oc3/test — вывод пуст; упоминания остались только в packages/*/README.md, CHANGELOG.md, package.json (история, не код)
+    reason: в исходниках и тестах упоминаний claude нет
+  - key: DoD-2 удаления (claude.ts, role.ts, адаптер, memory.ts, docs, hooks, fake-claude, CLAUDE.md, judge.md, .gitignore)
+    status: pass
+    evidence: git status — D packages/ai-core/src/lib/claude.ts, D packages/ai-core/test/fake-claude.ts, D packages/harness/test/fake-claude.ts, fake-ops-claude.ts, D packages/ai-core/src/commands/docs/index.ts, D packages/ai-core/test/docs-guard.test.ts, D CLAUDE.md, D .opencode/agents/judge.md; ModelRunner/HeadlessRun/HeadlessResult в новом lib/opencode.ts без поля interactive; grep -i 'runner|claude' role.ts — пусто (HARNESS_RUNNER в репо отсутствует); grep claude adapters/*.ts — пусто; registry.ts без docs; grep hooks в config.ts/schema/ai-core.yml — rc=1 (ключ удалён); .gitignore: -.claude/ → +.opencode/artifacts/; grep -rn 'expect:claude-md-import|KNOWN_HOOKS|CLAUDE_SETTINGS' по packages/ и context/ — пусто (statusLine лишь в CHANGELOG-истории)
+    reason: все перечисленные сущности удалены, новый opencode-раннер на месте
+  - key: DoD-3 сохранено: codex, HARNESS_ROLE_TIMEOUT_MIN, транскрипты, oc3, ops-line снят
+    status: pass
+    evidence: adapters.test.ts — codex-тесты на месте (генерация toml, ручной config.toml с memories=false); grep HARNESS_ROLE_TIMEOUT_MIN packages/ai-core/src/lib/role.ts — найден; grep HARNESS_ROLE_TIMEOUT_MIN/HARNESS_RUNNER по packages/ — только легитимные; новые packages/oc3/src/{submit,ops-brief,plan-bridge}.ts + тесты; CI зелёный
+    reason: сохранённые артефакты присутствуют и протестированы
+  - key: DoD-4 заголовки expectations побайтово равны базе; механика переписана
+    status: pass
+    evidence: diff заголовочных строк (describe/crit/warn/it.todo) четырёх изменённых *.expect.ts против HEAD d88a6f3 — пусто (HEADERS-OK); механика: Check.claudeMd = expect([...KNOWN_ADAPTERS]).toEqual(['codex','opencode']); harnessConfigSchema фильтрует /claude/ и 'hooks:' строки; memory-off без claude (memory.ts: memories-ключи, тест adapters.test.ts:98-102); CLAUDE.md-файл удалён; commands.test.ts зелёный в CI — группы команд консистентны с registry без commands/docs
+    reason: заголовки не тронуты, проверки переписаны под новое поведение
+  - key: DoD-5 модели планера glm-5.3-flash#max
+    status: pass
+    evidence: machine.ts:34-37 DEFAULT_MODELS planner/judge = 'zai-coding-plan/glm-5.3-flash#max'; harness.yaml models-блок на месте
+    reason: обе модели переведены
+  - key: DoD-6 context/ai-core.yml и opencode.jsonc
+    status: pass
+    evidence: git diff context/ai-core.yml — '-adapters: [claude-code] -hooks: [docs-guard] → +adapters: [opencode]'; grep hooks по ai-core.yml — rc=1; diff opencode.jsonc — удалена только claude-permission строка
+    reason: конфиги чисты от claude
+  - key: DoD-7 npm run ci зелёный
+    status: pass
+    evidence: npm install + npm run ci в worktree — exit code 0; «ожиданий 332: crit 0 · warn 5 · info 4 · ? 0 — в бюджете»; grep fail/error — только совпадения в тексте тестов и бюджетный warn
+    reason: прогон judge самостоятельно, зелёный
+  - key: DoD-8 стиль и нетронутые файлы; .verdicts.json
+    status: pass
+    evidence: git diff по packages/*/README.md, CHANGELOG.md, package.json, prompts/, skills/, agents/ — пусто; новые файлы без `as T`/`!`/`any`/`==` (проверено grep'ом — только strict-сравнения) и без комментариев вне // expect:KEY; git diff expectations/.verdicts.json — 0 строк с 'claude', изменения — записи вердиктов прогонов тикетов 1–6 от 2026-11-03 (база тикета — некоммиченный union, отделить невозможно)
+    reason: стиль соблюдён, служебные файлы не тронуты; правок .verdicts.json от тикета 7 не обнаружено

@@ -1,11 +1,10 @@
 import { existsSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import type { CommandArgs } from '@shahimat/ai-core';
-import { UsageError } from '@shahimat/ai-core';
-import { cliCommand, errorMessage, isOneOf } from '@shahimat/ai-core';
+import { createInterface } from 'node:readline/promises';
+import type { CommandArgs, ModelRunner } from '@shahimat/ai-core';
+import { OpenCodeRunner, UsageError, cliCommand, errorMessage, isOneOf } from '@shahimat/ai-core';
 import {
-  ClaudeRunner,
   createSession,
   driveSession,
   HOME,
@@ -16,10 +15,16 @@ import {
   sessionOf as sessionOfHarness,
   type DriveResult,
   type HarnessModule,
-  type ModelRunner,
   type Session,
 } from '#harnesses/core/index';
-import { HOOKS, planFileOf, type PlanContext } from './actions.ts';
+import {
+  HOOKS,
+  opencodeStage,
+  planFileOf,
+  plannerAgentPath,
+  type PlanContext,
+  type StageRunner,
+} from './actions.ts';
 import { hookInputOf, runHook } from './hook.ts';
 import { servePage, type PlanPage } from './page.ts';
 import { loadHarness, loadHarnessOrFail, type LoadedHarness } from './load.ts';
@@ -27,11 +32,18 @@ import { readPlanState, readReview, reviewText } from './review.ts';
 
 export const io: {
   runner: () => ModelRunner;
+  stage: () => StageRunner;
+  repl: (prompt: string) => Promise<string>;
   stdin: () => Promise<string>;
   terminal: () => boolean;
   page: (root: string, file: string) => Promise<PlanPage>;
 } = {
-  runner: () => new ClaudeRunner(),
+  runner: () => new OpenCodeRunner(),
+  stage: () => opencodeStage,
+  repl: (prompt) => {
+    const rl = createInterface({ input: process.stdin, output: process.stdout });
+    return rl.question(prompt).finally(() => rl.close());
+  },
   stdin: readStdin,
   terminal: () => process.stdin.isTTY && process.stdout.isTTY,
   page: (root, file) => servePage(cliCommand(), root, file),
@@ -57,8 +69,10 @@ function context(
     session,
     home,
     def: harness.def,
+    harness,
     runner: io.runner(),
-    self: selfCommand(),
+    stage: io.stage(),
+    repl: io.repl,
     hook,
     terminal: io.terminal(),
     page: io.page,
@@ -136,7 +150,9 @@ async function runHookCommand(args: CommandArgs): Promise<number> {
     hookInputOf(raw),
   );
   if (hook === 'stop' && outcome.code === 2) {
-    console.log(JSON.stringify({ decision: 'block', reason: outcome.message ?? '' }));
+    console.log(
+      JSON.stringify({ decision: 'block', reason: outcome.task ?? outcome.message ?? '' }),
+    );
     return 0;
   }
   if (outcome.message !== undefined) console.error(outcome.message);
@@ -148,6 +164,10 @@ async function start(args: CommandArgs): Promise<Session> {
   const home = homeOf(args);
   const harness = await loadHarnessOrFail(home, 'plan-review');
   const planFile = await planFileArg(args);
+  if (!existsSync(plannerAgentPath(args.root)))
+    throw new UsageError(
+      `нет агента планера ${path.join('.opencode', 'agents', 'planner.md')} — сгенерируй адаптером (ai adapters sync) или положи файл агента`,
+    );
   const title = await planNameOf(path.join(args.root, planFile));
   console.log(`план: ${planFile}`);
   const session = await createSession(home, {

@@ -187,6 +187,7 @@ async function answerTask(
   root: string,
   t: JudgeTask,
 ): Promise<string | undefined> {
+  const schema = t.kind === 'batch' ? BATCH_ANSWER_SCHEMA : LINT_ANSWER_SCHEMA;
   const text = await readFile(path.join(root, t.task), 'utf8');
   const result = await input.runner.headless({
     cwd: root,
@@ -195,8 +196,8 @@ async function answerTask(
     systemPrompt: input.systemPrompt,
     tools: JUDGE_TOOLS,
     allowedTools: JUDGE_TOOLS,
-    prompt: `${text}\nФайл ответа не пиши: верни этот JSON структурированным ответом по схеме.`,
-    schema: t.kind === 'batch' ? BATCH_ANSWER_SCHEMA : LINT_ANSWER_SCHEMA,
+    prompt: `${text}\nФайл ответа не пиши: верни ответ единственным JSON-объектом без пояснений, строго по схеме: ${JSON.stringify(schema)}`,
+    schema,
     persist: false,
     maxTurns: 30,
   });

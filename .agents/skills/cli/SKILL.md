@@ -77,18 +77,15 @@ npx ai <автомат> start | open <id> | …
   включая слои модулей из `provides.index_layers` их manifest'ов; шаг
   `ai refresh`.
 - `ai adapters sync` — пересобрать файлы под инструменты
-  (`CLAUDE.md`, `.claude/`, `.codex/`) из `AGENTS.md` и `.agents/` и
-  выключить memory агента: `autoMemoryEnabled: false` в
-  `.claude/settings.json` (остальные ключи файла сохраняются),
+  (`.opencode/`, `.codex/`) из `AGENTS.md` и `.agents/` и выключить
+  memory агента: `.opencode/opencode.jsonc` с deny memory-MCP,
   `.codex/config.toml` с выключенными memories. Ручной
   `.codex/config.toml` не трогает — только сообщает, каких ключей не
-  хватает. С `hooks: [docs-guard]` ставит в `.claude/settings.json`
-  hook `PreToolUse` на `Edit` / `Write` — `ai docs guard`. Шаг
-  `ai refresh`.
-- `ai docs guard` — hook, его запускает Claude Code перед каждой
-  правкой файла в основной сессии: правка документации или
-  генерируемого файла — отказ с подсказкой передать намерения
-  `ai docs-delta`. Роли harness hooks проекта не грузят.
+  хватает. Шаг `ai refresh`.
+- Guards контракта (плагин `@shahimat/oc3`) — работают в основной
+  opencode-сессии проекта: правка документации или генерируемого файла —
+  отказ с подсказкой передать намерения `ai docs-delta`. Роли harness
+  конфиг проекта не грузят.
 - `ai outdated` — версии пакетов из `package.json` против
   последних в npm и записи их журналов между ними (код 1 — есть новее);
   первый шаг `ai source-sync`.
@@ -110,21 +107,20 @@ npx ai <автомат> start | open <id> | …
 ## Сгенерированное не правится руками
 
 <!-- expect:docs-readonly -->
-`context/index.yml`, `CLAUDE.md`, `.claude/skills/*` с файлом
-`.harness-generated`, `.claude/agents/*`, `.codex/agents/*`,
-сгенерированный `.codex/config.toml` — производные. Правишь источник,
+`context/index.yml`, `.opencode/agents/*` (метка «generated … do not
+edit» в файле), `.codex/agents/*`, сгенерированный `.codex/config.toml`
+— производные. Правишь источник,
 затем генерация. Ручную правку копии ловит проверка `adapters`.
 
-Файл без метки harness на месте генерируемого (например, свой
-`CLAUDE.md`) — sync его не трогает и сообщает: содержимое перенести в
-`AGENTS.md` или `.agents/`, файл удалить.
+Файл без метки harness на месте генерируемого (например, свой агент в
+`.opencode/agents/`) — sync его не трогает и сообщает: содержимое
+перенести в `AGENTS.md` или `.agents/`, файл удалить.
 <!-- /expect:docs-readonly -->
 
 ## `context/ai-core.yml`
 
 ```yaml
-adapters: [claude-code, codex]
-hooks: [docs-guard]                # запрет правки документации в основной сессии
+adapters: [codex, opencode]
 checks:
   changelog:
     max_line: 120

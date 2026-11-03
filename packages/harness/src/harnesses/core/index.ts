@@ -5,14 +5,9 @@ export * from './load.ts';
 export * from './plugins.ts';
 export * from './process.ts';
 export {
-  ClaudeRunner,
-  claudeBin,
-  headlessArgs,
-  interactiveArgs,
-  parseHeadless,
+  OpenCodeRunner,
   type HeadlessResult,
   type HeadlessRun,
-  type InteractiveRun,
   type ModelRunner,
 } from '@shahimat/ai-core';
 export * from './store/session.ts';

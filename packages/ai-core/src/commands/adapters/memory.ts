@@ -2,12 +2,10 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { Diagnostic } from '#shared/diagnostics';
-import type { HookKey } from '#shared/config';
-import { errorCode, errorMessage, isRecord } from '#shared/guards';
+import { errorCode } from '#shared/guards';
 import { GENERATED_MARK } from './render.ts';
 import type { Action } from './sync.ts';
 
-export const CLAUDE_SETTINGS = '.claude/settings.json';
 export const CODEX_CONFIG = '.codex/config.toml';
 export const OPENCODE_CONFIG = '.opencode/opencode.jsonc';
 
@@ -46,102 +44,6 @@ async function readOrNull(abs: string): Promise<string | null> {
     if (errorCode(error) === 'ENOENT') return null;
     throw error;
   }
-}
-
-export const DOCS_GUARD_COMMAND = 'node node_modules/@shahimat/cli/dist/bin.js docs guard';
-const DOCS_GUARD_MATCHER = 'Edit|Write|MultiEdit|NotebookEdit';
-export const OPS_BRIEF_COMMAND = 'node node_modules/@shahimat/cli/dist/bin.js ops brief';
-const OPS_BRIEF_MATCHER = 'startup|resume|compact';
-export const OPS_LINE_COMMAND = 'node node_modules/@shahimat/cli/dist/bin.js ops line';
-export const OPS_LINE_REFRESH_SECONDS = 5;
-
-interface HookSpec {
-  event: string;
-  matcher: string;
-  command: string;
-}
-
-const HOOK_SPECS: Readonly<Record<Exclude<HookKey, 'ops-line'>, HookSpec>> = {
-  'docs-guard': { event: 'PreToolUse', matcher: DOCS_GUARD_MATCHER, command: DOCS_GUARD_COMMAND },
-  'ops-brief': { event: 'SessionStart', matcher: OPS_BRIEF_MATCHER, command: OPS_BRIEF_COMMAND },
-};
-
-function withHook(data: Record<string, unknown>, spec: HookSpec): Record<string, unknown> {
-  const hooks = isRecord(data['hooks']) ? data['hooks'] : {};
-  const current = hooks[spec.event];
-  const list: unknown[] = Array.isArray(current) ? current : [];
-  const present = list.some(
-    (entry) =>
-      isRecord(entry) &&
-      Array.isArray(entry['hooks']) &&
-      entry['hooks'].some((h) => isRecord(h) && h['command'] === spec.command),
-  );
-  if (present) return data;
-  const hook = { matcher: spec.matcher, hooks: [{ type: 'command', command: spec.command }] };
-  return { ...data, hooks: { ...hooks, [spec.event]: [...list, hook] } };
-}
-
-function withStatusLine(data: Record<string, unknown>): Record<string, unknown> {
-  if (data['statusLine'] !== undefined) return data;
-  return {
-    ...data,
-    statusLine: {
-      type: 'command',
-      command: OPS_LINE_COMMAND,
-      refreshInterval: OPS_LINE_REFRESH_SECONDS,
-    },
-  };
-}
-
-const foreignStatusLine = (data: Record<string, unknown>): boolean =>
-  data['statusLine'] !== undefined &&
-  !(isRecord(data['statusLine']) && data['statusLine']['command'] === OPS_LINE_COMMAND);
-
-export async function claudeMemory(
-  root: string,
-  hookKeys: readonly HookKey[] = [],
-): Promise<{ actions: Action[]; diagnostics: Diagnostic[] }> {
-  const desired = (data: Record<string, unknown>): Record<string, unknown> => {
-    let next: Record<string, unknown> = { ...data, autoMemoryEnabled: false };
-    for (const key of hookKeys)
-      next = key === 'ops-line' ? withStatusLine(next) : withHook(next, HOOK_SPECS[key]);
-    return next;
-  };
-  const current = await readOrNull(path.join(root, CLAUDE_SETTINGS));
-  const write = (data: Record<string, unknown>): Action => ({
-    op: 'write',
-    path: CLAUDE_SETTINGS,
-    content: Buffer.from(`${JSON.stringify(data, null, 2)}\n`, 'utf8'),
-  });
-  if (current === null) return { actions: [write(desired({}))], diagnostics: [] };
-
-  let data: unknown;
-  try {
-    data = JSON.parse(current);
-  } catch (error) {
-    return {
-      actions: [],
-      diagnostics: [{ file: CLAUDE_SETTINGS, message: `невалидный JSON: ${errorMessage(error)}` }],
-    };
-  }
-  if (!isRecord(data)) {
-    return {
-      actions: [],
-      diagnostics: [{ file: CLAUDE_SETTINGS, message: 'корень должен быть объектом' }],
-    };
-  }
-  const next = desired(data);
-  const diagnostics: Diagnostic[] =
-    hookKeys.includes('ops-line') && foreignStatusLine(data)
-      ? [
-          {
-            file: CLAUDE_SETTINGS,
-            message: `statusLine уже задан проектом — ops-line не поставлен: убери ops-line из hooks в context/ai-core.yml или свой statusLine`,
-          },
-        ]
-      : [];
-  if (JSON.stringify(next) === JSON.stringify(data)) return { actions: [], diagnostics };
-  return { actions: [write(next)], diagnostics };
 }
 
 function scanToml(text: string): Map<string, string> {
@@ -196,7 +98,6 @@ export function opencodeConfig(): string {
     '  "$schema": "https://opencode.ai/config.json",',
     '  "permissions": [',
     '    { "action": "*memory*", "resource": "*", "effect": "deny" },',
-    '    { "action": "edit", "resource": "~/.claude/projects/*/memory/**", "effect": "deny" },',
     '    { "action": "edit", "resource": "~/.codex/**/memory/**", "effect": "deny" },',
     '    { "action": "edit", "resource": "~/.config/opencode/**/memory/**", "effect": "deny" }',
     '  ]',

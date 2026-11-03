@@ -1,0 +1,36 @@
+run: 1
+status: pass
+summary: plan-review переведён на opencode; все 8 пунктов DoD подтверждены проверками judge
+items:
+  - key: DoD-1 opencode-цикл в тестах plan-flow
+    status: pass
+    evidence: npx vitest run packages/harness/test/plan-flow.test.ts — 16 passed; HARNESS_OPENCODE=fake (stubEnv, test:174); покрытие: чистое ревью (it:297), ветка замечаний и лимит cycles=3 (it:364), build-лимит (it:390), clarify_form ask→дословный ответ (it:407), exit-флаг отложен/выход (it:328, it:344), пауза/resume — open продолжает ту же сессию (it:455), аттачменты (it:287, it:474)
+    reason: тесты прогнаны judge самостоятельно, зелёные
+  - key: DoD-2 мост bridge.json → oc3 plan-bridge → planner-events → runHook
+    status: pass
+    evidence: packages/harness/.../plan-review/actions.ts:41-103 (BRIDGE_FILE=.opencode/artifacts/plan-review/bridge.json, запись при старте); packages/oc3/src/plan-bridge.ts (readBridge гейтит по наличию bridge.json, session.hook('prompt') :77, permission.hook('evaluate') :88, appendBridgeEvent пишет planner-events.jsonl); packages/oc3/src/index.ts:11 — registerPlanBridge до гейта isOperatorCentric; harness читает события actions.ts:248-251 и гонит через runHook (hook.ts:215); vitest packages/oc3/test/plan-bridge.test.ts — 5 passed
+    reason: вся цепочка присутствует и покрыта тестами
+  - key: DoD-3 границы прав планера
+    status: pass
+    evidence: plan-bridge.ts:63-79 — edit/write только planAbs, иначе editDenied; bash только точная команда отчёта, иначе bashDenied; тест plan-bridge.test.ts (5 passed) и plan-flow.test.ts:263 «bashDecision: только прогон файла ожиданий»
+    reason: deny за пределами файла плана и команды отчёта проверен тестами
+  - key: DoD-4 судья через OpenCodeRunner.headless
+    status: pass
+    evidence: review.ts:192-201 — input.runner.headless с JSON-в-тексте («верни ответ единственным JSON-объектом… строго по схеме») и валидацией compileSchema; opencode.ts:213-229 structuredFromText + schema-валидация с уступкой отсутствию --json-schema; cli.ts:41 runner: () => new OpenCodeRunner()
+    reason: судья идёт через OpenCodeRunner, JSON извлекается из текста и валидируется схемой
+  - key: DoD-5 заголовки expectations не изменены; planner.md без Claude
+    status: pass
+    evidence: node-сверка всех строк describe/crit/warn/it.todo harness-plan-review.expect.ts и harness.expect.ts с main (d88a6f3) — SAME; механика менялась (schemas/ai-core-config.schema.json, фикстуры); grep -i claude в prompts/planner.md — пусто, diff planner.md 29+/19-
+    reason: заголовки байт-в-байт совпадают с main, planner.md переписан без упоминаний Claude
+  - key: DoD-6 claude-путь не сломан
+    status: pass
+    evidence: claude.ts существует, +1 строка (agent?: string в HeadlessRun, :33); role.ts:133-179 claude-ветка на месте (claudeBin, parseHeadless); HOOK_SPECS в adapters/memory.ts:64; packages/cli/src/cli.ts — единственная правка = маркер .opencode из базы #5; полные тесты CI зелёные
+    reason: claude-путь сохранён и протестирован
+  - key: DoD-7 npm run ci зелёный
+    status: pass
+    evidence: npm run ci в worktree — exit code 0; «ожиданий 332: crit 0 · warn 5 · info 4 · ? 0 — в бюджете»; deps установлены
+    reason: прогон judge самостоятельно, без ошибок
+  - key: DoD-8 стиль и нетронутые файлы
+    status: pass
+    evidence: git diff d88a6f3 по packages/ и expectations/ — нет `as T`/`!`/`any`/`==` в новых строках (кроме as const); комментарии только в тестовых фикстурах-строках; git diff --name-only | grep -E '^(README|CHANGELOG|context/|skills/|agents/|docs/)' — пусто
+    reason: стиль соблюдён, служебные файлы не тронуты

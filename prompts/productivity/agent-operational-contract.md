@@ -2,6 +2,7 @@
 key: agent-operational-contract
 kind: contract
 title: Операционный контракт агента
+deprecated: presets/operational.yml
 tags: [docs-as-code, tickets, rfc, project-management, workflow, agent-contract]
 use_case: Внедрение структурированной docs-as-code системы трекинга проекта (tickets, RFC, views, todo) с явными правилами для AI-агента. Скармливается агенту перед началом работы в проекте, где нужно вести машиночитаемую документацию, согласованную с git-историей.
 ---
@@ -36,7 +37,7 @@ use_case: Внедрение структурированной docs-as-code с�
 
 Если в проекте нет уже принятой структуры, использовать следующую:
 
-CLAUDE.md
+AGENTS.md
 docs/
   project.yaml
   index.md
@@ -51,7 +52,7 @@ docs/
   rfc/
     RFC-00001-auth-module-boundary.md
 
-`CLAUDE.md` — корневой операционный контракт для агента.
+`AGENTS.md` — корневой операционный контракт для агента.
 
 `docs/project.yaml` — верхнеуровневое машиночитаемое текущее состояние проекта.
 
@@ -141,7 +142,7 @@ docs/
 
 При анализе проекта всегда читать файлы в следующем порядке:
 
-1. `CLAUDE.md`
+1. `AGENTS.md`
 2. `docs/project.yaml`
 3. `docs/views/active.yaml`
 4. `docs/views/next.yaml`, если нужно

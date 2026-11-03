@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { main, run } from '@shahimat/cli';
 import { openSession } from '#harnesses/core/store/session';
 import { isRecord } from '@shahimat/ai-core';
-import { FAKE_CLAUDE } from './fake-claude.ts';
+import { FAKE_OPENCODE_ROLES } from './fake-opencode-roles.ts';
 
 const NOW = new Date('2026-10-28T12:00:00Z');
 
@@ -22,7 +22,7 @@ const RESULT = {
 let root: string;
 let home: string;
 let fake: string;
-const ENV = ['HARNESS_CLAUDE', 'FAKE_SUBMIT', 'FAKE_ARGS', 'FAKE_FILES'];
+const ENV = ['HARNESS_OPENCODE', 'FAKE_SUBMIT', 'FAKE_ARGS', 'FAKE_FILES'];
 let saved: [string, string | undefined][];
 
 async function put(rel: string, content: string): Promise<void> {
@@ -35,12 +35,12 @@ const roleFile = (name: string, output: string, extra = ''): string =>
 
 beforeEach(async () => {
   root = await mkdtemp(path.join(tmpdir(), 'harness-role-'));
-  await mkdir(path.join(root, '.claude'));
+  await mkdir(path.join(root, '.opencode'));
   home = await mkdtemp(path.join(tmpdir(), 'harness-role-home-'));
-  fake = path.join(home, 'fake-claude.mjs');
-  await writeFile(fake, FAKE_CLAUDE, 'utf8');
+  fake = path.join(home, 'fake-opencode.mjs');
+  await writeFile(fake, FAKE_OPENCODE_ROLES, 'utf8');
   saved = ENV.map((k) => [k, process.env[k]]);
-  process.env['HARNESS_CLAUDE'] = fake;
+  process.env['HARNESS_OPENCODE'] = fake;
   vi.spyOn(console, 'log').mockImplementation(() => undefined);
   vi.spyOn(console, 'error').mockImplementation(() => undefined);
 });
@@ -88,15 +88,15 @@ describe('docs-delta: роли librarian и judge', () => {
     return openSession(home, id);
   };
 
-  const calls = async (): Promise<{ message: string; prompt: string }[]> =>
+  const calls = async (): Promise<{ role: string; prompt: string }[]> =>
     (await readFile(path.join(home, 'args.jsonl'), 'utf8'))
       .split('\n')
       .filter((l) => l !== '')
       .map((l) => {
         const v: unknown = JSON.parse(l);
-        return isRecord(v) && typeof v['message'] === 'string' && typeof v['prompt'] === 'string'
-          ? { message: v['message'], prompt: v['prompt'] }
-          : { message: '', prompt: '' };
+        return isRecord(v) && typeof v['role'] === 'string' && typeof v['prompt'] === 'string'
+          ? { role: v['role'], prompt: v['prompt'] }
+          : { role: '', prompt: '' };
       });
 
   const start = (...extra: string[]) =>
@@ -112,7 +112,7 @@ describe('docs-delta: роли librarian и judge', () => {
 
   it('start --file: намерения по схеме хранятся в сессии; apply — librarian, review — judge по изменённым файлам', async () => {
     await project();
-    process.env['FAKE_SUBMIT'] = JSON.stringify({ result: RESULT, verdict: { conflicts: [] } });
+    process.env['FAKE_SUBMIT'] = JSON.stringify({ librarian: RESULT, judge: { conflicts: [] } });
     const lines: string[] = [];
     vi.spyOn(console, 'log').mockImplementation((...a: unknown[]) => {
       lines.push(a.join(' '));
@@ -125,11 +125,13 @@ describe('docs-delta: роли librarian и judge', () => {
       intents: [{ kind: 'rule', summary: 'новое', evidence: 'e' }],
     });
     const [keeper, judge] = await calls();
-    expect(keeper?.message).toBe('result');
+    expect(keeper?.role).toBe('librarian');
     expect(keeper?.prompt).toContain('"summary":"новое"');
-    expect(judge?.message).toBe('verdict');
+    expect(judge?.role).toBe('judge');
     expect((await readdir(s.file('runs'))).sort()).toEqual(['judge-1.jsonl', 'librarian-1.jsonl']);
-    expect(await readFile(s.file('runs/librarian-1.jsonl'), 'utf8')).toContain('"type":"result"');
+    expect(await readFile(s.file('runs/librarian-1.jsonl'), 'utf8')).toContain(
+      '"type":"step_finish"',
+    );
     expect(await readFile(s.file('progress.log'), 'utf8')).toContain('роль librarian: запущена');
     expect(judge?.prompt).toContain('- context/conventions/other.yml');
     expect(judge?.prompt).toContain('target: other');
@@ -145,12 +147,12 @@ describe('docs-delta: роли librarian и judge', () => {
   it('противоречие с дословными цитатами — возврат в apply с находками судьи, после трёх — failed', async () => {
     await project();
     process.env['FAKE_SUBMIT'] = JSON.stringify({
-      result: RESULT,
-      verdict: { conflicts: [CONFLICT] },
+      librarian: RESULT,
+      judge: { conflicts: [CONFLICT] },
     });
     expect(await start('--file', 'intents.yml')).toBe(0);
     expect((await session()).data.state).toBe('failed');
-    const keepers = (await calls()).filter((c) => c.message === 'result');
+    const keepers = (await calls()).filter((c) => c.role === 'librarian');
     expect(keepers).toHaveLength(4);
     expect(keepers[1]?.prompt).toContain('судья нашёл противоречия');
     expect(keepers[1]?.prompt).toContain('«summary: kebab-case»');
@@ -162,7 +164,7 @@ describe('docs-delta: роли librarian и judge', () => {
       'context/.delta/naming.yml': DELTA.replace('target: other', 'target: naming'),
       'context/conventions/naming.yml': 'key: naming\nsummary: snake_case\nrule: x\n',
     });
-    process.env['FAKE_SUBMIT'] = JSON.stringify({ result: RESULT, verdict: { conflicts: [] } });
+    process.env['FAKE_SUBMIT'] = JSON.stringify({ librarian: RESULT, judge: { conflicts: [] } });
     const lines: string[] = [];
     vi.spyOn(console, 'log').mockImplementation((...a: unknown[]) => {
       lines.push(a.join(' '));
@@ -170,7 +172,7 @@ describe('docs-delta: роли librarian и judge', () => {
     expect(await start('--file', 'intents.yml')).toBe(0);
     const s = await session();
     expect(s.data.state).toBe('failed');
-    const keepers = (await calls()).filter((c) => c.message === 'result');
+    const keepers = (await calls()).filter((c) => c.role === 'librarian');
     expect(keepers).toHaveLength(4);
     expect(keepers[0]?.prompt).toContain('собери дельту context/.delta/naming.yml');
     expect(keepers[1]?.prompt).toContain('уже есть — дополни её, а не пересобирай');
@@ -188,10 +190,10 @@ describe('docs-delta: роли librarian и judge', () => {
   it('review: судья получает только файлы — цели своей дельты', async () => {
     await project();
     await put('context/conventions/foreign.yml', 'key: foreign\nsummary: s\nrule: r\n');
-    process.env['FAKE_SUBMIT'] = JSON.stringify({ result: RESULT, verdict: { conflicts: [] } });
+    process.env['FAKE_SUBMIT'] = JSON.stringify({ librarian: RESULT, judge: { conflicts: [] } });
     expect(await start('--file', 'intents.yml')).toBe(0);
     expect((await session()).data.state).toBe('done');
-    const judge = (await calls()).find((c) => c.message === 'verdict');
+    const judge = (await calls()).find((c) => c.role === 'judge');
     expect(judge?.prompt).toContain('- context/conventions/other.yml');
     expect(judge?.prompt).not.toContain('foreign.yml');
   });
@@ -225,14 +227,14 @@ describe('docs-delta: роли librarian и judge', () => {
   it('противоречие без дословной цитаты отклоняется — правка проходит', async () => {
     await project();
     process.env['FAKE_SUBMIT'] = JSON.stringify({
-      result: RESULT,
-      verdict: { conflicts: [{ ...CONFLICT, quote_b: 'summary: camelCase' }] },
+      librarian: RESULT,
+      judge: { conflicts: [{ ...CONFLICT, quote_b: 'summary: camelCase' }] },
     });
     expect(await start('--file', 'intents.yml')).toBe(0);
     expect((await session()).data.state).toBe('done');
   });
 
-  it('роль не вернула результат — пауза в apply с заданием и намерениями для ручного handoff', async () => {
+  it('роль не вернула итог — пауза в apply с заданием и намерениями для ручного handoff', async () => {
     await project();
     const lines: string[] = [];
     vi.spyOn(console, 'log').mockImplementation((...a: unknown[]) => {
@@ -240,7 +242,7 @@ describe('docs-delta: роли librarian и judge', () => {
     });
     expect(await start('--file', 'intents.yml')).toBe(0);
     expect((await session()).data.state).toBe('apply');
-    expect(lines.join('\n')).toMatch(/роль librarian: .*не вернула результат.*docs-delta open/s);
+    expect(lines.join('\n')).toMatch(/роль librarian: .*не вернула итог.*docs-delta open/s);
     expect(lines.join('\n')).toContain('Намерения: {"intents"');
   });
 });

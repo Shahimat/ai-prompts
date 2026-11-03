@@ -26,15 +26,11 @@ export interface SecretsOptions {
   allow: SecretsAllow[];
 }
 
-export const KNOWN_ADAPTERS = ['claude-code', 'codex'] as const;
+export const KNOWN_ADAPTERS = ['codex', 'opencode'] as const;
 export type AdapterName = (typeof KNOWN_ADAPTERS)[number];
-
-export const KNOWN_HOOKS = ['docs-guard', 'ops-brief', 'ops-line'] as const;
-export type HookKey = (typeof KNOWN_HOOKS)[number];
 
 export interface HarnessConfig {
   adapters: AdapterName[];
-  hooks: HookKey[];
   checks: {
     changelog?: ChangelogOptions;
     'context-index'?: Record<string, never>;
@@ -43,7 +39,7 @@ export interface HarnessConfig {
   };
 }
 
-const TOP_LEVEL_KEYS = ['adapters', 'hooks', 'checks', 'worktrees', 'rules'];
+const TOP_LEVEL_KEYS = ['adapters', 'checks', 'worktrees', 'rules'];
 export const KNOWN_CHECKS = ['changelog', 'context-index', 'adapters', 'secrets'] as const;
 
 function fail(message: string): never {
@@ -116,14 +112,7 @@ export function parseConfig(text: string): HarnessConfig {
   if (!isRecord(data)) fail('корень должен быть объектом');
   unknownKeys(data, TOP_LEVEL_KEYS, 'корне');
 
-  const config: HarnessConfig = { adapters: [], hooks: [], checks: {} };
-  if (data['hooks'] !== undefined) {
-    const hooks = stringList(data['hooks'], 'hooks');
-    const unknown = hooks.filter((h) => !isOneOf(KNOWN_HOOKS, h));
-    if (unknown.length > 0)
-      fail(`неизвестные hooks: ${unknown.join(', ')} (есть: ${KNOWN_HOOKS.join(', ')})`);
-    config.hooks = hooks.filter((h): h is HookKey => isOneOf(KNOWN_HOOKS, h));
-  }
+  const config: HarnessConfig = { adapters: [], checks: {} };
   if (data['adapters'] !== undefined) {
     const adapters = stringList(data['adapters'], 'adapters');
     const known = adapters.filter((a): a is AdapterName => isOneOf(KNOWN_ADAPTERS, a));

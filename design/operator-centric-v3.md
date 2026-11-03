@@ -52,7 +52,7 @@ v3 ещё не менялись. Следующий шаг — **7.1, шаг 1: 
   задачи: `goals/`, expectations, вердикты и отчёты. Строгость — на
   краях: permissions, схемы, скрипты, бюджеты, locks, expectations.
 - **Существующие runtime.** Контракт не выдумывает новый runtime: он
-  описывает поведение поверх OpenCode, Claude Code, Codex и других.
+  описывает поведение поверх OpenCode, Codex и других.
   Плагин OpenCode — адаптер поведения, а не новый движок.
 - **Один библиотекарь, много ролей.** Документацию пишет только
   librarian — один, последовательно, без параллельных правок;
@@ -108,7 +108,7 @@ v3 ещё не менялись. Следующий шаг — **7.1, шаг 1: 
   `results` короче двух run'ов; с маркером `retry: true` (ставит только
   оператор) — короче трёх. Счётчик — сами данные `*.expect.json`, не чат
   и не дисциплина моделей: OpenCode — permission hook на запуск
-  judge-субагента, Claude Code/Codex — hook/раннер, headless — harness.
+  judge-субагента, Codex — раннер/проверки, headless — harness.
 - **Judge всегда свежий.** Один прогон — одна сессия judge, без resume:
   возобновляемый диалог executor↔judge — канал неучтённого расхода
   токенов, закрываем его полностью. Judge запускает executor; повторный
@@ -238,7 +238,7 @@ jobs. Это хорошо для однозначных повторяемых �
 - FSM — опциональный инструмент для headless-задач, не обязательный
   runtime;
 - контракт не выдумывает новый runtime: он описывает поведение поверх
-  OpenCode, Claude Code, Codex и других.
+  OpenCode, Codex и других.
 
 FSM остаётся для случаев, где переходы и повторяемость важнее свободы:
 CI, релиз, миграция, headless jobs.
@@ -495,7 +495,7 @@ baseline.
   целостности).
 
 Скиллы не попадают в контекст оператора: в OpenCode это `skill`
-permissions, в Claude Code — `skills` субагента, в Codex — инструкции
+permissions, в Codex — инструкции
 роли.
 
 ### 2.7 Скилл `operator-feedback`
@@ -549,7 +549,7 @@ session stats; в отчёте указывается метод и погреш
   расширяет `agent-frontmatter.schema.json`);
 - привязка skills — `context/skills.yml` (`roles: [...]`), не в роли;
 - исключения ролей (`role_exceptions`) — `context/project.yml`;
-- адаптеры генерируют `.opencode/agents`, `.claude/agents`,
+- адаптеры генерируют `.opencode/agents`,
   `.codex/agents`.
 
 Frontmatter роли:
@@ -730,7 +730,6 @@ Runtime:
 - OpenCode читает `.agents/skills` нативно; привязка — только из
   `context/skills.yml`; `skill` permissions дают доступ, но не задают
   привязку;
-- Claude Code — `.claude/skills` + `skills` у субагента;
 - Codex — `.agents/skills` + инструкции роли;
 - `context/skills.yml` — источник привязки для всех адаптеров.
 
@@ -917,7 +916,6 @@ AST-валидатор не даёт менять состав и бюджет. 
 
 - **OpenCode** — `permissions` агентов + плагин docs guard + `skill`
   permissions; `subagent` только для ролей.
-- **Claude Code** — субагенты, `tools`, hooks; ограничения на docs.
 - **Codex** — роли/инструкции, внешний runner, проверки.
 - **Headless** — внешний harness: роль получает только разрешённые
   инструменты.
@@ -1000,7 +998,7 @@ describe('goal: обновить AGENTS.md', () => {
     crit('AGENTS.md содержит маршрут к goals/', () => Check.route());
   });
   describe('ticket: pointer', () => {
-    warn('CLAUDE.md остаётся прослойкой', () => Check.pointer());
+    warn('AGENTS.md остаётся точкой входа', () => Check.pointer());
   });
 });
 ```
@@ -1057,8 +1055,8 @@ import './judge.expect.ts';
 - `retry: true` ставит только оператор, перед запуском повторного
   цикла; отсутствие поля — `false`. Гейт прогонов: judge запускается
   только при `results` короче двух run'ов, а с `retry: true` — короче
-  трёх. Гейт механический (OpenCode — permission hook, Claude
-  Code/Codex — hook/раннер, headless — harness); счётчик читается из
+  трёх. Гейт механический (OpenCode — permission hook, Codex —
+  раннер/проверки, headless — harness); счётчик читается из
   этого же файла.
 - Первый прогон — `pass`/`fail`; второй и последующие — негатив
   `satisfactorily` (без `fail`).
@@ -1074,7 +1072,7 @@ import './judge.expect.ts';
 
 Это ответ на «как валидировать diff judge на всех runtime»: не через
 permissions рантайма (они path-level), а общим AST-валидатором,
-одинаковым для OpenCode, Claude Code и Codex.
+одинаковым для OpenCode и Codex.
 
 ### Scratchpad оператора
 
@@ -1274,7 +1272,7 @@ docs. При смене машины или потере state оператор 
   `goals/*.expect.ts`, `.ops/<ticket>/verdicts/`, `*.expect.json`).
   Запись через shell покрывается аудитом, не path-level permission.
 - **Memory guard:** memory-инструменты и memory-MCP запрещены; запись в
-  memory-пути (`~/.claude/projects/*/memory/`, memory-каталоги Codex,
+  memory-пути (memory-каталоги Codex,
   аналоги) блокируется; OpenCode — deny memory-MCP/инструментов и
   `permission.hook("evaluate")`; `ctx.storage` — только явные кэши.
   Настройки и hooks ставит `oc3 adapters sync`, проверяет
@@ -1343,21 +1341,6 @@ bin `oc3` — те же команды для человека без токен
 
 Ограничения: todo плоский, нет вложенных зависимостей; для DAG нужен
 плагин-инструмент, не в MVP.
-
-### Claude Code
-
-- роли — субагенты `.claude/agents`, источник — `.agents/agents`;
-- модели — по таблице §0; запуски оператора в фоне; executor →
-  judge/researcher, глубина 2; гейт прогонов — hook на запуск judge;
-- skills — `.claude/skills`, привязка из `context/skills.yml`;
-- browser — MCP (Playwright/browser-use);
-- docs guard — hooks;
-- memory guard — `autoMemoryEnabled: false` в `.claude/settings.json`;
-  hook `block-memory-write-for-<contract-key>.sh` на `PreToolUse`
-  блокирует запись в `~/.claude/projects/*/memory/`;
-- видимость — субагенты/транскрипты;
-- watcher — MCP;
-- headless/durable — внешний harness.
 
 ### Codex
 
@@ -1485,7 +1468,7 @@ librarian — не нужен.
    - один проект;
    - критерии — 7.3;
    - после пилота — правки контракта и схем.
-8. **Другие runtime.** Claude Code/Codex адаптеры после пилота;
+8. **Другие runtime.** Codex-адаптер после пилота;
    внешний harness для headless — позже.
 
 ### 7.2 Ожидаемые файлы
@@ -1510,7 +1493,7 @@ librarian — не нужен.
 - `expectations/schemas/*` (включая `role.schema.json`),
   `expectations/*.expect.ts`.
 - `packages/ai-core` — команды и библиотека; `adapters sync/check`:
-  memory guard для Claude/Codex/OpenCode.
+  memory guard для Codex/OpenCode.
 - `packages/oc3` (`@shahimat/oc3`) — плагин OpenCode и bin `oc3`: лицо
   контракта в проекте-потребителе.
 - `packages/watcher` — отложен (решение пользователя, 2026-11-02).
@@ -1582,7 +1565,7 @@ librarian — не нужен.
 - librarian пишет документацию и прогоняет формальную проверку;
 - оператор, executor и judge не могут писать docs через `edit`; запись
   через shell ловится аудитом;
-- memory guard включён на каждом runtime: Claude — settings + hook,
+- memory guard включён на каждом runtime:
   Codex — config, OpenCode — deny memory-MCP/инструментов и
   evaluate-hook, прочие — memory off/deny, headless — окружение без
   memory; `ai adapters check` зелёный;
@@ -1617,7 +1600,7 @@ librarian — не нужен.
 - Skill manifest (`context/skills.yml`): как `requires.tools` и
   `permissions` отображаются в tools/permissions каждого runtime;
   правила `core`/`project`/`extends`.
-- Матрица browser-capability: какие tools у OpenCode/Claude/Codex,
+- Матрица browser-capability: какие tools у OpenCode/Codex,
   какие действия `self`/`ask`/`never`, какие домены.
 - Сколько живёт paused-исполнитель и когда его закрывать; закрывать ли
   worktree при закрытии тикета.
@@ -1662,7 +1645,7 @@ librarian — не нужен.
 - Итерация контракта завершена: контракт, skills, agents, presets, схемы
   и `prompts/index.yml` согласованы, `npm run ci` зелёный.
 - Шаг 4 (плагин `@shahimat/oc3`) и шаг 6 (гейты-команды) — готовы.
-  Watcher (шаг 5) отложен; Claude Code/Codex (шаг 8) — пауза; оба —
+  Watcher (шаг 5) отложен; Codex-адаптер (шаг 8) — пауза; оба —
   решения пользователя от 2026-11-02.
 - Следующий шаг — пилот (7.1, шаг 7; критерии — 7.3) по
   `docs/pilot.md`.

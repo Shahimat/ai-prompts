@@ -2,6 +2,22 @@
 
 Свежее сверху. Одна версия — список новых команд и проверок.
 
+## 0.1.6
+
+- Отказ от Claude Code как хоста: раннер ролей — opencode —
+  `opencode run --format json --auto --agent <роль>`; полный журнал
+  прогона пишется в транскрипт, итог роль возвращает инструментом
+  `submit_result` oc3-плагина с валидацией по схеме протокола.
+- Адаптер `opencode`: `adapters sync` генерирует
+  `.opencode/agents/<роль>.md` из `.agents/agents` (описание, mode,
+  tools, model); skills opencode читает нативно — копии в
+  `.claude/skills/` больше не нужны.
+- Удалено наследие Claude Code: раннер `claude -p` (`lib/claude.ts`),
+  адаптер `claude-code` с генерацией `CLAUDE.md` и
+  `.claude/settings.json`, hooks-механика (`ai docs guard`, docs-guard,
+  ops-brief) и ops-line (`statusLine`).
+- Дефолт моделей ролей — `zai-coding-plan/glm-5.3-flash#max`.
+
 ## 0.1.5
 
 - Модели ролей — любые из каталога OpenCode: `ROLE_MODEL_PATTERN`

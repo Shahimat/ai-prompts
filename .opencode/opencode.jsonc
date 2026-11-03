@@ -3,7 +3,6 @@
   "$schema": "https://opencode.ai/config.json",
   "permissions": [
     { "action": "*memory*", "resource": "*", "effect": "deny" },
-    { "action": "edit", "resource": "~/.claude/projects/*/memory/**", "effect": "deny" },
     { "action": "edit", "resource": "~/.codex/**/memory/**", "effect": "deny" },
     { "action": "edit", "resource": "~/.config/opencode/**/memory/**", "effect": "deny" }
   ]

@@ -31,7 +31,10 @@ export interface MachineDef {
   states: StateDef[];
 }
 
-export const DEFAULT_MODELS: MachineDef['models'] = { planner: 'opus', judge: 'opus' };
+export const DEFAULT_MODELS: MachineDef['models'] = {
+  planner: 'zai-coding-plan/glm-5.3-flash#max',
+  judge: 'zai-coding-plan/glm-5.3-flash#max',
+};
 
 export type ActionResult = { event: string } | { pause: string };
 

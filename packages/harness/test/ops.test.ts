@@ -21,7 +21,15 @@ import {
   systemdUnits,
 } from '#harnesses/core/index';
 import { parseVerdicts, quoted } from '#harnesses/ticket-work/index';
-import { FAKE_OPS_CLAUDE, result } from './fake-ops-claude.ts';
+import { FAKE_OPENCODE_ROLES } from './fake-opencode-roles.ts';
+
+export const result = (report: string, questions: string[] = [], status = 'done') => ({
+  status,
+  changed: [],
+  failed: [],
+  questions,
+  report,
+});
 
 const NOW = new Date('2026-10-29T12:00:00Z');
 const LATER = new Date('2026-10-29T12:03:00Z');
@@ -93,11 +101,11 @@ const run = (words: string[], now = NOW): Promise<number> =>
 
 beforeEach(async () => {
   root = await mkdtemp(path.join(tmpdir(), 'ops-'));
-  await mkdir(path.join(root, '.claude'));
+  await mkdir(path.join(root, '.opencode'));
   home = await mkdtemp(path.join(tmpdir(), 'ops-home-'));
-  const fake = path.join(home, 'fake-claude.mjs');
-  await writeFile(fake, FAKE_OPS_CLAUDE, 'utf8');
-  vi.stubEnv('HARNESS_CLAUDE', fake);
+  const fake = path.join(home, 'fake-opencode.mjs');
+  await writeFile(fake, FAKE_OPENCODE_ROLES, 'utf8');
+  vi.stubEnv('HARNESS_OPENCODE', fake);
   vi.stubEnv('FAKE_COUNTS', path.join(home, 'counts.json'));
   vi.stubEnv('FAKE_ARGS', path.join(home, 'args.jsonl'));
   vi.stubEnv('HARNESS_OPS_POLL_MS', '20');
@@ -137,7 +145,7 @@ describe('ticket-work: путь задачи', () => {
       'plan-1.jsonl',
       'research-1.jsonl',
     ]);
-    expect(await read('runs/research-1.jsonl', dir)).toContain('"type":"result"');
+    expect(await read('runs/research-1.jsonl', dir)).toContain('"type":"step_finish"');
 
     expect(await main(['ticket-work', 'answer', short, 'да', '--home', home], NOW)).toBe(0);
     expect(await stateOf()).toBe('ready');
@@ -150,7 +158,7 @@ describe('ticket-work: путь задачи', () => {
       .split('\n')
       .filter((l) => l.includes('"role":"executor"'))
       .at(-1);
-    expect(implement).toContain('--add-dir');
+    expect(implement).toContain(workdir);
 
     expect(await main(['ticket-work', 'status', id.slice(0, 7), '--home', home], NOW)).toBe(0);
     expect(await main(['ticket-work', 'list', '--home', home], NOW)).toBe(0);
@@ -298,11 +306,7 @@ export default {
 describe('ops: что работает сейчас', () => {
   it('status показывает работающую роль, её job, время и последний шаг из журнала', async () => {
     const transcript = path.join(home, 'runs', 'research-1.jsonl');
-    await put(
-      'runs/research-1.jsonl',
-      '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Grep"}]}}\n',
-      home,
-    );
+    await put('runs/research-1.jsonl', '{"type":"tool_use","part":{"tool":"Grep"}}\n', home);
     await put(
       'ops/slots/jobs-0.json',
       JSON.stringify({
@@ -610,34 +614,6 @@ describe('ops: mapping, проверка провайдеров и строка 
       ),
     );
     expect(await run(['ops', 'providers', 'check'])).toBe(0);
-  });
-
-  it('providers check на платформе без планировщика: schedule none — платформенный факт, код 0', async () => {
-    await put(
-      'context/ops.yml',
-      [
-        'providers:',
-        '  tasks: { provider: local, system: файлы задач }',
-        '  vcs: git',
-        '  review: { provider: none, why: ревью нет }',
-        '  checks: { provider: none, why: CI нет }',
-        '  notify: { provider: none, why: нет }',
-        'probe:',
-        '  tasks: tasks/t1.md',
-        '',
-      ].join('\n'),
-    );
-    const was = process.platform;
-    Object.defineProperty(process, 'platform', { value: 'win32' });
-    try {
-      out = [];
-      expect(await run(['ops', 'providers', 'check'])).toBe(0);
-      const text = out.join('\n');
-      expect(text).toContain('на платформе нет планировщика');
-      expect(text).toMatch(/schedule\t.*\tnone/);
-    } finally {
-      Object.defineProperty(process, 'platform', { value: was });
-    }
   });
 
   it('line: живая сессия автомата проекта — имя, задача, состояние, ожидание ответа', async () => {

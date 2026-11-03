@@ -51,6 +51,32 @@ export async function docsGuard(
   return undefined;
 }
 
+const GENERATED_FILES = new Set(['context/index.yml']);
+const GENERATED_AREA = '.opencode/agents/';
+const GENERATED_MARKER = /^\s*(?:[#>]|<!--)?\s*generated\b[\s\S]*do not edit/i;
+const GENERATED_PROBE = 400;
+
+async function isGenerated(p: string, root: string): Promise<boolean> {
+  const rel = path.relative(root, path.resolve(root, p)).split(path.sep).join('/');
+  if (!GENERATED_FILES.has(rel) && !rel.startsWith(GENERATED_AREA)) return false;
+  const text = await readOrNull(path.resolve(root, rel));
+  if (text === null) return false;
+  return GENERATED_MARKER.test(text.slice(0, GENERATED_PROBE));
+}
+
+export async function generatedGuard(
+  agent: string | undefined,
+  paths: readonly string[],
+  root: string,
+): Promise<string | undefined> {
+  if (agent === 'librarian') return undefined;
+  for (const p of paths) {
+    if (!(await isGenerated(p, root))) continue;
+    return `generated guard: ${p} сгенерирован harness-ом (метка «generated … do not edit»); правка агентом ${agent ?? 'main'} отклонена — правь источник и запусти пересборку (npm run index:build / ai adapters sync)`;
+  }
+  return undefined;
+}
+
 export function memoryGuard(paths: readonly string[], root: string): string | undefined {
   for (const p of paths) {
     if (!p.includes('/memory/')) continue;
@@ -105,6 +131,12 @@ export async function registerGuards(ctx: Plugin.Context): Promise<void> {
   const root = ctx.location.directory;
   await ctx.permission.hook('evaluate', async (event) => {
     if (event.action === 'edit' || event.action === 'write') {
+      const generated = await generatedGuard(event.agent, event.resources, root);
+      if (generated !== undefined) {
+        event.effect = 'deny';
+        event.message = generated;
+        return;
+      }
       const docs = await docsGuard(event.agent, event.resources, root);
       if (docs !== undefined) {
         event.effect = 'deny';

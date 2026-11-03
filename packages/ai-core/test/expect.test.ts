@@ -60,6 +60,12 @@ describe('containsQuote', () => {
     expect(containsQuote('abc def ghi', 'xyz qwe rty')).toBe(false);
     expect(containsQuote('коротко', 'кор')).toBe(false);
   });
+
+  it('служебный html-комментарий между фразами не ломает цитату, искажение ловится', () => {
+    const text = 'Правило первое целиком.\n<!-- /expect:skill-runs -->\nПравило второе целиком.';
+    expect(containsQuote(text, 'правило первое целиком. правило второе целиком.')).toBe(true);
+    expect(containsQuote(text, 'правило первое целиком. искажённое продолжение')).toBe(false);
+  });
 });
 
 describe('applyAnswers', () => {

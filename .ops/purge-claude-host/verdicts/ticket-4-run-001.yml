@@ -1,0 +1,24 @@
+run: 1
+status: pass
+summary: generatedGuard и ops-brief реализованы по DoD, ci зелёный, границы соблюдены
+items:
+  - key: generatedGuard
+    status: pass
+    evidence: packages/oc3/src/guards.ts:56-79 (GENERATED_FILES/GENERATED_AREA, GENERATED_MARKER, librarian-выход), :134-139 (вызов перед docsGuard в registerGuards); тесты packages/oc3/test/guards.test.ts:38-71
+    reason: Маркированные context/index.yml и .opencode/agents/*.md — deny с сообщением «правь источник и запусти пересборку»; немаркированные, отсутствующие, opencode.jsonc — allow; нормализация через path.resolve/path.relative (абсолютный, относительный, ./); librarian возвращается первым.
+  - key: ops-brief
+    status: pass
+    evidence: packages/oc3/src/ops-brief.ts (BRIEF_MAX_LINES=20, BRIEF_HEADER, timeout 10s, seen-Set на сессию, dispose регистрации); тесты packages/oc3/test/ops-brief.test.ts
+    reason: Нет CLI / exit(1) / пустой вывод — briefText возвращает undefined, промпт не меняется; cap 20 строк + заголовок (тест 21 строка); append один раз на сессию; cleanup при dispose — registerOpsBrief возвращает функцию dispose.
+  - key: not-broken
+    status: pass
+    evidence: git diff HEAD -- packages/oc3/src/briefing.ts tools.ts cli.ts init.ts пуст; git diff HEAD -- packages/ai-core — 0 строк
+    reason: docsGuard не изменён (в diff guards.ts только добавление generatedGuard), briefing.ts/tools.ts не тронуты.
+  - key: ci-green
+    status: pass
+    evidence: npm run ci в worktree — все suites passed (199+74+35+18 тестов), expectations 332: crit 0, «в бюджете»
+    reason: Полный ci зелёный; тесты покрывают оба deny-области, librarian-исключение, нормализацию путей, нет CLI, cap 20, падение CLI, append-один-раз, промпт без изменений.
+  - key: boundaries
+    status: pass
+    evidence: git status --short — только 5 файлов oc3 (guards.ts, index.ts, guards.test.ts изменены; ops-brief.ts, ops-brief.test.ts новые); HOOK_SPECS в packages/ai-core/src/commands/adapters/memory.ts:64-66 на месте
+    reason: ai-core/cli/harness, expectations/README/CHANGELOG/context/docs/skills/prompts/agents не тронуты; в новом коде нет `as T`/`!`/`any`/`==` и комментариев.

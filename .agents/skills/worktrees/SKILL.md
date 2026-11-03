@@ -13,9 +13,9 @@ description: Параллельная работа в git worktree — где ж
 ## Где и как
 
 - Каталог — `worktrees.dir` из `context/ai-core.yml` или
-  `.claude/worktrees/<name>` по умолчанию (совпадает с Claude Code
-  `--worktree`). Каталог в `.gitignore`.
-- Создание: `claude --worktree <name>` в Claude Code, режим Worktree в
+  `.opencode/worktrees/<name>` по умолчанию (совпадает с настройкой
+  `worktree.directory` в `opencode.jsonc`). Каталог в `.gitignore`.
+- Создание: режим Worktree в OpenCode, режим Worktree в
   Codex app, или `git worktree add <dir>/<name> -b <branch>`.
 - `.worktreeinclude` в корне — игнорируемые git файлы, которые
   копируются в новый worktree (локальные настройки, `.env`). Только
@@ -35,7 +35,7 @@ description: Параллельная работа в git worktree — где ж
   генератором.
 - `goals/*.expect.ts` — TypeScript; union не работает: конфликт
   импортов и тикетов решай руками, правку тикета сверь с baseline.
-- Адаптеры (`CLAUDE.md`, `.claude/`, `.codex/`) — пересобрать.
+- Адаптеры (`.opencode/`, `.codex/`) — пересобрать.
 
 <!-- expect:skill-runs -->
 <!-- metadata.runs: refresh -->

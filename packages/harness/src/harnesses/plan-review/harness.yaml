@@ -13,8 +13,8 @@ limits:
   build: 3
 
 models:
-  planner: opus
-  judge: opus
+  planner: zai-coding-plan/glm-5.3-flash#max
+  judge: zai-coding-plan/glm-5.3-flash#max
 
 states:
   awaiting_input:

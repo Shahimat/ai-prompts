@@ -136,13 +136,13 @@ describe('ai adapters sync', () => {
     expect(await run(['adapters', 'sync', '--root', root])).toBe(2);
   });
 
-  it('генерирует, check с adapters проходит; ручной CLAUDE.md — 1', async () => {
+  it('генерирует, check с adapters проходит; ручной config.toml — 1', async () => {
     await put('AGENTS.md', '# x\n');
-    await put('context/ai-core.yml', 'adapters: [claude-code]\nchecks:\n  adapters: {}\n');
+    await put('context/ai-core.yml', 'adapters: [codex]\nchecks:\n  adapters: {}\n');
     expect(await main(['adapters', 'sync', '--root', root], NOW)).toBe(0);
     expect(await main(['check', '--root', root], NOW)).toBe(0);
 
-    await put('CLAUDE.md', 'ручной\n');
+    await put('.codex/config.toml', 'ручной\n');
     expect(await main(['adapters', 'sync', '--root', root], NOW)).toBe(1);
     expect(await main(['check', '--root', root], NOW)).toBe(1);
   });
@@ -155,17 +155,17 @@ describe('ai adapters check', () => {
 
   it('сверяет адаптеры без записи: до sync — 1, после — 0', async () => {
     await put('AGENTS.md', '# x\n');
-    await put('context/ai-core.yml', 'adapters: [claude-code]\n');
+    await put('context/ai-core.yml', 'adapters: [codex]\n');
     expect(await main(['adapters', 'check', '--root', root], NOW)).toBe(1);
-    expect(existsSync(path.join(root, 'CLAUDE.md'))).toBe(false);
+    expect(existsSync(path.join(root, '.codex/config.toml'))).toBe(false);
     expect(await main(['adapters', 'sync', '--root', root], NOW)).toBe(0);
     expect(await main(['adapters', 'check', '--root', root], NOW)).toBe(0);
   });
 });
 
 describe('корень проекта harness', () => {
-  it('ищет .claude вверх от места вызова; домашний каталог проектом не считается', async () => {
-    await mkdir(path.join(root, '.claude'));
+  it('ищет .opencode вверх от места вызова; домашний каталог проектом не считается', async () => {
+    await mkdir(path.join(root, '.opencode'));
     await mkdir(path.join(root, 'a/b'), { recursive: true });
     expect(projectOf(path.join(root, 'a/b'))).toBe(root);
     const keys = ['HOME', 'USERPROFILE'];

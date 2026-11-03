@@ -1,6 +1,6 @@
 import { stat } from 'node:fs/promises';
 import path from 'node:path';
-import { errorMessage, stepOf } from '@shahimat/ai-core';
+import { errorMessage, openCodeStepOf } from '@shahimat/ai-core';
 import { listSessions, type Session } from '#harnesses/core/store/session';
 import { INTERFACES, loadAutonomy, loadOpsConfig, levelOf, type InterfaceName } from './config.ts';
 import { readText } from './files.ts';
@@ -68,13 +68,8 @@ export async function providersReport(root: string, home: string): Promise<Inter
       continue;
     }
     if (name === 'none') {
-      if (machine) {
-        row.status = 'none';
-        row.probe = mapping?.why ?? 'на платформе нет планировщика';
-      } else {
-        row.status = mapping?.why === undefined ? 'unmapped' : 'none';
-        row.probe = mapping?.why ?? `provider: none без why — запиши, почему аналога нет`;
-      }
+      row.status = mapping?.why === undefined ? 'unmapped' : 'none';
+      row.probe = mapping?.why ?? `provider: none без why — запиши, почему аналога нет`;
       continue;
     }
     try {
@@ -154,7 +149,7 @@ export async function liveLines(home: string, root: string, now: Date): Promise<
       const text = role.transcript === '' ? undefined : await readText(role.transcript);
       const last = (text ?? '')
         .split('\n')
-        .map(stepOf)
+        .map(openCodeStepOf)
         .filter((x) => x !== undefined)
         .at(-1);
       parts.push(`${role.role} ${minutes} мин`);

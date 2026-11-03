@@ -69,7 +69,7 @@ harness те же намерения проверяются схемой `intent
 | `context/.delta/` — создание и правка | librarian |
 | `context/.delta/` — удаление после приёмки | `ai delta close`; шаг `close` harness `docs-delta`, без harness — librarian |
 | `context/index.yml` | `ai context index`; шаг `verify` harness `docs-delta` |
-| адаптеры (`CLAUDE.md`, `.claude/`, `.codex/`) | `ai adapters sync`; шаг `verify` harness `docs-delta` |
+| адаптеры (`.opencode/`, `.codex/`) | `ai adapters sync`; шаг `verify` harness `docs-delta` |
 <!-- /expect:skill-runs -->
 
 Основная сессия в документацию не пишет.
@@ -213,7 +213,7 @@ narrative. Новый namespace — только с «да» пользоват�
 - librarian меняет только слои документации проекта — код, тесты,
   конфиги сборки, `goals/` и expectations не трогает;
 - не править сгенерированные файлы (`context/index.yml`, адаптеры в
-  `.claude/`, `.codex/`, `CLAUDE.md`): правится источник, затем
+  `.opencode/`, `.codex/`): правится источник, затем
   генерация;
 <!-- /expect:docs-readonly -->
 <!-- expect:docs-secrets -->

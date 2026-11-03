@@ -50,12 +50,12 @@ Mutation — `context index`, `adapters sync`, `delta close`,
   документации (entities, behavior, manuals, conventions, слои модулей).
 - `ai context check` — сверка `context/index.yml` со слоями
   документации без записи.
-- `ai adapters sync` — файлы под Claude Code и Codex из
-  `AGENTS.md` и `.agents/`: `CLAUDE.md`, копии skills, субагенты,
-  выключенная memory агента; при наличии `opencode.json(c)` —
-  `.opencode/opencode.jsonc` с deny memory-MCP; при
-  `hooks: [docs-guard]` — hook `ai docs guard` в `.claude/settings.json`
-  (свои hooks файла сохраняются).
+- `ai adapters sync` — файлы под Codex и OpenCode из `AGENTS.md` и
+  `.agents/`: субагенты `.opencode/agents/*.md` (при `codex` —
+  `.codex/agents/*.toml`) и выключенная memory агента
+  (`.opencode/opencode.jsonc` с deny memory-MCP; у codex —
+  `config.toml`); чужой файл на месте производного sync не трогает и
+  сообщает: содержимое перенести в источник.
 - `ai adapters check` — сверка файлов адаптеров с `AGENTS.md` и
   `.agents/` без записи.
 - `ai expect init` — каркас ожиданий в проекте: точка входа
@@ -109,13 +109,13 @@ Mutation — `context index`, `adapters sync`, `delta close`,
 - `ai outdated` — версии `@shahimat/ai-core` и `@shahimat/harness` из
   `package.json` проекта против последних в npm и записи их журналов
   между ними (код 1 — есть новее).
-- `ai docs guard` — hook `PreToolUse` для Claude Code: JSON hook на
-  stdin; `Edit` / `Write` в документацию (`CHANGELOG.md`,
-  `context/project.yml`, `context/conventions/`, `docs/`, слои модулей
-  из `provides.layers`, `context/.delta/`) и в генерируемые файлы
-  (`context/index.yml`, `CLAUDE.md`, `.claude/skills/`, `.claude/agents/`,
-  `.codex/agents/`) — отказ, код 2 и подсказка про `ai docs-delta`;
-  остальное — 0. Ставит его `adapters sync` при `hooks: [docs-guard]`.
+- Guards контракта — плагин `@shahimat/oc3` (подключается в
+  `opencode.jsonc`): `permission.hook` отклоняет правку документации
+  (`CHANGELOG.md`, `context/`, `docs/`) и генерируемых файлов
+  (`context/index.yml`, `.opencode/agents/` с меткой «generated») любым
+  агентом кроме librarian — с подсказкой править источник и про
+  `ai docs-delta`; запись в память инструмента вне репозитория —
+  отклонена.
 - `ai index build | check --raw-base <url>` — индекс
   `prompts/index.yml` репозитория промптов.
 
@@ -203,7 +203,7 @@ override проекта — любая модель каталога OpenCode, �
 и `output` — сообщение
 протокола, которым роль
 возвращает итог. Одна и та же роль работает субагентом в сессии агента
-(адаптеры генерируют `.claude/agents/`, `.codex/agents/`) и
+(адаптеры генерируют `.opencode/agents/`, `.codex/agents/`) и
 headless-исполнителем в harness.
 
 - Протокол — JSON Schema сообщений: `result` (итог работы: статус,
@@ -211,10 +211,11 @@ headless-исполнителем в harness.
   вердикты пакета или проверка заголовков), `question` (блокирующий
   вопрос человеку; канала для него пока нет). Схемы — `PROTOCOL` из
   пакета.
-- Запуск — `claude -p` из Claude Code пользователя (его вход):
-  `--setting-sources ""`, `--strict-mcp-config`, единственный MCP —
-  канал `role channel` с `submit_result`, права — `tools` роли и
-  `submit_result`, режим `dontAsk`, задание — на stdin. Ответ текстом
+- Запуск — `opencode run --format json --auto --agent <роль>
+  --model <модель>`: конфиг — из `OPENCODE_CONFIG_CONTENT` (единственная
+  инструкция — системный промпт роли), права — `tools` роли, итог —
+  инструментом `submit_result` плагина `@shahimat/oc3` (пишет файл
+  ответа), задание — на stdin. Ответ текстом
   harness не читает: нет вызова `submit_result` с валидным ответом —
   ошибка роли.
 - Вход роли librarian — схема `INTENTS_SCHEMA`: намерения `kind`
@@ -234,8 +235,7 @@ headless-исполнителем в harness.
 ## `context/ai-core.yml`
 
 ```yaml
-adapters: [claude-code, codex]
-hooks: [docs-guard]
+adapters: [codex, opencode]
 checks:
   changelog:
     max_line: 120

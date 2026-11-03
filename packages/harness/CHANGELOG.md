@@ -2,6 +2,17 @@
 
 Свежее сверху. Одна версия — список новых команд и проверок.
 
+## 0.5.0
+
+- Отказ от Claude Code как хоста автоматов: `plan-review` работает на
+  стадийном `opencode run` — планер ждёт в `.opencode/agents/planner.md`,
+  события FSM приходят из oc3-моста (файл
+  `.opencode/artifacts/plan-review/bridge.json`), судья и роли — через
+  раннер opencode пакета `@shahimat/ai-core`.
+- Маркер корня проекта — каталог `.opencode`: harness ищет его вверх от
+  места вызова или берёт `--root`; артефакты плана —
+  `.opencode/artifacts/plan-review/`.
+
 ## 0.4.3
 
 - `@shahimat/ai-core` 0.1.4: guard установки и корневой CHANGELOG.

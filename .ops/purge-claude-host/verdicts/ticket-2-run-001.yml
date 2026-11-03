@@ -1,0 +1,24 @@
+run: 1
+status: pass
+summary: OpenCodeRunner за HARNESS_RUNNER реализован, claude-путь не тронут, ci зелёный, границы соблюдены
+items:
+  - key: dod-1-развилка
+    status: pass
+    evidence: packages/ai-core/src/lib/role.ts:223-263 — `if (process.env['HARNESS_RUNNER'] === 'opencode')` ведёт на spawnOpenCode; без переменной выполняется прежний `spawnClaude(run.root, roleArgs(run), …)`; git diff main по claude.ts пуст (git diff --stat: только role.ts, role.test.ts + 2 новых файла)
+    reason: Развилка по HARNESS_RUNNER присутствует, дефолт — прежний claude-путь; stepOfLine по умолчанию зовёт существующий stepOf, claude.ts не изменён вовсе
+  - key: dod-2-opencode-прогон
+    status: pass
+    evidence: packages/ai-core/src/lib/opencode.ts — opencodeArgs() → ['run','--format','json','--auto','--agent',agent,'--model',model] (модель одной строкой с #variant); spawnOpenCode(): mkdtemp + OPENCODE_CONFIG_DIR + OPENCODE_CONFIG_CONTENT с instructions из roleSystemPrompt (role.ts:245), `child.stdin.end(spec.task)`, env['HARNESS_SUBMIT_OUT'] = spec.out, таймаут HARNESS_ROLE_TIMEOUT_MIN через roleTimeoutMs() (role.ts:236), транскрипт пишется по ходу через createWriteStream в stdout.on('data')
+    reason: Все элементы команды и изоляции на месте
+  - key: dod-3-итог
+    status: pass
+    evidence: role.ts:249-260 — submitFileOf (пустой/отсутствующий файл → undefined → throw «не вернула итог через …»), JSON.parse + compileSchema(PROTOCOL[run.role.output ?? 'result']); ошибка кода ≠ 0 — `opencode run: код ${code}: ${tail}` где tail = error-событие или stderr-срез, costUsd из step_finish-события (opencode.ts parseOpenCodeEvents), прогресс по tool_use (openCodeStepOf)
+    reason: Итог и ошибки по образцу claude-ветки
+  - key: dod-4-ci-тесты
+    status: pass
+    evidence: `npm run ci` в worktree — «ожиданий 332: crit 0 · warn 5 · info 4 · ? 0 — в бюджете», провалов нет (предупреждение по metadata.runs — претикетное); role.test.ts: блок «роль: запуск opencode» — точные флаги opencodeArgs, модель с вариантом и без, итог из HARNESS_SUBMIT_OUT (verdict), role run --out (a.json = {answers: []}), транскрипт + прогресс tool_use, «не вернула итог», код 1 с FAKE_ERROR в сообщении, таймаут
+    reason: Старые claude-тесты без изменений смысла (дифф — только добавления: ENV/beforeEach и новый describe)
+  - key: dod-5-границы
+    status: pass
+    evidence: git status --short — ровно 4 файла (M role.ts, M role.test.ts, ?? opencode.ts, ?? fake-opencode.ts); grep по новым/диффам — нет `as T`/`!`/`any`/`==`/комментариев
+    reason: index.ts, adapters, config, schema, oc3, cli, harness, expectations, docs — не тронуты

@@ -1,0 +1,25 @@
+run: 1
+status: pass
+summary: все 5 пунктов DoD подтверждены в worktree purge-1-submit-result; npm run ci зелёный
+items:
+  - key: dod-1-tool
+    status: pass
+    evidence: packages/oc3/src/tools.ts:189-201 (editor.add({ name: SUBMIT_TOOL, ... options: { namespace: 'oc3' } })); packages/oc3/src/submit.ts:25-38 (SUBMIT_INPUT oneOf по PROTOCOL_MESSAGES, additionalProperties: false)
+    reason: инструмент зарегистрирован в namespace oc3; конверт строго message|data, лишние поля отклоняются, data валидируется по схеме PROTOCOL[message]
+  - key: dod-2-role-gate
+    status: pass
+    evidence: packages/oc3/src/submit.ts:80-92; тесты 'сессия без роли отклоняется', 'сессия без агента отклоняется', 'сообщение чужого типа для роли отклонено' (packages/oc3/test/submit.test.ts:106-120)
+    reason: agent пуст/неизвестен или findRole падает — отказ с внятной ошибкой; message !== role.output отклоняется (judge → verdict и т.д.)
+  - key: dod-3-persistence
+    status: pass
+    evidence: packages/oc3/src/submit.ts:70-79 (env HARNESS_SUBMIT_OUT, fallback root/.ops/submit/<sessionID>.json, SESSION_PATTERN, writeFile с перезаписью)
+    reason: env приоритет, fallback с санитизацией sessionID; writeFile перезаписывает — «последний выигрывает»; .ops/submit/ добавлен в .gitignore
+  - key: dod-4-ci
+    status: pass
+    evidence: npm run ci — ожиданий 332: crit 0, warn 5 в бюджете; vitest oc3: 4 файлов / 24 тестов зелёные, включая 12 тестов submit.test.ts (валидные result/verdict/question, fallback, лишние поля конверта и data, чужая схема, чужой message, неизвестный message, без роли, кривой sessionID)
+    reason: весь ci зелёный, покрытие тестами соответствует пункту DoD
+  - key: dod-5-boundaries
+    status: pass
+    evidence: git status --short = только M .gitignore, M packages/oc3/src/tools.ts, ?? packages/oc3/src/submit.ts, ?? packages/oc3/test/submit.test.ts (+незtracked .ops/ воркtree, не в git); диффа вне 4 файлов нет
+    reason: границы соблюдены; claude-код не удалён; в новых/изменённых строках нет as T/!/any/== и комментариев
+changes: []

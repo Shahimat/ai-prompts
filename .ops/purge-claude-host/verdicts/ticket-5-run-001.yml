@@ -1,0 +1,29 @@
+run: 1
+status: pass
+summary: Маркер корня и plan-review артефакты переведены на .opencode; заголовки expectations не тронуты; npm run ci зелёный.
+items:
+  - key: dod-1-projectOf-requireProject
+    status: pass
+    evidence: packages/cli/src/cli.ts:17-18 `const marker = path.join(dir, '.opencode'); if (dir !== home && existsSync(marker) && statSync(marker).isDirectory()) return dir;`; packages/harness/src/harnesses/core/catalog.ts:30-33 `нет каталога .opencode в ${root}: harness запускается в проекте с .opencode (поиск вверх от места вызова или --root)`
+    reason: Маркер `.opencode`, поиск вверх и исключение home сохранены, текст ошибки требует `.opencode`.
+  - key: dod-2-plan-review-artifacts
+    status: pass
+    evidence: expectations/harness.expect.ts:2698 ARTIFACT_ENTRY = '.opencode/artifacts/plan-review/demo.expect.ts'; expectations/harness-plan-review.expect.ts:358 ARTIFACTS = '.opencode/artifacts/plan-review', :454 mkdir '.opencode'; grep по packages/{harness,cli}/src — захардкоженных путей артефактов нет
+    reason: Пути артефактов план-ревью обновлены только в expectations-механике, src не тронут.
+  - key: dod-3-test-fixtures
+    status: pass
+    evidence: diff — packages/cli/test/cli.test.ts:168, packages/harness/test/{docs-delta-roles:38, ops:96, plan-flow:128, processes:39}.test.ts, expectations/harness.expect.ts (withGitProject:679, Root:2950, opsProject:3042), harness-plan-review.expect.ts:454 — все mkdir `.claude` → `.opencode`; npm run ci (включая vitest) exit 0
+    reason: Все фиксnui стартующих-harness тестов переведены, прогон тестов зелёный.
+  - key: dod-4-gitignore
+    status: pass
+    evidence: .gitignore:6 осталась `.claude/`; заменена только строка 7 `.claude/artifacts/` → `.opencode/artifacts/`
+    reason: Тронута только строка artifacts.
+  - key: dod-5-expectations-headers
+    status: pass
+    evidence: diff заголовков (строки describe/crit/warn/it) между main и worktree для expectations/harness.expect.ts и harness-plan-review.expect.ts пуст (HEADERS-SAME); изменения — только константы и фикстуры
+    reason: Заголовки не изменены, правка только механики.
+  - key: dod-6-ci-bounds-style
+    status: pass
+    evidence: `npm run ci` в worktree — exit 0 (ожиданий 332: crit 0 · warn 5 — в бюджете); git diff затрагивает ровно 10 файлов из заявки; границы (ai-core, oc3, adapters, repoSources, claude.ts/role.ts, HOOK_SPECS, доки) не в diff; в изменённых строках нет as T / ! / any / == / комментариев
+    reason: CI зелёный, границы соблюдены, git status совпадает с заявкой (плюс untracked .ops/ — вердикты judge).
+changes: []

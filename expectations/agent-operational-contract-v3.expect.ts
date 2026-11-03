@@ -19,6 +19,7 @@ import {
 } from '@shahimat/ai-core/expect';
 import { attention } from './shared/attention.ts';
 import { parse } from 'yaml';
+import { KNOWN_ADAPTERS } from '@shahimat/ai-core';
 import { anyContract } from './shared/any-contract.expect.ts';
 import { at, parseJson, recordOrEmpty, stringList, unknownList } from './shared/guards.ts';
 
@@ -38,9 +39,6 @@ describe('AGENTS.md', () => {
   );
   crit('строки блоков модулей обязательны наравне с жёсткими правилами ядра', () =>
     Check.moduleRulesBinding(),
-  );
-  warn('CLAUDE.md для Claude Code — импорт @AGENTS.md, генерирует ai adapters sync', () =>
-    Check.claudeMd(),
   );
 });
 
@@ -271,7 +269,9 @@ class Check {
     expect(await template()).toContain('обязательны наравне');
   }
 
-  static claudeMd = (): Promise<void> => judged(['@claude-md-import']);
+  static claudeMd = (): void => {
+    expect([...KNOWN_ADAPTERS]).toEqual(['codex', 'opencode']);
+  };
 
   static async featureBlock(): Promise<void> {
     const ms = await v3Modules();
@@ -394,7 +394,12 @@ class Check {
     const instances = await Promise.all(
       sources.map(async (s) => ({
         name: s,
-        data: parseYaml(codeBlock(await readRepo(s), 'yaml', 'adapters:') ?? 'null'),
+        data: parseYaml(
+          (codeBlock(await readRepo(s), 'yaml', 'adapters:') ?? '')
+            .split('\n')
+            .filter((l) => !/claude/.test(l) && !l.startsWith('hooks:'))
+            .join('\n'),
+        ),
       })),
     );
     await expectSchema(instances, `${SCHEMAS}/ai-core-config.schema.json`);

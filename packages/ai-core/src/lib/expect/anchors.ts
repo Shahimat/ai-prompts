@@ -14,7 +14,6 @@ const SKIP_DIRS = new Set([
   'node_modules',
   'dist',
   'expectations',
-  '.claude',
   '.codex',
   '.agents',
   '.opencode',

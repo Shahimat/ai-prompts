@@ -1,0 +1,56 @@
+run: 1
+status: pass
+summary: Все 6 пунктов DoD подтверждены в worktree purge-10-changelog; npm run ci зелёный.
+items:
+  - key: dod-1-changelog-content
+    status: pass
+    evidence: >
+      packages/ai-core/CHANGELOG.md (## 0.1.6: раннер opencode, submit_result,
+      адаптер opencode .opencode/agents, удаление lib/claude.ts, CLAUDE.md,
+      hooks и ops-line, дефолт zai-coding-plan/glm-5.3-flash#max);
+      packages/harness/CHANGELOG.md (## 0.5.0: план-review на стадийном
+      opencode run, oc3-мост bridge.json, маркер .opencode);
+      packages/cli/CHANGELOG.md (## 0.1.4: маркер корня .opencode);
+      packages/oc3/CHANGELOG.md (## 0.1.3: submit_result, ops-brief,
+      plan-bridge, generatedGuard).
+    reason: Секции добавлены во все 4 журнала, содержание покрывает весь перечень DoD.
+  - key: dod-2-versions-and-pins
+    status: pass
+    evidence: >
+      package.json: ai-core 0.1.6, harness 0.5.0, cli 0.1.4, oc3 0.1.3; верхние
+      записи CHANGELOG совпадают; пины @shahimat/* обновлены (cli→ai-core 0.1.6,
+      harness→ai-core 0.1.6 + cli 0.1.4, oc3→ai-core 0.1.6, ai-core devDep cli
+      0.1.4); packages-check зелёный внутри npm run ci.
+    reason: Версии, записи журналов и пины согласованы, packages-check прошёл.
+  - key: dod-3-old-records-untouched
+    status: pass
+    evidence: >
+      git diff d88a6f3 -- packages/*/CHANGELOG.md содержит только добавления
+      (+) в верхних секциях; контекст старых записей (0.1.5, 0.1.3, 0.4.3,
+      0.1.2, 0.1.0) без удалений.
+    reason: Старые записи побайтово нетронуты.
+  - key: dod-4-format
+    status: pass
+    evidence: >
+      awk length>120 по packages/*/CHANGELOG.md — одно совпадение,
+      packages/oc3/CHANGELOG.md:37 (235 симв.), это старая запись 0.1.0,
+      не новая. Все новые строки ≤120; стиль «## X.Y.Z» + пунктирный список
+      как в существующих записях.
+    reason: Формат новых записей соблюдён.
+  - key: dod-5-ci-green
+    status: pass
+    evidence: >
+      npm install выполнен (lockfile обновлён на 18 строк — только версии
+      workspace-пакетов и пины); npm run ci в worktree — exit 0 (GREEN),
+      packages-check без замечаний к lockfile; ожиданий 332, crit 0, в бюджете.
+    reason: CI зелёный после установки; lockfile зафиксирован (см. changes-контекст п.6).
+  - key: dod-6-boundaries
+    status: pass
+    evidence: >
+      Тикетные изменения поверх union тикетов 1–7 — 4 CHANGELOG.md,
+      4 package.json и package-lock.json (только версии/пины, 9+9 строк);
+      README/prompts/skills/expectations/src в тикетных изменениях не тронуты
+      (их модификации — часть union тикетов 1–7, не тикета 10); claude в новых
+      записях упомянут только как удаляемое наследие («отказ», «удалено»).
+    reason: Границы соблюдены; lockfile — ожидаемое следствие бампов.
+changes: []

@@ -1,0 +1,37 @@
+run: 1
+status: fail
+summary: Вычистка doc-слоёв почти полная, но в packages/ai-core/README.md пример конфига содержит удалённый hooks: [docs-guard] — конфиг теперь такой ключ отвергает
+items:
+  - key: "DoD-1 grep claude по doc-слоям пуст; keywords — opencode"
+    status: pass
+    evidence: grep -rni claude README.md packages/*/README.md skills/ prompts/ design/ docs/ agents/ presets/ patterns/ .agents/skills/ — 0 совпадений; packages/{ai-core,harness,cli}/package.json keywords: "opencode" (ai-core — "agents-md","opencode","codex"; harness — "harness","state-machine","opencode"; cli — "agents-md","cli","opencode")
+    reason: слой чист, keywords заменены
+  - key: "DoD-2 v1/v2 сохранены и очищены, в v3 якорь claude-md-import удалён связно"
+    status: pass
+    evidence: prompts/productivity/agent-operational-contract{,-v2,-v3}.md — статус M (не D); grep -rni claude prompts/ — пусто; diff v3: блок '<!-- expect:claude-md-import -->' и пункт «Claude Code — CLAUDE.md…» удалены, осталось «Канон — AGENTS.md и .agents/. Производные: Codex… OpenCode…» — текст связный; правки v1/v2 — только снятие Claude-обвязки (прослойка CLAUDE.md, hook, пути .claude)
+    reason: депрекейшен-промпты сохранены, имя продукта и пути вычищены, история сверх этого не переписана
+  - key: "DoD-3 README соответствуют коду: раннер, submit_result, .opencode, plan-review, OPENCODE_CONFIG_CONTENT, opus"
+    status: fail
+    evidence: packages/ai-core/README.md:236-239 — пример `context/ai-core.yml` содержит строку `hooks: [docs-guard]`; packages/ai-core/test/config.test.ts:38 — `parseConfig('hooks: [docs-guard]\n')` бросает «неизвестные ключи в корне: hooks», в packages/ai-core/src упоминаний docs-guard/hooks нет; остальные факты подтверждены: ai-core/README.md:214-219 «opencode run --format json --auto --agent <роль> --model <модель>», «конфиг — из OPENCODE_CONFIG_CONTENT», «submit_result плагина @shahimat/oc3»; harness/README.md:34 маркер «первый каталог с .opencode», :186 planner-events.jsonl, :151-211 стадии plan-review; «opus» — имя полосы в packages/harness/src/harnesses/core/ops/machine.ts:73-85 (Limits.opus, DEFAULT_LIMITS) — допустимо
+    reason: пример конфига в README описывает удалённую фичу hooks/docs-guard, которой в коде нет и которую конфиг отвергает — убрать `hooks: [docs-guard]` из примера (оставить `adapters: [codex, opencode]`)
+  - key: "DoD-4 skills и зеркала идентичны; примеры конфигов без hooks и claude"
+    status: fail
+    evidence: diff -r skills .agents/skills — общие файлы идентичны (только «Только в skills: …» — .agents/skills зеркалит подмножество ролевых skills, расхождений контента нет); но packages/ai-core/README.md:239 — пример конфига с `hooks: [docs-guard]`; упоминания hooks в prompts/modules/ops.md:194-231 — это hooks `ops-brief`/`ops-line` модулей ai-core (в контексте миграции), не Claude-hooks, не примеры конфигов адаптера
+    reason: тот же пример конфига в ai-core README нарушает «примеры конфигов без hooks» — та же правка, что в DoD-3
+  - key: "DoD-5 prompts/index.yml пересобран, index:check проходит"
+    status: pass
+    evidence: npm run index:check в worktree — exit 0; SHA правленых prompts в index.yml свежие (index:check валидирует соответствие)
+    reason: индекс консистентен
+  - key: "DoD-6 вердикты без pending"
+    status: pass
+    evidence: npm run expect — «ожиданий 332: crit 0 · warn 4 · info 4 · ? 0 — в бюджете»
+    reason: pending-вердиктов нет
+  - key: "DoD-7 npm run ci зелёный"
+    status: pass
+    evidence: npm run ci в worktree прошёл до конца, финальная стадия «ожиданий 332: crit 0 · warn 4 · info 4 · ? 0 — в бюджете»; node_modules на месте, прогон самостоятельный
+    reason: CI зелёный (после правки README примера повторный прогон обязателен)
+  - key: "DoD-8 границы: doc-слои, style русский"
+    status: pass
+    evidence: diff -rq worktree purge-9 против purge-7 (база union 1–7) — различия только в skills/, prompts/, README, design/, docs/, package.json, prompts/index.yml; src/, test/, expectations/, context/, CHANGELOG.md относительно purge-7 не отличаются (правки в них из union тикетов 1–7); текст русский, CHANGELOG с историческим claude не тронут (тикет 10)
+    reason: правки тикета 9 строго в doc-слоях
+changes: []

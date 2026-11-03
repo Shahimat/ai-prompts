@@ -1,43 +1,20 @@
 import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import type { AdapterName, HookKey } from '#shared/config';
+import type { AdapterName } from '#shared/config';
 import type { Diagnostic } from '#shared/diagnostics';
 import { errorCode } from '#shared/guards';
-import {
-  claudeMemory,
-  CODEX_CONFIG,
-  codexMemory,
-  OPENCODE_CONFIG,
-  opencodeMemory,
-} from './memory.ts';
-import {
-  claudeAgent,
-  claudeMd,
-  codexAgent,
-  GENERATED_MARK,
-  SKILL_MARKER_FILE,
-  skillMarker,
-} from './render.ts';
-import { AGENTS_MD, readSources } from './source.ts';
+import { CODEX_CONFIG, codexMemory, OPENCODE_CONFIG, opencodeMemory } from './memory.ts';
+import { codexAgent, GENERATED_MARK } from './render.ts';
+import { opencodeAgent } from './opencode.ts';
+import { readSources } from './source.ts';
 
-const CLAUDE_MD = 'CLAUDE.md';
-const CLAUDE_SKILLS = '.claude/skills';
-const CLAUDE_AGENTS = '.claude/agents';
 const CODEX_AGENTS = '.codex/agents';
+const OPENCODE_AGENTS = '.opencode/agents';
 
 interface FileUnit {
-  kind: 'file';
   path: string;
   content: Buffer;
 }
-
-interface DirUnit {
-  kind: 'dir';
-  path: string;
-  files: Map<string, Buffer>;
-}
-
-type Unit = FileUnit | DirUnit;
 
 export interface Action {
   op: 'write' | 'delete';
@@ -63,19 +40,6 @@ async function readOrNull(abs: string): Promise<Buffer | null> {
   }
 }
 
-async function listFiles(abs: string): Promise<string[]> {
-  try {
-    const entries = await readdir(abs, { recursive: true, withFileTypes: true });
-    return entries
-      .filter((e) => e.isFile())
-      .map((e) => path.relative(abs, path.join(e.parentPath, e.name)).split(path.sep).join('/'))
-      .sort();
-  } catch (error) {
-    if (errorCode(error) === 'ENOENT') return [];
-    throw error;
-  }
-}
-
 async function listNames(abs: string): Promise<string[]> {
   try {
     return (await readdir(abs)).sort();
@@ -88,39 +52,24 @@ async function listNames(abs: string): Promise<string[]> {
 async function plan(
   root: string,
   adapters: readonly AdapterName[],
-): Promise<{ units: Unit[]; diagnostics: Diagnostic[] }> {
+): Promise<{ units: FileUnit[]; diagnostics: Diagnostic[] }> {
   const sources = await readSources(root);
   const diagnostics = [...sources.diagnostics];
-  const units: Unit[] = [];
+  const units: FileUnit[] = [];
 
-  if (adapters.includes('claude-code')) {
-    if (sources.hasAgentsMd) {
-      units.push({ kind: 'file', path: CLAUDE_MD, content: text(claudeMd()) });
-    } else {
-      diagnostics.push({
-        file: AGENTS_MD,
-        message: 'файл не найден: CLAUDE.md не из чего генерировать',
-      });
-    }
-    for (const skill of sources.skills) {
-      const files = new Map(skill.files.map((f) => [f.rel, f.content]));
-      files.set(SKILL_MARKER_FILE, text(skillMarker(skill.name)));
-      units.push({ kind: 'dir', path: `${CLAUDE_SKILLS}/${skill.name}`, files });
-    }
-    for (const agent of sources.agents) {
-      units.push({
-        kind: 'file',
-        path: `${CLAUDE_AGENTS}/${agent.name}.md`,
-        content: text(claudeAgent(agent)),
-      });
-    }
-  }
   if (adapters.includes('codex')) {
     for (const agent of sources.agents) {
       units.push({
-        kind: 'file',
         path: `${CODEX_AGENTS}/${agent.name}.toml`,
         content: text(codexAgent(agent)),
+      });
+    }
+  }
+  if (adapters.includes('opencode')) {
+    for (const agent of sources.agents) {
+      units.push({
+        path: `${OPENCODE_AGENTS}/${agent.name}.md`,
+        content: text(opencodeAgent(agent)),
       });
     }
   }
@@ -140,19 +89,12 @@ async function staleActions(root: string, planned: Set<string>): Promise<Action[
     const content = await readOrNull(path.join(root, rel));
     if (content !== null && isOurs(content)) actions.push({ op: 'delete', path: rel });
   };
-  await consider(CLAUDE_MD);
   await consider(CODEX_CONFIG);
-  for (const name of await listNames(path.join(root, CLAUDE_AGENTS))) {
-    if (name.endsWith('.md')) await consider(`${CLAUDE_AGENTS}/${name}`);
-  }
   for (const name of await listNames(path.join(root, CODEX_AGENTS))) {
     if (name.endsWith('.toml')) await consider(`${CODEX_AGENTS}/${name}`);
   }
-  for (const name of await listNames(path.join(root, CLAUDE_SKILLS))) {
-    const dir = `${CLAUDE_SKILLS}/${name}`;
-    if (planned.has(dir)) continue;
-    const marker = await readOrNull(path.join(root, dir, SKILL_MARKER_FILE));
-    if (marker !== null && isOurs(marker)) actions.push({ op: 'delete', path: dir });
+  for (const name of await listNames(path.join(root, OPENCODE_AGENTS))) {
+    if (name.endsWith('.md')) await consider(`${OPENCODE_AGENTS}/${name}`);
   }
   return actions;
 }
@@ -160,49 +102,24 @@ async function staleActions(root: string, planned: Set<string>): Promise<Action[
 export async function computeSync(
   root: string,
   adapters: readonly AdapterName[],
-  hooks: readonly HookKey[] = [],
 ): Promise<SyncResult> {
   const { units, diagnostics } = await plan(root, adapters);
   const actions: Action[] = [];
 
   for (const unit of units) {
-    if (unit.kind === 'file') {
-      const current = await readOrNull(path.join(root, unit.path));
-      if (current === null) actions.push({ op: 'write', path: unit.path, content: unit.content });
-      else if (!isOurs(current)) diagnostics.push(conflict(unit.path));
-      else if (!current.equals(unit.content))
-        actions.push({ op: 'write', path: unit.path, content: unit.content });
-      continue;
-    }
-    const existing = await listFiles(path.join(root, unit.path));
-    if (existing.length > 0) {
-      const marker = await readOrNull(path.join(root, unit.path, SKILL_MARKER_FILE));
-      if (marker === null || !isOurs(marker)) {
-        diagnostics.push(conflict(unit.path));
-        continue;
-      }
-    }
-    for (const [rel, content] of unit.files) {
-      const current = await readOrNull(path.join(root, unit.path, rel));
-      if (current === null || !current.equals(content)) {
-        actions.push({ op: 'write', path: `${unit.path}/${rel}`, content });
-      }
-    }
-    for (const rel of existing) {
-      if (!unit.files.has(rel)) actions.push({ op: 'delete', path: `${unit.path}/${rel}` });
-    }
+    const current = await readOrNull(path.join(root, unit.path));
+    if (current === null) actions.push({ op: 'write', path: unit.path, content: unit.content });
+    else if (!isOurs(current)) diagnostics.push(conflict(unit.path));
+    else if (!current.equals(unit.content))
+      actions.push({ op: 'write', path: unit.path, content: unit.content });
   }
 
   const planned = new Set(units.map((u) => u.path));
-  for (const [adapter, apply] of [
-    ['claude-code', (r: string) => claudeMemory(r, hooks)],
-    ['codex', codexMemory],
-  ] as const) {
-    if (!adapters.includes(adapter)) continue;
-    const memory = await apply(root);
+  if (adapters.includes('codex')) {
+    const memory = await codexMemory(root);
     actions.push(...memory.actions);
     diagnostics.push(...memory.diagnostics);
-    if (adapter === 'codex') planned.add(CODEX_CONFIG);
+    planned.add(CODEX_CONFIG);
   }
 
   const opencode = await opencodeMemory(root);
@@ -229,9 +146,8 @@ export async function applyActions(root: string, actions: Action[]): Promise<voi
 export async function checkAdapters(
   root: string,
   adapters: readonly AdapterName[],
-  hooks: readonly HookKey[] = [],
 ): Promise<Diagnostic[]> {
-  const { actions, diagnostics } = await computeSync(root, adapters, hooks);
+  const { actions, diagnostics } = await computeSync(root, adapters);
   for (const action of actions) {
     const what = action.op === 'write' ? 'отсутствует или устарел' : 'лишний';
     diagnostics.push({ file: action.path, message: `${what}: запусти ai adapters sync` });

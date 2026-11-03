@@ -50,6 +50,8 @@ export interface SessionData {
   state: string;
   counters: Record<string, number>;
   plannerSession?: string;
+  stageTask?: string;
+  pendingQuestion?: string;
   handoff?: string;
   planFile?: string;
 }
@@ -77,6 +79,9 @@ export function parseSession(text: string, where: string): SessionData {
     counters,
   };
   if (typeof data['plannerSession'] === 'string') session.plannerSession = data['plannerSession'];
+  if (typeof data['stageTask'] === 'string') session.stageTask = data['stageTask'];
+  if (typeof data['pendingQuestion'] === 'string')
+    session.pendingQuestion = data['pendingQuestion'];
   if (typeof data['handoff'] === 'string') session.handoff = data['handoff'];
   if (typeof data['planFile'] === 'string') session.planFile = data['planFile'];
   return session;

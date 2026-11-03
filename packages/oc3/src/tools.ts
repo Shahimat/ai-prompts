@@ -1,6 +1,7 @@
 import type { Plugin } from '@opencode/plugin';
 import type { CommandArgs } from '@shahimat/ai-core';
-import { isRecord } from '@shahimat/ai-core';
+import { isRecord, SUBMIT_TOOL } from '@shahimat/ai-core';
+import { submitResult, SUBMIT_INPUT } from '#submit';
 import { OC3_COMMANDS } from '#tree';
 
 async function captured(run: () => Promise<number>): Promise<{ content: string }> {
@@ -184,5 +185,19 @@ export async function registerTools(ctx: Plugin.Context): Promise<void> {
         options: { namespace: 'oc3', codemode: true },
         execute: (input: unknown) => captured(() => tool.command(tool.args(toRecord(input), root))),
       });
+    editor.add({
+      name: SUBMIT_TOOL,
+      description:
+        'Итог работы роли по протоколу harness: message — result | verdict | question, data — строго по схеме сообщения; вызови один раз в конце, лишние поля запрещены; доступен только ролям контракта, сессии без роли получают отказ',
+      input: SUBMIT_INPUT,
+      options: { namespace: 'oc3', codemode: true },
+      execute: (input: unknown, context: { agent: string; sessionID: string }) =>
+        submitResult({
+          root,
+          agent: context.agent,
+          sessionID: context.sessionID,
+          input,
+        }).then((content: string) => ({ content })),
+    });
   });
 }

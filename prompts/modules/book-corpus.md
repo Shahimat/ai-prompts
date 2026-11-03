@@ -100,7 +100,7 @@ provides:
 
 - `context/conventions/book-ingestion.yml` — копия правила, теперь в
   skill;
-- упоминания `data_access` в старом `CLAUDE.md` и `context/workflow.md`
+- упоминания `data_access` в старом `AGENTS.md` и `context/workflow.md`
   — заменены блоком модуля.
 
 ## Отключение

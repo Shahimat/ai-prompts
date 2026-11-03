@@ -8,7 +8,7 @@ export type { AgentDef } from '#lib/agent';
 
 export const AGENTS_MD = 'AGENTS.md';
 export const SKILLS_DIR = '.agents/skills';
-export const AGENTS_DIR = '.agents/agents';
+export const ROLE_DIRS = ['.agents/agents', 'agents'] as const;
 
 export interface SkillFile {
   rel: string;
@@ -77,19 +77,22 @@ export async function readSources(root: string): Promise<Sources> {
   }
 
   const agents: AgentDef[] = [];
-  for (const entry of await listDir(path.join(root, AGENTS_DIR))) {
-    if (!entry.endsWith('.md')) continue;
-    const file = `${AGENTS_DIR}/${entry}`;
-    const report = (message: string): void => {
-      diagnostics.push({ file, message });
-    };
-    const agent = parseAgent(file, await readFile(path.join(root, file), 'utf8'), report);
-    if (agent === null) continue;
-    for (const skill of agent.skills) {
-      if (!skills.some((s) => s.name === skill))
-        report(`skill «${skill}» не найден в ${SKILLS_DIR}`);
+  for (const dir of ROLE_DIRS) {
+    for (const entry of await listDir(path.join(root, dir))) {
+      if (!entry.endsWith('.md')) continue;
+      const file = `${dir}/${entry}`;
+      const report = (message: string): void => {
+        diagnostics.push({ file, message });
+      };
+      const agent = parseAgent(file, await readFile(path.join(root, file), 'utf8'), report);
+      if (agent === null) continue;
+      if (agents.some((a) => a.name === agent.name)) continue;
+      for (const skill of agent.skills) {
+        if (!skills.some((s) => s.name === skill))
+          report(`skill «${skill}» не найден в ${SKILLS_DIR}`);
+      }
+      agents.push(agent);
     }
-    agents.push(agent);
   }
   return { hasAgentsMd, skills, agents, diagnostics };
 }

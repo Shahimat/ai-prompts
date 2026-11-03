@@ -2,7 +2,13 @@ import { readFile } from 'node:fs/promises';
 import { readText } from './files.ts';
 import path from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
-import { runtime, stepOf, UsageError, type CommandArgs, type CommandNode } from '@shahimat/ai-core';
+import {
+  openCodeStepOf,
+  runtime,
+  UsageError,
+  type CommandArgs,
+  type CommandNode,
+} from '@shahimat/ai-core';
 import { harnessHome } from '#harnesses/core/store/session';
 import { loadAutonomy, loadOpsConfig } from './config.ts';
 import {
@@ -54,7 +60,7 @@ export async function runningLines(home: string, root: string, now: Date): Promi
     const text = r.transcript === '' ? undefined : await readText(r.transcript);
     const last = (text ?? '')
       .split('\n')
-      .map(stepOf)
+      .map(openCodeStepOf)
       .filter((x) => x !== undefined)
       .at(-1);
     lines.push(

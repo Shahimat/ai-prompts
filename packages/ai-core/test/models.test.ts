@@ -256,7 +256,7 @@ describe('models', () => {
     expect(ROLE_MODEL_PATTERN.test('deepseek/deepseek-v4-pro')).toBe(true);
     expect(ROLE_MODEL_PATTERN.test('ollama/qwen3:14b')).toBe(true);
     expect(ROLE_MODEL_PATTERN.test('opencode/glm-5.3-flash-free#high')).toBe(true);
-    expect(ROLE_MODEL_PATTERN.test('openrouter/anthropic/claude-sonnet-5.5#high')).toBe(true);
+    expect(ROLE_MODEL_PATTERN.test('openrouter/openai/gpt-5.2#high')).toBe(true);
     expect(ROLE_MODEL_PATTERN.test('zai/glm-4.5-air#thinking')).toBe(true);
     expect(ROLE_MODEL_PATTERN.test('opus')).toBe(false);
     expect(ROLE_MODEL_PATTERN.test('/lead')).toBe(false);

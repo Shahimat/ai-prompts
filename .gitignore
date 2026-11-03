@@ -3,8 +3,7 @@
 .vscode/
 *.swp
 *.swo
-.claude/
-.claude/artifacts/
+.opencode/artifacts/
 .opencode/worktrees/
 node_modules/
 dist/
@@ -13,3 +12,4 @@ expectations/.judge/
 packages/harness/test/.tmp/
 .ops/operator/
 .ops/locks/
+.ops/submit/

@@ -171,8 +171,8 @@ external:
   `entity-schema`, `behavior-schema`, `manual-schema`,
   `canonical-vs-cached`, `link-hygiene`, `goals`, `goal-consistency` —
   теперь skills `domain`, `external-context`, `manuals`, `goals`;
-- `context/workflow.md` (skill `workflow`), содержимое `CLAUDE.md` →
-  `AGENTS.md` по шаблону ядра;
+- `context/workflow.md` (skill `workflow`), содержимое старой точки
+  входа → `AGENTS.md` по шаблону ядра;
 - фазы с обязательным порядком `docs → fix → refactor` и инъекция
   подфазы `docs` — в v3 тикет из шагов-коммитов (skill `workflow`);
 - ручной `context/index.yml` — генерируется harness или удаляется;

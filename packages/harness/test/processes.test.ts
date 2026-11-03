@@ -6,7 +6,7 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { main } from '@shahimat/cli';
 import { openSession } from '#harnesses/core/store/session';
-import { FAKE_CLAUDE } from './fake-claude.ts';
+import { FAKE_OPENCODE_ROLES } from './fake-opencode-roles.ts';
 
 const NOW = new Date('2026-10-14T12:00:00Z');
 
@@ -36,7 +36,7 @@ const state = async (): Promise<string> => (await openSession(home, await sessio
 
 beforeEach(async () => {
   root = await mkdtemp(path.join(tmpdir(), 'harness-proc-'));
-  await mkdir(path.join(root, '.claude'));
+  await mkdir(path.join(root, '.opencode'));
   home = await mkdtemp(path.join(tmpdir(), 'harness-proc-home-'));
   out = [];
   vi.spyOn(console, 'log').mockImplementation((...args: unknown[]) => {
@@ -65,10 +65,10 @@ describe('harness docs delta', () => {
       '.agents/agents/judge.md',
       '---\nname: judge\ndescription: Судья для теста процесса docs-delta\noutput: verdict\n---\n\nСудья.\n',
     );
-    const fake = path.join(home, 'fake-claude.mjs');
-    await writeFile(fake, FAKE_CLAUDE, 'utf8');
-    vi.stubEnv('HARNESS_CLAUDE', fake);
-    vi.stubEnv('FAKE_SUBMIT', JSON.stringify({ verdict: { conflicts: [] } }));
+    const fake = path.join(home, 'fake-opencode.mjs');
+    await writeFile(fake, FAKE_OPENCODE_ROLES, 'utf8');
+    vi.stubEnv('HARNESS_OPENCODE', fake);
+    vi.stubEnv('FAKE_SUBMIT', JSON.stringify({ judge: { conflicts: [] } }));
     const args = ['--root', root, '--home', home];
     expect(await main(['docs-delta', 'start', '--name', 'naming', ...args], NOW)).toBe(0);
     expect(await state()).toBe('apply');
@@ -98,10 +98,10 @@ describe('harness docs delta', () => {
       '.agents/agents/judge.md',
       '---\nname: judge\ndescription: Судья для теста процесса docs-delta\noutput: verdict\n---\n\nСудья.\n',
     );
-    const fake = path.join(home, 'fake-claude.mjs');
-    await writeFile(fake, FAKE_CLAUDE, 'utf8');
-    vi.stubEnv('HARNESS_CLAUDE', fake);
-    vi.stubEnv('FAKE_SUBMIT', JSON.stringify({ verdict: { conflicts: [] } }));
+    const fake = path.join(home, 'fake-opencode.mjs');
+    await writeFile(fake, FAKE_OPENCODE_ROLES, 'utf8');
+    vi.stubEnv('HARNESS_OPENCODE', fake);
+    vi.stubEnv('FAKE_SUBMIT', JSON.stringify({ judge: { conflicts: [] } }));
     expect(await main(['docs-delta', 'start', '--name', 'naming', ...args], NOW)).toBe(0);
     await put(
       'context/.delta/naming.yml',

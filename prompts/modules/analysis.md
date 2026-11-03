@@ -137,7 +137,7 @@ skill `analysis`.
   `dialectic`, `verification` — правила теперь в блоке и skill;
 - `context/workflow.md` — сценарии в skill `workflow` ядра, `inquiry` —
   в skill `analysis`;
-- раздел о приоритете атрибуции в старом `CLAUDE.md` — заменён блоком
+- раздел о приоритете атрибуции в старом `AGENTS.md` — заменён блоком
   модуля;
 - hook `block-memory-write-for-analytical-project.sh` и memory по
   проекту — по разделу «Memory агента» ядра;

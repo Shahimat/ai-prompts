@@ -1,0 +1,37 @@
+run: 2
+status: pass
+summary: Замечание run-001 устранено — пример context/ai-core.yml в packages/ai-core/README.md без hooks, остальные пункты подтверждены повторно, npm run ci зелёный
+items:
+  - key: "DoD-1 grep claude по doc-слоям пуст; keywords — opencode"
+    status: pass
+    evidence: grep -rni claude README.md packages/{ai-core,harness,cli}/README.md skills/ prompts/ design/ docs/ agents/ presets/ patterns/ .agents/skills/ — exit 1 (0 совпадений); packages/{ai-core,harness,cli}/package.json keywords содержат "opencode" (ai-core: ai-agents, agents-md, opencode; harness: ai-agents, harness, state-machine, opencode; cli: ai-agents, cli, agents-md, opencode)
+    reason: слой чист, keywords на месте
+  - key: "DoD-2 v1/v2 сохранены и очищены, в v3 якорь claude-md-import удалён связно"
+    status: pass
+    evidence: prompts/productivity/agent-operational-contract{,-v2,-v3}.md существуют, grep -c -i claude по каждому — 0; статусы файлов M (не D) подтверждены в run-001
+    reason: депрекейшен-промпты сохранены и чисты
+  - key: "DoD-3 README соответствуют коду: раннер, submit_result, .opencode, plan-review, OPENCODE_CONFIG_CONTENT, opus"
+    status: pass
+    evidence: packages/ai-core/README.md:235-250 — пример `context/ai-core.yml` теперь `adapters: [codex, opencode]` + `checks:` (changelog/context-index/adapters/secrets), строки `hooks: [docs-guard]` нет; grep -i hooks packages/ai-core/README.md — 0 совпадений
+    reason: правка по вердикту run-001 внесена, пример валиден (adapters и checks на месте)
+  - key: "DoD-4 skills и зеркала идентичны; примеры конфигов без hooks и claude"
+    status: pass
+    evidence: diff -rq skills .agents/skills — только «Только в skills: …» (зеркало — подмножество), файлов с различающимся контентом нет; hooks в README примерах нет
+    reason: зеркала идентичны, примеры чисты
+  - key: "DoD-5 prompts/index.yml пересобран, index:check проходит"
+    status: pass
+    evidence: npm run index:check в worktree — «prompts/index.yml is up to date», exit 0
+    reason: индекс консистентен
+  - key: "DoD-6 вердикты без pending"
+    status: pass
+    evidence: npm run expect — «ожиданий 332: crit 0 · warn 4 · info 4 · ? 0 — в бюджете»
+    reason: pending-вердиктов нет
+  - key: "DoD-7 npm run ci зелёный"
+    status: pass
+    evidence: npm run ci в worktree прогнан в этой сессии после правки README — exit 0, финал «ожиданий 332: crit 0 · warn 4 · info 4 · ? 0 — в бюджете»
+    reason: CI зелёный на актуальном состоянии
+  - key: "DoD-8 границы: doc-слои, style русский"
+    status: pass
+    evidence: в run-001 подтверждено (diff -rq против purge-7 — только doc-слои); с тех пор правлена только packages/ai-core/README.md — граница не нарушена
+    reason: правки тикета 9 строго в doc-слоях
+changes: []

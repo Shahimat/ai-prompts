@@ -69,7 +69,7 @@ harness те же намерения проверяются схемой `intent
 | `context/.delta/` — создание и правка | librarian |
 | `context/.delta/` — удаление после приёмки | `ai delta close`; шаг `close` harness `docs-delta`, без harness — librarian |
 | `context/index.yml` | `ai context index`; шаг `verify` harness `docs-delta` |
-| адаптеры (`CLAUDE.md`, `.claude/`, `.codex/`) | `ai adapters sync`; шаг `verify` harness `docs-delta` |
+| адаптеры (`.opencode/`, `.codex/`) | `ai adapters sync`; шаг `verify` harness `docs-delta` |
 <!-- /expect:skill-runs -->
 
 Основная сессия в документацию не пишет.
@@ -118,6 +118,18 @@ items:
 Без harness — та же сверка вручную по `git diff HEAD` слоёв, дельту
 удаляет librarian. Дельта — рабочий файл librarian: в маршруты и
 `context/index.yml` она не входит, оператор её не читает.
+
+1. Собери дельту из намерений. Сверь каждый пункт с текущей
+   документацией: новое знание — `add`, совместимое уточнение —
+   `refine`, удаление или изменение существующего — `revise` с `was` и
+   `why`.
+2. `add` и `refine` вниманием пользователя не требуют — строка в отчёте.
+3. `revise` работу не блокирует: он объявлен в дельте, попадает в отчёт
+   и в тело сообщения коммита.
+4. Примени пункты по правилам слоёв.
+5. Приёмка: пункты выполнены, прежнее знание без `revise` не нарушено,
+   производные файлы пересобраны, проверки чисты, противоречий нет.
+6. После приёмки дельта удаляется; строки `revise` — в отчёт.
 <!-- /expect:docs-delta -->
 
 1. Собери дельту из намерений. Сверь каждый пункт с текущей
@@ -213,7 +225,7 @@ narrative. Новый namespace — только с «да» пользоват�
 - librarian меняет только слои документации проекта — код, тесты,
   конфиги сборки, `goals/` и expectations не трогает;
 - не править сгенерированные файлы (`context/index.yml`, адаптеры в
-  `.claude/`, `.codex/`, `CLAUDE.md`): правится источник, затем
+  `.opencode/`, `.codex/`): правится источник, затем
   генерация;
 <!-- /expect:docs-readonly -->
 <!-- expect:docs-secrets -->

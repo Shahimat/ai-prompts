@@ -18,17 +18,27 @@ export { loadHarness, type LoadedHarness } from './harnesses/index.ts';
 export {
   bashDecision,
   hookEvent,
-  hookSettings,
+  opencodeArgs,
   openerFor,
   servePage,
   JUDGE_TOOLS,
-  plannerTools,
+  writeBridge,
+  plannerAgentPath,
+  PLANNER_AGENT,
+  opencodeStage,
+  readPlannerEvents,
+  attachmentsOf,
+  runEpisode,
+  reportCommand,
   planReviewRegistry,
   reviewText,
+  type StageRunner,
+  type StageSpec,
+  type StageResult,
   type HookName,
   type PlanContext,
 } from './harnesses/index.ts';
-export { headlessArgs, interactiveArgs, type ModelRunner } from './harnesses/index.ts';
+export { type ModelRunner } from './harnesses/index.ts';
 export { BUILTIN_HARNESSES, createSession, harnessHome, openSession } from './harnesses/index.ts';
 export { roleOrHandoff, handoff, processModule, type ProcessContext } from './harnesses/index.ts';
 export {

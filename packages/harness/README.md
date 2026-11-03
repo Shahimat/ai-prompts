@@ -31,9 +31,9 @@ ai <имя> status <id>
 ai <имя> validate | graph  # определение и Mermaid автомата
 ```
 
-- Проект для команд harness — первый каталог с `.claude` вверх от места
-  вызова (домашний каталог с `~/.claude` проектом не считается) или
-  `--root <путь>`. Без `.claude` в проекте `start` не стартует и ничего
+- Проект для команд harness — первый каталог с `.opencode` вверх от места
+  вызова (домашний каталог проектом не считается) или
+  `--root <путь>`. Без `.opencode` в проекте `start` не стартует и ничего
   не создаёт. Проектные команды (`check`, `context index` и др.) берут
   текущий каталог.
 - id сессии — sha256, в выводе 7 символов; `open` и `status`
@@ -47,9 +47,9 @@ ai <имя> validate | graph  # определение и Mermaid автомат
   `~/.config/harness/harnesses/<имя>/` перекрывают встроенные;
   `handlers/*.{js,mjs,ts}` — свои действия и guards
   (`export default { actions, guards }`).
-- Модели запускаются с `--setting-sources ""` и
-  `--disable-slash-commands`: settings, hooks, `CLAUDE.md` и skills
-  пользователя и проекта в прогоны не попадают.
+- Модели запускаются с конфигом из `OPENCODE_CONFIG_CONTENT`
+  (единственная инструкция — системный промпт роли): настройки, skills
+  и правила пользователя и проекта в прогоны не попадают.
 - Без аргументов в терминале `harness` открывает оболочку: вход в
   уровень по имени, `..`, `list` и `help` на каждом уровне.
 
@@ -86,7 +86,7 @@ ai <имя> validate | graph  # определение и Mermaid автомат
 
 Рантайм оператора (модули `ops`, `watchers`, `dashboard` контракта):
 работа по задаче идёт вне сессии оператора, роли — отдельные процессы
-`claude -p`.
+`opencode run`.
 
 - `ai ticket-work start <ref>` — job по задаче: `intake` (карточка из
   провайдера `tasks`) → `research` → `plan` → `plan-gate` (ждёт «да») →
@@ -95,8 +95,9 @@ ai <имя> validate | graph  # определение и Mermaid автомат
   `ready` (ждёт «готово»; git-запись — пользователь) → `docs` → `done`.
   `ai ticket-work answer <id> <текст>` — ответ на вопрос роли, план или
   готовность. Журнал — `.ops/jobs/<id>/`: `log.md`, `events.jsonl`,
-  артефакты, `runs/<состояние>-<n>.jsonl` — полный stream-json
-  прогонов и `progress.log` — ход роли по шагам; оба пишутся по мере
+  артефакты, `runs/<состояние>-<n>.jsonl` — полный json-поток событий
+  прогонов (`opencode run --format json`) и `progress.log` — ход роли по
+  шагам; оба пишутся по мере
   работы. Роль дольше таймаута (30 мин, правка — 60;
   `HARNESS_ROLE_TIMEOUT_MIN`) останавливается с причиной. `docs-delta`
   ведёт такие же журналы в каталоге своей сессии.
@@ -151,7 +152,8 @@ review → implement → plan → research), пауза при rate limit.
 
 Заморожен: работает как есть, не развивается (дизайн —
 `design/harness-plan-review.md`). Роли и протокол (см. «Роли») его
-пока не касаются: судья плана — свой промпт и `--json-schema`.
+пока не касаются: судья плана — свой промпт, итог — JSON по схеме
+задания через `submit_result`.
 
 Команда user scope: ставится глобально (`npm i -g @shahimat/harness`).
 
@@ -160,11 +162,13 @@ review → implement → plan → research), пауза при rate limit.
   изменения его состояния, нового нет — создаётся каркас с
   `plan({ name })`. Имя плана — из `plan({ name })`, для нового файла —
   из имени файла. План смотрится командой `ai expect serve <file>`.
-  Дальше — интерактивный `claude` с ролью планера в каталоге проекта:
-  без `--request` запрос пишется в этой сессии (текст, файлы,
+  Дальше — сеанс планера в терминале: ввод собирает harness (REPL),
+  каждая стадия планера — отдельный `opencode run` агента `planner` в
+  каталоге проекта (сессия та же, `--session`): без `--request` запрос
+  пишется в REPL (текст, файлы,
   картинки), с `--request` текст уходит планеру первым сообщением. Без
-  терминала `start` встаёт на паузу, `open <id>` продолжает (`--resume`
-  той же сессии планера). Вместе с сессией планера поднимается страница
+  терминала `start` встаёт на паузу, `open <id>` продолжает тот же
+  сеанс планера. Вместе с сессией планера поднимается страница
   плана — `expect serve <file>` на свободном порту: адрес печатается,
   страница открывается в браузере (`BROWSER`; `BROWSER=none` — не
   открывать), сервер гаснет с сессией; адрес — в промпте планера и в
@@ -175,26 +179,30 @@ review → implement → plan → research), пауза при rate limit.
   `awaiting_input`; `exit` → `finished`. Схема — блок `fsm` в
   `expectations/harness-plan-review.expect.ts`, `harness.yaml` с ней
   совпадает (`Graph.sameAs`).
-- События выводит `ai plan-review hook <id> <hook>` из hooks сессии
-  планера, модель их не объявляет: `prompt` (UserPromptSubmit) в
-  `awaiting_input` — `request`; `edit` (PreToolUse Edit/Write) —
+- События выводят мост плагина `@shahimat/oc3` и команда
+  `ai plan-review hook <id> <hook>`, модель их не объявляет:
+  `prompt` (ввод пользователя) в
+  `awaiting_input` — `request`; `edit` (правка файла ожиданий, событие
+  в `planner-events.jsonl`) —
   `gathered`, правка другого файла или правка вне
-  `gathering`/`composing` блокируется; `bash` (PreToolUse Bash)
+  `gathering`/`composing` — deny плагина; `bash` (вызов Bash в сеансе
+  планера)
   пропускает только `expect report` своего файла при любом режиме
-  разрешений; `ask` и `answer` (AskUserQuestion) — `unclear` и
-  `answered`; `stop` в `gathering` — `replied`, в `composing` (ответ
-  планеру — JSON `decision: block`) — сборка
+  разрешений; `ask` (флаг `[plan-review: ask]` в ответе планера) и
+  `answer` (ответ пользователя в REPL) — `unclear` и
+  `answered`; `stop` в `gathering` — `replied`, в `composing` (замечания
+  возвращаются планеру заданием следующей стадии) — сборка
   файла (сбор ожиданий и `tsc` ближайшего `tsconfig.json`; не собирается
   — блок не больше `limits.build` раз), затем ревью судьёй и разбор;
   `prompt` со словом «выход» в `awaiting_input` — `exit`; флаг
   `[plan-review: exit]` последней строкой ответа планера читается на
   `stop` после стадии: чистое ревью — `exit`, иначе выход отложен; после
-  `exit` harness сам закрывает сессию планера (SIGTERM); `end`
-  (SessionEnd: Ctrl+C, Ctrl+D) — пауза в любом состоянии: автомат на
-  месте, `open <id>` продолжает ту же сессию через `--resume`.
-  Слэш-команды в сессии планера отключены, `/exit` в том числе.
+  `exit` harness сам завершает сеанс планера; `end`
+  (Ctrl+C или закрытый ввод) — пауза в любом состоянии: автомат на
+  месте, `open <id>` продолжает тот же сеанс планера.
 - Ревью: `expect judge` по файлу плана, задания отвечает `models.judge`
-  headless без сети и без записи (ответ — по `--json-schema`), затем
+  headless без сети и без записи (`Read`, `Glob`, `Grep`; ответ —
+  единственный JSON по схеме в задании через `submit_result`), затем
   `--apply` и прогон по бюджету файла. Сверх бюджета — `remarks`, планер
   получает замечания и правит; после `limits.cycles` циклов — к
   пользователю с объяснением; чисто — `clean`, планер поясняет итог.

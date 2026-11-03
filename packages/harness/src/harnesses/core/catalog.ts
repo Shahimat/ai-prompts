@@ -27,9 +27,9 @@ export interface HarnessModule {
 export const HOME = '[--home <dir>]';
 
 export function requireProject(root: string): void {
-  if (!existsSync(path.join(root, '.claude')))
+  if (!existsSync(path.join(root, '.opencode')))
     throw new UsageError(
-      `нет каталога .claude в ${root}: harness запускается в проекте с .claude (поиск вверх от места вызова или --root)`,
+      `нет каталога .opencode в ${root}: harness запускается в проекте с .opencode (поиск вверх от места вызова или --root)`,
     );
 }
 

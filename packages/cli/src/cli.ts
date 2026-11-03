@@ -14,8 +14,8 @@ import { errorCode, errorMessage } from '@shahimat/ai-core';
 export function projectOf(start: string): string | undefined {
   const home = path.resolve(homedir());
   for (let dir = path.resolve(start); ; dir = path.dirname(dir)) {
-    const claude = path.join(dir, '.claude');
-    if (dir !== home && existsSync(claude) && statSync(claude).isDirectory()) return dir;
+    const marker = path.join(dir, '.opencode');
+    if (dir !== home && existsSync(marker) && statSync(marker).isDirectory()) return dir;
     if (path.dirname(dir) === dir) return undefined;
   }
 }

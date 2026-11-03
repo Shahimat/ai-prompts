@@ -63,10 +63,7 @@ import {
 const NAME = 'ticket-work';
 const IMPLEMENT_TIMEOUT_MS = 60 * 60_000;
 const VERIFIED = 'verify.ok';
-const ATTRIBUTION = [
-  /^\s*co-authored-by:/im,
-  /generated (with|by) .*(claude|codex|copilot|agent|ai)/i,
-];
+const ATTRIBUTION = [/^\s*co-authored-by:/im, /generated (with|by) .*(codex|copilot|agent|ai)/i];
 const MESSAGE_FILES = ['commit.md', 'pr.md'];
 
 const answerHint = (s: Session): string => `ответ: ai ${NAME} answer ${s.short} <текст>`;
@@ -106,7 +103,6 @@ async function roleStep(
   role: string,
   priority: number,
   task: string,
-  addDirs: readonly string[] = [],
 ): Promise<RoleStep> {
   const s = ctx.session;
   await clearMarker(s, 'failed', 'failed');
@@ -130,7 +126,6 @@ async function roleStep(
       job: s.short,
       options: {
         transcript: jobFile(s, `runs/${s.data.state}-${n}.jsonl`),
-        addDirs,
         onProgress: progressTo(jobFile(s, 'progress.log')),
         ...(s.data.state === 'implement' ? { timeoutMs: IMPLEMENT_TIMEOUT_MS } : {}),
       },
@@ -323,7 +318,6 @@ const implement: ActionDef<ProcessContext> = {
       ]
         .filter((x) => x !== '')
         .join('\n'),
-      [dir],
     );
     return isResult(r) ? r : { event: 'done' };
   },
@@ -476,7 +470,6 @@ const review: ActionDef<ProcessContext> = {
         `Diff — ${rel(s, 'diff')}, копия репозитория — ${dir}, проверки — ${rel(s, 'verify.log')}.`,
         'Report — строки «- [ok|fail|unknown] <пункт DoD> — <путь от корня копии>:<строка> «<дословная цитата>»» или причина; для ok цитата обязательна.',
       ].join('\n'),
-      [dir],
     );
     if (isResult(r)) return r;
     const verdicts = verdictsOf(r.data);

@@ -30,7 +30,7 @@ provides:
   skills: [worktrees]
   agents_md_block: true
   harness_checks: []
-  gitignore: [.claude/worktrees/]     # или каталог из ответа
+  gitignore: [.opencode/worktrees/]   # или каталог из ответа
 ```
 
 Строка `.gitignore` — каталог worktrees; при отключении убирается, если
@@ -41,7 +41,7 @@ provides:
 
 ```
 # игнорируемые git файлы, которые копируются в новый worktree
-.claude/settings.local.json
+.env
 ```
 
 Блок `AGENTS.md`:
@@ -60,7 +60,7 @@ provides:
 ## Установка
 
 1. Спроси: какие игнорируемые файлы нужны в каждом worktree; каталог —
-   по умолчанию `.claude/worktrees/`.
+   по умолчанию `.opencode/worktrees/`.
 2. Создай `.worktreeinclude`, добавь каталог в `.gitignore`.
 3. Каталог не по умолчанию и подключён harness — `worktrees.dir` в
    `context/ai-core.yml`.
