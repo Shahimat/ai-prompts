@@ -1,0 +1,121 @@
+run: 1
+status: fail
+summary: >-
+  start/open больше не висят (stdin TTY/тишина — быстрая ошибка с таймаутом и
+  разрушением потока; ожидание слота/backoff ограничено waitMin с причиной и
+  прогрессом), протухшая сессия снимается штатными list --stale / open --forget,
+  каскад один: ai-core 0.1.7 + пины 0.1.7, packages-check crit 0. Не сходится
+  одно: npm run ci красный ровно на crit «верхняя запись CHANGELOG.md пакета» —
+  для ai-core 0.1.7 записи нет (top 0.1.6); всё остальное зелёное (тесты 4
+  пакетов, packages-check crit 0, ? 0).
+items:
+  - key: crit-5
+    status: pass
+    evidence: >-
+      packages/ai-core/src/lib/intents.ts:40-42 — TTY → InputError «stdin —
+      терминал: подай намерения файлом (--file <путь>) или перенаправлением
+      (--file - < intents.yml)»; :33-38 — stdinTimeoutMs, env
+      HARNESS_STDIN_TIMEOUT_S, дефолт 10 с; :51-56 — тишина без данных → ошибка
+      «stdin молчит N с … (таймаут — HARNESS_STDIN_TIMEOUT_S)»; :72 —
+      process.stdin.destroy() в catch, поток разрушен — процесс не остаётся
+      висеть. packages/harness/src/harnesses/core/ops/runner.ts:163-166 —
+      stepWaitMin (env HARNESS_STEP_WAIT_MIN, дефолт 5); :179 — waitLimit =
+      waitMin*60_000; :195-198 и :226-229 — throw «ожидание превысило …» с
+      причиной (лимит модели держит очередь / заняты слоты) до спавна
+      opencode-процесса — висеть нечему; :158,:182-188 — прогресс «жду …» в
+      stderr с троттлингом 30 с (WAIT_PROGRESS_S). Оба вызова ролей автоматов
+      идут через sessionRole с лимитом: packages/harness/src/harnesses/core/process.ts:116
+      (waitMin: stepWaitMin()), :128-137 (/librarian), docs-delta judge —
+      packages/harness/src/harnesses/docs-delta/index.ts:128. Тесты: 
+      packages/harness/test/docs-delta-roles.test.ts:251-289 — spawn «docs-delta
+      start --file -» с HARNESS_STDIN_TIMEOUT_S=1 завершается кодом 2 (close
+      пойман в пределах 30 с), stderr содержит «stdin молчит» и имя env,
+      сессия не создана (sessions-каталога нет); packages/harness/test/ops.test.ts:340-364
+      — waitMin 0.001 при backoff.json на час → «ожидание превысило», «лимит
+      модели», stderr «жду — лимит модели». Оба зелёные в npm run ci (harness:
+      Test Files 7 passed, Tests 78 passed).
+    reason: >-
+      недоступный шаг — быстрая ошибка с причиной и таймаутом на обоих путях
+      (stdin и ожидание слота/backoff), spawned-процесс в ветке отказа ещё не
+      запускается, stdin-поток разрушается; «висеть» больше нечему — покрыто
+      юнит-тестами с реальным спавном и wall-clock-пределом
+  - key: crit-6
+    status: pass
+    evidence: >-
+      packages/harness/src/harnesses/core/store/session.ts:218-242 — activityOf
+      по последней записи log.jsonl (fallback — created); :244-254 — staleDays
+      (--days → env HARNESS_STALE_DAYS → дефолт 7; нечисловой --days —
+      UsageError); :257-265 — staleSessions по порогу с сортировкой по возрасту.
+      packages/harness/src/harnesses/core/catalog.ts:117-126 — open <id>
+      --forget: отказ «сессия … исполняет роль … (pid N)» при живой роли
+      (ActiveRole.pid, packages/harness/src/harnesses/core/ops/runner.ts:271-289,
+      живость по alive(pid)), затем rm каталога сессии и «снята сессия …»; 
+      :135-147 — list --stale [--days]: только своего harness, живые роли
+      исключены, возраст в выводе. Флаги — packages/cli/src/cli.ts:51-53,86-88.
+      Тесты packages/harness/test/stale.test.ts:50-114 (4 it: список с
+      возрастом и отсечением свежих/чужих; --days двигает порог и отказ на
+      «нет»; --forget удаляет каталог и сессия исчезает из listSessions;
+      --forget отказ при живой роли, каталог не тронут) — зелёные в npm run ci.
+    reason: >-
+      обнаружение и снятие — штатные команды объявленной поверхности (list/open
+      без новых команд), отказ --forget при живой роли называет роль и pid;
+      expectations-поверхность команд не расширялась
+  - key: crit-7
+    status: pass
+    evidence: >-
+      packages/ai-core/package.json — version 0.1.7; пины ai-core → 0.1.7:
+      packages/cli/package.json (devDependencies @shahimat/ai-core 0.1.7), 
+      packages/harness/package.json (0.1.7), packages/oc3/package.json (0.1.7);
+      package-lock.json синхронизирован (в diff, 8 строк). Версии cli 0.1.4 / 
+      harness 0.5.0 / oc3 0.1.3 не менялись: npm — cli 0.1.3, harness 0.4.3, 
+      oc3 0.1.3 (npm view), т.е. у cli/harness текущая версия — ровно одна
+      неопубликованная ступень (expectation oneUnpublishedVersion, 
+      expectations/ai-prompts.expect.ts:85-99), oc3 опубликована — packages-check
+      печатает «@shahimat/oc3: 0.1.3 — опубликовано». node scripts/packages-check.ts
+      → «пакетов 4: критичных 0 · предупреждений 3», все warns — штатные
+      «требуется публикация» (ai-core@0.1.7, cli@0.1.4, harness@0.5.0);
+      тот же результат в npm run ci. design/packages.md «Релиз»: «Версии и пины
+      поднимаются одним тикетом: точные пины @shahimat/* в зависимостях пакетов
+      равны публикуемой версии» и «их пины на ai-core поднимаются в том же
+      тикете, что и версия ai-core» — выполнено; публикация одна на цель
+      (в judge-submit-channel версии менять было запрещено).
+    reason: >-
+      каскад один: версия ai-core поднята вместе со всеми пинами в одном
+      тикете; пропуск bump'а cli/harness/oc3 соответствует правилу «не больше
+      одной неопубликованной версии» и не создаёт crit в packages-check
+  - key: crit-8
+    status: fail
+    evidence: >-
+      npm run ci (лог /tmp/opencode/ci-docs-delta-hang-run1.log): exit 1; 
+      строка 215 — «✗ верхняя запись CHANGELOG.md пакета — его текущая версия
+      из package.json — AssertionError: expected { pkg: 'ai-core', top: '0.1.6'
+      } to deeply equal { pkg: 'ai-core', top: '0.1.7' }»; строка 219 — модуль
+      ai-prompts: «✗ crit 1/0»; строка 557 — «ожиданий 331: crit 1 · warn 4 ·
+      info 4 · ? 0 — бюджет превышен». Больше ✗ в логе нет (grep — ровно 2
+      строки с ✗: сам crit и его сводка). Остальное зелёное: format:check, 
+      build×4, typecheck×4, tsc expectations/packages/scripts, lint, тесты — 
+      ai-core 17 файлов/210, harness 7/78, cli 2/35, oc3 7/41, packages-check
+      crit 0, index:check, ? 0 (устаревших judged-вердиктов нет — живой прогон
+      ai expect judge --run не требуется). Пакеты cli/harness/oc3: верхние
+      записи CHANGELOG совпадают с версиями (0.1.4 / 0.5.0 / 0.1.3); не совпадает
+      только ai-core (0.1.6 при версии 0.1.7).
+    reason: >-
+      DoD «npm run ci зелёный» не выполнен: единственный red — отсутствие
+      записи ## 0.1.7 в packages/ai-core/CHANGELOG.md (проверка
+      changelogMatchesVersion, expectations/ai-prompts.expect.ts:101-106). 
+      Правило 4 AGENTS.md относит документацию к librarian — заготовка записи
+      готова в .ops/docs-delta-hang/reports/executor-1.md:54-64; нюанс: механический
+      docs guard прикрывает только корневой CHANGELOG.md (packages/oc3/src/guards.ts:47,
+      «root-only changelog protection», 231e744), так что блокировка именно
+      guard'ом не воспроизводится — но правило репозитория то же; после записи
+      librarian ci зелёный без прочих изменений (все прочие проверки этого
+      прогона зелёные). Что сделать: librarian вносит запись ## 0.1.7 в
+      packages/ai-core/CHANGELOG.md по docs_request, затем judge run 2.
+changes:
+  - goals/harness-reliability.expect.ts не менялся (заголовки точны, механика не ослаблялась)
+  - в goals/harness-reliability.expect.json добавлен run 1 тикета docs-delta-hang
+    (crit-5…crit-8, сквозная нумерация по файлу цели; запись judge-submit-channel
+    не тронута)
+  - живой прогон ai expect judge --run не выполнялся: ? 0 — устаревших
+    judged-заданий нет (проверено отчётом ci); канал тот же, что в run 1
+    judge-submit-channel

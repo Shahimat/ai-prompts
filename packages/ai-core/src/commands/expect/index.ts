@@ -495,14 +495,22 @@ async function judgeRun(args: CommandArgs): Promise<number> {
     ...plan.batches.map((t) => ({ ...t, kind: 'batch' as const })),
     ...plan.lint.map((t) => ({ ...t, kind: 'lint' as const })),
   ];
+  const envDir = process.env['HARNESS_EXPECT_TRANSCRIPT'];
+  const transcriptDir =
+    envDir !== undefined && envDir.trim() !== ''
+      ? envDir
+      : path.posix.join(JUDGE_DIR, 'transcripts');
   const failed = await Promise.all(
     tasks.map(async (t) => {
       const text = await readFile(path.join(args.root, t.task), 'utf8');
+      const name = path.basename(t.task, '.md');
+      const transcript = path.resolve(args.root, path.posix.join(transcriptDir, `${name}.jsonl`));
       try {
         const { data } = await askRole(
           args.root,
           'judge',
-          `${text}\nФайл ответа не пиши: верни ответ инструментом submit_result.`,
+          `${text}\nФайл ответа не пиши: верни итог инструментом submit_result; инструмента нет — тем же JSON в код-блоке последним сообщением.`,
+          { transcript },
         );
         const answer = t.kind === 'batch' && isRecord(data) ? data['answers'] : data;
         await writeFile(path.join(args.root, t.answer), JSON.stringify(answer, null, 2), 'utf8');

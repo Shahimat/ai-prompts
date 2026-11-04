@@ -214,3 +214,52 @@ export async function listSessions(home: string): Promise<Session[]> {
   }
   return sessions;
 }
+
+export async function activityOf(session: Session): Promise<Date> {
+  const created = new Date(session.data.created);
+  const fallback = Number.isNaN(created.getTime()) ? new Date(0) : created;
+  try {
+    const text = await readFile(session.file('log.jsonl'), 'utf8');
+    const last = text
+      .split('\n')
+      .filter((l) => l !== '')
+      .at(-1);
+    if (last === undefined) return fallback;
+    const entry: unknown = JSON.parse(last);
+    if (!isRecord(entry) || typeof entry['at'] !== 'string') return fallback;
+    const at = new Date(entry['at']);
+    return Number.isNaN(at.getTime()) ? fallback : at;
+  } catch (error) {
+    if (error instanceof SyntaxError) return fallback;
+    if (errorCode(error) !== 'ENOENT') throw error;
+  }
+  return fallback;
+}
+
+export interface StaleSession {
+  session: Session;
+  last: Date;
+}
+
+export const DEFAULT_STALE_DAYS = 7;
+
+export function staleDays(argsDays: string | undefined): number {
+  if (argsDays !== undefined) {
+    const n = Number.parseFloat(argsDays);
+    if (!Number.isFinite(n) || n < 0) throw new UsageError(`--days — число дней: ${argsDays}`);
+    return n;
+  }
+  const raw = process.env['HARNESS_STALE_DAYS'];
+  const n = raw === undefined ? Number.NaN : Number.parseFloat(raw);
+  return Number.isFinite(n) && n >= 0 ? n : DEFAULT_STALE_DAYS;
+}
+
+export async function staleSessions(home: string, days: number): Promise<StaleSession[]> {
+  const threshold = Date.now() - days * 86_400_000;
+  const out: StaleSession[] = [];
+  for (const session of await listSessions(home)) {
+    const last = await activityOf(session);
+    if (last.getTime() < threshold) out.push({ session, last });
+  }
+  return out.sort((a, b) => a.last.getTime() - b.last.getTime());
+}

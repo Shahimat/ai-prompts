@@ -152,7 +152,19 @@ export interface OpsRoleRun {
   priority: number;
   job?: string;
   options?: AskOptions;
+  waitMin?: number;
 }
+
+const WAIT_PROGRESS_S = 30;
+
+const waitLabel = (ms: number): string =>
+  ms < 120_000 ? `${Math.max(1, Math.round(ms / 1000))} с` : `${Math.round(ms / 60_000)} мин`;
+
+export const stepWaitMin = (): number => {
+  const raw = process.env['HARNESS_STEP_WAIT_MIN'];
+  const n = raw === undefined ? Number.NaN : Number.parseFloat(raw);
+  return Number.isFinite(n) && n > 0 ? n : 5;
+};
 
 export async function opsRole(run: OpsRoleRun): Promise<RoleOutcome> {
   const role = await findRole(run.root, run.role);
@@ -163,10 +175,27 @@ export async function opsRole(run: OpsRoleRun): Promise<RoleOutcome> {
   const ticket = machineFile(run.home, 'queue', `${run.lane}-${token}.json`);
   const at = Date.now();
   await writeJson(ticket, { pid: process.pid, priority: run.priority, at, token });
+  const waitStart = Date.now();
+  const waitLimit = run.waitMin === undefined ? undefined : run.waitMin * 60_000;
+  let reason = '';
+  let reported = 0;
+  const reportWait = (next: string): void => {
+    const now = Date.now();
+    if (next === reason && now - reported < WAIT_PROGRESS_S * 1000) return;
+    reason = next;
+    reported = now;
+    console.error(`роль ${run.role}: ${next}`);
+  };
   try {
     for (;;) {
       const until = await backoffUntil(run.home);
       if (Date.now() < until) {
+        const left = Math.ceil((until - Date.now()) / 1000);
+        reportWait(`жду — лимит модели, очередь на паузе ещё ${left} с`);
+        if (waitLimit !== undefined && Date.now() - waitStart > waitLimit)
+          throw new Error(
+            `роль ${run.role}: ожидание превысило ${waitLabel(waitLimit)} — лимит модели держит очередь до ${new Date(until).toLocaleTimeString()}; сними помеху или повтори позже`,
+          );
         await sleep(Math.min(until - Date.now(), pollMs()));
         continue;
       }
@@ -190,6 +219,14 @@ export async function opsRole(run: OpsRoleRun): Promise<RoleOutcome> {
           : undefined;
       if (lane === undefined || (opus && big === undefined)) {
         if (lane !== undefined) await remove(lane);
+        const busy = opus
+          ? `слоты ${run.lane} ${cap}/${cap} и opus ${limits.opus}/${limits.opus}`
+          : `слоты ${run.lane} ${cap}/${cap}`;
+        reportWait(`жду — заняты ${busy}`);
+        if (waitLimit !== undefined && Date.now() - waitStart > waitLimit)
+          throw new Error(
+            `роль ${run.role}: ожидание превысило ${waitLabel(waitLimit)} — заняты ${busy}; посмотри ai ops status и повтори позже`,
+          );
         await sleep(pollMs());
         continue;
       }
@@ -217,6 +254,7 @@ export interface ActiveRole {
   started: string;
   transcript: string;
   lane: string;
+  pid: number;
 }
 
 export async function activeRoles(home: string): Promise<ActiveRole[]> {
@@ -235,6 +273,7 @@ export async function activeRoles(home: string): Promise<ActiveRole[]> {
       started: str('started'),
       transcript: str('transcript'),
       lane: name.replace(/-\d+\.json$/, ''),
+      pid: data['pid'],
     });
   }
   return out;

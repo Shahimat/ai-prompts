@@ -1,4 +1,5 @@
 import { existsSync } from 'node:fs';
+import { rm } from 'node:fs/promises';
 import path from 'node:path';
 import type { CommandArgs } from '@shahimat/ai-core';
 import { UsageError } from '@shahimat/ai-core';
@@ -11,7 +12,23 @@ import {
   type MachineDef,
   type Registry,
 } from './fsm/machine.ts';
-import { harnessHome, listSessions, resolveSession, type Session } from './store/session.ts';
+import {
+  harnessHome,
+  listSessions,
+  resolveSession,
+  staleDays,
+  staleSessions,
+  type Session,
+} from './store/session.ts';
+import { activeRoles } from './ops/runner.ts';
+
+const ageOf = (at: Date): string => {
+  const minutes = Math.round((Date.now() - at.getTime()) / 60_000);
+  if (minutes < 60) return `${minutes} мин`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 48) return `${hours} ч`;
+  return `${Math.round(hours / 24)} д`;
+};
 
 export interface HarnessModule {
   name: string;
@@ -93,16 +110,42 @@ export function harnessNodes(m: HarnessModule): CommandNode[] {
       path: at('open', '<id>'),
       kind: 'harness',
       effect: 'mutation',
-      options: HOME,
-      run: async (args) => open(m, await sessionOf(args, m.name), homeOf(args)),
+      options: '[--forget] ' + HOME,
+      run: async (args) => {
+        const home = homeOf(args);
+        const session = await sessionOf(args, m.name);
+        if (args.forget === true) {
+          const live = (await activeRoles(home)).find((r) => r.job === session.short);
+          if (live !== undefined)
+            throw new UsageError(
+              `сессия ${session.short} исполняет роль ${live.role} (pid ${live.pid}) — сними процесс и повтори`,
+            );
+          const dir = session.dir;
+          await rm(dir, { recursive: true, force: true });
+          console.log(`снята сессия ${session.short} (${session.data.state}) — реестр: ${dir}`);
+          return 0;
+        }
+        return open(m, session, home);
+      },
     },
     {
       path: at('list'),
       kind: 'harness',
       effect: 'query',
-      options: HOME,
+      options: '[--stale] [--days <дней>] ' + HOME,
       run: async (args) => {
-        for (const s of await listSessions(homeOf(args)))
+        const home = homeOf(args);
+        if (args.stale === true) {
+          const live = new Set((await activeRoles(home)).map((r) => r.job));
+          for (const { session, last } of await staleSessions(home, staleDays(args.days))) {
+            if (session.data.harness !== m.name || live.has(session.short)) continue;
+            console.log(
+              `${session.short}\t${session.data.state}\t${session.data.title}\t${ageOf(last)}`,
+            );
+          }
+          return 0;
+        }
+        for (const s of await listSessions(home))
           if (s.data.harness === m.name)
             console.log(`${s.short}\t${s.data.state}\t${s.data.title}`);
         return 0;

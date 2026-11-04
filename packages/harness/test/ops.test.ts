@@ -17,7 +17,10 @@ import {
   launchdPlist,
   loadLimits,
   loadProvider,
+  machineFile,
+  opsRole,
   parseTaskMarkdown,
+  PRIORITY,
   systemdUnits,
 } from '#harnesses/core/index';
 import { parseVerdicts, quoted } from '#harnesses/ticket-work/index';
@@ -331,6 +334,33 @@ describe('ops: что работает сейчас', () => {
       `работает researcher · abc1234 · 4 мин · последний шаг: Grep · ${transcript}`,
     );
     expect((await briefLines(home, root))[0]).toContain('ролей в работе 1');
+  });
+});
+
+describe('ops: ожидание роли в шаге автомата', () => {
+  it('waitMin: роль не ждёт вечно — ошибка с причиной, прогресс ожидания в stderr', async () => {
+    await mkdir(machineFile(home), { recursive: true });
+    await writeFile(
+      machineFile(home, 'backoff.json'),
+      JSON.stringify({ until: Date.now() + 3_600_000, attempts: 1 }),
+      'utf8',
+    );
+    const failure = await opsRole({
+      root,
+      home,
+      role: 'researcher',
+      task: 'т',
+      lane: 'jobs',
+      priority: PRIORITY.research,
+      waitMin: 0.001,
+    }).then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+    expect(String(failure)).toContain('ожидание превысило');
+    expect(String(failure)).toContain('лимит модели');
+    expect(out.join('\n')).toContain('жду — лимит модели');
+    await rm(machineFile(home, 'backoff.json'), { force: true });
   });
 });
 

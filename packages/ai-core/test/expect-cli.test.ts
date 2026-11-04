@@ -3,12 +3,15 @@ import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { main } from '@shahimat/cli';
 import { isRecord } from '#shared/guards';
+import { FAKE_OPENCODE } from './fake-opencode.ts';
 
 const TMP = path.join(import.meta.dirname, '.tmp');
 const ROOT = path.join(TMP, 'expect-cli');
 const NOW = new Date('2026-10-13T12:00:00Z');
 const out: string[] = [];
 const ENTRY = 'expectations/demo.expect.ts';
+const DEMO_ENTRY =
+  "import { describe, it, expect } from 'vitest';\ndescribe('второй файл', () => {\n  it('шесть на семь — сорок два', () => expect(6 * 7).toBe(42));\n  it.todo('позже');\n});\n";
 
 async function put(rel: string, content: string): Promise<void> {
   await mkdir(path.dirname(path.join(ROOT, rel)), { recursive: true });
@@ -79,5 +82,59 @@ describe('ai expect report | lint | judge', () => {
     expect(await main(['expect', 'judge', ENTRY, '--apply', '--root', ROOT], NOW)).toBe(0);
     expect(await main(['expect', 'report', ENTRY, '--root', ROOT], NOW)).toBe(0);
     expect(await main(['expect', 'judge', ENTRY, '--root', ROOT], NOW)).toBe(0);
+  }, 120_000);
+
+  it('judge --run: роль отвечает конвертом в тексте — пакет доходит до apply сам', async () => {
+    await put('expectations/extra.expect.ts', DEMO_ENTRY);
+    await put(
+      'agents/judge.md',
+      '---\nname: judge\ndescription: Тестовая роль judge для проверки harness\noutput: verdict\n---\n\nТело роли judge.\n',
+    );
+    const fake = path.join(ROOT, 'fake-opencode.mjs');
+    await writeFile(fake, FAKE_OPENCODE, 'utf8');
+    const envKeys = ['HARNESS_OPENCODE', 'FAKE_TEXT', 'FAKE_SUBMIT'];
+    const saved = envKeys.map((k) => [k, process.env[k]] as const);
+    process.env['HARNESS_OPENCODE'] = fake;
+    delete process.env['FAKE_SUBMIT'];
+    process.env['FAKE_TEXT'] =
+      'Проверил.\n```json\n{"message":"verdict","data":{"contradictions": [], "unmeasurable": []}}\n```';
+    const extra = 'expectations/extra.expect.ts';
+    try {
+      expect(await main(['expect', 'judge', extra, '--run', '--root', ROOT], NOW)).toBe(0);
+      expect(await main(['expect', 'report', extra, '--root', ROOT], NOW)).toBe(0);
+    } finally {
+      for (const [k, v] of saved) {
+        if (v === undefined) delete process.env[k];
+        else process.env[k] = v;
+      }
+    }
+  }, 120_000);
+
+  it('judge --run: отказ роли — транскрипт в .judge, ошибка называет причину и файл', async () => {
+    await put('expectations/broken.expect.ts', DEMO_ENTRY);
+    const envKeys = ['HARNESS_OPENCODE', 'FAKE_TEXT'];
+    const saved = envKeys.map((k) => [k, process.env[k]] as const);
+    process.env['HARNESS_OPENCODE'] = path.join(ROOT, 'fake-opencode.mjs');
+    process.env['FAKE_TEXT'] = 'Готово, итога в формате нет';
+    out.length = 0;
+    try {
+      expect(
+        await main(
+          ['expect', 'judge', 'expectations/broken.expect.ts', '--run', '--root', ROOT],
+          NOW,
+        ),
+      ).toBe(1);
+      expect(
+        await readFile(path.join(ROOT, 'expectations/.judge/transcripts/lint-1.jsonl'), 'utf8'),
+      ).toContain('"type":"text"');
+      const errors = out.join('\n');
+      expect(errors).toContain('lint-1.md: роль judge не вернула итог');
+      expect(errors).toContain('транскрипт:');
+    } finally {
+      for (const [k, v] of saved) {
+        if (v === undefined) delete process.env[k];
+        else process.env[k] = v;
+      }
+    }
   }, 120_000);
 });
