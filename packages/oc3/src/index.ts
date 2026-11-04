@@ -2,6 +2,7 @@ import { Plugin } from '@opencode/plugin';
 import { isOperatorCentric, registerGuards } from '#guards';
 import { registerOpsBrief } from '#ops-brief';
 import { registerPlanBridge } from '#plan-bridge';
+import { registerSessionBrief } from '#session-brief';
 import { registerTools } from '#tools';
 
 export default Plugin.define({
@@ -12,7 +13,10 @@ export default Plugin.define({
     if (!(await isOperatorCentric(root))) return;
     await registerGuards(ctx);
     await registerTools(ctx);
-    return registerOpsBrief(ctx);
+    const cleanups = [await registerSessionBrief(ctx), await registerOpsBrief(ctx)];
+    return async () => {
+      for (const cleanup of cleanups) await cleanup();
+    };
   },
 });
 

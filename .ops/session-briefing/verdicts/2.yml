@@ -1,0 +1,67 @@
+run: 2
+status: satisfactorily
+summary: crit 1–3 pass — DoD тикета выполнен и не деградировал; crit 4 satisfactorily — все шаги ci и все механические проверки expect зелёные, причина run 1 (description 359>300) устранена; остаточный exit 1 даёт только судья-гейт — два judged-ожидания с устаревшими вердиктами после правок брифинга, лечится прогоном ai expect judge, executor-работа не нужна
+items:
+  - key: crit-1
+    status: pass
+    evidence: packages/oc3/src/session-brief.ts:47-58; packages/oc3/src/index.ts:5,13,16; packages/oc3/test/session-brief.test.ts:58-75; мой прогон npm run ci — oc3 vitest 7 файлов / 41 тест pass
+    reason: >
+      Без изменений с run 1 и подтверждено фактом: registerSessionBrief ставит
+      ctx.session.hook('context', …), appendBriefing гейтится Set<sessionID> —
+      «if (seen.has(sessionID)) return» (session-brief.ts:47), строка пушится
+      в input.system (строка 49) один раз на сессию; тест «строка попадает в
+      системный промпт сессии один раз» (session-brief.test.ts:58) — повторный
+      вызов s1 без добавления, новая сессия s2 с добавлением. Строка режима —
+      session-brief.ts:38 «брифинг: режим ${mode} — до ролей и тикетов спроси
+      схему работы (дефолтная или кастомная), детали — skill workflow»,
+      дефолт — DEFAULT_LINE (строки 9-10). Регистрация в index.ts:16 под
+      «if (!(await isOperatorCentric(root))) return» (строка 13). Тесты oc3
+      зелёные в моём прогоне ci (41/41).
+  - key: crit-2
+    status: pass
+    evidence: prompts/productivity/agent-operational-contract-v3.md:224 (блок «Оператор» 222-229, шаблон 193-236); expect в моём прогоне ci — «✓ шаблон AGENTS.md в ядре — не больше 80 строк»
+    reason: >
+      Строка-триггер в блоке «Оператор» шаблона: «старт сессии — брифинг:
+      один вопрос — схема „дефолтная“ или „кастомная“; без ответа роли и
+      тикеты не запускаешь; детали — skill workflow, режим проекта —
+      context/project.yml → briefing». Бюджет шаблона — механическая
+      проверка expect зелёная («не больше 80 строк»). Пункт — правка
+      оператора, в worktree присутствует.
+  - key: crit-3
+    status: pass
+    evidence: skills/workflow/SKILL.md:5 (description) и SKILL.md:28-34 (раздел «Брифинг перед стартом»); длина description ≈257 символов (подсчёт строки 5: 271 с префиксом «description: » и переводом строки); expect — «✓ frontmatter каждого SKILL.md соответствует схеме skill-frontmatter»
+    reason: >
+      Description начинается с императива старта сессии: «СТАРТ СЕССИИ —
+      загружай первым; брифинг схемы работы обязателен до ролей.» —
+      оператор сократил с 359 до ~257 символов, схема skill-frontmatter
+      (≤300) теперь зелёная — причина fail crit-4 из run 1 устранена.
+      Раздел «Брифинг перед стартом» требует брифинг первым содержательным
+      сообщением: «Первое содержательное сообщение сессии — один вопрос:
+      схема работы „дефолтная“ или „кастомная“? Без ответа роли и тикеты
+      не запускаешь — даже когда запрос выглядит как готовая задача».
+      Формулировка crit выполнена полностью.
+  - key: crit-4
+    status: satisfactorily
+    evidence: мой прогон npm run ci в worktree: format:check, build ×4, typecheck ×7, lint, тесты (ai-core 203, harness 72, cli 35, oc3 41), packages-check (критичных 0), index:check «up to date» — зелёные; expect — все механические проверки ✓, crit 0, но «ожиданий 331: crit 0 · warn 4 · info 4 · ? 2 — бюджет превышен», exit 1
+    reason: >
+      Остаточный exit 1 — только судья-гейт свежести вердиктов: два
+      judged-ожидания pending, кэш-вердикты есть, но sha доказательств
+      изменился после правок брифинга. (1) agent-operational-contract-v3:
+      «? шаблон AGENTS.md и блоки модулей не содержат указаний…» — кэш
+      f586544d451f (2026-11-03, @agents-md-readonly sha 514b2708…),
+      фактический sha 0356e6a5… — регион якоря (шаблон, строки 186-242)
+      пополнила строка брифинга (224). (2) skills: «? workflow: брифинг
+      перед первым запуском ролей…» — кэш cc7a387de090 (@briefing sha
+      65f0eabc…), фактический sha 8533967f… (блок expect:briefing в
+      skills/workflow/SKILL.md:30-58). Логика: blocked включает
+      count.pending > 0 (packages/ai-core/src/commands/expect/index.ts:225,
+      формула over с count.pending > 0); вердикт свеж только при
+      совпадении вопроса и sha доказательств. Ни одного провала проверок
+      нет: crit 0 по всем файлам, причины run 1 больше нет. Remedy — не
+      executor: прогнать судью ожиданий (ai expect judge
+      expectations/index.expect.ts) по двум заданиям, вердикты лягут в
+      expectations/.verdicts.json, после этого ci зелёный целиком.
+      Содержательно оба вопроса подтверждены файлами (шаблон и блок
+      брифинга соответствуют формулировкам), так что повторный вердикт
+      судьи ожиданий — формальность цикла.
+changes: []

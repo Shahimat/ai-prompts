@@ -1,0 +1,69 @@
+run: 1
+status: fail
+summary: crit 1–3 pass — DoD тикета (oc3-хук брифинга) выполнен полностью; crit 4 fail — expect красный из-за skills/workflow/SKILL.md (description 359>300, файл оператора вне DoD executor)
+items:
+  - key: crit-1
+    status: pass
+    evidence: packages/oc3/src/session-brief.ts:47-58; packages/oc3/src/index.ts:15-20; packages/oc3/test/session-brief.test.ts (6/6 pass); npm run ci — шаг тестов oc3 зелёный
+    reason: >
+      Хук и гейт: registerSessionBrief ставит ctx.session.hook('context', …) с
+      Set<sessionID> — «if (seen.has(sessionID)) return» (session-brief.ts:47),
+      строка пушится в input.system (строка 49) один раз на сессию; тест
+      «строка попадает в системный промпт сессии один раз» проверяет повторный
+      вызов той же сессии (без добавления) и новую сессию (с добавлением).
+      Строки дословно по DoD: «брифинг: режим ${mode} — до ролей и тикетов
+      спроси схему работы (дефолтная или кастомная), детали — skill workflow»
+      (строка 38) и DEFAULT_LINE «брифинг: режим не задан — дефолт cheap: …»
+      (строки 9-10). Режим из context/project.yml: readFile → yaml parse →
+      isRecord → isBriefing (строки 21-39); дежурный текст при отсутствии
+      блока, файла, битом yaml и не-строчном mode — покрыты кодом и тестами.
+      Переиспользование: briefing.ts:77-88 — isBriefing/describeBriefing
+      экспортированы (diff: function → export function), импорт по алиасу
+      #briefing внутри пакета, новых cross-package зависимостей нет
+      (design/packages.md: oc3 зависит от ai-core — направление не нарушено).
+      Регистрация: index.ts — registerSessionBrief рядом с registerOpsBrief,
+      под «if (!(await isOperatorCentric(root))) return», cleanup обоих хуков
+      объединён. Выбор хука 'context' корректен: у 'prompt' (SessionPrompt)
+      доступа к system нет — только prompt-текст; system: Array<SystemPart>
+      есть только в SessionContext (@opencode/plugin
+      promise/session.d.ts:29,33,171-173). Первое срабатывание 'context' —
+      первый модельный запрос сессии, то есть первый промпт; гейт ограничивает
+      добавление этим первым запросом — «на первый промпт каждой сессии»
+      покрыто, замечание executor подтверждено.
+  - key: crit-2
+    status: pass
+    evidence: prompts/productivity/agent-operational-contract-v3.md:224 — строка-триггер в блоке «Оператор» шаблона (блок шаблона — строки 193-236, 42 строки)
+    reason: >
+      Строка-триггер добавлена в шаблон: «старт сессии — брифинг: один вопрос —
+      схема „дефолтная“ или „кастомная“; без ответа роли и тикеты не
+      запускаешь; детали — skill workflow, режим проекта — context/project.yml
+      → briefing». Бюджет: шаблон 42 строки (было 41) — ≤80 соблюдён (в самом
+      промпте бюджет «до 150 строк и 8 KiB вместе с блоками модулей» — тоже
+      соблюдён). Пункт — правка оператора, не executor; в worktree присутствует.
+  - key: crit-3
+    status: pass
+    evidence: skills/workflow/SKILL.md:5 (description) и раздел «Брифинг перед стартом» (~строка 30)
+    reason: >
+      Description начинается с императива старта сессии: «СТАРТ СЕССИИ —
+      загрузи первым, до любой работы; брифинг схемы работы обязателен».
+      Раздел «Брифинг перед стартом» требует брифинг первым содержательным
+      сообщением: «Первое содержательное сообщение сессии — один вопрос: схема
+      работы „дефолтная“ или „кастомная“? Без ответа роли и тикеты не
+      запускаешь — даже когда запрос выглядит как готовая задача». Формулировка
+      crit выполнена. Оговорка вне формулировки crit: длина description 359
+      символов > 300 по skill-frontmatter — это красит skills.expect.ts crit 1
+      (другой файл цели, вне DoD тикета); учтено в crit 4, правит
+      оператор/librarian.
+  - key: crit-4
+    status: fail
+    evidence: npm run ci в worktree (мой прогон): format:check, build ×4, typecheck ×4+3, lint, тесты 4 пакетов, packages-check, index:check — зелёные; шаг expect красный — skills.expect.ts «frontmatter каждого SKILL.md соответствует схеме skill-frontmatter», причина skills/workflow/SKILL.md:5 description 359 символов > 300 (проверено: node-подсчёт длины = 359)
+    reason: >
+      Crit требует зелёный ci вместе с «ожиданиями» — expect красный, поэтому
+      fail. Красное вне скоупа executor: skills/workflow/SKILL.md — файл
+      оператора (executor трогать не имел права), правка по критерию 3 цели;
+      все шаги executor-скоупа зелёные (confirm_executor_claim из отчёта
+      воспроизведён моим прогоном ci). Что сделать: оператору/librarian
+      сократить description workflow до ≤300 символов, сохранив императив
+      старта в начале; после этого ci зелёный целиком, доработка executor не
+      нужна.
+changes: []

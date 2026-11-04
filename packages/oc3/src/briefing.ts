@@ -10,7 +10,7 @@ const JUDGES = ['on', 'off'] as const;
 const TICKET_MODES = ['stop', 'all'] as const;
 const CUSTOM_KEYS = ['routing', 'research', 'judge', 'ticket_mode'] as const;
 
-interface Briefing {
+export interface Briefing {
   mode: string;
   routing?: string;
   research?: string;
@@ -74,11 +74,11 @@ function requireParam(
   return value;
 }
 
-function isBriefing(value: unknown): value is Briefing {
+export function isBriefing(value: unknown): value is Briefing {
   return isRecord(value) && typeof value['mode'] === 'string';
 }
 
-function describeBriefing(briefing: Briefing): string[] {
+export function describeBriefing(briefing: Briefing): string[] {
   const lines = [`mode: ${briefing.mode}`];
   if (briefing.routing !== undefined) lines.push(`routing: ${briefing.routing}`);
   if (briefing.research !== undefined) lines.push(`research: ${briefing.research}`);

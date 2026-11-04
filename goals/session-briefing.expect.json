@@ -1,0 +1,62 @@
+{
+  "results": [
+    {
+      "run": 1,
+      "items": [
+        {
+          "key": "crit-1",
+          "status": "pass",
+          "evidence": "packages/oc3/src/session-brief.ts:47-58; packages/oc3/src/index.ts:15-20; packages/oc3/test/session-brief.test.ts 6/6 pass",
+          "reason": "oc3-хук по DoD: одна строка брифинга в системный промпт на первую сессию (Set<sessionID>), режим из project.yml, дежурный текст без блока; 'context'-хук корректен — system доступен только в SessionContext; переиспользование isBriefing/describeBriefing из #briefing"
+        },
+        {
+          "key": "crit-2",
+          "status": "pass",
+          "evidence": "prompts/productivity/agent-operational-contract-v3.md:224, шаблон 42 строки",
+          "reason": "строка-триггер брифинга в блоке «Оператор» шаблона есть, бюджет ≤80 строк соблюдён (правка оператора)"
+        },
+        {
+          "key": "crit-3",
+          "status": "pass",
+          "evidence": "skills/workflow/SKILL.md:5 и раздел «Брифинг перед стартом»",
+          "reason": "description начинается с императива старта сессии, раздел требует брифинг первым содержательным сообщением; вне формулировки crit: description 359>300 ломает skills.expect.ts crit 1 — учтено в crit-4"
+        },
+        {
+          "key": "crit-4",
+          "status": "fail",
+          "evidence": "npm run ci: все шаги до expect зелёные; expect красный — skills/workflow/SKILL.md:5 description 359>300",
+          "reason": "ci по crit должен быть зелёным с ожиданиями; красное — файл оператора вне DoD executor; remedy: оператору/librarian сократить description ≤300 с императивом в начале"
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "items": [
+        {
+          "key": "crit-1",
+          "status": "pass",
+          "evidence": "packages/oc3/src/session-brief.ts:47-58; packages/oc3/src/index.ts:5,13,16; packages/oc3/test/session-brief.test.ts:58-75; oc3 vitest 41/41 в прогоне ci",
+          "reason": "хук 'context' с гейтом Set<sessionID> — строка брифинга в системный промпт один раз на сессию, режим из project.yml, дежурная строка без блока; тесты зелёные"
+        },
+        {
+          "key": "crit-2",
+          "status": "pass",
+          "evidence": "prompts/productivity/agent-operational-contract-v3.md:224 (блок «Оператор»); expect «✓ шаблон AGENTS.md в ядре — не больше 80 строк»",
+          "reason": "строка-триггер брифинга в блоке «Оператор» шаблона есть, бюджет ≤80 строк соблюдён"
+        },
+        {
+          "key": "crit-3",
+          "status": "pass",
+          "evidence": "skills/workflow/SKILL.md:5 и SKILL.md:28-34; description ≈257 символов ≤300; expect «✓ frontmatter каждого SKILL.md соответствует схеме»",
+          "reason": "description начинается с императива «СТАРТ СЕССИИ — загружай первым», сокращён оператором с 359 до ~257; раздел «Брифинг перед стартом» требует брифинг первым содержательным сообщением"
+        },
+        {
+          "key": "crit-4",
+          "status": "satisfactorily",
+          "evidence": "npm run ci: все шаги до expect и все механические проверки зелёные, crit 0; exit 1 только из-за ? 2 — устаревшие вердикты judged-ожиданий (@briefing sha 8533967f… vs кэш 65f0eabc…, @agents-md-readonly sha 0356e6a5… vs кэш 514b2708…), blocked включает pending > 0",
+          "reason": "причина run 1 устранена; остаточный красный — судья-гейт свежести вердиктов после правок брифинга; remedy: ai expect judge по двум заданиям — executor-работа не нужна"
+        }
+      ]
+    }
+  ]
+}
