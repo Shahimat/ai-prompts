@@ -158,7 +158,12 @@ describe('ticket-work: путь задачи', () => {
       .split('\n')
       .filter((l) => l.includes('"role":"executor"'))
       .at(-1);
-    expect(implement).toContain(workdir);
+    const implementParsed: unknown = JSON.parse(implement ?? '{}');
+    const implementPrompt =
+      isRecord(implementParsed) && typeof implementParsed['prompt'] === 'string'
+        ? implementParsed['prompt']
+        : '';
+    expect(implementPrompt).toContain(workdir);
 
     expect(await main(['ticket-work', 'status', id.slice(0, 7), '--home', home], NOW)).toBe(0);
     expect(await main(['ticket-work', 'list', '--home', home], NOW)).toBe(0);
@@ -614,6 +619,34 @@ describe('ops: mapping, проверка провайдеров и строка 
       ),
     );
     expect(await run(['ops', 'providers', 'check'])).toBe(0);
+  });
+
+  it('providers check на платформе без планировщика: schedule none — платформенный факт, код 0', async () => {
+    await put(
+      'context/ops.yml',
+      [
+        'providers:',
+        '  tasks: { provider: local, system: файлы задач }',
+        '  vcs: git',
+        '  review: { provider: none, why: ревью нет }',
+        '  checks: { provider: none, why: CI нет }',
+        '  notify: { provider: none, why: нет }',
+        'probe:',
+        '  tasks: tasks/t1.md',
+        '',
+      ].join('\n'),
+    );
+    const was = process.platform;
+    Object.defineProperty(process, 'platform', { value: 'win32' });
+    try {
+      out = [];
+      expect(await run(['ops', 'providers', 'check'])).toBe(0);
+      const text = out.join('\n');
+      expect(text).toContain('на платформе нет планировщика');
+      expect(text).toMatch(/schedule\t.*\tnone/);
+    } finally {
+      Object.defineProperty(process, 'platform', { value: was });
+    }
   });
 
   it('line: живая сессия автомата проекта — имя, задача, состояние, ожидание ответа', async () => {
