@@ -113,7 +113,7 @@ const NODES: readonly CommandNode[] = [
     effect: 'query',
     run: OC3_COMMANDS.expectReport,
   },
-  { path: ['init'], kind: 'command', effect: 'query', run: runInit },
+  { path: ['init'], kind: 'command', effect: 'mutation', run: runInit },
 ];
 
 export const OC3_TREE = commandTree(BIN, NODES);

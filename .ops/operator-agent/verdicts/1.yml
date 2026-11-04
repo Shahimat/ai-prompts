@@ -1,0 +1,53 @@
+run: 1
+status: pass
+summary: все три crit подтверждены; ограничения executor соблюдены (нет as T / ! / any / ==, комментариев нет, строки на русском, версии и запретные каталоги не тронуты); формат и ключи сверены с docs OpenCode
+items:
+  - key: crit-1
+    status: pass
+    evidence: >-
+      packages/oc3/src/operator-agent.ts:11 (путь .opencode/agents/operator.md),
+      :16-17 и :19-28 (frontmatter description + mode: primary, тело — только
+      маршрутизация: «Маршрут, правила и сценарии — AGENTS.md; брифинг и
+      протоколы — skill workflow; … вызови oc3.briefing_done»);
+      packages/oc3/src/init.ts:20-21 (runInit первым делом вызывает
+      ensureOperatorAgent и ensureDefaultAgent с console.log);
+      operator-agent.ts:158-172 (нет конфига — создаёт opencode.jsonc с $schema
+      + "default_agent": "operator"); smoke judge в /tmp/opencode/oc3-judge-smoke:
+      свежий каталог — operator.md и opencode.jsonc созданы, вывод команды это
+      подтверждает
+    reason: >-
+      init создаёт operator.md в формате OpenCode и пишет "default_agent":
+      "operator" в opencode.jsonc проекта. Сверка с docs OpenCode (opencode.ai/docs/agents,
+      /docs/config, от 2026-11-02): agents лежат в .opencode/agents/ (множественное
+      число), markdown-формат — frontmatter description (обязателен) + mode
+      (primary/subagent/all), тело файла = system prompt — шаблон соответствует;
+      default_agent — реальный ключ конфига, требует primary-агента, а сгенерированный
+      operator.md именно mode: primary
+  - key: crit-2
+    status: pass
+    evidence: >-
+      packages/oc3/src/operator-agent.ts:47-48 (совпадает с шаблоном — «без
+      изменений», правки пользователя — «не перетираю»), :130-137 (чужой
+      default_agent сохраняется: «не перетираю чужой агент, переключение
+      вручную»); init.ts:20-21 — merge-поведение описано в выводе команды
+      (console.log отчётов ensureOperatorAgent/ensureDefaultAgent); smoke judge:
+      повторный прогон — «без изменений» / «уже стоит — без изменений»; после
+      правок пользователя и "default_agent": "build" оба файла сохранены
+      дословно; вставка ключа в существующий JSONC сохраняет комментарии и
+      $schema (smoke /tmp/opencode/oc3-judge-merge + тест
+      operator-agent.test.ts:50-66, JSON.parse после снятия комментариев)
+    reason: >-
+      Повторный запуск идемпотентен и консервативен: шаблон не навязывается
+      поверх правок, чужой default_agent не перетирается, каждое решение
+      объяснено в отчёте команды
+  - key: crit-3
+    status: pass
+    evidence: >-
+      packages/oc3/test/operator-agent.test.ts — 12 тестов в 4 describe:
+      генерация operator.md (:24-34), повторный запуск и правки пользователя
+      (:36-46), merge JSONC — вставка с комментариями, пустой/битый конфиг,
+      чужой/свой и вложенный/строковый default_agent (:50-92), ensureDefaultAgent —
+      создание конфига, идемпотентность, чужой ключ в существующем, стабильность
+      шаблона (:96-136); judge: vitest oc3 — 9 файлов / 58 тестов зелёные,
+      tsc --noEmit oc3 — чисто
+    reason: Генерация и повторный запуск покрыты unit-тестами и воспроизведены зелёными independent-прогоном

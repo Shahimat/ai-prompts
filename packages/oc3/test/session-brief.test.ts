@@ -43,6 +43,7 @@ describe('briefingLine', () => {
     expect(line).toContain('режим не задан');
     expect(line).toContain('дефолт cheap');
     expect(line).toContain('до старта спроси схему');
+    expect(line).toContain('oc3.briefing_done');
   });
 
   it('нет project.yml, битый yaml и не-строчный mode — дежурная строка', async () => {
@@ -51,6 +52,18 @@ describe('briefingLine', () => {
     expect(await briefingLine(root)).toContain('режим не задан');
     await putProject('briefing:\n  mode: 5\n');
     expect(await briefingLine(root)).toContain('режим не задан');
+  });
+
+  it('строки ведут вызвать briefing_done после текстового ответа на вопрос схемы', async () => {
+    await putProject('briefing:\n  mode: roles\n');
+    const line = await briefingLine(root);
+    expect(line).toContain(
+      'спроси схему работы (дефолтная или кастомная; достаточно текстового ответа)',
+    );
+    expect(line.indexOf('схему работы')).toBeLessThan(line.indexOf('oc3.briefing_done'));
+    expect(await briefingLine(root)).toContain('oc3.briefing_done');
+    await putProject('name: demo\n');
+    expect(await briefingLine(root)).toContain('достаточно текстового ответа');
   });
 });
 

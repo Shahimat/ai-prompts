@@ -13,3 +13,4 @@ packages/harness/test/.tmp/
 .ops/operator/
 .ops/locks/
 .ops/submit/
+.ops/sessions/
