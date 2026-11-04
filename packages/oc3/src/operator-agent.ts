@@ -1,5 +1,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { parse } from 'yaml';
+import { isRecord } from '@shahimat/ai-core';
 
 export const CONFIGS = [
   'opencode.json',
@@ -56,6 +58,59 @@ interface StringToken {
 }
 
 const isSpace = (ch: string): boolean => ch === ' ' || ch === '\t' || ch === '\r' || ch === '\n';
+
+export const parseJsonc = (text: string): unknown => {
+  let out = '';
+  let inString = false;
+  let escape = false;
+  let lineComment = false;
+  let blockComment = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text.charAt(i);
+    if (lineComment) {
+      if (ch === '\n') {
+        lineComment = false;
+        out += ch;
+      }
+      continue;
+    }
+    if (blockComment) {
+      if (ch === '*' && text.charAt(i + 1) === '/') {
+        blockComment = false;
+        i += 1;
+      }
+      continue;
+    }
+    if (inString) {
+      out += ch;
+      if (escape) escape = false;
+      else if (ch === '\\') escape = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') {
+      inString = true;
+      out += ch;
+      continue;
+    }
+    if (ch === '/' && text.charAt(i + 1) === '/') {
+      lineComment = true;
+      continue;
+    }
+    if (ch === '/' && text.charAt(i + 1) === '*') {
+      blockComment = true;
+      i += 1;
+      continue;
+    }
+    out += ch;
+  }
+  try {
+    const data: unknown = JSON.parse(out);
+    return data;
+  } catch {
+    return undefined;
+  }
+};
 
 const topLevelBrace = (text: string): number => {
   let inString = false;
@@ -213,12 +268,24 @@ export async function ensurePluginEntry(root: string): Promise<string> {
     const abs = path.join(root, rel);
     const text = await readOrNull(abs);
     if (text === null) continue;
-    if (text.includes(PLUGIN)) return `${rel}: плагин ${PLUGIN} подключён`;
-    if (text.includes('"plugins"'))
+    let data: unknown = parseJsonc(text);
+    if (data === undefined) {
+      try {
+        data = parse(text);
+      } catch {
+        return `${rel}: конфиг не разбирается — добавь "plugins": ["${PLUGIN}"] вручную`;
+      }
+    }
+    if (isRecord(data) && Array.isArray(data['plugins'])) {
+      if (data['plugins'].includes(PLUGIN)) return `${rel}: плагин ${PLUGIN} подключён`;
       return `${rel}: ключ plugins есть, но без ${PLUGIN} — добавь запись вручную`;
+    }
+    const wrongKey = isRecord(data) && 'plugin' in data;
     const inserted = insertAfterBrace(text, `  "plugins": ["${PLUGIN}"]`);
     if (inserted === null) return `${rel}: нет JSON-объекта — добавь "${PLUGIN}" в plugins вручную`;
     await writeFile(abs, inserted, 'utf8');
+    if (wrongKey)
+      return `${rel}: ключ plugin вместо plugins (нужен plugins) — добавил "plugins": ["${PLUGIN}"], удали ключ plugin сам`;
     return `${rel}: добавил "plugins": ["${PLUGIN}"]`;
   }
   return 'конфиг opencode не найден — создай его (oc3 init) и повтори';

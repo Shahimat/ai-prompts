@@ -19,6 +19,7 @@ async function run(argv: string[]): Promise<number> {
       ticket: { type: 'string' },
       out: { type: 'string' },
       html: { type: 'string' },
+      roles: { type: 'string' },
       help: { type: 'boolean', short: 'h' },
     },
   });
@@ -49,6 +50,7 @@ async function run(argv: string[]): Promise<number> {
     now: new Date(),
     params: match.params,
   };
+  if (values.roles !== undefined) args.params = { ...args.params, roles: values.roles };
   if (values.file !== undefined) args.file = values.file;
   if (values.ticket !== undefined) args.ticket = values.ticket;
   if (values.out !== undefined) args.out = values.out;

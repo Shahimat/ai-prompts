@@ -4,8 +4,8 @@ import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import { parse } from 'yaml';
-import { isRecord } from '@shahimat/ai-core';
-import { CONFIGS } from '#operator-agent';
+import { isRecord, InputError } from '@shahimat/ai-core';
+import { CONFIGS, parseJsonc } from '#operator-agent';
 import {
   AGENTS_MD,
   AGENTS_PIECES,
@@ -16,10 +16,17 @@ import {
   GITIGNORE_LINES,
   OC3_FALLBACK_PIN,
   PROJECT_YML,
+  ROLE_AGENTS,
+  ROLE_NAMES,
+  SKILLS_PRESET_HEADER,
   SKILLS_YML,
+  CORE_MANIFEST,
   newPackageJson,
+  renderSkillEntries,
+  skillsForRoles,
+  type EmbeddedRole,
+  type SkillEntry,
 } from '#templates';
-
 export type ContractState = 'nothing' | 'v2' | 'v3-partial' | 'v3-ok';
 
 export interface Detection {
@@ -27,6 +34,43 @@ export interface Detection {
   details: readonly string[];
   v2Leftovers: boolean;
 }
+
+export interface PluginWiring {
+  readonly wired: boolean;
+  readonly wrongKey: boolean;
+  readonly missing: boolean;
+}
+
+export const PLUGIN_PACKAGE = '@shahimat/oc3';
+
+export const scanPluginWiring = async (root: string): Promise<PluginWiring> => {
+  let wired = false;
+  let wrongKey = false;
+  let missing = false;
+  const load = async (rel: string): Promise<unknown> => {
+    const text = await readOrNull(path.join(root, rel));
+    if (text === null) return undefined;
+    const json = parseJsonc(text);
+    if (json !== undefined) return json;
+    try {
+      return parse(text);
+    } catch {
+      return undefined;
+    }
+  };
+  for (const rel of CONFIGS) {
+    const data = await load(rel);
+    if (!isRecord(data)) continue;
+    if (Array.isArray(data['plugins'])) {
+      if (data['plugins'].includes(PLUGIN_PACKAGE))
+        return { wired: true, wrongKey: false, missing: false };
+      missing = true;
+      continue;
+    }
+    if ('plugin' in data) wrongKey = true;
+  }
+  return { wired, wrongKey, missing };
+};
 
 const DEPS = ['@shahimat/ai-core', '@shahimat/oc3'] as const;
 
@@ -76,12 +120,14 @@ export async function detectState(root: string): Promise<Detection> {
     agentsV3 = agents.includes('<!-- module:');
     if (!agentsV3) details.push('в AGENTS.md нет module-маркеров v3');
   }
-  let pluginWired = false;
-  for (const rel of CONFIGS) {
-    const text = await readOrNull(path.join(root, rel));
-    if (text !== null && text.includes('@shahimat/oc3')) pluginWired = true;
+  const wiring = await scanPluginWiring(root);
+  const pluginWired = wiring.wired;
+  if (!pluginWired) {
+    if (wiring.wrongKey)
+      details.push('плагин не загрузится — ключ plugin вместо plugins (нужен plugins)');
+    else if (wiring.missing) details.push(`opencode.json(c): в plugins нет "${PLUGIN_PACKAGE}"`);
+    else details.push(`opencode.json(c) не подключает плагин ${PLUGIN_PACKAGE}`);
   }
-  if (!pluginWired) details.push('opencode.json(c) не подключает плагин @shahimat/oc3');
   let depsOk = false;
   const pkg = await readOrNull(path.join(root, 'package.json'));
   if (pkg === null) details.push('нет package.json с devDependencies контракта');
@@ -301,6 +347,170 @@ export async function ensureContextSkeleton(root: string): Promise<string[]> {
   return lines;
 }
 
+export const WATCH_ROLES: readonly string[] = ['watch-request', 'watch-triage'];
+
+const isEmbeddedRole = (value: string): value is EmbeddedRole =>
+  ROLE_NAMES.some((role) => role === value);
+
+export function parseRoles(input: string): readonly EmbeddedRole[] {
+  const parts = input
+    .split(',')
+    .map((part) => part.trim().toLowerCase())
+    .filter((part) => part !== '');
+  if (parts.length === 0)
+    throw new InputError(
+      '--roles пуст: перечисли роли через запятую из встроенного набора (researcher, executor, judge, librarian)',
+    );
+  const watch = parts.filter((part) => WATCH_ROLES.includes(part));
+  if (watch.length > 0)
+    throw new InputError(
+      `${watch.join(', ')} — роли модуля watchers, их нет во встроенном наборе: подключи модуль watchers через contract-setup, тогда агенты появятся с ним`,
+    );
+  const unknown = parts.filter((part) => !isEmbeddedRole(part));
+  if (unknown.length > 0)
+    throw new InputError(
+      `нет встроенной роли: ${unknown.join(', ')}; встроены — ${ROLE_NAMES.join(', ')}`,
+    );
+  const roles: EmbeddedRole[] = [];
+  for (const part of parts) {
+    if (!isEmbeddedRole(part)) continue;
+    if (!roles.includes(part)) roles.push(part);
+  }
+  return roles;
+}
+
+export async function ensureRoleAgents(
+  root: string,
+  roles: readonly EmbeddedRole[],
+): Promise<string[]> {
+  const lines: string[] = [];
+  for (const role of roles) {
+    const agent = ROLE_AGENTS.find((item) => item.role === role);
+    if (agent === undefined) continue;
+    const abs = path.join(root, '.agents', 'agents', `${role}.md`);
+    if (existsSync(abs)) {
+      lines.push(`.agents/agents/${role}.md: уже есть — не перетираю`);
+      continue;
+    }
+    await mkdir(path.dirname(abs), { recursive: true });
+    await writeFile(abs, agent.body, 'utf8');
+    lines.push(`.agents/agents/${role}.md: записан снимок канона роли`);
+  }
+  return lines;
+}
+
+const insertSkillEntries = (text: string, entries: readonly SkillEntry[]): string => {
+  const block = renderSkillEntries(entries).trimEnd().split('\n');
+  const lines = text.replace(/\n*$/, '\n').split('\n');
+  const skillsAt = lines.findIndex((line) => line.startsWith('skills:'));
+  if (skillsAt < 0) return `${text.replace(/\n*$/, '\n')}${block.join('\n')}\n`;
+  const anchor = lines[skillsAt] ?? '';
+  if (/^skills:\s*\[\s*\]\s*$/.test(anchor)) {
+    lines[skillsAt] = 'skills:';
+    lines.splice(skillsAt + 1, 0, ...block);
+    return lines.join('\n');
+  }
+  let end = lines.length;
+  for (let i = skillsAt + 1; i < lines.length; i++) {
+    const line = lines[i] ?? '';
+    if (/^\S/.test(line)) {
+      end = i;
+      break;
+    }
+  }
+  if (end === lines.length && lines.at(-1) === '') end -= 1;
+  lines.splice(end, 0, ...block);
+  return lines.join('\n');
+};
+
+const presetOwnedSignatures = (): Set<string> => {
+  const signatures = new Set<string>();
+  for (let mask = 0; mask < 1 << ROLE_NAMES.length; mask += 1) {
+    const subset = ROLE_NAMES.filter((_, index) => ((mask >> index) & 1) === 1);
+    for (const entry of skillsForRoles(subset))
+      signatures.add(`${entry.key}|${entry.roles.join(',')}`);
+  }
+  return signatures;
+};
+
+const replaceSkillEntry = (text: string, entry: SkillEntry): string => {
+  const lines = text.split('\n');
+  const pattern = new RegExp(`^ {2}- key: ${entry.key}$`);
+  const start = lines.findIndex((line) => pattern.test(line));
+  if (start < 0) return text;
+  let end = lines.length;
+  for (let i = start + 1; i < lines.length; i++) {
+    const line = lines[i] ?? '';
+    if (/^ {2}- /.test(line) || /^\S/.test(line)) {
+      end = i;
+      break;
+    }
+  }
+  const block = renderSkillEntries([entry]).trimEnd().split('\n');
+  lines.splice(start, end - start, ...block);
+  return lines.join('\n');
+};
+
+export async function ensureSkillsPreset(
+  root: string,
+  roles: readonly EmbeddedRole[],
+): Promise<string[]> {
+  const abs = path.join(root, 'context', 'skills.yml');
+  const wanted = skillsForRoles(roles);
+  if (wanted.length === 0) return [];
+  const label = `пресет operator-centric по ролям (${roles.join(', ')})`;
+  const fresh = `${SKILLS_PRESET_HEADER}${renderSkillEntries(wanted)}`;
+  const current = await readOrNull(abs);
+  if (current === null) {
+    await mkdir(path.dirname(abs), { recursive: true });
+    await writeFile(abs, fresh, 'utf8');
+    return [`context/skills.yml: записан ${label} — ${wanted.length} привязок`];
+  }
+  let data: unknown;
+  try {
+    data = parse(current);
+  } catch {
+    return [
+      'context/skills.yml: невалидный YAML — привязки пресета не дописываю, приведи файл в порядок сам',
+    ];
+  }
+  if (!isRecord(data) || !Array.isArray(data['skills'])) {
+    await writeFile(abs, fresh, 'utf8');
+    return [
+      `context/skills.yml: старый каркас без списка skills — перезаписан ${label} (${wanted.length} привязок)`,
+    ];
+  }
+  const existing = new Map<string, string>();
+  for (const item of data['skills']) {
+    if (!isRecord(item) || typeof item['key'] !== 'string') continue;
+    const bound = Array.isArray(item['roles'])
+      ? item['roles'].filter((role): role is string => typeof role === 'string')
+      : [];
+    if (!existing.has(item['key'])) existing.set(item['key'], bound.join(','));
+  }
+  const owned = presetOwnedSignatures();
+  const missing = wanted.filter((entry) => !existing.has(entry.key));
+  const stale = wanted.filter((entry) => {
+    const signature = existing.get(entry.key);
+    if (signature === undefined) return false;
+    return signature !== entry.roles.join(',') && owned.has(`${entry.key}|${signature}`);
+  });
+  if (missing.length === 0 && stale.length === 0)
+    return [`context/skills.yml: ${label} на месте (${wanted.length} привязок) — без изменений`];
+  let text = current;
+  for (const entry of stale) text = replaceSkillEntry(text, entry);
+  if (missing.length > 0) text = insertSkillEntries(text, missing);
+  await writeFile(abs, text, 'utf8');
+  const parts: string[] = [];
+  if (stale.length > 0)
+    parts.push(`обновлены записи пресета (${stale.map((entry) => entry.key).join(', ')})`);
+  if (missing.length > 0)
+    parts.push(
+      `дописаны привязки (${missing.length}: ${missing.map((entry) => entry.key).join(', ')})`,
+    );
+  return [`context/skills.yml: ${parts.join('; ')} — пользовательские записи сохранены`];
+}
+
 export async function ensurePackageJson(root: string): Promise<string[]> {
   const abs = path.join(root, 'package.json');
   const resolved = await pins();
@@ -404,7 +614,7 @@ export async function migrationReport(root: string): Promise<string[]> {
   return lines;
 }
 
-export async function humanQuestions(created: boolean): Promise<string[]> {
+export async function humanQuestions(created: boolean, rolesSelected = false): Promise<string[]> {
   const lines = ['вопросы человеку (без ответов установку не завершай):'];
   if (created) lines.push('  1. заполни name и summary в context/project.yml');
   else lines.push('  1. проверь name и summary в context/project.yml');
@@ -413,5 +623,15 @@ export async function humanQuestions(created: boolean): Promise<string[]> {
     `  3. подтверди реквизиты источника контракта (sync.index_source, по умолчанию ${DEFAULT_INDEX_SOURCE})`,
   );
   lines.push('  4. назначь модели ролей: oc3 models set <role> <model>');
+  if (!rolesSelected)
+    lines.push(
+      '  5. выбери роли сейчас — подключение ролей часть установки, «потом» не бывает; дефолт researcher, executor, judge, librarian, повторный прогон: oc3 init --roles researcher,executor,judge,librarian',
+    );
+  lines.push(
+    `канонический состав ядра operator-centric: skills — ${CORE_MANIFEST.skills.join(', ')}; агенты — ${CORE_MANIFEST.agents.join(', ')}`,
+  );
+  lines.push(
+    'SHA заполнят первые source-sync update; до них части считаются не скачанными (sync.contract.parts: {})',
+  );
   return lines;
 }

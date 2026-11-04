@@ -1,0 +1,98 @@
+run: 1
+status: pass
+summary: все 8 пунктов crit подтверждены — код, тесты (109 oc3), байт-сравнение шаблонов с каноном, canon-копия SKILL.md идентична; пины и версии не тронуты
+items:
+  - key: crit-1
+    status: pass
+    evidence: >-
+      packages/oc3/src/init.ts:100-102 (runInit по --roles зовёт ensureRoleAgents и
+      ensureSkillsPreset); packages/oc3/src/install.ts:392 («уже есть — не перетираю»),
+      :511 («пользовательские записи сохранены»), merge-семантика: missing дописывается,
+      stale пресетные записи обновляются, битый YAML не переписывается; фильтр по ролям —
+      skillsForRoles (install.ts), smoke в отчёте executor: «--roles researcher → 8
+      привязок; повтор с полным списком → +3, 11 итог»; тесты roles.test.ts:117,142,170,211
+    reason: >-
+      init --roles пишет снимки .agents/agents/<роль>.md только выбранных ролей и
+      context/skills.yml с пресетом operator-centric, отфильтрованным по ролям;
+      повторный запуск дополняет и не перетирает пользовательские записи и правки
+  - key: crit-2
+    status: pass
+    evidence: >-
+      packages/oc3/src/install.ts:628 — «5. выбери роли сейчас — подключение ролей часть
+      установки, «потом» не бывает; дефолт researcher, executor, judge, librarian,
+      повторный прогон: oc3 init --roles researcher,executor,judge,librarian»;
+      init.ts:128 — humanQuestions(!projectExisted, roles !== null): без флага вопрос
+      печатается, с флагом нет; smoke на dist в отчёте executor — окно в выводе init
+    reason: >-
+      окно ролей входит в вопросы установки: дефолт из четырёх ролей и точная команда
+      повторного прогона; «потом» встречается только в отрицании («не бывает»)
+  - key: crit-3
+    status: pass
+    evidence: >-
+      packages/oc3/src/install.ts:366-368 — InputError «...подключи модуль watchers через
+      contract-setup, тогда агенты появятся с ним»; packages/oc3/src/cli.ts:66 —
+      «if (error instanceof InputError) return 2»; тест roles.test.ts:56; smoke executor:
+      «--roles watch-request → exit 2 с подсказкой»
+    reason: >-
+      запрос watch-ролей завершается отказом с подсказкой про contract-setup и модуль
+      watchers, exit 2; watch-пара в окне и пресете отсутствует (test roles.test.ts:231
+      «watch-роли не встроены»)
+  - key: crit-4
+    status: pass
+    evidence: >-
+      байт-сравнение (judge, node-скрипт): строка «Сценариев» templates.ts после снятия
+      экранирования == prompts/productivity/agent-operational-contract-v3.md:220; строка
+      брифинга == канон:224 (««быстро» и «просто глянь» не отменяют»);
+      packages/oc3/src/templates.ts:115 — AI_CORE_FALLBACK_PIN = '0.1.7' (было 0.1.6)
+    reason: >-
+      шаблоны AGENTS.md синхронизированы с каноном контракта по всем трём составляющим
+      критерия: брифинг-строка, фразы-маршруты сценариев, pin 0.1.7
+  - key: crit-5
+    status: pass
+    evidence: >-
+      packages/oc3/src/install.ts:70 («'plugin' in data» → wrongKey), :125-129 —
+      details.push('плагин не загрузится — ключ plugin вместо plugins (нужен plugins)'),
+      points < 4 → состояние не v3-ok (install.ts:150); parseJsonc в
+      packages/oc3/src/operator-agent.ts (строки-комментарии вне строк срезаются);
+      ensurePluginEntry различает plugins/plugin и называет причину (operator-agent.ts);
+      тесты: install.test.ts:99 «ключ plugin вместо plugins с пакетом — не v3-ok, детект
+      называет причину», operator-agent.test.ts describe('ensurePluginEntry')
+    reason: >-
+      детект не доверяет подстроке: конфиги разбираются как JSONC, ключ plugin с пакетом
+      даёт не v3-ok с формулировкой причины из критерия; unit-тест на кейс есть
+  - key: crit-6
+    status: pass
+    evidence: >-
+      packages/oc3/src/install.ts:631-635 — печать «канонический состав ядра
+      operator-centric: skills — <11 имён>; агенты — <4>» и «SHA заполнят первые
+      source-sync update; до них части считаются не скачанными (sync.contract.parts: {})»;
+      CORE_MANIFEST в templates.ts — статичный список, без обращений к удалённому индексу;
+      тесты install.test.ts: «отчёт печатает канонический состав ядра: оба списка и
+      пометка про SHA», «CORE_MANIFEST совпадает с пресетом привязок и встроенными ролями»
+    reason: >-
+      отчёт установщика печатает канонический состав ядра (skills и агенты) с пометкой
+      про SHA; самодельных экстракторов из удалённого индекса нет
+  - key: crit-7
+    status: pass
+    evidence: >-
+      skills/source-sync/SKILL.md:81-86 — «3. Окно ролей — сразу после установки, не
+      «потом»: предложи подключение ролей (дефолт для operator-centric — researcher,
+      executor, judge, librarian; watch-пара — только с модулем watchers) и передай выбор
+      повторным прогоном oc3 init --roles …»; секция «Развёртывание и миграция»
+      (SKILL.md:67); diff skills/source-sync/SKILL.md против
+      .agents/skills/source-sync/SKILL.md пуст — canon-копия идентична
+    reason: >-
+      окно ролей в шаге 3 раздела «Развёртывание и миграция» — сразу после установки,
+      без «потом»; операторская правка присутствует и в canon, и в копии .agents/skills
+  - key: crit-8
+    status: pass
+    evidence: >-
+      npm test -w @shahimat/oc3 (прогон judge в worktree): 109 passed, 11 files — включая
+      roles.test.ts (пресет по ролям :75, повторный merge :142, отказ watch :56);
+      npm run ci зелёный — прогон оператора, «в бюджете»; пины/версии не тронуты:
+      templates.ts:116 OC3_FALLBACK_PIN = '0.1.4' без изменений, package.json в diff нет,
+      версия oc3 0.1.4
+    reason: >-
+      требуемые unit-тесты на месте и зелёные, конвейер ci зелёный, релизные версии и
+      пины не менялись (AI_CORE_FALLBACK_PIN 0.1.7 — по пункту crit-4, не релизный)
+changes: []

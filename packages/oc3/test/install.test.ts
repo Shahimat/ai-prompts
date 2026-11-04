@@ -20,7 +20,13 @@ import {
   ensureSyncContractYaml,
   pins,
 } from '#install';
-import { AGENTS_PIECES, GITIGNORE_LINES } from '#templates';
+import {
+  AGENTS_PIECES,
+  CORE_MANIFEST,
+  GITIGNORE_LINES,
+  ROLE_NAMES,
+  SKILL_PRESET,
+} from '#templates';
 
 let root: string;
 
@@ -74,6 +80,48 @@ describe('detectState', () => {
     );
     await put('opencode.jsonc', '{"plugins":["@shahimat/oc3"]}');
     expect((await detectState(root)).state).toBe('v3-ok');
+  });
+
+  it('JSONC с комментариями в plugins — v3-ok', async () => {
+    await put('context/project.yml', V3_PROJECT);
+    await put('AGENTS.md', '<!-- module:worktrees -->\n');
+    await put(
+      'package.json',
+      '{"devDependencies":{"@shahimat/ai-core":"0.1.6","@shahimat/oc3":"0.1.3"}}',
+    );
+    await put(
+      'opencode.jsonc',
+      '{\n  // плагин контракта\n  "$schema": "https://opencode.ai/config.json",\n  "plugins": ["@shahimat/oc3"],\n}',
+    );
+    expect((await detectState(root)).state).toBe('v3-ok');
+  });
+
+  it('ключ plugin вместо plugins с пакетом — не v3-ok, детект называет причину', async () => {
+    await put('context/project.yml', V3_PROJECT);
+    await put('AGENTS.md', '<!-- module:worktrees -->\n');
+    await put(
+      'package.json',
+      '{"devDependencies":{"@shahimat/ai-core":"0.1.6","@shahimat/oc3":"0.1.3"}}',
+    );
+    await put('opencode.jsonc', '{\n  "plugin": ["@shahimat/oc3@0.1.4"]\n}');
+    const detection = await detectState(root);
+    expect(detection.state).not.toBe('v3-ok');
+    expect(detection.details.join(' ')).toContain(
+      'плагин не загрузится — ключ plugin вместо plugins (нужен plugins)',
+    );
+  });
+
+  it('plugins есть, но пакета в нём нет — не v3-ok', async () => {
+    await put('context/project.yml', V3_PROJECT);
+    await put('AGENTS.md', '<!-- module:worktrees -->\n');
+    await put(
+      'package.json',
+      '{"devDependencies":{"@shahimat/ai-core":"0.1.6","@shahimat/oc3":"0.1.3"}}',
+    );
+    await put('opencode.jsonc', '{"plugins":["другой-плагин"]}');
+    const detection = await detectState(root);
+    expect(detection.state).not.toBe('v3-ok');
+    expect(detection.details.join(' ')).toContain('в plugins нет "@shahimat/oc3"');
   });
 
   it('все маркеры v3, но лок-маркер установки — v3-partial', async () => {
@@ -283,6 +331,25 @@ describe('migrationReport и вопросы', () => {
     expect(text).toContain('oc3 models set');
     expect(text).toContain('name и summary');
     expect(text).toMatch(/1\./);
+  });
+
+  it('отчёт печатает канонический состав ядра: оба списка и пометка про SHA', async () => {
+    const lines = await humanQuestions(true, true);
+    const text = lines.join('\n');
+    expect(text).toContain('канонический состав ядра operator-centric');
+    for (const skill of CORE_MANIFEST.skills) expect(text).toContain(skill);
+    expect(text).toContain(
+      'skills — research, executor, judge, librarian, operator-feedback, workflow, contract-setup, source-sync, cli, domain, manuals',
+    );
+    expect(text).toContain('агенты — researcher, executor, judge, librarian');
+    expect(text).toContain(
+      'SHA заполнят первые source-sync update; до них части считаются не скачанными',
+    );
+  });
+
+  it('CORE_MANIFEST совпадает с пресетом привязок и встроенными ролями', () => {
+    expect([...CORE_MANIFEST.skills].sort()).toEqual(SKILL_PRESET.map((entry) => entry.key).sort());
+    expect(CORE_MANIFEST.agents).toEqual(ROLE_NAMES);
   });
 });
 

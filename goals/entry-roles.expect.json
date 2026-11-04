@@ -1,0 +1,57 @@
+{
+  "results": [
+    {
+      "run": 1,
+      "items": [
+        {
+          "key": "crit-1",
+          "status": "pass",
+          "evidence": "packages/oc3/src/init.ts:100-102; packages/oc3/src/install.ts:392 («уже есть — не перетираю»), :511 («пользовательские записи сохранены»); тесты roles.test.ts:117,142,170,211; smoke: «--roles researcher → 8 привязок; повтор → 11 итог»",
+          "reason": "init --roles пишет снимки агентов выбранных ролей и skills.yml с пресетом по ролям; повторный запуск merge'ит и не перетирает пользовательские правки"
+        },
+        {
+          "key": "crit-2",
+          "status": "pass",
+          "evidence": "packages/oc3/src/install.ts:628 — «5. выбери роли сейчас — … дефолт researcher, executor, judge, librarian, повторный прогон: oc3 init --roles researcher,executor,judge,librarian»; init.ts:128 — без флага вопрос печатается, с флагом нет",
+          "reason": "окно ролей входит в вопросы установки: дефолт и точная команда повтора; «потом» только в отрицании («не бывает»)"
+        },
+        {
+          "key": "crit-3",
+          "status": "pass",
+          "evidence": "packages/oc3/src/install.ts:366-368 (InputError «подключи модуль watchers через contract-setup»); cli.ts:66 (InputError → 2); roles.test.ts:56; smoke «--roles watch-request → exit 2»",
+          "reason": "watch-роли — отказ с подсказкой contract-setup, exit 2; в пресет и окно не входят (roles.test.ts:231)"
+        },
+        {
+          "key": "crit-4",
+          "status": "pass",
+          "evidence": "байт-сравнение judge: строка «Сценариев» templates.ts == канон:220, строка брифинга == канон:224; templates.ts:115 AI_CORE_FALLBACK_PIN = '0.1.7'",
+          "reason": "шаблоны AGENTS.md синхронизированы с каноном: брифинг-строка, фразы-маршруты, pin 0.1.7"
+        },
+        {
+          "key": "crit-5",
+          "status": "pass",
+          "evidence": "install.ts:70 ('plugin' in data), :127 («плагин не загрузится — ключ plugin вместо plugins (нужен plugins)»), state не v3-ok; parseJsonc в operator-agent.ts; тесты install.test.ts:99 и operator-agent.test.ts ensurePluginEntry",
+          "reason": "детект разбирает конфиг как JSONC, ключ plugin даёт не v3-ok с причиной из критерия; unit-тест есть"
+        },
+        {
+          "key": "crit-6",
+          "status": "pass",
+          "evidence": "install.ts:631-635 — печать CORE_MANIFEST (skills 11, агенты 4) и пометка «SHA заполнят первые source-sync update…»; CORE_MANIFEST статичный, без удалённого индекса; тесты «отчёт печатает канонический состав ядра…» и «CORE_MANIFEST совпадает с пресетом…»",
+          "reason": "отчёт установщика печатает канонический состав ядра с пометкой про SHA; самодельных экстракторов нет"
+        },
+        {
+          "key": "crit-7",
+          "status": "pass",
+          "evidence": "skills/source-sync/SKILL.md:81-86 — «3. Окно ролей — сразу после установки, не «потом»…» в секции «Развёртывание и миграция» (:67); diff с .agents/skills/source-sync/SKILL.md пуст",
+          "reason": "окно ролей — шаг 3 раздела «Развёртывание и миграция», без «потом»; canon-копия идентична"
+        },
+        {
+          "key": "crit-8",
+          "status": "pass",
+          "evidence": "npm test -w @shahimat/oc3 (прогон judge): 109 passed; npm run ci зелёный (прогон оператора); OC3_FALLBACK_PIN '0.1.4' не менялся (templates.ts:116), package.json в diff нет",
+          "reason": "unit-тесты на месте и зелёные, ci зелёный, версии и релизные пины не тронуты"
+        }
+      ]
+    }
+  ]
+}
