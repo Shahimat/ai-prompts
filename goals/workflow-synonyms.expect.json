@@ -1,0 +1,27 @@
+{
+  "results": [
+    {
+      "run": 1,
+      "items": [
+        {
+          "key": "crit-1",
+          "status": "pass",
+          "evidence": "prompts/productivity/agent-operational-contract-v3.md:220; блок шаблона контракт:193–236 = 44 строки; npm run expect: «шаблон AGENTS.md в ядре — не больше 80 строк» ✓, «в любом пресете … 8192 байт» ✓ (analytical 8179, private 8125)",
+          "reason": "«Сценарии» шаблона ведут фразы «составь план», «спланируй», «что по целям» и маршрут «фиксируй ожидания»/«заведи тикет» → goals/*.expect.ts; бюджет шаблона и пресетов соблюдён"
+        },
+        {
+          "key": "crit-2",
+          "status": "pass",
+          "evidence": "skills/workflow/SKILL.md:62–79; diff skills/workflow/SKILL.md .agents/skills/workflow/SKILL.md — идентичны; AGENTS.md:37 = контракт:220 дословно",
+          "reason": "Карта слов-маршрутов по смыслу для plan/execute/audit/challenge/report/models и действий по целям в формате goal/ticket/crit.todo; репозиторный AGENTS.md и копия skill синхронны с каноном"
+        },
+        {
+          "key": "crit-3",
+          "status": "pass",
+          "evidence": "npm run expect: ожиданий 331, crit 0 · warn 4 — в бюджете; npm run ci прогнан оператором, зелёный; prompts/index.yml пересобран (index:build идемпотентен)",
+          "reason": "ci зелёный, индекс в синхроне с правкой контракта"
+        }
+      ]
+    }
+  ]
+}
