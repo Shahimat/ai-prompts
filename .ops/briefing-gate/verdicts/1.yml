@@ -1,0 +1,45 @@
+run: 1
+status: pass
+summary: все 4 crit pass — гейт, tool briefing_done, строки session-brief и unit-тесты соответствуют expectations; ограничения executor соблюдены; vitest oc3 (48/48) и typecheck воспроизведены зелёными
+items:
+  - key: crit-1
+    status: pass
+    evidence: packages/oc3/src/briefing-gate.ts:9-17 («GATED = ['bash', 'edit', 'write', 'subagent']», «GATE_MESSAGE = 'брифинг не проведён — спроси схему работы (дефолтная или кастомная), затем вызови oc3.briefing_done'»); briefing-gate.ts:59-68 (hook: «event.effect = 'deny'; event.message = GATE_MESSAGE»); packages/oc3/src/tools.ts:204-214 (tool briefing_done → «markBriefingAcked(root, context.sessionID, new Date())»); packages/oc3/src/index.ts:15-16 (registerGuards → registerBriefingGate под isOperatorCentric)
+    reason: >
+      Гейт отказывает ровно bash/edit/write/subagent до ack: hook при
+      «isBriefingAcked(...) → return» без deny, иначе deny с сообщением,
+      дословно содержащим «брифинг не проведён — спроси схему работы» и
+      «вызови oc3.briefing_done». Разблокировка — через файл-маркер
+      .ops/sessions/<sessionID>.briefing, который пишет tool oc3.briefing_done
+      (execute берёт context.sessionID — тот же паттерн, что SUBMIT_TOOL в
+      tools.ts:196-202). Регистрация в index.ts после registerGuards, под
+      гейтом isOperatorCentric — как заявлено в отчёте. Сабагентные сессии
+      (parentID !== undefined) гейтом не режутся — их спавн закрыт гейтом
+      'subagent' у primary-родителя; fail-open при ошибке session.get
+      задекларирован в risks отчёта, вне формулировок crit.
+  - key: crit-2
+    status: pass
+    evidence: packages/oc3/src/session-brief.ts:9-10 (DEFAULT_LINE «…спроси схему (дефолтная или кастомная; достаточно текстового ответа), затем вызови oc3.briefing_done»); session-brief.ts:38 («…спроси схему работы (дефолтная или кастомная; достаточно текстового ответа), затем вызови oc3.briefing_done; детали — skill workflow»)
+    reason: >
+      Обе строки брифинга (дефолтная и режимная из project.yml) содержат
+      указание вызвать oc3.briefing_done после вопроса о схеме, и обе
+      сохраняют «достаточно текстового ответа» — чисто текстовый ответ
+      остаётся возможным. Порядок «вопрос → ответ → briefing_done» подтверждён
+      тестом session-brief.test.ts:56-66 («line.indexOf('схему работы')).toBeLessThan(line.indexOf('oc3.briefing_done'))»).
+  - key: crit-3
+    status: pass
+    evidence: packages/oc3/test/briefing-gate.test.ts:18-25 (гейт до ack — все четыре действия с сообщением), :27-30 (после ack — «toBeUndefined()»), :32-36 (read/glob/grep не блокируются без ack), :40-52 (изоляция: ack ses_one не виден ses_two), :54-60 (некорректный sessionID отклоняется); мой прогон vitest oc3 — 8 файлов, 48 тестов зелёные
+    reason: >
+      Все три заявленных аспекта покрыты тестами: гейт до/после ack,
+      изоляция по sessionID (файл-маркер на сессию, «isBriefingAcked(root,
+      'ses_two')).toBe(false)» после ack ses_one), чистая сессия не блокирует
+      read-инструменты (гейтовый список ограничен четырьмя действиями, тест
+      проверяет read/glob/grep на чистой сессии). Воспроизведено моим прогоном.
+  - key: crit-4
+    status: pass
+    evidence: git status/diff worktree — изменения только .gitignore (+.ops/sessions/), packages/oc3/{src/{briefing-gate.ts,index.ts,session-brief.ts,tools.ts},test/{briefing-gate.test.ts,session-brief.test.ts}}; package.json и lock-файлы не в diff (oc3 0.1.3, @shahimat/ai-core 0.1.6 не тронуты); мой прогон: vitest oc3 48/48 зелёные, tsc --noEmit зелёный
+    reason: >
+      Версии и пины не тронуты — package.json отсутствует в diff. npm run ci
+      executor отчитал зелёным; точечно воспроизведены тесты oc3 и typecheck —
+      зелёные, отчёт подтверждён.
+changes: []

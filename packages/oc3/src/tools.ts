@@ -1,6 +1,8 @@
 import type { Plugin } from '@opencode/plugin';
 import type { CommandArgs } from '@shahimat/ai-core';
 import { isRecord, SUBMIT_TOOL } from '@shahimat/ai-core';
+import path from 'node:path';
+import { markBriefingAcked } from '#briefing-gate';
 import { submitResult, SUBMIT_INPUT } from '#submit';
 import { OC3_COMMANDS } from '#tree';
 
@@ -198,6 +200,17 @@ export async function registerTools(ctx: Plugin.Context): Promise<void> {
           sessionID: context.sessionID,
           input,
         }).then((content: string) => ({ content })),
+    });
+    editor.add({
+      name: 'briefing_done',
+      description:
+        'Отметить брифинг сессии проведённым: вызови после ответа человека на вопрос о схеме работы (дефолтная или кастомная); до отметки гейт отказывает bash/edit/write/subagent, после — работа сессии разблокируется',
+      input: { type: 'object', properties: {}, additionalProperties: false },
+      options: { namespace: 'oc3', codemode: true },
+      execute: (_input: unknown, context: { agent: string; sessionID: string }) =>
+        markBriefingAcked(root, context.sessionID, new Date()).then((file: string) => ({
+          content: `брифинг сессии отмечен (${path.relative(root, file)}) — bash/edit/write/subagent разблокированы`,
+        })),
     });
   });
 }
