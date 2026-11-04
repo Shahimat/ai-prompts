@@ -1,6 +1,6 @@
 {
   "name": "@shahimat/oc3",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "OpenCode-плагин и CLI oc3 для проектов на контракте v3: guards документации и памяти, гейт прогонов judge, команды целей и моделей",
   "license": "MIT",
   "author": "Gevorg Nakhapetyan",

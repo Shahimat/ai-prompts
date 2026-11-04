@@ -4,12 +4,7 @@ import { existsSync } from 'node:fs';
 import { parse } from 'yaml';
 import type { CommandArgs } from '@shahimat/ai-core';
 import { isRecord } from '@shahimat/ai-core';
-import {
-  CONFIGS,
-  ensureDefaultAgent,
-  ensureOperatorAgent,
-  ensurePluginEntry,
-} from '#operator-agent';
+import { ensureDefaultAgent, ensureOperatorAgent, ensurePluginEntry } from '#operator-agent';
 import {
   detectState,
   detectTools,
@@ -19,10 +14,14 @@ import {
   ensureLock,
   ensurePackageJson,
   ensureProjectYml,
+  ensureRoleAgents,
+  ensureSkillsPreset,
   humanQuestions,
   migrationReport,
+  parseRoles,
   probeOnline,
   resolveRuntime,
+  scanPluginWiring,
   toolHints,
 } from '#install';
 
@@ -68,15 +67,8 @@ async function readinessProblems(root: string): Promise<string[]> {
       problems.push('package.json: невалидный JSON');
     }
   }
-  let wired = false;
-  for (const rel of CONFIGS) {
-    const text = await readOrNull(path.join(root, rel));
-    if (text !== null && text.includes('@shahimat/oc3')) {
-      wired = true;
-      break;
-    }
-  }
-  if (!wired)
+  const wiring = await scanPluginWiring(root);
+  if (!wiring.wired)
     problems.push(
       'opencode.json(c): в plugins нет "@shahimat/oc3" — добавь запись и выполни /reload',
     );
@@ -95,6 +87,8 @@ const STATE_LABELS: Record<string, string> = {
 };
 
 export async function runInit(args: CommandArgs): Promise<number> {
+  const rolesFlag = args.params?.['roles'];
+  const roles = rolesFlag === undefined ? null : parseRoles(rolesFlag);
   const detection = await detectState(args.root);
   console.log(STATE_LABELS[detection.state] ?? 'состояние: неизвестно');
   if (detection.state === 'v3-partial' && detection.details.length > 0)
@@ -102,6 +96,11 @@ export async function runInit(args: CommandArgs): Promise<number> {
   console.log(`operator-agent: ${await ensureOperatorAgent(args.root)}`);
   console.log(`operator-agent: ${await ensureDefaultAgent(args.root)}`);
   console.log(`operator-agent: ${await ensurePluginEntry(args.root)}`);
+  if (roles !== null) {
+    console.log(`roles: ${roles.join(', ')} — записываю агенты и привязки skills`);
+    for (const line of await ensureRoleAgents(args.root, roles)) console.log(line);
+    for (const line of await ensureSkillsPreset(args.root, roles)) console.log(line);
+  }
   const online = await probeOnline();
   const runtime = resolveRuntime(online);
   for (const line of runtime.lines) console.log(line);
@@ -126,7 +125,7 @@ export async function runInit(args: CommandArgs): Promise<number> {
   for (const line of await ensureGitFiles(args.root)) console.log(line);
   if (detection.state === 'v2' || detection.v2Leftovers)
     for (const line of await migrationReport(args.root)) console.log(line);
-  for (const line of await humanQuestions(!projectExisted)) console.log(line);
+  for (const line of await humanQuestions(!projectExisted, roles !== null)) console.log(line);
   console.log(await ensureLock(args.root));
   console.error('oc3 init: ядро записано — установка не завершена (см. вопросы и маркер выше)');
   return 1;

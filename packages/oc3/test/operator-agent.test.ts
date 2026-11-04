@@ -7,6 +7,7 @@ import {
   applyDefaultAgent,
   ensureDefaultAgent,
   ensureOperatorAgent,
+  ensurePluginEntry,
   operatorAgentMd,
 } from '#operator-agent';
 
@@ -133,5 +134,54 @@ describe('ensureDefaultAgent', () => {
   it('шаблон agent-файла стабилен и первичен', () => {
     expect(operatorAgentMd()).toContain('mode: primary');
     expect(operatorAgentMd().endsWith('\n')).toBe(true);
+  });
+});
+
+describe('ensurePluginEntry', () => {
+  it('ключ plugin вместо plugins — не «подключён»: добавляет plugins и называет причину', async () => {
+    const abs = path.join(root, 'opencode.jsonc');
+    await writeFile(abs, '{\n  "plugin": ["@shahimat/oc3@0.1.4"]\n}\n', 'utf8');
+    const report = await ensurePluginEntry(root);
+    expect(report).not.toContain('подключён');
+    expect(report).toContain('ключ plugin вместо plugins (нужен plugins)');
+    expect(report).toContain('добавил');
+    const text = await readFile(abs, 'utf8');
+    expect(text).toContain('"plugins": ["@shahimat/oc3"]');
+    expect(text).toContain('"plugin"');
+  });
+
+  it('JSONC с комментариями и корректным plugins — подключён, файл не тронут', async () => {
+    const abs = path.join(root, 'opencode.jsonc');
+    const original =
+      '{\n  // контракт\n  "plugins": ["@shahimat/oc3"],\n  "default_agent": "operator"\n}\n';
+    await writeFile(abs, original, 'utf8');
+    const report = await ensurePluginEntry(root);
+    expect(report).toContain('подключён');
+    expect(await readFile(abs, 'utf8')).toBe(original);
+  });
+
+  it('plugins есть, но пакета нет — ручная подсказка', async () => {
+    await writeFile(path.join(root, 'opencode.jsonc'), '{"plugins":["другой"]}\n', 'utf8');
+    const report = await ensurePluginEntry(root);
+    expect(report).toContain('без @shahimat/oc3');
+    expect(report).toContain('вручную');
+  });
+
+  it('конфиг не разбирается ни JSONC, ни YAML — подсказка без записи', async () => {
+    const abs = path.join(root, 'opencode.jsonc');
+    const broken = '{unclosed\n';
+    await writeFile(abs, broken, 'utf8');
+    const report = await ensurePluginEntry(root);
+    expect(report).toContain('не разбирается');
+    expect(await readFile(abs, 'utf8')).toBe(broken);
+  });
+
+  it('не-JSON контент, который YAML читает как скаляр, — подсказка без записи', async () => {
+    const abs = path.join(root, 'opencode.jsonc');
+    const broken = 'не конфиг вовсе\n';
+    await writeFile(abs, broken, 'utf8');
+    const report = await ensurePluginEntry(root);
+    expect(report).toContain('вручную');
+    expect(await readFile(abs, 'utf8')).toBe(broken);
   });
 });
