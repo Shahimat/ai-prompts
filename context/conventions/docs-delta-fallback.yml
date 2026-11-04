@@ -1,0 +1,8 @@
+key: docs-delta-fallback
+summary: ручной фолбэк docs-delta противоречит docs-guard — при недоступном раннере ролей легитимного пути применить дельту нет
+rule: |
+  Ручной фолбэк docs-delta («собери дельту и примени вручную»)
+  противоречит docs-guard («документацию пишет только librarian»): при
+  недоступном раннере ролей легитимного пути применить дельту у агента
+  не-librarian нет.
+reason: сессия 2026-11-03 — runner claude упал с кодом 127, harness предписал ручной apply, docs-guard отклонил write в context/.delta/delta.yml агенту не-librarian; tension воспроизведён дважды (субагент general и основная сессия)

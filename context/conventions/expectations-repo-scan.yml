@@ -1,0 +1,11 @@
+key: expectations-repo-scan
+summary: сканеры исходников в expectations должны пропускать gitignored-каталоги, минимум .opencode — реализация в repoSources числится открытой задачей
+rule: |
+  Сканеры исходников, из которых собираются expectations-прогоны
+  (`repoSources` в expectations/harness.expect.ts), должны исключать
+  gitignored-каталоги; минимум — `.opencode`: параллельные worktrees в
+  `.opencode/worktrees/` не должны попадать в прогоны основного
+  checkout. Правило — требование к целевому поведению: skip-regex в
+  repoSources пока не исключает ни gitignored-каталоги, ни `.opencode`,
+  реализация числится открытой задачей в docs/tooling.md.
+reason: без исключения крит Patterns.home в основном checkout падал дважды за сессию 2026-11-03 — сначала 6 путей, затем 20, по два файла на каждый worktree; после выноса worktrees прогон зелёный
