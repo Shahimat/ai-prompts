@@ -1,5 +1,27 @@
 # CHANGELOG
 
+## 0.1.4
+
+- Гейт брифинга: до вызова `oc3.briefing_done` плагин запрещает сессии
+  bash/edit/write/subagent с подсказкой спросить схему работы;
+  проведённый брифинг — state-файл
+  `.ops/sessions/<sessionID>.briefing`; чтение не блокируется,
+  сабагентные сессии не режутся, сбой RPC — fail-open.
+- Оператор-агент: `oc3 init` создаёт `.opencode/agents/operator.md`
+  (mode: primary, маршрутизирующий промпт) и пишет `"default_agent":
+  "operator"` в opencode.json(c) — merge текстом JSONC сохраняет
+  комментарии, `$schema` и чужой default_agent (подсказка о ручном
+  переключении); повторный запуск идемпотентен.
+- Установщик-мигратор: `oc3 init` называет состояние — nothing, v2
+  detected, v3 partial, v3 ok — и пишет установку из шаблонов пакета,
+  без сети: AGENTS.md append-only merge, каркас `context/`, devDeps
+  точными пинами, конфиг с плагином, git-файлы без дублей, лок
+  `.ops/locks/install`; вопросы человеку — нумерованным списком;
+  перенос v2 — отчёт миграции на stdout, без молчаливой конверсии;
+  `runtime: full|degraded` в `context/project.yml`, degraded — только
+  при недоступном npm.
+- Фолбэк установщика `OC3_FALLBACK_PIN` — 0.1.4.
+
 ## 0.1.3
 
 - `submit_result` (tool oc3-плагина): роль в opencode-прогоне возвращает
