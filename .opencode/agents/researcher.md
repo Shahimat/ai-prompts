@@ -3,6 +3,7 @@
 description: Исследователь — разбирает вопрос по документации, коду и каналам живых данных и возвращает находки с доказательствами. Вызывай с вопросом и указателями.
 mode: subagent
 tools:
+  submit_result: true
   read: true
   glob: true
   grep: true

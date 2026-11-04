@@ -48,6 +48,7 @@ export interface OpenCodeEvents {
   costUsd: number | undefined;
   error: string | undefined;
   text: string;
+  lastText: string | undefined;
   tools: string[];
   sessionId: string | undefined;
 }
@@ -68,7 +69,7 @@ export function parseOpenCodeEvents(stdout: string): OpenCodeEvents {
   let costUsd: number | undefined;
   let error: string | undefined;
   let sessionId: string | undefined;
-  const text: string[] = [];
+  const texts: string[] = [];
   const tools: string[] = [];
   for (const line of stdout.split('\n')) {
     if (line.trim() === '') continue;
@@ -96,11 +97,11 @@ export function parseOpenCodeEvents(stdout: string): OpenCodeEvents {
       if (typeof cost === 'number') costUsd = cost;
     }
     const textPart = openCodeTextOf(line);
-    if (textPart !== undefined) text.push(textPart);
+    if (textPart !== undefined) texts.push(textPart);
     const tool = openCodeStepOf(line);
     if (tool !== undefined) tools.push(tool);
   }
-  return { costUsd, error, text: text.join('\n'), tools, sessionId };
+  return { costUsd, error, text: texts.join('\n'), lastText: texts.at(-1), tools, sessionId };
 }
 
 export function openCodeStepOf(line: string): string | undefined {

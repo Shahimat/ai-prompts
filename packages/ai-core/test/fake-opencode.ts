@@ -35,6 +35,7 @@ if (process.env.FAKE_EXIT !== undefined) {
   process.exit(Number(process.env.FAKE_EXIT));
 }
 out({ type: 'step_finish', part: { cost: 0.25, tokens: {} } });
-out({ type: 'text', part: { text: 'ok' } });
+const text = process.env.FAKE_TEXT ?? 'ok';
+out({ type: 'text', part: { text } });
 process.exit(0);
 `;

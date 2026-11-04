@@ -8,6 +8,7 @@ import { parseAgent, type AgentDef } from './agent.ts';
 import {
   openCodeStepOf,
   spawnOpenCode,
+  structuredFromText,
   submitFileOf,
   type OpenCodeSpawnOptions,
 } from './opencode.ts';
@@ -55,10 +56,11 @@ export function roleSystemPrompt(role: AgentDef): string {
           `Skills роли: ${role.skills.join(', ')} — прочитай .agents/skills/<имя>/SKILL.md (в источнике — skills/<имя>/SKILL.md) первым делом.`,
         ];
   return [
+    `Финальное действие работы — вызов инструмента ${SUBMIT_TOOL} с сообщением протокола «${role.output ?? 'result'}»; ответ текстом итогом не считается (есть только резервный парсинг).`,
+    '',
     role.instructions,
     '',
     ...skills,
-    `Итог работы верни инструментом ${SUBMIT_TOOL} — сообщением протокола «${role.output ?? 'result'}». Ответ текстом harness не читает.`,
   ].join('\n');
 }
 
@@ -102,16 +104,21 @@ export async function runRole(run: RoleRun): Promise<RoleOutcome> {
   progress?.(`роль ${run.role.name}: готово, шагов ${steps}`);
   const tail = result.error ?? result.stderr.trim().slice(0, 500);
   if (result.code !== 0) throw new Error(`opencode run: код ${result.code}: ${tail}`);
+  const schema = PROTOCOL[run.role.output ?? 'result'];
   const raw = await submitFileOf(run.out);
-  if (raw === undefined)
-    throw new Error(`роль ${run.role.name} не вернула итог через ${SUBMIT_TOOL}`);
-  const data: unknown = JSON.parse(raw);
-  const issues = compileSchema(PROTOCOL[run.role.output ?? 'result'])(data);
-  if (issues.length > 0)
-    throw new Error(
-      `роль ${run.role.name}: ответ не по схеме: ${issues.map((i) => `${i.path} ${issueText(i)}`).join('; ')}`,
-    );
-  return { data, costUsd: result.costUsd };
+  if (raw !== undefined) {
+    const data: unknown = JSON.parse(raw);
+    const issues = compileSchema(schema)(data);
+    if (issues.length > 0)
+      throw new Error(
+        `роль ${run.role.name}: ответ не по схеме: ${issues.map((i) => `${i.path} ${issueText(i)}`).join('; ')}`,
+      );
+    return { data, costUsd: result.costUsd };
+  }
+  const fallback = structuredFromText(result.lastText ?? '');
+  if (fallback !== undefined && compileSchema(schema)(fallback).length === 0)
+    return { data: fallback, costUsd: result.costUsd };
+  throw new Error(`роль ${run.role.name} не вернула итог через ${SUBMIT_TOOL}`);
 }
 
 export interface AskOptions {

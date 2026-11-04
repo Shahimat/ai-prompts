@@ -3,6 +3,7 @@
 description: Librarian — единственный, кто пишет документацию по docs_request оператора; раскладка по слоям, CHANGELOG, проверка целостности. Вызывай с запросом, evidence и критерием готовности.
 mode: subagent
 tools:
+  submit_result: true
   read: true
   grep: true
   glob: true

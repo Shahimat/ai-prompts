@@ -3,6 +3,7 @@
 description: Запрос наблюдателя — по изменению, которое триаж передал в работу, формирует запрос в job задачи и предлагает действия в PR. Вызывается рантаймом наблюдателей с diff статусов и карточкой задачи.
 mode: subagent
 tools:
+  submit_result: true
   read: true
   glob: true
   grep: true

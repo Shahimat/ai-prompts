@@ -195,6 +195,7 @@ describe('docs-delta: роли librarian и judge', () => {
     expect((await session()).data.state).toBe('done');
     const judge = (await calls()).find((c) => c.role === 'judge');
     expect(judge?.prompt).toContain('- context/conventions/other.yml');
+    expect(judge?.prompt).toContain('Верни вердикт последним блоком сообщения — строго JSON');
     expect(judge?.prompt).not.toContain('foreign.yml');
   });
 

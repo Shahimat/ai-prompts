@@ -3,6 +3,7 @@
 description: Исполнитель внешнего проекта — меняет удалённый целевой проект, выполняет GUI/CI-работу, снимает evidence и отчитывается. Вызывай с тикетом, target и указателями.
 mode: subagent
 tools:
+  submit_result: true
   read: true
   glob: true
   grep: true

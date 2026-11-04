@@ -3,6 +3,7 @@
 description: Исполнитель — правит код и тесты в своём worktree по тикету, запускает проверки, пишет отчёт и дорабатывает по замечаниям judge. Вызывай с тикетом, DoD, worktree и указателями.
 mode: subagent
 tools:
+  submit_result: true
   read: true
   glob: true
   grep: true

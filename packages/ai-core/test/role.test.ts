@@ -8,7 +8,7 @@ import { main, selfCommand } from '@shahimat/cli';
 import { parseAgent } from '#lib/agent';
 import { advertisedSchema, serveChannel } from '#lib/mcp';
 import { PROTOCOL, SUBMIT_TOOL } from '#lib/protocol';
-import { askRole, findRole, roleTimeoutMs } from '#lib/role';
+import { askRole, findRole, roleSystemPrompt, roleTimeoutMs } from '#lib/role';
 import { openCodeStepOf, opencodeArgs } from '#lib/opencode';
 import { setRuntime } from '#lib/runtime';
 import { isRecord } from '#shared/guards';
@@ -24,6 +24,7 @@ const ENV = [
   'FAKE_SUBMIT',
   'FAKE_ARGS',
   'FAKE_FILES',
+  'FAKE_TEXT',
   'SLOW_MS',
   'FAKE_SLEEP',
   'FAKE_STEPS',
@@ -192,6 +193,44 @@ describe('роль: запуск', () => {
     await expect(askRole(root, 'judge', 'т')).rejects.toThrow(
       'opencode run: код 1: модель недоступна',
     );
+  });
+
+  it('модель закончила текстом без submit — fallback: JSON из последнего текста становится итогом', async () => {
+    await put('agents/judge.md', roleFile('judge', 'verdict'));
+    process.env['FAKE_TEXT'] = 'Проверил.\n```json\n{"answers":[]}\n```';
+    expect(await askRole(root, 'judge', 'т')).toEqual({ data: { answers: [] }, costUsd: 0.25 });
+    process.env['FAKE_TEXT'] = '{"answers":[]}';
+    expect(await askRole(root, 'judge', 'т')).toEqual({ data: { answers: [] }, costUsd: 0.25 });
+    process.env['FAKE_SUBMIT'] = JSON.stringify({
+      judge: { contradictions: [], unmeasurable: [] },
+    });
+    expect(await askRole(root, 'judge', 'т')).toEqual({
+      data: { contradictions: [], unmeasurable: [] },
+      costUsd: 0.25,
+    });
+  });
+
+  it('fallback: текст без валидного JSON — прежняя ошибка «не вернула итог»', async () => {
+    await put('agents/judge.md', roleFile('judge', 'verdict'));
+    process.env['FAKE_TEXT'] = 'Готово, итога в формате нет';
+    await expect(askRole(root, 'judge', 'т')).rejects.toThrow('не вернула итог');
+    process.env['FAKE_TEXT'] = '{"answers": "не массив"}';
+    await expect(askRole(root, 'judge', 'т')).rejects.toThrow('не вернула итог');
+  });
+
+  it('системный промпт: правило submit_result — первый абзац', () => {
+    const prompt = roleSystemPrompt({
+      name: 'judge',
+      source: 'agents/judge.md',
+      description: 'Тестовая роль judge для проверки harness',
+      skills: [],
+      tools: [],
+      output: 'verdict',
+      instructions: 'Тело роли.',
+    });
+    const [head] = prompt.split('\n');
+    expect(head?.includes(`вызов инструмента ${SUBMIT_TOOL}`)).toBe(true);
+    expect(head).toContain('итогом не считается');
   });
 
   it('таймаут останавливает прогон', async () => {

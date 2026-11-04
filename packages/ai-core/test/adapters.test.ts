@@ -92,7 +92,7 @@ describe('adapters sync', () => {
     expect(parseFrontmatter(md)).toEqual({
       description: 'Раскладывает факты: по слоям',
       mode: 'subagent',
-      tools: { read: true, edit: true },
+      tools: { submit_result: true, read: true, edit: true },
     });
   });
 
@@ -241,9 +241,24 @@ describe('opencodeAgent', () => {
     expect(parseYaml(md.split('---\n')[1] ?? '')).toMatchObject({
       description: 'd: "quoted"',
       mode: 'subagent',
+      tools: { submit_result: true },
     });
     expect(md.endsWith('---\n\nтело\n')).toBe(true);
     expect(md).not.toContain('Перед работой');
+  });
+
+  it('роль без явного tools всё равно содержит канал submit_result', () => {
+    const md = opencodeAgent(agent('тело'));
+    expect(parseYaml(md.split('---\n')[1] ?? '')).toMatchObject({
+      tools: { submit_result: true },
+    });
+  });
+
+  it('tools роли транслитерируются рядом с каналом; одноимённый custom tool не ломается', () => {
+    const md = opencodeAgent({ ...agent('тело'), tools: ['Read', 'Submit_Result'] });
+    expect(parseYaml(md.split('---\n')[1] ?? '')).toMatchObject({
+      tools: { submit_result: true, read: true },
+    });
   });
 });
 
@@ -256,7 +271,7 @@ describe('adapters sync: opencode', () => {
     expect(parseFrontmatter(md)).toEqual({
       description: 'Раскладывает факты: по слоям',
       mode: 'subagent',
-      tools: { read: true, edit: true },
+      tools: { submit_result: true, read: true, edit: true },
     });
     expect(md.endsWith('---\n\nПеред работой загрузи skills: librarian.\n\nИнструкция.\n')).toBe(
       true,
@@ -273,7 +288,7 @@ describe('adapters sync: opencode', () => {
     expect(parseFrontmatter(await read('.opencode/agents/keeper.md'))).toEqual({
       description: 'd',
       mode: 'subagent',
-      tools: { read: true, glob: true, grep: true },
+      tools: { submit_result: true, read: true, glob: true, grep: true },
       model: 'zai/glm-5.3#max',
     });
   });
