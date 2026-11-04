@@ -1,0 +1,17 @@
+run: 1
+status: pass
+summary: Все 3 критерия подтверждены — шаблон с фразами-маршрутами в бюджете, карта слов в skill с форматом goals, копии синхронны, expect зелёный.
+items:
+  - key: crit-1
+    status: pass
+    evidence: prompts/productivity/agent-operational-contract-v3.md:220; блок шаблона контракт:193–236 = 44 строки; npm run expect — «✓ шаблон AGENTS.md в ядре — не больше 80 строк», «✓ в любом пресете собранный AGENTS.md — не больше 150 строк и 8192 байт» (analytical 8179/8192, private 8125/8192)
+    reason: Раздел «Сценарии» шаблона дословно ведёт фразы «составь план», «спланируй», «что по целям» и маршрут «Фиксируй ожидания», «заведи тикет» — цели (`goals/*.expect.ts`); бюджет соблюдён, оба бюджетных критерия зелёные.
+  - key: crit-2
+    status: pass
+    evidence: skills/workflow/SKILL.md:62–79 (карта plan/execute/audit/challenge/report/models + фиксация целей с `describe('goal: …')`, `describe('ticket: …')`, `crit.todo('…')`); `diff skills/workflow/SKILL.md .agents/skills/workflow/SKILL.md` — идентичны; AGENTS.md:37 дословно совпадает с шаблоном контракт:220
+    reason: Карта слов-маршрутов по смыслу присутствует для всех сценариев включая models и действия по целям в требуемом формате; репозиторный AGENTS.md и копия .agents/skills/workflow синхронны с каноном.
+  - key: crit-3
+    status: pass
+    evidence: npm run expect — «ожиданий 331: crit 0 · warn 4 · info 4 · ? 0 — в бюджете»; npm run ci прогнан оператором, зелёный; prompts/index.yml пересобран, sha256 актуального контракта, повторный index:build идемпотентен
+    reason: Проверки зелёные, индекс промптов в синхроне с правкой контракта.
+changes: []
