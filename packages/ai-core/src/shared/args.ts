@@ -19,4 +19,7 @@ export interface CommandArgs {
   until?: string;
   job?: string;
   timeout?: string;
+  stale?: boolean;
+  days?: string;
+  forget?: boolean;
 }

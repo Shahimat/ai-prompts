@@ -28,10 +28,50 @@ export function parseIntents(text: string, where: string): string {
   return JSON.stringify(wrapped);
 }
 
+const DEFAULT_STDIN_TIMEOUT_S = 10;
+
+export function stdinTimeoutMs(): number {
+  const raw = process.env['HARNESS_STDIN_TIMEOUT_S'];
+  const n = raw === undefined ? Number.NaN : Number.parseFloat(raw);
+  return (Number.isFinite(n) && n > 0 ? n : DEFAULT_STDIN_TIMEOUT_S) * 1000;
+}
+
 async function stdinText(): Promise<string> {
+  if (process.stdin.isTTY === true)
+    throw new InputError(
+      `stdin — терминал: подай намерения файлом (--file <путь>) или перенаправлением (--file - < intents.yml)`,
+    );
+  const limit = stdinTimeoutMs();
+  const iterator = process.stdin[Symbol.asyncIterator]();
   const chunks: Buffer[] = [];
-  for await (const chunk of process.stdin)
-    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk)));
+  let timer: NodeJS.Timeout | undefined;
+  try {
+    for (;;) {
+      const wait = new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () =>
+            reject(
+              new InputError(
+                `stdin молчит ${Math.round(limit / 1000)} с — данные не поданы и поток не закрыт; подай файл: --file - < intents.yml (таймаут — HARNESS_STDIN_TIMEOUT_S)`,
+              ),
+            ),
+          limit,
+        );
+      });
+      let next: IteratorResult<Buffer>;
+      try {
+        next = await Promise.race([iterator.next(), wait]);
+      } finally {
+        if (timer !== undefined) clearTimeout(timer);
+      }
+      if (next.done === true) break;
+      const chunk = next.value;
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk)));
+    }
+  } catch (error) {
+    process.stdin.destroy();
+    throw error;
+  }
   return Buffer.concat(chunks).toString('utf8');
 }
 

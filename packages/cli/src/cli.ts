@@ -48,6 +48,9 @@ export async function cliMain(
       until: { type: 'string' },
       job: { type: 'string' },
       timeout: { type: 'string' },
+      stale: { type: 'boolean' },
+      days: { type: 'string' },
+      forget: { type: 'boolean' },
       help: { type: 'boolean', short: 'h' },
     },
   });
@@ -80,6 +83,9 @@ export async function cliMain(
   if (values.until !== undefined) args.until = values.until;
   if (values.job !== undefined) args.job = values.job;
   if (values.timeout !== undefined) args.timeout = values.timeout;
+  if (values.stale === true) args.stale = true;
+  if (values.days !== undefined) args.days = values.days;
+  if (values.forget === true) args.forget = true;
 
   if (match !== undefined) return match.command.run({ ...args, params: match.params });
 

@@ -9,7 +9,7 @@ import { readdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { format } from 'node:util';
 import type { RoleOutcome } from '@shahimat/ai-core';
-import { opsRole, PRIORITY } from './ops/runner.ts';
+import { opsRole, PRIORITY, stepWaitMin } from './ops/runner.ts';
 import { loadMachine, loadMachineAt } from './load.ts';
 import { createSession, type Session } from './store/session.ts';
 
@@ -113,6 +113,7 @@ export async function sessionRole(
     lane: 'jobs',
     priority: PRIORITY.answered,
     job: s.short,
+    waitMin: stepWaitMin(),
     options: { transcript, onProgress: progressTo(s.file('progress.log')) },
   });
   console.error(`роль ${role}: готово`);

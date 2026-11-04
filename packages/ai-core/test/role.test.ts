@@ -218,6 +218,67 @@ describe('роль: запуск', () => {
     await expect(askRole(root, 'judge', 'т')).rejects.toThrow('не вернула итог');
   });
 
+  it('fallback: конверт {message, data} из текста — итог data по схеме роли', async () => {
+    await put('agents/judge.md', roleFile('judge', 'verdict'));
+    process.env['FAKE_TEXT'] =
+      'Проверил.\n```json\n{"message":"verdict","data":{"answers":[]}}\n```';
+    expect(await askRole(root, 'judge', 'т')).toEqual({ data: { answers: [] }, costUsd: 0.25 });
+    process.env['FAKE_TEXT'] =
+      '{"message":"result","data":{"status":"done","changed":[],"failed":[],"questions":[],"report":"итог"}}';
+    await expect(askRole(root, 'judge', 'т')).rejects.toThrow('роль возвращает verdict');
+  });
+
+  it('fallback: голый массив ответов батча оборачивается в {answers}', async () => {
+    await put('agents/judge.md', roleFile('judge', 'verdict'));
+    process.env['FAKE_TEXT'] =
+      '```json\n[{"id":"a","verdict":true,"ref":"@e","quote":"цитата","reason":"найдено"}]\n```';
+    expect(await askRole(root, 'judge', 'т')).toEqual({
+      data: {
+        answers: [{ id: 'a', verdict: true, ref: '@e', quote: 'цитата', reason: 'найдено' }],
+      },
+      costUsd: 0.25,
+    });
+  });
+
+  it('fallback: пустые ветки вердикта рядом с заполненной не мешают', async () => {
+    await put('agents/judge.md', roleFile('judge', 'verdict'));
+    process.env['FAKE_TEXT'] =
+      '```json\n{"answers":[{"id":"a","verdict":true,"ref":"@e","quote":"цитата","reason":"найдено"}],"contradictions":[],"unmeasurable":[]}\n```';
+    expect(await askRole(root, 'judge', 'т')).toEqual({
+      data: {
+        answers: [{ id: 'a', verdict: true, ref: '@e', quote: 'цитата', reason: 'найдено' }],
+      },
+      costUsd: 0.25,
+    });
+    process.env['FAKE_TEXT'] =
+      '```json\n{"contradictions":[{"a":"x","b":"y","reason":"противоречит"}],"unmeasurable":[]}\n```';
+    expect(await askRole(root, 'judge', 'т')).toEqual({
+      data: {
+        contradictions: [{ a: 'x', b: 'y', reason: 'противоречит' }],
+        unmeasurable: [],
+      },
+      costUsd: 0.25,
+    });
+  });
+
+  it('итог из файла сессии сервера .ops/submit/<sessionID>.json, когда канал не записал', async () => {
+    await put('agents/judge.md', roleFile('judge', 'verdict'));
+    process.env['FAKE_FILES'] = JSON.stringify({ '.ops/submit/s.json': '{"answers":[]}' });
+    expect(await askRole(root, 'judge', 'т')).toEqual({ data: { answers: [] }, costUsd: 0.25 });
+    process.env['FAKE_FILES'] = JSON.stringify({ '.ops/submit/s.json': '{"битый": true}' });
+    process.env['FAKE_TEXT'] = '{"answers":[]}';
+    expect(await askRole(root, 'judge', 'т')).toEqual({ data: { answers: [] }, costUsd: 0.25 });
+  });
+
+  it('отказ роли называет причину и путь транскрипта', async () => {
+    await put('agents/judge.md', roleFile('judge', 'verdict'));
+    const transcript = path.join(home, 'runs', 'judge-t.jsonl');
+    await expect(askRole(root, 'judge', 'т', { transcript })).rejects.toThrow(String(transcript));
+    await expect(askRole(root, 'judge', 'т', { transcript })).rejects.toThrow(
+      'текст ответа без JSON',
+    );
+  });
+
   it('системный промпт: правило submit_result — первый абзац', () => {
     const prompt = roleSystemPrompt({
       name: 'judge',

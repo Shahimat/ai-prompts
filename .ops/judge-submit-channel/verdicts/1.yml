@@ -1,0 +1,66 @@
+run: 1
+status: pass
+summary: >-
+  judge --run доводит пакет до apply сам (живой прогон, exit 0, ? 0 — в бюджете);
+  отказ роли виден (транскрипт + причина в сообщении и тестах); unit-тесты конверта
+  и fallback есть; npm run ci зелёный целиком.
+items:
+  - key: crit-1
+    status: pass
+    evidence: >-
+      живой прогон в worktree: node packages/cli/dist/bin.js expect judge
+      expectations/index.expect.ts --run → «вопросов 4 в пакетах 2», оба ответа
+      получены, «expect judge --apply: вердикты сохранены в
+      expectations/.verdicts.json», exit 0; packages/ai-core/src/commands/expect/index.ts:525
+      (judgeRun сам вызывает judgeApply); после прогона отчёт: «ожиданий 331: crit 0 ·
+      warn 4 · info 4 · ? 0 — в бюджете»; expectations/.verdicts.json обновлён
+      (git diff, 15 ins/15 del)
+    reason: >-
+      команда сама спавнит judge-сессии, получает ответы, применяет вердикты и
+      возвращает 0 — ручных шагов между ответом и apply нет. Оговорка: submit_result
+      в спавненной сессии пока отсутствует (published @shahimat/oc3@0.1.0 не
+      регистрирует инструмент; появится в релизном каскаде тикета 2, версии в
+      тикете 1 менять запрещено), итог доставлен штатным fallback-парсингом текста
+      — это автоматический канал в самом коде, не ручной обход; известное ограничение
+      заявлено оператором в брифе тикета
+  - key: crit-2
+    status: pass
+    evidence: >-
+      packages/ai-core/src/commands/expect/index.ts:498-502 (env
+      HARNESS_EXPECT_TRANSCRIPT, по умолчанию expectations/.judge/transcripts/*.jsonl),
+      packages/ai-core/src/lib/role.ts:214 («роль <имя> не вернула итог через
+      submit_result — <причина>; транскрипт: <путь>»); тест
+      packages/ai-core/test/expect-cli.test.ts:113-137 — при отказе транскрипт
+      прочитан в .judge/transcripts/lint-1.jsonl, stderr содержит «роль judge не
+      вернула итог» и «транскрипт:»; packages/ai-core/test/role.test.ts:273
+    reason: >-
+      транскрипт каждого прогона пишется (флаг не нужен — есть env и путь по
+      умолчанию), причина «не вернула итог» названа с перечислением по каждому
+      источнику (файл канала, файл сессии, текст) и путём транскрипта; при отказе
+      judgeApply сохраняет принятое и выходит до rm .judge, так что транскрипт
+      остаётся доступен
+  - key: crit-3
+    status: pass
+    evidence: >-
+      packages/ai-core/test/role.test.ts:221 (конверт {message, data} — итог data),
+      :231 (голый массив батча → {answers}), :243 (пустые ветки вердикта
+      отбрасываются), :264 (файл сессии .ops/submit/<id>.json), :198/:213 (текст с
+      JSON и без); packages/ai-core/test/expect-cli.test.ts:87 (сквозной judge --run
+      с конвертом — до apply сам); ai-core в npm run ci: Test Files 17 passed (17),
+      Tests 210 passed (210)
+    reason: >-
+      заявленные DoD ветки канала покрыты юнит-тестами и зелёные в общем прогоне
+  - key: crit-4
+    status: pass
+    evidence: >-
+      npm run ci в корне worktree: exit code 0 (замерен напрямую, без пайпа),
+      лог /tmp/opencode/ci-judge-submit-channel.log; последняя строка — «ожиданий
+      331: crit 0 · warn 4 · info 4 · ? 0 — в бюджете»; 4 judged-warn закрыты
+      живым прогоном судьи перед этим замером
+    reason: >-
+      формат, build, typecheck, lint, тесты четырёх пакетов, packages-check, индекс
+      и ожидания — зелёные; бюджет ожиданий больше не превышен
+changes:
+  - goals/harness-reliability.expect.ts не менялся (заголовки точны, механика не ослаблялась)
+  - создан goals/harness-reliability.expect.json с результатами run 1 (4/4 pass)
+  - 4 judged-warn «?» закрыты через ai expect judge --run (expectations/.verdicts.json)

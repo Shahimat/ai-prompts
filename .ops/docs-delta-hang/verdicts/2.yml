@@ -1,0 +1,103 @@
+run: 2
+status: pass
+summary: >-
+  Замечание run 1 устранено: librarian внёс запись ## 0.1.7 в
+  packages/ai-core/CHANGELOG.md (канал итога роли, транскрипты judge --run,
+  stdin-таймауты docs-delta) — npm run ci зелёный целиком («ожиданий 331:
+  crit 0 · warn 4 · info 4 · ? 0 — в бюджете», packages-check crit 0).
+  crit-5/6/7 подтверждены повторной сверкой: код с run 1 не менялся
+  (единственная правка после вердикта run 1 — CHANGELOG.md, mtime 19:23),
+  цитируемые строки и тесты на месте.
+items:
+  - key: crit-5
+    status: pass
+    evidence: >-
+      Перепроверено построчно, код не менялся с run 1 (все файлы из evidence
+      старше вердикта run 1; после него правился только CHANGELOG.md).
+      packages/ai-core/src/lib/intents.ts:30-38 — stdinTimeoutMs (env
+      HARNESS_STDIN_TIMEOUT_S, дефолт 10 с); :39-42 — TTY → InputError «stdin —
+      терминал: подай намерения файлом…»; :55-62 — тишина → «stdin молчит N с …
+      (таймаут — HARNESS_STDIN_TIMEOUT_S)»; :72 — process.stdin.destroy() в
+      catch. packages/harness/src/harnesses/core/ops/runner.ts:163-168 —
+      stepWaitMin (env HARNESS_STEP_WAIT_MIN, дефолт 5); :179 — waitLimit =
+      waitMin*60_000; :195-198 и :226-229 — throw «ожидание превысило …» с
+      причиной до спавна роли; :158-172 — прогресс «жду …» в stderr с
+      троттлингом WAIT_PROGRESS_S 30 с. Тесты на месте: 
+      packages/harness/test/docs-delta-roles.test.ts:251-289 (spawn «docs-delta
+      start --file -», HARNESS_STDIN_TIMEOUT_S=1 → код 2 в пределах 30 с,
+      stderr «stdin молчит» + имя env, каталог sessions не создан);
+      packages/harness/test/ops.test.ts:340-364 (waitMin 0.001 при backoff на
+      час → «ожидание превысило», «лимит модели», «жду — лимит модели»).
+      Оба зелёные в прогоне ci оператора (harness 78/78).
+    reason: >-
+      недоступный шаг — быстрая ошибка с причиной и таймаутом на обоих путях
+      (stdin и ожидание слота/backoff), spawned-процесс в ветке отказа не
+      запускается, stdin-поток разрушается; статус run 1 (pass) подтверждён
+      без изменений
+  - key: crit-6
+    status: pass
+    evidence: >-
+      Перепроверено построчно, код не менялся с run 1.
+      packages/harness/src/harnesses/core/store/session.ts:218-237 — activityOf
+      по последней записи log.jsonl (fallback — created); :239-253 — staleDays
+      (--days → env HARNESS_STALE_DAYS → дефолт 7; нечисловой --days —
+      UsageError); :255-265 — staleSessions с сортировкой по возрасту.
+      packages/harness/src/harnesses/core/catalog.ts:113-131 — open <id>
+      --forget: отказ «сессия … исполняет роль … (pid N)» при живой роли, затем
+      rm каталога сессии и «снята сессия …»; :132-147 — list --stale [--days]:
+      только своего harness, живые роли исключены, возраст в выводе. Тесты
+      packages/harness/test/stale.test.ts:50,64,81,94 — все четыре it на месте
+      (список с возрастом и отсечением чужих/свежих; --days двигает порог;
+      --forget удаляет каталог; --forget отказ при живой роли) — зелёные в ci.
+    reason: >-
+      обнаружение и снятие протухшей сессии — штатные команды объявленной
+      поверхности (list/open, --stale/--days/--forget), отказа и расширений
+      API нет; статус run 1 (pass) подтверждён без изменений
+  - key: crit-7
+    status: pass
+    evidence: >-
+      Версии не менялись с run 1: @shahimat/ai-core 0.1.7 
+      (packages/ai-core/package.json), cli 0.1.4, harness 0.5.0, oc3 0.1.3;
+      пины ai-core 0.1.7 — packages/cli/package.json:56,
+      packages/harness/package.json:57, packages/oc3/package.json:57;
+      package-lock.json синхронизирован. packages-check в прогоне ci оператора
+      — crit 0 (warn — штатные «требуется публикация»). design/packages.md
+      «Релиз»: точные пины @shahimat/* равны публикуемой версии, пины на
+      ai-core подняты в том же тикете, что и версия ai-core — выполнено;
+      публикация одна на цель.
+    reason: >-
+      каскад один: версия ai-core и все пины подняты в одном тикете; пропуск
+      bump'а cli/harness/oc3 соответствует правилу «не больше одной
+      неопубликованной версии» — crit в packages-check нет; статус run 1
+      (pass) подтверждён без изменений
+  - key: crit-8
+    status: pass
+    evidence: >-
+      packages/ai-core/CHANGELOG.md:5 — «## 0.1.7» (внесена librarian'ом после
+      run 1, единственная правка с того прогона); записи: канал итога роли —
+      конверт {message, data}, батч, .ops/submit/<id>.json (:7-10);
+      транскрипты judge --run в expectations/.judge/transcripts/ с env
+      HARNESS_EXPECT_TRANSCRIPT (:11-13); stdin-таймауты --file - и флаги
+      stale/days/forget (:14-16). npm run ci в worktree зелёный целиком
+      (прогон оператора): «ожиданий 331: crit 0 · warn 4 · info 4 · ? 0 — в
+      бюджете», packages-check без crit; красный crit run 1
+      (changelogMatchesVersion, top 0.1.6 ≠ 0.1.7) исчез. Контрольный прогон
+      judge (/tmp/opencode/ci-docs-delta-hang-run2.log) показал 6 ✗ в
+      expectations/harness.expect.ts — те же строки в логе run 1 зелёные
+      (/tmp/opencode/ci-docs-delta-hang-run1.log:257-258,278,300,304-305),
+      код и тесты с run 1 не менялись: сбой среды параллельных сессий на
+      машине (spawn-тесты ops/common, symptom node:internal/modules/cjs/
+      loader), не регрессия тикета; зелёный повторный прогон оператора
+      подтверждает.
+    reason: >-
+      причина run 1 устранена: запись ## 0.1.7 на месте, changelogMatchesVersion
+      зелёный, npm run ci — exit 0 по всему конвейеру (format, build, typecheck,
+      lint, тесты 4 пакетов, packages-check crit 0, index, ожидания в бюджете,
+      ? 0)
+changes:
+  - goals/harness-reliability.expect.ts не менялся (заголовки точны, механика не ослаблялась)
+  - в goals/harness-reliability.expect.json добавлены run 2 по обоим тикетам цели
+    (crit-1…crit-4 judge-submit-channel, crit-5…crit-8 docs-delta-hang); после
+    сброса оператором счётчик гейта = 2 run'а — попытка закрыта без retry
+  - отдельный вердикт judge-submit-channel не писался: критерии без изменений с
+    run 1 (код не менялся, ci зелёный), статус отражён в goal-записи run 2

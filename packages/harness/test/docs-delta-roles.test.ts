@@ -1,8 +1,9 @@
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { createRequire } from 'node:module';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { main, run } from '@shahimat/cli';
 import { openSession } from '#harnesses/core/store/session';
@@ -246,4 +247,44 @@ describe('docs-delta: роли librarian и judge', () => {
     expect(lines.join('\n')).toMatch(/роль librarian: .*не вернула итог.*docs-delta open/s);
     expect(lines.join('\n')).toContain('Намерения: {"intents"');
   });
+
+  it('start --file -: молчащий stdin — быстрая ошибка с таймаутом и подсказкой, код 2', async () => {
+    await project();
+    const pkg = createRequire(import.meta.url).resolve('@shahimat/cli/package.json');
+    const bin = path.join(path.dirname(pkg), 'dist', 'bin.js');
+    const child = spawn(
+      process.execPath,
+      [
+        bin,
+        'docs-delta',
+        'start',
+        '--name',
+        'naming',
+        '--file',
+        '-',
+        '--root',
+        root,
+        '--home',
+        home,
+      ],
+      { stdio: ['pipe', 'ignore', 'pipe'], env: { ...process.env, HARNESS_STDIN_TIMEOUT_S: '1' } },
+    );
+    const stderr: string[] = [];
+    child.stderr?.on('data', (d: Buffer) => stderr.push(d.toString('utf8')));
+    const code = await new Promise<number>((resolve, reject) => {
+      const timer = setTimeout(
+        () => reject(new Error('start висит: stdin не отвалился по таймауту')),
+        30_000,
+      );
+      child.on('close', (c) => {
+        clearTimeout(timer);
+        resolve(c ?? 1);
+      });
+    });
+    expect(code).toBe(2);
+    const text = stderr.join('');
+    expect(text).toContain('stdin молчит');
+    expect(text).toContain('HARNESS_STDIN_TIMEOUT_S');
+    expect(existsSync(path.join(home, 'sessions'))).toBe(false);
+  }, 60_000);
 });

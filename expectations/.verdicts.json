@@ -59,13 +59,13 @@
     "1db1d3ca45dd": {
       "question": "[harness] expect > смысловая проверка заголовков файла запускается только при изменении его заголовков",
       "evidence": {
-        "@expect-cycles": "49564c4c63371bc582ec09bda9f1ced013fa6256643b3ac17cd999f074f816c0"
+        "@expect-cycles": "833d46d00d54f3834730dd900b5f3bd0529fad8d0f81395acd8a46f6b0fd3e6e"
       },
       "verdict": true,
-      "quote": "    if (store.lint[file]?.titles === sha) continue;",
+      "quote": "if (store.lint[file]?.titles === sha) continue;",
       "ref": "@expect-cycles",
-      "reason": "В judgePrepare смысловая проверка заголовков файла не планируется, если sha заголовков совпадает с сохранённым в store.lint[file]; в collect тот же срез сравнивается с titlesSha(items).",
-      "at": "2026-11-01"
+      "reason": "В judgePrepare повторная смысловая проверка заголовков файла пропускается, если sha заголовков не изменился.",
+      "at": "2026-11-04"
     },
     "1e94c71faacc": {
       "question": "поведение ключевых skills > workflow: блокирующий вопрос — нумерованные варианты, дефолт с обоснованием, стоп до ответа",
@@ -191,13 +191,13 @@
     "694f0f4b5141": {
       "question": "[harness] expect > в кэше вердиктов только вердикты живых ожиданий",
       "evidence": {
-        "@verdict-prune": "3483c055a1104d2fb19e85d46ff35eff739efda0123316abd60579f6af05503a"
+        "@verdict-prune": "c957ba9a7865603050e916011c02078f8ed727bb70114c23c8fad32d941150ed"
       },
       "verdict": true,
-      "quote": "  const removed = pruneStore(store, seen, new Set(byFile(results).keys()));",
+      "quote": "if (!liveIds.has(id)) { delete store.verdicts[id]; removed++; }",
       "ref": "@verdict-prune",
-      "reason": "pruneStore удаляет вердикты, чьих id нет среди liveIds (seen, собранных judged()), и lint-записи файлов, которых нет среди прогоняемых.",
-      "at": "2026-11-01"
+      "reason": "pruneStore удаляет из хранилища вердикты и lint-записи, не относящиеся к живым ожиданиям и файлам.",
+      "at": "2026-11-04"
     },
     "6c3c787c9f87": {
       "question": "[harness] context > context/index.yml генерируется ai context index и не содержит даты генерации",
@@ -336,13 +336,13 @@
     "9d95d48cd2c2": {
       "question": "[harness] common > итог прогона считает код по бюджету и ответам модели, а не модель",
       "evidence": {
-        "@verdict-by-code": "1d0a60db6efd40b85af0ba792837adc724febfd06fcbe10e68790ca17d327a87"
+        "@verdict-by-code": "24a8f41e1f9f37a9fd955105a8f5a734bfc30b1399076df6308c38b2f70531c9"
       },
       "verdict": true,
       "quote": "const over = count.crit > budget.crit || count.warn > budget.warn || count.pending > 0;",
       "ref": "@verdict-by-code",
-      "reason": "Итог (blocked) вычисляет код из счётчиков crit/warn и бюджета, а ответы модели лишь пополняют count.warn/count.crit.",
-      "at": "2026-11-01"
+      "reason": "blocked и счётчики критериев вычисляет код collect() по бюджету; ответы модели лишь применяются в judgeApply через applyAnswers, итог модель не считает.",
+      "at": "2026-11-04"
     },
     "a0973b8d4adc": {
       "question": "документация проекта > в основной сессии файлы проектной документации только читаются; правки — только через librarian, генерируемые файлы — через harness",
@@ -546,13 +546,13 @@
     "de808fdc116f": {
       "question": "[harness] expect > судья вызывается только для вердиктов, у которых изменились заголовок или доказательства",
       "evidence": {
-        "@expect-cycles": "49564c4c63371bc582ec09bda9f1ced013fa6256643b3ac17cd999f074f816c0"
+        "@expect-cycles": "833d46d00d54f3834730dd900b5f3bd0529fad8d0f81395acd8a46f6b0fd3e6e"
       },
       "verdict": true,
-      "quote": "    refs.every((r) => cached.evidence[r.ref] === r.sha);",
+      "quote": "cached.question === question && Object.keys(cached.evidence).length === refs.length && refs.every((r) => cached.evidence[r.ref] === r.sha);",
       "ref": "@expect-cycles",
-      "reason": "judged() считает вердикт свежим только при совпадении вопроса (заголовка) и sha всех доказательств; при свежести вопрос судье не собирается, в противном случае пишется PendingItem.",
-      "at": "2026-11-01"
+      "reason": "judged() считает вердикт свежим только при совпадении заголовка вопроса и sha всех доказательств; иначе уходит судье.",
+      "at": "2026-11-04"
     },
     "dfed5ff72504": {
       "question": "приоритетные правила модулей > privacy: в документации, коммитах и журнале нет реальных персональных данных",

@@ -3,6 +3,7 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { UsageError } from '#shared/diagnostics';
+import { isRecord } from '#shared/guards';
 import { compileSchema, issueText } from '#shared/schema';
 import { parseAgent, type AgentDef } from './agent.ts';
 import {
@@ -13,7 +14,7 @@ import {
   type OpenCodeSpawnOptions,
 } from './opencode.ts';
 import { runtime } from './runtime.ts';
-import { PROTOCOL, SUBMIT_TOOL } from './protocol.ts';
+import { isProtocolMessage, PROTOCOL, SUBMIT_TOOL } from './protocol.ts';
 
 export const ROLE_DIRS = ['.agents/agents', 'agents'] as const;
 const DEFAULT_MODEL = 'zai-coding-plan/glm-5.3-flash#max';
@@ -77,6 +78,94 @@ export interface RoleOutcome {
   costUsd: number | undefined;
 }
 
+const SESSION_FILE = /^[A-Za-z0-9._-]+$/;
+const SESSION_DIR = ['.ops', 'submit'] as const;
+
+export interface RoleSources {
+  readonly submit: string | undefined;
+  readonly session: string | undefined;
+  readonly text: string;
+}
+
+export type RoleFinal = { data: unknown } | { reason: string };
+
+const schemaIssues = (schema: object, value: unknown): string[] =>
+  compileSchema(schema)(value).map((i) => `${i.path || '/'} ${issueText(i)}`);
+
+const VERDICT_KEYS = ['answers', 'contradictions', 'unmeasurable', 'conflicts'] as const;
+const VERDICT_KEY_LIST: readonly string[] = VERDICT_KEYS;
+
+const relaxedVerdict = (value: Record<string, unknown>): Record<string, unknown> | undefined => {
+  const filled = VERDICT_KEYS.filter((k) => {
+    const list = value[k];
+    return Array.isArray(list) && list.length > 0;
+  });
+  const other = Object.keys(value).filter((k) => !VERDICT_KEY_LIST.includes(k));
+  if (other.length > 0 || filled.length === Object.keys(value).length) return undefined;
+  return Object.fromEntries(filled.map((k) => [k, value[k]]));
+};
+
+export function roleOutcomeOf(role: AgentDef, sources: RoleSources): RoleFinal {
+  const output = role.output ?? 'result';
+  const schema = PROTOCOL[output];
+  const shapeOf = (value: unknown): RoleFinal => {
+    const issues = schemaIssues(schema, value);
+    if (issues.length === 0) return { data: value };
+    if (isRecord(value)) {
+      const message = value['message'];
+      if (typeof message === 'string' && isProtocolMessage(message)) {
+        if (message !== output)
+          return { reason: `конверт с message ${message}, роль возвращает ${output}` };
+        const data = value['data'];
+        const inner = schemaIssues(schema, data);
+        if (inner.length === 0) return { data };
+        if (output === 'verdict' && isRecord(data)) {
+          const relaxed = relaxedVerdict(data);
+          if (relaxed !== undefined && schemaIssues(schema, relaxed).length === 0)
+            return { data: relaxed };
+        }
+        return { reason: `data конверта не по схеме ${output}: ${inner.join('; ')}` };
+      }
+      if (output === 'verdict') {
+        const relaxed = relaxedVerdict(value);
+        if (relaxed !== undefined && schemaIssues(schema, relaxed).length === 0)
+          return { data: relaxed };
+      }
+      return { reason: `значение не по схеме ${output}` };
+    }
+    if (output === 'verdict' && Array.isArray(value)) {
+      const wrapped: unknown = { answers: value };
+      const wrappedIssues = schemaIssues(schema, wrapped);
+      return wrappedIssues.length === 0 ? { data: wrapped } : { reason: wrappedIssues.join('; ') };
+    }
+    return { reason: `значение не по схеме ${output}` };
+  };
+  const files: [string, string | undefined][] = [
+    ['файл канала', sources.submit],
+    ['файл сессии', sources.session],
+  ];
+  const reasons: string[] = [];
+  for (const [label, raw] of files) {
+    if (raw === undefined) continue;
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      reasons.push(`${label}: не JSON`);
+      continue;
+    }
+    const shape = shapeOf(parsed);
+    if ('data' in shape) return shape;
+    reasons.push(`${label}: ${shape.reason}`);
+  }
+  const parsed = structuredFromText(sources.text);
+  if (parsed === undefined) return { reason: [...reasons, 'текст ответа без JSON'].join('; ') };
+  const shape = shapeOf(parsed);
+  return 'data' in shape
+    ? shape
+    : { reason: [...reasons, `текст ответа: ${shape.reason}`].join('; ') };
+}
+
 export async function runRole(run: RoleRun): Promise<RoleOutcome> {
   let steps = 0;
   const options: OpenCodeSpawnOptions = { timeoutMs: run.timeoutMs ?? roleTimeoutMs() };
@@ -104,21 +193,26 @@ export async function runRole(run: RoleRun): Promise<RoleOutcome> {
   progress?.(`роль ${run.role.name}: готово, шагов ${steps}`);
   const tail = result.error ?? result.stderr.trim().slice(0, 500);
   if (result.code !== 0) throw new Error(`opencode run: код ${result.code}: ${tail}`);
-  const schema = PROTOCOL[run.role.output ?? 'result'];
-  const raw = await submitFileOf(run.out);
-  if (raw !== undefined) {
-    const data: unknown = JSON.parse(raw);
-    const issues = compileSchema(schema)(data);
-    if (issues.length > 0)
-      throw new Error(
-        `роль ${run.role.name}: ответ не по схеме: ${issues.map((i) => `${i.path} ${issueText(i)}`).join('; ')}`,
-      );
-    return { data, costUsd: result.costUsd };
-  }
-  const fallback = structuredFromText(result.lastText ?? '');
-  if (fallback !== undefined && compileSchema(schema)(fallback).length === 0)
-    return { data: fallback, costUsd: result.costUsd };
-  throw new Error(`роль ${run.role.name} не вернула итог через ${SUBMIT_TOOL}`);
+  const session = result.sessionId;
+  const sessionRaw =
+    session !== undefined && SESSION_FILE.test(session)
+      ? await submitFileOf(path.join(run.root, ...SESSION_DIR, `${session}.json`))
+      : undefined;
+  const final = roleOutcomeOf(run.role, {
+    submit: await submitFileOf(run.out),
+    session: sessionRaw,
+    text: result.lastText ?? '',
+  });
+  if ('data' in final) return { data: final.data, costUsd: result.costUsd };
+  const why = [
+    final.reason,
+    run.transcript === undefined ? undefined : `транскрипт: ${run.transcript}`,
+  ]
+    .filter((part) => part !== undefined)
+    .join('; ');
+  throw new Error(
+    `роль ${run.role.name} не вернула итог через ${SUBMIT_TOOL}${why === '' ? '' : ` — ${why}`}`,
+  );
 }
 
 export interface AskOptions {
