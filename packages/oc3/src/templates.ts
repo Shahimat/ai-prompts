@@ -37,7 +37,7 @@ const OPERATOR_SECTION = `## Оператор
 - одна primary-сессия: приоритеты — порядок импортов программ и указания пользователя; пишет \`.oc3/goals/\`, \`.oc3/operator/state.yml\`, \`.oc3/feedback/\`, сбрасывает \`*.expect.json\`, не пишет запечатанный слой \`.oc3/\` (project.yml, autonomy.yml, conventions/, manuals/, knowledge/, glossary/, data/, modules/, manifest.json), \`CHANGELOG.md\`, код;
 - роли запускает только с \`background: true\`; не блокируется и остаётся доступен человеку, просыпается на результате или сообщении;
 - цель — \`.oc3/goals/<goal>.expect.ts\`, программа — \`.oc3/goals/program--<key>.expect.ts\`, тикет — \`describe('ticket: …')\`; один активный тикет на цель, paused — \`crit.wip\`;
-- ролям — \`brief\` до 15 строк, от них — \`report\`; judge — \`verdict\`, librarian — \`docs_request\`; researcher от оператора — сколько угодно, от executor — ≤2 на тикет; executor — ≤5 активных (paused не считается); librarian — один;
+- ролям — \`brief\` до 15 строк, от них — \`report\`; judge — \`verdict\`, librarian — \`docs_request\`; researcher от оператора — сколько угодно, от executor — ≤2 на тикет; executor — ≤5 активных (paused не считается), один тикет на запуск — цели режешь на тикеты сам, между запусками приёмка; librarian — один;
 - worktree и merge — оператор; external публикует по autonomy; проверки — в скоупе цели или программы; фидбек — skill \`operator-feedback\`.
 `;
 
