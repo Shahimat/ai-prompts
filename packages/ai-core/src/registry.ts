@@ -12,6 +12,7 @@ import { runIndex } from '#commands/prompt-index/index';
 import { runRoleCommand } from '#commands/role/index';
 import { runRoles, runSkills } from '#commands/roles/index';
 import { runSecretsScan } from '#commands/secrets/index';
+import { runTree } from '#commands/tree/index';
 import type { CommandNode } from '#shared/node';
 
 export const COMMAND_NODES: readonly CommandNode[] = [
@@ -34,12 +35,6 @@ export const COMMAND_NODES: readonly CommandNode[] = [
     run: (args) => runChangelog('lint', args),
   },
   {
-    path: ['context', 'index'],
-    kind: 'command',
-    effect: 'mutation',
-    run: (args) => runContext('index', args),
-  },
-  {
     path: ['context', 'check'],
     kind: 'command',
     effect: 'query',
@@ -56,6 +51,12 @@ export const COMMAND_NODES: readonly CommandNode[] = [
     kind: 'command',
     effect: 'query',
     run: (args) => runMemory('check', args),
+  },
+  {
+    path: ['tree', 'check'],
+    kind: 'command',
+    effect: 'query',
+    run: (args) => runTree('check', args),
   },
   {
     path: ['delta', 'check'],

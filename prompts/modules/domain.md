@@ -4,7 +4,7 @@ kind: module
 applicable_to: [agent-operational-contract-v3]
 patterns: [source-sync]
 title: Модуль domain — entities и behavior с верификацией
-use_case: Возможность ядра v3. Заводит слой общей правды .oc3/doc/data/entities/ (что есть) и .oc3/doc/data/behavior/ (как должно работать, BDD-сценарии, verified с датой и способом проверки). Связь с кодом — поле paths у entity, автоматическая проверка — поле check у behavior.
+use_case: Возможность ядра v3. Заводит слой общей правды .oc3/data/entities/ (что есть) и .oc3/data/behavior/ (как должно работать, BDD-сценарии, verified с датой и способом проверки). Связь с кодом — поле paths у entity, автоматическая проверка — поле check у behavior.
 tags: [docs-as-code, bdd-verification, agent-contract, module]
 feature:
   summary: entities и behavior — что есть и как должно работать, verified по свежей проверке
@@ -30,7 +30,7 @@ feature:
 
 ```yaml
 provides:
-  layers: [.oc3/doc/data/entities/, .oc3/doc/data/behavior/]
+  layers: [.oc3/data/entities/, .oc3/data/behavior/]
   files: []
   skills: [domain]
   agents_md_block: true
@@ -47,8 +47,8 @@ namespace, проверки. Берётся из индекса источник
 <!-- module:domain -->
 ## domain
 
-- как устроено X → `.oc3/doc/data/entities/<id>.yml`, затем код;
-- как X должно себя вести → `.oc3/doc/data/behavior/<id>.yml`;
+- как устроено X → `.oc3/data/entities/<id>.yml`, затем код;
+- как X должно себя вести → `.oc3/data/behavior/<id>.yml`;
 - правила слоя и `verified` → skill `domain`.
 <!-- /module:domain -->
 ```
@@ -56,7 +56,7 @@ namespace, проверки. Берётся из индекса источник
 
 ## Установка
 
-1. Создай `.oc3/doc/data/entities/` и `.oc3/doc/data/behavior/`.
+1. Создай `.oc3/data/entities/` и `.oc3/data/behavior/`.
 2. Поставь skill `domain` в `.agents/skills/domain/`.
 3. Добавь блок в `AGENTS.md`.
 4. Предложи пользователю 1–3 стартовые entity по коду: план → «да» →

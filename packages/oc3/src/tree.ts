@@ -8,6 +8,7 @@ import {
   runOperator,
   runRoles,
   runSkills,
+  runTree,
   type CommandArgs,
   type CommandNode,
 } from '@shahimat/ai-core';
@@ -30,7 +31,7 @@ export const OC3_COMMANDS = {
   skillsCheck: (args: CommandArgs): Promise<number> => runSkills('check', args),
   adaptersSync: (args: CommandArgs): Promise<number> => runAdapters('sync', args),
   adaptersCheck: (args: CommandArgs): Promise<number> => runAdapters('check', args),
-  contextIndex: (args: CommandArgs): Promise<number> => runContext('index', args),
+  treeCheck: (args: CommandArgs): Promise<number> => runTree('check', args),
   contextCheck: (args: CommandArgs): Promise<number> => runContext('check', args),
   expectReport: (args: CommandArgs): Promise<number> => runExpect('report', args),
 } as const;
@@ -97,10 +98,10 @@ const NODES: readonly CommandNode[] = [
     run: OC3_COMMANDS.adaptersCheck,
   },
   {
-    path: ['context', 'index'],
+    path: ['tree', 'check'],
     kind: 'command',
-    effect: 'mutation',
-    run: OC3_COMMANDS.contextIndex,
+    effect: 'query',
+    run: OC3_COMMANDS.treeCheck,
   },
   {
     path: ['context', 'check'],

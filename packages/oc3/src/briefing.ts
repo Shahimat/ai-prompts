@@ -1,7 +1,7 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { parse } from 'yaml';
-import { isOneOf, isRecord, UsageError, type CommandArgs } from '@shahimat/ai-core';
+import { isOneOf, isRecord, PROJECT_PATH, UsageError, type CommandArgs } from '@shahimat/ai-core';
 
 const MODES = ['cheap', 'roles', 'custom'] as const;
 const ROUTINGS = ['operator', 'executor'] as const;
@@ -18,10 +18,10 @@ export interface Briefing {
   ticket_mode?: string;
 }
 
-const FILE_LABEL = '.oc3/doc/project.yml';
+const FILE_LABEL = PROJECT_PATH;
 
 export async function runBriefing(command: string | undefined, args: CommandArgs): Promise<number> {
-  const file = path.join(args.root, '.oc3', 'doc', 'project.yml');
+  const file = path.join(args.root, PROJECT_PATH);
   if (command === 'set') return briefingSet(file, args.params ?? {});
   return briefingShow(file);
 }

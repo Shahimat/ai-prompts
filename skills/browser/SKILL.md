@@ -22,7 +22,7 @@ Skill без browser-tool бесполезен: `.oc3/skills.yml` объявля
 - `browser.click`, `browser.type`, `browser.submit`;
 - чтение console/network — в рамках выданного tool.
 
-Уровни `self` / `ask` / `never` — только в `.oc3/doc/autonomy.yml`, по
+Уровни `self` / `ask` / `never` — только в `.oc3/autonomy.yml`, по
 действиям и доменам. Не перечислено — `ask`. `submit`, платёж, удаление
 и отправка формы людям — по умолчанию `ask` или `never`. Новое `self` —
 только решением пользователя.

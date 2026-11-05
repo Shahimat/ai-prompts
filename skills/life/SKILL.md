@@ -42,7 +42,7 @@ description: Правила домена жизни — факты, сигнал
 - `id` — путь внутри слоя без `.yml`, `/` → `-`
   (`life/facts/health/no-dairy.yml` → `health-no-dairy`);
 - `kind` — `fact` | `signal` | `protocol`;
-- `namespace` — из `.oc3/doc/project.yml` → `namespaces`; новый — только
+- `namespace` — из `.oc3/project.yml` → `namespaces`; новый — только
   с «да»;
 - `summary` — одна строка для индекса, без значений измерений.
 
@@ -171,5 +171,5 @@ automated_by: [entity:<id>, behavior:<id>]  # только при app-loop
 <!-- expect:skill-runs -->
 <!-- metadata.runs: check -->
 С harness `id`, `namespace` и `summary` проверяет `ai check`
-(`context-index`): запусти его после записи.
+(`context`): запусти его после записи.
 <!-- /expect:skill-runs -->

@@ -112,16 +112,16 @@ skill `app-loop`.
   `serves` у целей и шестая проверка;
 - значения `serves` в `app/entities|behavior/*.yml` и `automated_by` в
   домене сохраняются; сами файлы `app/entities|behavior` переезжают в
-  `.oc3/doc/data/entities|behavior` по миграции модуля `domain`, ссылки
+  `.oc3/data/entities|behavior` по миграции модуля `domain`, ссылки
   приводятся к формату skill.
 
 Выбрасывается:
 
 - копия «Правила верификации и провенанса» в
-  `.oc3/doc/conventions/verification.yml` — верификация в skill
+  `.oc3/conventions/verification.yml` — верификация в skill
   `domain`, провенанс `app-telemetry` в skill `app-loop`, остальные
   провенансы — в модуле домена;
-- «Канал живых данных» и блок `data_access` в `.oc3/doc/project.yml` —
+- «Канал живых данных» и блок `data_access` в `.oc3/project.yml` —
   в модуль `data-access`;
 - раздельные журналы `CHANGELOG-life|analysis.md` / `CHANGELOG-app.md` —
   один `CHANGELOG.md` по правилам ядра (теги доменов — в их модулях).

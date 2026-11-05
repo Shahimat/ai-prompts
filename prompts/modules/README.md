@@ -88,8 +88,8 @@ feature:
 В `provides` модуля v3 добавляются:
 
 - `skills`, `agents_md_block`, `harness_checks`;
-- `index_layers` — слои, которые `ai context index` включает в
-  `.oc3/bundles/index.md`: `section`, `dir` и `format` — `md` (frontmatter
+- `index_layers` — слои, которые проверяет `ai context check` и память
+  кладёт в `.oc3/bundles/index.md`: `section`, `dir` и `format` — `md` (frontmatter
   `id`, `namespace`, строка индекса — первый `# …`) или `yml` (поля
   `id`, `namespace`, `summary`); `id` = путь внутри слоя без
   расширения, `/` → `-`;
@@ -115,7 +115,7 @@ feature:
 
 1. **Назначение и границы.** Когда модуль применяется, что он делает,
    чего не делает.
-2. **Что модуль добавляет в проект.** Новые слои (`.oc3/doc/...` /
+2. **Что модуль добавляет в проект.** Новые слои (`.oc3/...` /
    `.oc3/...`), новые правила, новые проверки, новые сценарии
    workflow.
 3. **Формат новых сущностей.** YAML-шаблоны, обфусцированные примеры,
@@ -186,7 +186,7 @@ feature:
   внешних систем без API. Применим к v2 и v3.
 - [`code-rules-fullstack-js-ts`](code-rules-fullstack-js-ts.md) —
   правила стиля кода на fullstack js/ts, пакетом в подпапке
-  `.oc3/doc/conventions/code/`. Применим к v2 и v3.
+  `.oc3/conventions/code/`. Применим к v2 и v3.
 - [`domain`](domain.md) — entities и behavior с `verified`. v3.
 - [`manuals`](manuals.md) — ручные процедуры для человека. v3, требует
   `domain`.

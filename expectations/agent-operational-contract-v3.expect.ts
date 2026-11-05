@@ -34,7 +34,7 @@ describe('AGENTS.md', () => {
     Check.presetBudget(),
   );
   crit('жёстких правил — не больше 7, каждое не длиннее 200 символов', () => Check.hardRules());
-  crit('маршрут «как сейчас устроено» ведёт на reality из .oc3/doc/project.yml', () =>
+  crit('маршрут «как сейчас устроено» ведёт на reality из .oc3/project.yml', () =>
     Check.realityRoute(),
   );
   crit('строки блоков модулей обязательны наравне с жёсткими правилами ядра', () =>
@@ -77,10 +77,10 @@ describe('форматы по схемам', () => {
   crit('примеры .oc3/ai-core.yml в skill harness и README пакета соответствуют схеме', () =>
     Check.harnessConfigSchema(),
   );
-  crit('пример .oc3/doc/project.yml в контракте соответствует схеме project', () =>
+  crit('пример .oc3/project.yml в контракте соответствует схеме project', () =>
     Check.projectSchema(),
   );
-  crit('пример .oc3/doc/autonomy.yml в контракте соответствует схеме autonomy', () =>
+  crit('пример .oc3/autonomy.yml в контракте соответствует схеме autonomy', () =>
     Check.autonomySchema(),
   );
   crit('пример .oc3/skills.yml в контракте соответствует схеме skills-manifest', () =>
@@ -109,13 +109,13 @@ describe('документация проекта', () => {
     () => Check.docsReadonly(),
   );
   crit(
-    'при подключённом harness генерируемые файлы (.oc3/doc/index.yml, адаптеры под инструменты) меняет только harness, не агент и не librarian',
+    'при подключённом harness генерируемые файлы (.oc3/bundles/, адаптеры под инструменты) меняет только harness, не агент и не librarian',
     () => Check.generatedByHarness(),
   );
   warn('librarian меняет только слои документации проекта и не трогает код', () =>
     Check.docsKeeperScope(),
   );
-  warn('правила контракта не копируются в .oc3/doc/conventions', () => Check.noRuleCopies());
+  warn('правила контракта не копируются в .oc3/conventions', () => Check.noRuleCopies());
   crit(
     'шаблон AGENTS.md и блоки модулей не содержат указаний основной сессии самой править документацию — только ссылки на skills и harness; guardrail о достоверности знания допустим',
     () => Check.noWriteCommands(),

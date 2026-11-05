@@ -73,7 +73,7 @@ describe('ai check', () => {
     await put('.oc3/ai-core.yml', 'checks:\n  changelog: {}\n');
     await put('CHANGELOG.md', BAD);
     expect(await main(['check', '--root', root], NOW)).toBe(1);
-    expect(stderr.at(-1)).toBe('check (changelog lint, secrets scan): есть нарушения');
+    expect(stderr.at(-1)).toBe('check (changelog lint, tree check, secrets scan): есть нарушения');
   });
 
   it('2 — ошибка в ai-core.yml', async () => {
@@ -104,30 +104,25 @@ describe('справка', () => {
   });
 });
 
-describe('ai context index', () => {
-  it('пишет индекс; check с context-index проходит', async () => {
-    await put('.oc3/doc/project.yml', 'namespaces:\n  vpn: доступ\n');
-    await put('.oc3/doc/data/entities/srv.yml', 'id: srv\nnamespace: vpn\nsummary: сервер\n');
-    await put('.oc3/ai-core.yml', 'checks:\n  context-index: {}\n');
-    expect(await main(['context', 'index', '--root', root], NOW)).toBe(0);
-    expect(await main(['check', '--root', root], NOW)).toBe(0);
-  });
-
-  it('1 — при нарушениях, но индекс записан', async () => {
-    await put('.oc3/doc/data/entities/srv.yml', 'id: srv\nnamespace: vpn\n');
-    expect(await main(['context', 'index', '--root', root], NOW)).toBe(1);
+describe('ai context check', () => {
+  it('0 — слои консистентны; 1 — при нарушениях', async () => {
+    await put('.oc3/project.yml', 'namespaces:\n  vpn: доступ\n');
+    await put('.oc3/data/entities/srv.yml', 'id: srv\nnamespace: vpn\nsummary: сервер\n');
+    expect(await main(['context', 'check', '--root', root], NOW)).toBe(0);
+    await put('.oc3/data/entities/broken.yml', 'id: srv2\nnamespace: vpn\n');
+    expect(await main(['context', 'check', '--root', root], NOW)).toBe(1);
     expect(stderr.join('\n')).toMatch(/нет поля summary/);
   });
 });
 
-describe('ai context check', () => {
-  it('сверяет индекс без записи: нет индекса — 1, после context index — 0', async () => {
-    await put('.oc3/doc/project.yml', 'namespaces:\n  vpn: доступ\n');
-    await put('.oc3/doc/data/entities/srv.yml', 'id: srv\nnamespace: vpn\nsummary: сервер\n');
-    expect(await main(['context', 'check', '--root', root], NOW)).toBe(1);
-    expect(existsSync(path.join(root, '.oc3/doc/index.yml'))).toBe(false);
-    expect(await main(['context', 'index', '--root', root], NOW)).toBe(0);
-    expect(await main(['context', 'check', '--root', root], NOW)).toBe(0);
+describe('ai tree check', () => {
+  it('0 — дерево .oc3 по схеме; 1 — при нарушениях схемы', async () => {
+    await put('.oc3/project.yml', 'name: demo\n');
+    await put('.oc3/conventions/naming.yml', 'key: naming\nsummary: kebab-case\nrule: x\n');
+    expect(await main(['tree', 'check', '--root', root], NOW)).toBe(0);
+    await put('.oc3/glossary/extra.yml', 'x: 1\n');
+    expect(await main(['tree', 'check', '--root', root], NOW)).toBe(1);
+    expect(stderr.join('\n')).toMatch(/приведи \.oc3\/glossary\/extra\.yml к схеме/);
   });
 });
 
@@ -172,16 +167,16 @@ const ARRAY_SCHEMA = (title: string): string =>
 
 describe('ai memory check', () => {
   it('0 без бандлов при валидном манифесте; 1 при переполнении старта', async () => {
-    await put('.oc3/doc/data/__schemas/manifest.schema.json', MANIFEST_SCHEMA);
-    await put('.oc3/doc/data/__schemas/conventions.schema.json', ARRAY_SCHEMA('конвенции'));
-    await put('.oc3/doc/data/__schemas/glossary.schema.json', ARRAY_SCHEMA('глоссарий'));
+    await put('.oc3/data/__schemas/manifest.schema.json', MANIFEST_SCHEMA);
+    await put('.oc3/data/__schemas/conventions.schema.json', ARRAY_SCHEMA('конвенции'));
+    await put('.oc3/data/__schemas/glossary.schema.json', ARRAY_SCHEMA('глоссарий'));
     await put('.oc3/manifest.json', JSON.stringify({ namespace: [], data: [] }));
     expect(await main(['memory', 'check', '--root', root], NOW)).toBe(0);
     await put(
       '.oc3/manifest.json',
       JSON.stringify({ namespace: [], data: [], budgets: { start: 5 } }),
     );
-    await put('.oc3/doc/project.yml', 'name: demo\nsummary: текст про запас\n');
+    await put('.oc3/project.yml', 'name: demo\nsummary: текст про запас\n');
     expect(await main(['memory', 'check', '--root', root], NOW)).toBe(1);
     expect(stderr.join('\n')).toMatch(/cap 5/);
   });
@@ -189,11 +184,11 @@ describe('ai memory check', () => {
 
 describe('ai memory build', () => {
   it('пишет стартовый index и узел; повторный build идемпотентен', async () => {
-    await put('.oc3/doc/data/__schemas/manifest.schema.json', MANIFEST_SCHEMA);
-    await put('.oc3/doc/data/__schemas/conventions.schema.json', ARRAY_SCHEMA('конвенции'));
-    await put('.oc3/doc/data/__schemas/glossary.schema.json', ARRAY_SCHEMA('глоссарий'));
+    await put('.oc3/data/__schemas/manifest.schema.json', MANIFEST_SCHEMA);
+    await put('.oc3/data/__schemas/conventions.schema.json', ARRAY_SCHEMA('конвенции'));
+    await put('.oc3/data/__schemas/glossary.schema.json', ARRAY_SCHEMA('глоссарий'));
     await put('.oc3/manifest.json', JSON.stringify({ namespace: ['docs'], data: [] }));
-    await put('.oc3/doc/manuals/how.md', '# Как собрать\n\nnpm run build.\n');
+    await put('.oc3/manuals/how.md', '# Как собрать\n\nnpm run build.\n');
     await put(
       '.oc3/manifest.json',
       JSON.stringify({

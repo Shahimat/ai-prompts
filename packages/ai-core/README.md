@@ -46,10 +46,12 @@ Mutation — `context index`, `adapters sync`, `delta close`,
 - `ai changelog lint` — `CHANGELOG.md`: строка
   `- YYYY-MM-DD · [tag] суть · почему` до 120 символов, тег из списка,
   порядок дат.
-- `ai context index` — генерация `context/index.yml` из слоёв
-  документации (entities, behavior, manuals, conventions, слои модулей).
-- `ai context check` — сверка `context/index.yml` со слоями
-  документации без записи.
+- `ai context check` — проверка слоёв документации (entities, behavior,
+  manuals, conventions, слои модулей): `id`, namespace, `summary`
+  без записи.
+- `ai tree check` — валидация плоского дерева `.oc3/` по JSON Schema
+  (draft 2020-12): ядро контракта плюс расширения из `manifest.json`
+  (`data`, `files`, `layout`); каждая ошибка — поручение librarian.
 - `ai adapters sync` — файлы под Codex и OpenCode из `AGENTS.md` и
   `.agents/`: субагенты `.opencode/agents/*.md` (при `codex` —
   `.codex/agents/*.toml`) и выключенная memory агента
@@ -112,7 +114,7 @@ Mutation — `context index`, `adapters sync`, `delta close`,
 - Guards контракта — плагин `@shahimat/oc3` (подключается в
   `opencode.jsonc`): `permission.hook` отклоняет правку документации
   (`CHANGELOG.md`, `context/`, `docs/`) и генерируемых файлов
-  (`context/index.yml`, `.opencode/agents/` с меткой «generated») любым
+  (`.opencode/agents/` с меткой «generated») любым
   агентом кроме librarian — с подсказкой править источник и про
   `ai docs-delta`; запись в память инструмента вне репозитория —
   отклонена.
@@ -240,7 +242,7 @@ checks:
   changelog:
     max_line: 120
     tags: [arch, stack, dep, milestone]
-  context-index: {}
+  context: {}
   adapters: {}
   secrets:
     allow:

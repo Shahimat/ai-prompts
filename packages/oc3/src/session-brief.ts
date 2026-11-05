@@ -5,6 +5,7 @@ import {
   buildBundles,
   checkBundles,
   isRecord,
+  PROJECT_PATH,
   startIndexText,
   writeGraph,
   type Diagnostic,
@@ -12,7 +13,6 @@ import {
 import type { Plugin } from '@opencode/plugin';
 import { describeBriefing, isBriefing } from '#briefing';
 
-const PROJECT_FILE = path.join('.oc3', 'doc', 'project.yml');
 const DEFAULT_LINE =
   'брифинг: режим не задан — дефолт проекта — cheap: тикеты сам, доку librarian, judge off; до старта спроси: работаем в дефолте проекта или собираешь кастом на сессию (роли и модели можно добавить или убрать); достаточно текстового ответа, затем вызови oc3.briefing_done';
 
@@ -28,7 +28,7 @@ export interface BriefingSystem {
 export async function briefingLine(root: string): Promise<string> {
   let text: string;
   try {
-    text = await readFile(path.join(root, PROJECT_FILE), 'utf8');
+    text = await readFile(path.join(root, PROJECT_PATH), 'utf8');
   } catch {
     return DEFAULT_LINE;
   }

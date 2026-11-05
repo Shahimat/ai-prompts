@@ -62,10 +62,12 @@ npx ai <автомат> start | open <id> | …
 после записи librarian — пересобрать производные файлы и проверить
 проект. Остальное — справка: что делает команда и кто её запускает.
 
-- `ai refresh` — `context index` и `adapters sync` (если включены в
-  `checks`), затем шаги `ai check`.
-- `ai check` — все проверки из `checks` в `.oc3/ai-core.yml`:
-  `changelog lint`, `context check`, `adapters check`, `secrets scan`.
+- `ai refresh` — `adapters sync` (если включён в `checks`), затем шаги
+  `ai check`.
+- `ai check` — проверки из `checks` в `.oc3/ai-core.yml` плюс `tree check`:
+  `changelog lint`, `tree check`, `context check`, `adapters check`,
+  `secrets scan`. `tree check` — валидация плоского дерева `.oc3/` по
+  JSON Schema: ядро контракта + расширения из `manifest.json`.
 - `ai secrets scan` — секреты (ключи API, токены, пароли,
   приватные ключи) в отслеживаемых файлах; в `ai check` включена
   по умолчанию. `--file <path>` — один файл, в том числе вне проекта:
@@ -125,11 +127,11 @@ checks:
   changelog:
     max_line: 120
     tags: [arch, stack, dep, milestone]
-  context-index: {}
+  context: {}
   adapters: {}
   secrets:                         # есть всегда; false — выключить
     allow:
-      - path: .oc3/doc/manuals/aws.md
+      - path: .oc3/manuals/aws.md
         line: 12
         reason: пример ключа из документации AWS
 ```
@@ -142,7 +144,7 @@ checks:
 <!-- expect:skill-runs -->
 - `CHANGELOG.md:12: длина 180 символов > 120` — переписать строку через
   librarian: решение одной фразой, детали — в git log.
-- `.oc3/doc/data/entities/x.yml: нет поля summary` — добавить однострочный
+- `.oc3/data/entities/x.yml: нет поля summary` — добавить однострочный
   `summary`, пересобрать индекс.
 - `.oc3/bundles/: устарел` — `ai refresh`.
 - `notes.md:3: секрет: токен GitHub` — значение убрать, вместо него

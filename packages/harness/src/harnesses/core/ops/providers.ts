@@ -187,8 +187,7 @@ export async function callWrite(
   const fn = provider.methods.get(method);
   if (fn === undefined) throw new UsageError(`${provider.source}: нет метода ${method}`);
   const level = levelOf(policy, action, target ?? targetOf(args), true);
-  if (level === 'never')
-    throw new UsageError(`${action}: запрещено политикой .oc3/doc/autonomy.yml`);
+  if (level === 'never') throw new UsageError(`${action}: запрещено политикой .oc3/autonomy.yml`);
   if (level === 'ask' && !approved) return { done: false, level };
   return { done: true, level, result: await fn(...args) };
 }

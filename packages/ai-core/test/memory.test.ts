@@ -100,7 +100,7 @@ const put = async (rel: string, text: string): Promise<void> => {
 
 async function scaffold(): Promise<void> {
   for (const [name, text] of Object.entries(SCHEMAS))
-    await put(`.oc3/doc/data/__schemas/${name}`, `${text}\n`);
+    await put(`.oc3/data/__schemas/${name}`, `${text}\n`);
   await put('.oc3/manifest.json', MANIFEST);
 }
 
@@ -108,17 +108,14 @@ describe('checkMemory', () => {
   it('валидный набор — ноль нарушений и предупреждений', async () => {
     await scaffold();
     await put(
-      '.oc3/doc/data/entities/srv.yml',
+      '.oc3/data/entities/srv.yml',
       'id: srv\nnamespace: vpn\nsummary: сервер\nmanuals: [first-run]\n',
     );
     await put(
-      '.oc3/doc/conventions/common.yml',
+      '.oc3/conventions/common.yml',
       '- key: naming\n  summary: kebab-case\n  rule: имена в kebab-case\n',
     );
-    await put(
-      '.oc3/doc/glossary/common.yml',
-      '- term: веер\n  definition: ссылки стартового index\n',
-    );
+    await put('.oc3/glossary/common.yml', '- term: веер\n  definition: ссылки стартового index\n');
     await put('.oc3/NOTES.md', '# NOTES\n');
     const { diagnostics, warnings } = await checkMemory(root);
     expect(diagnostics).toEqual([]);
@@ -129,18 +126,18 @@ describe('checkMemory', () => {
     const { diagnostics } = await checkMemory(root);
     expect(diagnostics.map((d) => d.file)).toContain('.oc3/manifest.json');
     await scaffold();
-    await rm(path.join(root, '.oc3/doc/data/__schemas/manifest.schema.json'));
+    await rm(path.join(root, '.oc3/data/__schemas/manifest.schema.json'));
     const next = await checkMemory(root);
     expect(next.diagnostics.map((d) => d.file)).toContain(
-      '.oc3/doc/data/__schemas/manifest.schema.json',
+      '.oc3/data/__schemas/manifest.schema.json',
     );
   });
 
   it('файл структуры не по схеме — crit с путём и нарушением', async () => {
     await scaffold();
-    await put('.oc3/doc/data/entities/bad.yml', 'id: bad\nsummary: нет namespace\n');
+    await put('.oc3/data/entities/bad.yml', 'id: bad\nsummary: нет namespace\n');
     const { diagnostics } = await checkMemory(root);
-    const hit = diagnostics.filter((d) => d.file === '.oc3/doc/data/entities/bad.yml');
+    const hit = diagnostics.filter((d) => d.file === '.oc3/data/entities/bad.yml');
     expect(hit.length).toBeGreaterThan(0);
     expect(hit.map((d) => d.message).join(' ')).toMatch(/must have required property/);
   });
@@ -148,28 +145,28 @@ describe('checkMemory', () => {
   it('вложенный объект в значении и перекрёстное упоминание — crit', async () => {
     await scaffold();
     await put(
-      '.oc3/doc/data/entities/note.yml',
+      '.oc3/data/entities/note.yml',
       'id: note\nnamespace: vpn\nsummary: с примечанием\nnote:\n  text: вложено\n',
     );
     await put(
-      '.oc3/doc/conventions/common.yml',
+      '.oc3/conventions/common.yml',
       '- key: refs\n  summary: см. convention naming\n  rule: правило без ссылок\n',
     );
     const { diagnostics } = await checkMemory(root);
     expect(
-      diagnostics.filter((d) => d.file === '.oc3/doc/data/entities/note.yml').length,
+      diagnostics.filter((d) => d.file === '.oc3/data/entities/note.yml').length,
     ).toBeGreaterThan(0);
-    const cross = diagnostics.filter((d) => d.file === '.oc3/doc/conventions/common.yml');
+    const cross = diagnostics.filter((d) => d.file === '.oc3/conventions/common.yml');
     expect(cross.some((d) => d.message.includes('перекрёстное упоминание'))).toBe(true);
   });
 
   it('орфанная структура и неизвестное имя в data — crit по манифесту', async () => {
     await scaffold();
-    await put('.oc3/doc/data/entities/ok.yml', 'id: ok\nnamespace: vpn\nsummary: s\n');
-    await put('.oc3/doc/data/knowledge/k.yml', 'id: k\nnamespace: vpn\nsummary: s\n');
+    await put('.oc3/data/entities/ok.yml', 'id: ok\nnamespace: vpn\nsummary: s\n');
+    await put('.oc3/data/knowledge/k.yml', 'id: k\nnamespace: vpn\nsummary: s\n');
     const entities = SCHEMAS['entities.schema.json'];
     if (entities === undefined) throw new Error('нет схемы entities в наборе теста');
-    await put('.oc3/doc/data/__schemas/knowledge.schema.json', entities);
+    await put('.oc3/data/__schemas/knowledge.schema.json', entities);
     const { diagnostics } = await checkMemory(root);
     expect(
       diagnostics.some((d) => d.file === '.oc3/manifest.json' && d.message.includes('knowledge')),
@@ -196,7 +193,7 @@ describe('checkMemory', () => {
     await scaffold();
     for (const area of ['common', 'code', 'checking', 'docs'])
       await put(
-        `.oc3/doc/conventions/${area}.yml`,
+        `.oc3/conventions/${area}.yml`,
         `- key: ${area}-rule\n  summary: s\n  rule: r\n  reason: потому\n`,
       );
     const { diagnostics, warnings } = await checkMemory(root);
@@ -217,14 +214,14 @@ describe('checkMemory', () => {
     let body = '';
     for (const key of ['a', 'b', 'c', 'd'])
       body += `- key: ${key}\n  summary: s\n  rule: r\n  reason: потому\n`;
-    await put('.oc3/doc/conventions/common.yml', body);
+    await put('.oc3/conventions/common.yml', body);
     const { warnings } = await checkMemory(root);
     expect(warnings).toEqual([]);
   });
 
   it('невалидный YAML факта — crit, валидатор не падает', async () => {
     await scaffold();
-    await put('.oc3/doc/data/entities/broken.yml', 'id: [\n');
+    await put('.oc3/data/entities/broken.yml', 'id: [\n');
     const { diagnostics } = await checkMemory(root);
     expect(diagnostics.some((d) => d.message.includes('невалидный YAML'))).toBe(true);
   });
@@ -240,7 +237,7 @@ describe('checkMemory', () => {
         files: { 'data/entities/srv.yml': { namespace: [], weight: 100 } },
       }),
     );
-    await put('.oc3/doc/data/entities/srv.yml', 'id: srv\nnamespace: vpn\nsummary: сервер\n');
+    await put('.oc3/data/entities/srv.yml', 'id: srv\nnamespace: vpn\nsummary: сервер\n');
     const { diagnostics } = await checkMemory(root);
     const hit = diagnostics.filter((d) => d.file === '.oc3/manifest.json');
     const ring = hit.find((d) => d.message.includes('кольцо графа, не важность'));
@@ -262,8 +259,8 @@ describe('checkMemory', () => {
         },
       }),
     );
-    await put('.oc3/doc/data/entities/srv.yml', 'id: srv\nnamespace: vpn\nsummary: сервер\n');
-    await put('.oc3/doc/data/entities/vpn.yml', 'id: vpn\nnamespace: vpn\nsummary: сеть\n');
+    await put('.oc3/data/entities/srv.yml', 'id: srv\nnamespace: vpn\nsummary: сервер\n');
+    await put('.oc3/data/entities/vpn.yml', 'id: vpn\nnamespace: vpn\nsummary: сеть\n');
     const { diagnostics } = await checkMemory(root);
     const hit = diagnostics.filter((d) => d.file === '.oc3/manifest.json');
     expect(hit.length).toBe(1);

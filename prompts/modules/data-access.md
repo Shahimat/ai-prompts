@@ -50,7 +50,7 @@ provides:
 ```
 
 `.oc3/data-access.yml` — собственный файл модуля, не блок в
-`.oc3/doc/project.yml`:
+`.oc3/project.yml`:
 
 ```yaml
 # Каналы к данным вне репозитория. Правила — skill data-access.
@@ -133,7 +133,7 @@ channels:
 
 Переезжает сюда:
 
-- блок `data_access` из `.oc3/doc/project.yml` → `channels` в
+- блок `data_access` из `.oc3/project.yml` → `channels` в
   `.oc3/data-access.yml` (`corpus`, `app` → `name`; `auth` →
   `secret` как указатель); блок из `project.yml` удаляется;
 - правила «Канала живых данных» (свежесть, недоступность) — в skill
@@ -146,7 +146,7 @@ channels:
 - провенанс и «транспорт ≠ провенанс» — модули домена и `app-loop`;
 - приватность прочитанных значений — модуль `privacy`.
 
-Выбрасывается: копии разделов в `.oc3/doc/conventions/` — правила в
+Выбрасывается: копии разделов в `.oc3/conventions/` — правила в
 skill.
 
 ## Отключение

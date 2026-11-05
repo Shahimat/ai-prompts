@@ -369,7 +369,7 @@ describe('ops: наблюдатели', () => {
     await put('providers/review/fake.mjs', REVIEW_PROVIDER, home);
     await put('providers/schedule/fake.mjs', SCHEDULE_PROVIDER, home);
     await put('.oc3/ops.yml', 'providers:\n  review: fake\n  schedule: fake\n');
-    await put('.oc3/doc/autonomy.yml', 'levels:\n  self: [review.approve]\n');
+    await put('.oc3/autonomy.yml', 'levels:\n  self: [review.approve]\n');
     vi.stubEnv('FAKE_REVIEW', path.join(home, 'review.json'));
     vi.stubEnv('FAKE_REVIEW_LOG', path.join(home, 'review.log'));
     vi.stubEnv('FAKE_SCHEDULE', path.join(home, 'schedule.log'));
@@ -453,7 +453,7 @@ describe('ops: наблюдатели', () => {
   });
 
   it('политика never запрещает действие наружу даже по прямой команде', async () => {
-    await put('.oc3/doc/autonomy.yml', 'levels:\n  never: [schedule.install, review]\n');
+    await put('.oc3/autonomy.yml', 'levels:\n  never: [schedule.install, review]\n');
     await expect(run(['ops', 'schedule', 'on'])).rejects.toThrow('запрещено политикой');
     await put('note.md', 'текст');
     await expect(
@@ -573,7 +573,7 @@ describe('ticket-work: лестница проверок и публикация
   });
 
   it('«да» с хвостом принимает план; публикация после зелёного verify; влитие закрывает job', async () => {
-    await put('.oc3/doc/autonomy.yml', 'levels:\n  self: [vcs.publish@target]\n');
+    await put('.oc3/autonomy.yml', 'levels:\n  self: [vcs.publish@target]\n');
     byRole(ROLES);
     await run(['ticket-work', 'start', 'tasks/t1.md']);
     const { short } = await job();

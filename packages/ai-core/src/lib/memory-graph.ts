@@ -1,16 +1,20 @@
 import { createHash } from 'node:crypto';
-import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import * as ts from 'typescript';
 import { parse } from 'yaml';
 import type { Diagnostic } from '#shared/diagnostics';
 import { errorCode, isRecord } from '#shared/guards';
 import {
+  AUTONOMY_PATH,
   BUNDLES_DIR,
-  CONTEXT_INDEX_PATH,
-  DATA_DIR,
-  DOC_DIR,
+  CONVENTIONS_DIR,
+  GLOSSARY_DIR,
   GOALS_DIR,
+  KNOWLEDGE_DIR,
+  MANUALS_DIR,
+  OC3_DIR,
+  PROJECT_PATH,
   SCHEMAS_DIR,
   SKILLS_PATH,
 } from '#shared/layout';
@@ -18,7 +22,11 @@ import { loadManifest, type MemoryManifest } from './memory.ts';
 
 export const START_INDEX = 'index.md';
 const GENERAL_NS = 'common';
-const DATA_BASE = DATA_DIR.slice(DOC_DIR.length + 1);
+const DATA_BASE = 'data';
+const MEMORY_NS_DIRS = [CONVENTIONS_DIR, MANUALS_DIR, GLOSSARY_DIR, KNOWLEDGE_DIR].map((p) =>
+  p.slice(OC3_DIR.length + 1),
+);
+const MEMORY_ROOT_FILES = [PROJECT_PATH, AUTONOMY_PATH].map((p) => p.slice(OC3_DIR.length + 1));
 
 interface FactSchema {
   properties: string[];
@@ -51,9 +59,9 @@ const collapse = (text: string): string => text.replace(/\s+/g, ' ').trim();
 
 const shaOf = (text: string): string => createHash('sha256').update(text, 'utf8').digest('hex');
 
-const walkDoc = async (root: string): Promise<string[]> => {
-  const base = path.join(root, DOC_DIR);
+const walkNamespaces = async (root: string, base: string): Promise<string[]> => {
   const out: string[] = [];
+  const absBase = path.join(root, OC3_DIR, base);
   const walk = async (dir: string): Promise<void> => {
     let entries;
     try {
@@ -63,19 +71,33 @@ const walkDoc = async (root: string): Promise<string[]> => {
       throw error;
     }
     for (const e of entries) {
-      const parent = dir === base ? '' : dir.slice(base.length + 1);
-      const rel = path.posix.join(...parent.split(path.sep), e.name);
+      const parent = dir === absBase ? '' : dir.slice(absBase.length + 1);
+      const rel = path.posix.join(base, ...parent.split(path.sep), e.name);
       if (e.isDirectory()) {
         if (e.name === '__schemas') continue;
         await walk(path.join(dir, e.name));
         continue;
       }
-      if (rel === CONTEXT_INDEX_PATH.slice(DOC_DIR.length + 1)) continue;
       if (e.name.endsWith('.yml') || e.name.endsWith('.md')) out.push(rel);
     }
   };
-  await walk(base);
-  return out.sort();
+  await walk(absBase);
+  return out;
+};
+
+const walkDoc = async (root: string, manifest: MemoryManifest): Promise<string[]> => {
+  const dirs = [...MEMORY_NS_DIRS, ...manifest.data.map((n) => `${DATA_BASE}/${n}`)];
+  const all = new Set<string>();
+  for (const rel of MEMORY_ROOT_FILES) {
+    try {
+      const st = await stat(path.join(root, OC3_DIR, rel));
+      if (st.isFile()) all.add(rel);
+    } catch (error) {
+      if (errorCode(error) !== 'ENOENT') throw error;
+    }
+  }
+  for (const dir of dirs) for (const rel of await walkNamespaces(root, dir)) all.add(rel);
+  return [...all].sort();
 };
 
 const LEAD_KEYS = ['key', 'term', 'id'] as const;
@@ -186,11 +208,11 @@ const loadFacts = async (
   diagnostics: Diagnostic[],
 ): Promise<FactFile[]> => {
   const facts: FactFile[] = [];
-  for (const rel of await walkDoc(root)) {
+  for (const rel of await walkDoc(root, manifest)) {
     const entry = manifest.files[rel];
     const namespace = entry?.namespace ?? [];
     const weight = entry?.weight ?? 0;
-    const raw = await readFile(path.join(root, DOC_DIR, rel), 'utf8');
+    const raw = await readFile(path.join(root, OC3_DIR, rel), 'utf8');
     if (rel.endsWith('.md')) {
       const kind = rel.split('/')[0] ?? '';
       const label = kind === 'manuals' ? 'инструкция: ' : kind === 'knowledge' ? 'карта: ' : '';
@@ -208,7 +230,7 @@ const loadFacts = async (
       data = parse(raw);
     } catch (error) {
       diagnostics.push({
-        file: `${DOC_DIR}/${rel}`,
+        file: `${OC3_DIR}/${rel}`,
         message: `невалидный YAML: ${error instanceof Error ? error.message.split('\n')[0] : ''}`,
       });
       continue;
@@ -249,7 +271,7 @@ const loadFacts = async (
       continue;
     }
     diagnostics.push({
-      file: `${DOC_DIR}/${rel}`,
+      file: `${OC3_DIR}/${rel}`,
       message: `корень должен быть объектом или списком, получено: ${typeof data}`,
     });
   }
@@ -285,7 +307,7 @@ const nodeBody = (bucket: Bucket, facts: FactFile[], edges: GraphNode[], cap: nu
   for (const rel of bucket.files) {
     const summary = byRel.get(rel)?.summary ?? '';
     const note = summary === '' ? 'факты проекта' : capSummary(summary, cap);
-    lines.push(`- [${rel}](../doc/${rel}) — ${note}`);
+    lines.push(`- [${rel}](../${rel}) — ${note}`);
   }
   if (edges.length > 0) {
     lines.push(`Глубже (кольцо ${bucket.weight + 1}):`, '');

@@ -5,9 +5,9 @@ import { errorMessage, errorCode, isRecord } from '#shared/guards';
 import {
   CONVENTIONS_DIR,
   DATA_DIR,
-  DOC_DIR,
   GLOSSARY_DIR,
   NOTES_PATH,
+  OC3_DIR,
   OC3_MANIFEST,
   SCHEMAS_DIR,
 } from '#shared/layout';
@@ -316,12 +316,12 @@ const checkManifestFiles = async (
 ): Promise<void> => {
   for (const [file, entry] of Object.entries(manifest.files)) {
     try {
-      await stat(path.join(root, DOC_DIR, file));
+      await stat(path.join(root, OC3_DIR, file));
     } catch (error) {
       if (errorCode(error) === 'ENOENT')
         diagnostics.push({
           file: OC3_MANIFEST,
-          message: `файл ${file} из манифеста не существует в ${DOC_DIR}/`,
+          message: `файл ${file} из манифеста не существует в ${OC3_DIR}/`,
         });
       else throw error;
     }

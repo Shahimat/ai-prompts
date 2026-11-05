@@ -28,7 +28,7 @@ import {
 } from '#install';
 
 const PACKAGES = ['@shahimat/ai-core', '@shahimat/oc3'];
-const PROJECT_FILE_LABEL = '.oc3/doc/project.yml';
+const PROJECT_FILE_LABEL = '.oc3/project.yml';
 
 async function readOrNull(abs: string): Promise<string | null> {
   try {
@@ -40,7 +40,7 @@ async function readOrNull(abs: string): Promise<string | null> {
 
 async function readinessProblems(root: string): Promise<string[]> {
   const problems: string[] = [];
-  const project = await readOrNull(path.join(root, '.oc3/doc/project.yml'));
+  const project = await readOrNull(path.join(root, '.oc3/project.yml'));
   if (project === null) problems.push(`нет ${PROJECT_FILE_LABEL} — разверни контракт v3`);
   else {
     try {
@@ -123,7 +123,7 @@ export async function runInit(args: CommandArgs): Promise<number> {
   }
   const tools = await detectTools();
   for (const hint of toolHints(tools)) console.log(hint);
-  const projectExisted = existsSync(path.join(args.root, '.oc3', 'doc', 'project.yml'));
+  const projectExisted = existsSync(path.join(args.root, '.oc3', 'project.yml'));
   for (const line of await ensureAgentsMd(args.root)) console.log(line);
   for (const line of await ensureProjectYml(args.root, runtime.runtime)) console.log(line);
   for (const line of await ensureContextSkeleton(args.root)) console.log(line);

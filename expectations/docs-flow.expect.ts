@@ -35,9 +35,8 @@ describe('[flow] delta', () => {
     () => Check.deltaFormat(),
   );
   crit('дельта лежит в .oc3/.delta/ и удаляется после приёмки', () => Check.deltaLifecycle());
-  crit(
-    '.delta не входит в контекст проекта: .oc3/doc/index.yml и маршруты AGENTS.md её не включают',
-    () => Check.deltaOutOfContext(),
+  crit('.delta не входит в контекст проекта: маршруты AGENTS.md её не включают', () =>
+    Check.deltaOutOfContext(),
   );
   warn(
     'дельту ведёт librarian: собирает из намерений, сверяет с текущей документацией, применяет',
@@ -67,10 +66,10 @@ describe('[flow] delta', () => {
 const SCHEMAS = 'expectations/schemas';
 
 const OWNED = [
-  '.oc3/doc/project.yml',
-  '.oc3/doc/autonomy.yml',
+  '.oc3/project.yml',
+  '.oc3/autonomy.yml',
   '.oc3/skills.yml',
-  '.oc3/doc/conventions/',
+  '.oc3/conventions/',
   'CHANGELOG.md',
   'provides.layers',
   '`.oc3/.delta/` — создание',

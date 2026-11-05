@@ -1,6 +1,11 @@
 {
-  "namespace": ["docs"],
-  "data": ["entities", "behavior"],
+  "namespace": [
+    "docs"
+  ],
+  "data": [
+    "entities",
+    "behavior"
+  ],
   "budgets": {
     "notes": 4096,
     "start": 10240,
@@ -8,7 +13,29 @@
     "optional_field": 3
   },
   "files": {
-    "knowledge/tooling.md": { "namespace": ["docs"], "weight": 1 },
-    "manuals/pilot.md": { "namespace": ["docs"], "weight": 1 }
+    "knowledge/tooling.md": {
+      "namespace": [
+        "docs"
+      ],
+      "weight": 1
+    },
+    "manuals/pilot.md": {
+      "namespace": [
+        "docs"
+      ],
+      "weight": 1
+    },
+    "conventions/common.yml": {
+      "namespace": [],
+      "weight": 0
+    },
+    "data/entities/contract-v3-pilot.yml": {
+      "namespace": [],
+      "weight": 0
+    },
+    "glossary/common.yml": {
+      "namespace": [],
+      "weight": 0
+    }
   }
 }

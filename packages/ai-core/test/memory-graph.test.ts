@@ -114,23 +114,23 @@ async function fixture(options: FixtureOptions = {}): Promise<void> {
       },
     ),
   );
-  await put('.oc3/doc/data/__schemas/manifest.schema.json', MANIFEST_SCHEMA);
-  await put('.oc3/doc/data/__schemas/conventions.schema.json', CONVENTIONS_SCHEMA);
-  await put('.oc3/doc/data/__schemas/entities.schema.json', ENTITIES_SCHEMA);
+  await put('.oc3/data/__schemas/manifest.schema.json', MANIFEST_SCHEMA);
+  await put('.oc3/data/__schemas/conventions.schema.json', CONVENTIONS_SCHEMA);
+  await put('.oc3/data/__schemas/entities.schema.json', ENTITIES_SCHEMA);
   await put(
-    '.oc3/doc/project.yml',
+    '.oc3/project.yml',
     'name: demo\nsummary: Демо-проект памяти\nroles:\n  models:\n    executor: zai/demo#max\nstack: [typescript, node]\n',
   );
   await put(
-    '.oc3/doc/conventions/code.yml',
+    '.oc3/conventions/code.yml',
     '- key: no-any\n  summary: any в коде запрещён\n  rule: Данные сужаются проверками, без as T и not-null.\n',
   );
   await put(
-    '.oc3/doc/data/entities/user.yml',
+    '.oc3/data/entities/user.yml',
     'id: user\nnamespace: code\nsummary: Пользователь проекта\n',
   );
   await put(
-    '.oc3/doc/manuals/how.md',
+    '.oc3/manuals/how.md',
     '# Как собрать проект\n\nЗапусти npm run build в корне репозитория.\n',
   );
   if (options.goals !== undefined) {
@@ -207,10 +207,10 @@ describe('renderGraph', () => {
     expect(text).toContain(`SHA: ${code1.sha}`);
     expect(text).toContain('Кольцо: 1');
     expect(text).toContain(
-      '- [conventions/code.yml](../doc/conventions/code.yml) — 1 записей, первая: no-any',
+      '- [conventions/code.yml](../conventions/code.yml) — 1 записей, первая: no-any',
     );
     expect(text).toContain(
-      '- [manuals/how.md](../doc/manuals/how.md) — инструкция: Как собрать проект',
+      '- [manuals/how.md](../manuals/how.md) — инструкция: Как собрать проект',
     );
     const code2 = graph.nodes.find((n) => n.key === 'code:2');
     expect(text).toContain(`- [code:2](${code2?.dir}/index.md)`);
@@ -287,7 +287,7 @@ describe('checkBundles', () => {
     if (graph === null) throw new Error('нет графа');
     await writeGraph(root, graph);
     await put(
-      '.oc3/doc/conventions/code.yml',
+      '.oc3/conventions/code.yml',
       '- key: no-any\n  summary: any запрещён вдвойне\n  rule: Данные сужаются проверками.\n',
     );
     const stale = await checkBundles(root);
@@ -338,13 +338,13 @@ describe('renderGraph renders', () => {
     expect(start).not.toMatch(/^- key: /m);
     const code1 = graph.nodes.find((n) => n.key === 'code:1');
     expect(code1?.text).toContain(
-      '- [conventions/code.yml](../doc/conventions/code.yml) — 1 записей, первая: no-any',
+      '- [conventions/code.yml](../conventions/code.yml) — 1 записей, первая: no-any',
     );
-    expect(code1?.text).toContain('- [manuals/how.md](../doc/manuals/how.md) — инструкция: ');
+    expect(code1?.text).toContain('- [manuals/how.md](../manuals/how.md) — инструкция: ');
     expect(code1?.text).not.toContain('Запусти npm run build в корне репозитория');
     const user = graph.nodes.find((n) => n.key === 'code:2');
     expect(user?.text).toContain(
-      '- [data/entities/user.yml](../doc/data/entities/user.yml) — user — домен code. Пользователь проекта',
+      '- [data/entities/user.yml](../data/entities/user.yml) — user — домен code. Пользователь проекта',
     );
   });
 
@@ -359,7 +359,7 @@ describe('renderGraph renders', () => {
     });
     const longSummary = 'Очень длинное пояснение проекта про пользователей и их роли. '.repeat(6);
     await put(
-      '.oc3/doc/data/entities/user.yml',
+      '.oc3/data/entities/user.yml',
       `id: user\nnamespace: code\nsummary: ${longSummary}\n`,
     );
     const report = await buildBundles(root);
@@ -369,9 +369,9 @@ describe('renderGraph renders', () => {
     if (node === undefined) throw new Error('нет узла code:1');
     const line = node.text
       .split('\n')
-      .find((l) => l.startsWith('- [data/entities/user.yml](../doc/data/entities/user.yml)'));
+      .find((l) => l.startsWith('- [data/entities/user.yml](../data/entities/user.yml)'));
     if (line === undefined) throw new Error('нет строки каталога для факта');
-    const note = line.slice('- [data/entities/user.yml](../doc/data/entities/user.yml) — '.length);
+    const note = line.slice('- [data/entities/user.yml](../data/entities/user.yml) — '.length);
     expect(Buffer.byteLength(note, 'utf8')).toBeLessThanOrEqual(80);
     expect(note).toContain('…');
     expect(node.text).not.toContain(longSummary);

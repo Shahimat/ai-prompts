@@ -5,17 +5,17 @@ import path from 'node:path';
 import { createRequire } from 'node:module';
 import { parse } from 'yaml';
 import {
+  AUTONOMY_PATH,
   CONVENTIONS_DIR,
   DATA_DIR,
   DEFAULT_BUDGETS,
-  DOC_DIR,
   GLOSSARY_DIR,
   KNOWLEDGE_DIR,
   MANUALS_DIR,
   NOTES_PATH,
+  OC3_DIR,
   OC3_MANIFEST,
   PROJECT_PATH,
-  AUTONOMY_PATH,
   SCHEMAS_DIR,
   isRecord,
   InputError,
@@ -98,7 +98,7 @@ async function readOrNull(abs: string): Promise<string | null> {
 }
 
 async function parseProject(root: string): Promise<Record<string, unknown> | null> {
-  const text = await readOrNull(path.join(root, '.oc3', 'doc', 'project.yml'));
+  const text = await readOrNull(path.join(root, PROJECT_PATH));
   if (text === null) return null;
   try {
     const data: unknown = parse(text);
@@ -125,9 +125,8 @@ export async function detectState(root: string): Promise<Detection> {
   const v2 = workflowV2 || viewsV2;
   const project = await parseProject(root);
   const projectV3 = hasV3Contract(project);
-  if (project === null) details.push('нет .oc3/doc/project.yml');
-  else if (!projectV3)
-    details.push('в .oc3/doc/project.yml нет sync.contract v3 (operator-centric)');
+  if (project === null) details.push(`нет ${PROJECT_PATH}`);
+  else if (!projectV3) details.push(`в ${PROJECT_PATH} нет sync.contract v3 (operator-centric)`);
   let agentsV3 = false;
   const agents = await readOrNull(path.join(root, 'AGENTS.md'));
   if (agents === null) details.push('нет AGENTS.md');
@@ -220,7 +219,7 @@ export function resolveRuntime(online: boolean): {
     runtime: 'degraded',
     lines: [
       'runtime: degraded — реестр npm недоступен: автоустановка плагина при первом старте opencode не выполнится',
-      'после появления сети перезапусти opencode (или поставь @shahimat/oc3 сам) и верни runtime: full в .oc3/doc/project.yml',
+      'после появления сети перезапусти opencode (или поставь @shahimat/oc3 сам) и верни runtime: full в .oc3/project.yml',
     ],
   };
 }
@@ -320,25 +319,25 @@ export function ensureSyncContractYaml(text: string): { text: string; changed: b
 }
 
 export async function ensureProjectYml(root: string, runtime: string): Promise<string[]> {
-  const abs = path.join(root, '.oc3', 'doc', 'project.yml');
+  const abs = path.join(root, PROJECT_PATH);
   const lines: string[] = [];
   const current = await readOrNull(abs);
   if (current === null) {
     await mkdir(path.dirname(abs), { recursive: true });
     await writeFile(abs, PROJECT_YML, 'utf8');
-    return ['.oc3/doc/project.yml: записан каркас — поля-плейсхолдеры в вопросах ниже'];
+    return [`${PROJECT_PATH}: записан каркас — поля-плейсхолдеры в вопросах ниже`];
   }
   try {
     parse(current);
   } catch {
-    return ['.oc3/doc/project.yml: невалидный YAML — дополнять не рискую, приведи в порядок сам'];
+    return [`${PROJECT_PATH}: невалидный YAML — дополнять не рискую, приведи в порядок сам`];
   }
   let text = upsertRuntimeYaml(current, runtime);
   const sync = ensureSyncContractYaml(text);
   text = sync.text;
   await writeFile(abs, text, 'utf8');
   lines.push(
-    `.oc3/doc/project.yml: runtime: ${runtime} записан, ${sync.changed ? 'sync.contract v3 дописан' : 'sync.contract v3 на месте'}; остальное содержание сохранено`,
+    `${PROJECT_PATH}: runtime: ${runtime} записан, ${sync.changed ? 'sync.contract v3 дописан' : 'sync.contract v3 на месте'}; остальное содержание сохранено`,
   );
   return lines;
 }
@@ -346,7 +345,7 @@ export async function ensureProjectYml(root: string, runtime: string): Promise<s
 export async function ensureContextSkeleton(root: string): Promise<string[]> {
   const lines: string[] = [];
   const files: readonly [string, string][] = [
-    ['.oc3/doc/autonomy.yml', AUTONOMY_YML],
+    [AUTONOMY_PATH, AUTONOMY_YML],
     ['.oc3/skills.yml', SKILLS_YML],
   ];
   for (const [rel, content] of files) {
@@ -366,24 +365,18 @@ const MEMORY_LABEL = 'память:';
 const NOTES_TITLE = '# NOTES — неформальные факты до формализации';
 const SCHEMAS_DIRNAME = path.basename(SCHEMAS_DIR);
 
-const docRel = (abs: string): string => abs.slice(DOC_DIR.length + 1);
-
-const COMMON_DOC_FILES: readonly string[] = [PROJECT_PATH, AUTONOMY_PATH].map(docRel);
-
 const DOC_FACT_DIRS: readonly string[] = [
   GLOSSARY_DIR,
   CONVENTIONS_DIR,
   MANUALS_DIR,
   KNOWLEDGE_DIR,
-].map(docRel);
+].map((p) => p.slice(OC3_DIR.length + 1));
 
-const defaultWeight = (rel: string): number => {
-  const base = rel.split('/').at(-1) ?? '';
-  return base.startsWith('common.') || COMMON_DOC_FILES.includes(rel) ? 0 : 2;
-};
+const defaultWeight = (rel: string): number =>
+  (rel.split('/').at(-1) ?? '').startsWith('common.') ? 0 : 2;
 
 const listDocFiles = async (root: string, relDir: string): Promise<string[]> => {
-  const abs = path.join(root, DOC_DIR, relDir);
+  const abs = path.join(root, OC3_DIR, relDir);
   if (!existsSync(abs)) return [];
   const entries = await readdir(abs, { withFileTypes: true, recursive: true });
   return entries
@@ -406,10 +399,9 @@ const listDataStructures = async (root: string): Promise<string[]> => {
 };
 
 const collectFactFiles = async (root: string, structures: readonly string[]): Promise<string[]> => {
-  const found = COMMON_DOC_FILES.filter((rel) => existsSync(path.join(root, DOC_DIR, rel)));
+  const found: string[] = [];
   for (const dir of DOC_FACT_DIRS) found.push(...(await listDocFiles(root, dir)));
-  for (const name of structures)
-    found.push(...(await listDocFiles(root, `${docRel(DATA_DIR)}/${name}`)));
+  for (const name of structures) found.push(...(await listDocFiles(root, `data/${name}`)));
   return [...new Set(found)].sort();
 };
 
@@ -781,9 +773,9 @@ export async function migrationReport(root: string): Promise<string[]> {
 
 export async function humanQuestions(created: boolean, rolesSelected = false): Promise<string[]> {
   const lines = ['вопросы человеку (без ответов установку не завершай):'];
-  if (created) lines.push('  1. заполни name и summary в .oc3/doc/project.yml');
-  else lines.push('  1. проверь name и summary в .oc3/doc/project.yml');
-  lines.push('  2. впиши reality — код-базу проекта (репозиторий, стек) в .oc3/doc/project.yml');
+  if (created) lines.push(`  1. заполни name и summary в ${PROJECT_PATH}`);
+  else lines.push(`  1. проверь name и summary в ${PROJECT_PATH}`);
+  lines.push(`  2. впиши reality — код-базу проекта (репозиторий, стек) в ${PROJECT_PATH}`);
   lines.push(
     `  3. подтверди реквизиты источника контракта (sync.index_source, по умолчанию ${DEFAULT_INDEX_SOURCE})`,
   );

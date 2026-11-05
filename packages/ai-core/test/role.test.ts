@@ -365,7 +365,7 @@ describe('роль: канал', () => {
 describe('роль: память', () => {
   const buildBundlesFixture = async (): Promise<void> => {
     await put(
-      '.oc3/doc/data/__schemas/manifest.schema.json',
+      '.oc3/data/__schemas/manifest.schema.json',
       JSON.stringify({
         $schema: 'https://json-schema.org/draft/2020-12/schema',
         type: 'object',
@@ -389,8 +389,8 @@ describe('роль: память', () => {
       }),
     );
     await put('.oc3/manifest.json', JSON.stringify({ namespace: ['docs'], data: [] }));
-    await put('.oc3/doc/project.yml', 'name: demo\nsummary: Демо-проект памяти\n');
-    await put('.oc3/doc/manuals/how.md', '# Как собрать\n\nnpm run build.\n');
+    await put('.oc3/project.yml', 'name: demo\nsummary: Демо-проект памяти\n');
+    await put('.oc3/manuals/how.md', '# Как собрать\n\nnpm run build.\n');
     await put(
       '.oc3/manifest.json',
       JSON.stringify({

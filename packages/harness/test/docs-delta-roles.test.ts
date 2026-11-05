@@ -62,20 +62,20 @@ describe('docs-delta: роли librarian и judge', () => {
     'summary: s\nitems:\n  - op: add\n    kind: rule\n    target: other\n    summary: новое\n    evidence: e\n';
   const KEEPER_FILES = {
     '.oc3/.delta/naming.yml': DELTA,
-    '.oc3/doc/conventions/other.yml': 'key: other\nsummary: snake_case\nrule: y\n',
+    '.oc3/conventions/other.yml': 'key: other\nsummary: snake_case\nrule: y\n',
   };
   const CONFLICT = {
-    file_a: '.oc3/doc/conventions/other.yml',
+    file_a: '.oc3/conventions/other.yml',
     quote_a: 'summary: snake_case',
-    file_b: '.oc3/doc/conventions/naming.yml',
+    file_b: '.oc3/conventions/naming.yml',
     quote_b: 'summary: kebab-case',
     reason: 'два правила именования',
   };
 
   async function project(): Promise<void> {
-    await put('.oc3/ai-core.yml', 'checks:\n  context-index: {}\n');
-    await put('.oc3/doc/project.yml', 'name: demo\nnamespaces:\n  core: ядро\n');
-    await put('.oc3/doc/conventions/naming.yml', 'key: naming\nsummary: kebab-case\nrule: x\n');
+    await put('.oc3/ai-core.yml', 'checks:\n  context: {}\n');
+    await put('.oc3/project.yml', 'name: demo\nnamespaces:\n  core: ядро\n');
+    await put('.oc3/conventions/naming.yml', 'key: naming\nsummary: kebab-case\nrule: x\n');
     await put('.agents/agents/librarian.md', roleFile('librarian', 'result'));
     await put('.agents/agents/judge.md', roleFile('judge', 'verdict'));
     await put('intents.yml', '- kind: rule\n  summary: новое\n  evidence: e\n');
@@ -134,7 +134,7 @@ describe('docs-delta: роли librarian и judge', () => {
       '"type":"step_finish"',
     );
     expect(await readFile(s.file('progress.log'), 'utf8')).toContain('роль librarian: запущена');
-    expect(judge?.prompt).toContain('- .oc3/doc/conventions/other.yml');
+    expect(judge?.prompt).toContain('- .oc3/conventions/other.yml');
     expect(judge?.prompt).toContain('target: other');
   });
 
@@ -163,7 +163,7 @@ describe('docs-delta: роли librarian и judge', () => {
     await project();
     process.env['FAKE_FILES'] = JSON.stringify({
       '.oc3/.delta/naming.yml': DELTA.replace('target: other', 'target: naming'),
-      '.oc3/doc/conventions/naming.yml': 'key: naming\nsummary: snake_case\nrule: x\n',
+      '.oc3/conventions/naming.yml': 'key: naming\nsummary: snake_case\nrule: x\n',
     });
     process.env['FAKE_SUBMIT'] = JSON.stringify({ librarian: RESULT, judge: { conflicts: [] } });
     const lines: string[] = [];
@@ -179,7 +179,7 @@ describe('docs-delta: роли librarian и judge', () => {
     expect(keepers[1]?.prompt).toContain('уже есть — дополни её, а не пересобирай');
     expect(keepers[1]?.prompt).toContain('включая ручные revise');
     expect(keepers[1]?.prompt).toMatch(
-      /исправь нарушения:\n(- .*\n)*- \.oc3\/doc\/conventions\/naming\.yml: изменено существующее знание без пункта revise/,
+      /исправь нарушения:\n(- .*\n)*- \.oc3\/conventions\/naming\.yml: изменено существующее знание без пункта revise/,
     );
     const pause = lines.join('\n');
     expect(pause).toContain(`ai docs-delta open ${s.short}`);
@@ -190,12 +190,12 @@ describe('docs-delta: роли librarian и judge', () => {
 
   it('review: судья получает только файлы — цели своей дельты', async () => {
     await project();
-    await put('.oc3/doc/conventions/foreign.yml', 'key: foreign\nsummary: s\nrule: r\n');
+    await put('.oc3/conventions/foreign.yml', 'key: foreign\nsummary: s\nrule: r\n');
     process.env['FAKE_SUBMIT'] = JSON.stringify({ librarian: RESULT, judge: { conflicts: [] } });
     expect(await start('--file', 'intents.yml')).toBe(0);
     expect((await session()).data.state).toBe('done');
     const judge = (await calls()).find((c) => c.role === 'judge');
-    expect(judge?.prompt).toContain('- .oc3/doc/conventions/other.yml');
+    expect(judge?.prompt).toContain('- .oc3/conventions/other.yml');
     expect(judge?.prompt).toContain('Верни вердикт последним блоком сообщения — строго JSON');
     expect(judge?.prompt).not.toContain('foreign.yml');
   });

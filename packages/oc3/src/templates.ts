@@ -7,11 +7,11 @@ const ROUTE = `## Где искать ответ
 
 Любой запрос — сначала оперативная память: бандл (\`.oc3/bundles/index.md\`) — факты проекта, веер узлов и каталоги процедур; дока молчит — источники ниже, а добытое вне бандлов знание верни через librarian.
 
-- как сейчас устроено X → источник реальности (\`.oc3/doc/project.yml\` → \`reality\`: код репозитория или целевые системы); почему X → \`CHANGELOG.md\`, затем \`git log\`;
-- как договорились → \`.oc3/doc/conventions/<key>.yml\`; реквизиты, namespaces, external, roles.exceptions, roles.models → \`.oc3/doc/project.yml\`;
-- цели, программы, тикеты → \`.oc3/goals/\`; роль, skills, browser, autonomy → \`.agents/agents/\`, \`.oc3/skills.yml\`, \`.oc3/doc/autonomy.yml\`; возможности → \`.oc3/modules/*.yml\`.
+- как сейчас устроено X → источник реальности (\`.oc3/project.yml\` → \`reality\`: код репозитория или целевые системы); почему X → \`CHANGELOG.md\`, затем \`git log\`;
+- как договорились → \`.oc3/conventions/<key>.yml\`; реквизиты, namespaces, external, roles.exceptions, roles.models → \`.oc3/project.yml\`;
+- цели, программы, тикеты → \`.oc3/goals/\`; роль, skills, browser, autonomy → \`.agents/agents/\`, \`.oc3/skills.yml\`, \`.oc3/autonomy.yml\`; возможности → \`.oc3/modules/*.yml\`.
 
-Полный обход запечатанного слоя (\`.oc3/doc/\`) и очереди (\`.oc3/goals/\`) запрещён: агентам читать можно только бандлы (\`.oc3/bundles/\`); иди по вееру.
+Полный обход запечатанного слоя (\`.oc3/\` без рабочих каталогов) и очереди (\`.oc3/goals/\`) запрещён: агентам читать можно только бандлы (\`.oc3/bundles/\`); иди по вееру.
 `;
 
 const RULES = `## Жёсткие правила
@@ -22,7 +22,7 @@ const RULES = `## Жёсткие правила
 4. Документацию пишет только librarian по \`docs_request\`: оператор, executor и judge её читают; генерируемое меняет \`ai\`.
 5. Ничего не создавать, не переносить, не удалять без явного «да».
 6. Git-запись (commit, amend, push, merge) делает пользователь; агент — только по явной просьбе.
-7. Тяжёлая работа — ролям; действие наружу — по \`.oc3/doc/autonomy.yml\`; ролевые skills оператор не загружает.
+7. Тяжёлая работа — ролям; действие наружу — по \`.oc3/autonomy.yml\`; ролевые skills оператор не загружает.
 Блоки возможностей ниже обязательны наравне с этими правилами.
 `;
 
@@ -34,7 +34,7 @@ const SCENARIOS = `## Сценарии
 const OPERATOR_SECTION = `## Оператор
 
 - старт сессии — брифинг: один вопрос — дефолт проекта или кастом на сессию (роли и модели можно добавить или убрать); без ответа роли и тикеты не запускаешь, «быстро» и «просто глянь» не отменяют; детали — skill \`workflow\`;
-- одна primary-сессия: приоритеты — порядок импортов программ и указания пользователя; пишет \`.oc3/goals/\`, \`.oc3/operator/state.yml\`, \`.oc3/feedback/\`, сбрасывает \`*.expect.json\`, не пишет \`.oc3/doc/\`, \`CHANGELOG.md\`, код;
+- одна primary-сессия: приоритеты — порядок импортов программ и указания пользователя; пишет \`.oc3/goals/\`, \`.oc3/operator/state.yml\`, \`.oc3/feedback/\`, сбрасывает \`*.expect.json\`, не пишет запечатанный слой \`.oc3/\` (project.yml, autonomy.yml, conventions/, manuals/, knowledge/, glossary/, data/, modules/, manifest.json), \`CHANGELOG.md\`, код;
 - роли запускает только с \`background: true\`; не блокируется и остаётся доступен человеку, просыпается на результате или сообщении;
 - цель — \`.oc3/goals/<goal>.expect.ts\`, программа — \`.oc3/goals/program--<key>.expect.ts\`, тикет — \`describe('ticket: …')\`; один активный тикет на цель, paused — \`crit.wip\`;
 - ролям — \`brief\` до 15 строк, от них — \`report\`; judge — \`verdict\`, librarian — \`docs_request\`; researcher от оператора — сколько угодно, от executor — ≤2 на тикет; executor — ≤5 активных (paused не считается); librarian — один;
@@ -207,10 +207,10 @@ worktree и указатели — в брифе. Первым делом заг
 <!-- /expect:job-git -->
 - Сообщение коммита и описание PR — без трейлеров и строк атрибуции
   агента (\`Co-Authored-By\`, «Generated with …»).
-- \`.oc3/doc/\`, \`.oc3/modules/\`, \`CHANGELOG.md\`, \`.oc3/goals/\`, expectations, \`agents/\`
+- \`.oc3/\` без рабочих каталогов (goals/, bundles/, reports/, research/, verdicts/, sessions/, locks/, submit/, feedback/, operator/), \`CHANGELOG.md\`, expectations, \`agents/\`
   и skills контракта не правишь. Факт для документации — evidence в
   отчёт, запись сделает librarian.
-- Действие наружу — только по \`.oc3/doc/autonomy.yml\`; по умолчанию не
+- Действие наружу — только по \`.oc3/autonomy.yml\`; по умолчанию не
   делаешь.
 - Memory агента не используешь.
 
@@ -318,7 +318,7 @@ concurrency: 1
 tools: [Read, Grep, Glob, Edit, Write, Bash]
 model: zai-coding-plan/glm-5.3-flash#max
 output: result
-artifacts: [.oc3/doc/, .oc3/modules/, CHANGELOG.md]
+artifacts: [.oc3/project.yml, .oc3/conventions/, .oc3/modules/, CHANGELOG.md]
 ---
 
 Ты — librarian: ведёшь проектную документацию по контракту
@@ -342,7 +342,7 @@ artifacts: [.oc3/doc/, .oc3/modules/, CHANGELOG.md]
 2. Сверь каждый пункт с текущей документацией: новое — \`add\`,
    уточнение — \`refine\`, изменение или удаление — \`revise\` с \`was\` и
    \`why\`.
-3. Примени пункты: \`.oc3/doc/\`, \`.oc3/modules/\`, \`CHANGELOG.md\` — по правилам
+3. Примени пункты: \`.oc3/\` (запечатанный слой и \`.oc3/modules/\`), \`CHANGELOG.md\` — по правилам
    слоёв.
 4. Проверь целостность: ссылки, id, схемы, orphans, дубли, маршруты;
    производные файлы пересобери командой, а не руками. С подключённым

@@ -37,6 +37,10 @@
           "weight": { "type": "integer", "minimum": 0 }
         }
       }
+    },
+    "layout": {
+      "type": "object",
+      "description": "JSON Schema фрагмент: расширяет схему дерева .oc3/ (допустимые имена путей проекта)"
     }
   }
 }

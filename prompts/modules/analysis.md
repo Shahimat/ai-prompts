@@ -43,7 +43,7 @@ behavior приложения, если оно есть.
 ## Вопросы при подключении
 
 - `namespaces` — стартовые области анализа. Каждая выбранная —
-  namespace в `.oc3/doc/project.yml` с описанием в одну строку:
+  namespace в `.oc3/project.yml` с описанием в одну строку:
   - `ideology` — мои идеологические позиции и посты;
   - `philosophy` — философские источники и тезисы;
   - `process` — политические процессы: речи, обещания, разборы;
@@ -100,10 +100,10 @@ skill `analysis`.
 ## Установка
 
 1. Создай шесть каталогов `analysis/*/`.
-2. Добавь выбранные namespaces в `.oc3/doc/project.yml` (план → «да»).
+2. Добавь выбранные namespaces в `.oc3/project.yml` (план → «да»).
 3. Поставь skill `analysis` в `.agents/skills/analysis/`.
 4. Добавь блок в `AGENTS.md`.
-5. Подключён harness с `context-index` — `ai context index`.
+5. Подключён harness с `context` — `ai context check`.
 6. Подключён `domain` и в проекте есть приложение — предложи стартовые
    behavior уровня приложения (раздел «Правило в двух уровнях» skill
    `analysis`): детекция непроверенной атрибуции, реакция «не выдавать
@@ -133,7 +133,7 @@ skill `analysis`.
 Выбрасывается (план — пользователю, удаление после «да»):
 
 - `CHANGELOG-analysis.md` — после разбора записей;
-- копии правил в `.oc3/doc/conventions/`: `attribution-integrity`,
+- копии правил в `.oc3/conventions/`: `attribution-integrity`,
   `dialectic`, `verification` — правила теперь в блоке и skill;
 - `context/workflow.md` — сценарии в skill `workflow` ядра, `inquiry` —
   в skill `analysis`;
@@ -153,7 +153,7 @@ skill `analysis`.
 - Слои с содержимым — отдельный вопрос: удалить или оставить как
   обычные файлы проекта.
 - Skill `analysis` и блок `AGENTS.md` удаляются; namespaces в
-  `.oc3/doc/project.yml` — вопрос пользователю.
+  `.oc3/project.yml` — вопрос пользователю.
 - Behavior приложения про атрибуцию остаются в слое `domain` до решения
   пользователя.
 

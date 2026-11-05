@@ -90,7 +90,7 @@ provides:
 
 Переезжает:
 
-- `.oc3/doc/project.yml` → `data_access.corpus` — в канал `corpus`
+- `.oc3/project.yml` → `data_access.corpus` — в канал `corpus`
   `.oc3/data-access.yml` (вместе с миграцией модуля `data-access`);
 - `analysis/sources/*` с `type: book` и `map` — на месте; `map` с
   разделами глубже глав — сжать до уровня глав;
@@ -98,7 +98,7 @@ provides:
 
 Выбрасывается:
 
-- `.oc3/doc/conventions/book-ingestion.yml` — копия правила, теперь в
+- `.oc3/conventions/book-ingestion.yml` — копия правила, теперь в
   skill;
 - упоминания `data_access` в старом `AGENTS.md` и `context/workflow.md`
   — заменены блоком модуля.

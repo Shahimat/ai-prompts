@@ -6,12 +6,16 @@ import { parse } from 'yaml';
 import type { Plugin } from '@opencode/plugin';
 import {
   AI_CORE_PATH,
+  AUTONOMY_PATH,
   BUNDLES_DIR,
-  CONTEXT_INDEX_PATH,
+  CONVENTIONS_DIR,
+  DATA_DIR,
   DELTA_DIR,
-  DOC_DIR,
+  GLOSSARY_DIR,
   GOALS_DIR,
+  KNOWLEDGE_DIR,
   LOCKS_DIR,
+  MANUALS_DIR,
   MODULES_DIR,
   OC3_DIR,
   OC3_MANIFEST,
@@ -34,14 +38,23 @@ export interface GoalRuns {
   retry: boolean;
 }
 
-const DOCS_AREAS = [
-  `${DOC_DIR}/`,
-  `${MODULES_DIR}/`,
-  DELTA_DIR,
+const SEALED_FILES = [
+  PROJECT_PATH,
+  AUTONOMY_PATH,
   OC3_MANIFEST,
   SKILLS_PATH,
   AI_CORE_PATH,
   OPS_PATH,
+];
+
+const SEALED_DIRS = [
+  CONVENTIONS_DIR,
+  MANUALS_DIR,
+  GLOSSARY_DIR,
+  KNOWLEDGE_DIR,
+  DATA_DIR,
+  MODULES_DIR,
+  DELTA_DIR,
 ];
 
 export const OC3_READABLE: readonly string[] = [
@@ -75,10 +88,8 @@ export function memorySeal(
     const rel = oc3Rel(root, p);
     if (rel === undefined) continue;
     if (agent === 'librarian') continue;
-    if (rel.startsWith(`${DOC_DIR}/`) || rel === OC3_MANIFEST)
-      return `memory seal: запечатанный слой (${rel}) читает только librarian; агентам — бандлы (${BUNDLES_DIR}/)`;
     if (OC3_READABLE.some((a) => rel === a || rel.startsWith(a))) continue;
-    return `memory seal: ${rel} вне белого списка чтения .oc3/ — читать можно только ${OC3_READABLE.join(', ')}; новый читаемый путь — явная правка конфига гварда с обоснованием`;
+    return `memory seal: запечатанный слой (${rel}) читает только librarian; агентам — бандлы (${BUNDLES_DIR}/)`;
   }
   return undefined;
 }
@@ -110,24 +121,26 @@ export async function docsGuard(
   paths: readonly string[],
   root: string,
 ): Promise<string | undefined> {
-  if (existsSync(path.join(root, '.oc3/locks/install'))) return undefined;
+  if (existsSync(path.join(root, `${LOCKS_DIR}/install`))) return undefined;
   for (const p of paths) {
     const rel = p.replace(/^\.\//, '');
-    const hit = DOCS_AREAS.some((a) => rel.startsWith(a)) || rel === 'CHANGELOG.md';
+    const hit =
+      SEALED_FILES.includes(rel) ||
+      SEALED_DIRS.some((a) => rel.startsWith(`${a}/`)) ||
+      rel === 'CHANGELOG.md';
     if (hit && agent !== 'librarian')
       return `docs guard: документацию пишет только librarian; правка ${p} агентом ${agent ?? 'main'} отклонена`;
   }
   return undefined;
 }
 
-const GENERATED_FILES = new Set([CONTEXT_INDEX_PATH]);
 const GENERATED_AREA = '.opencode/agents/';
 const GENERATED_MARKER = /^\s*(?:[#>]|<!--)?\s*generated\b[\s\S]*do not edit/i;
 const GENERATED_PROBE = 400;
 
 async function isGenerated(p: string, root: string): Promise<boolean> {
   const rel = path.relative(root, path.resolve(root, p)).split(path.sep).join('/');
-  if (!GENERATED_FILES.has(rel) && !rel.startsWith(GENERATED_AREA)) return false;
+  if (!rel.startsWith(GENERATED_AREA)) return false;
   const text = await readOrNull(path.resolve(root, rel));
   if (text === null) return false;
   return GENERATED_MARKER.test(text.slice(0, GENERATED_PROBE));

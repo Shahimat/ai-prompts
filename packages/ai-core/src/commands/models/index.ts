@@ -5,13 +5,13 @@ import type { CommandArgs } from '#shared/args';
 import { UsageError } from '#shared/diagnostics';
 import { errorCode, isRecord } from '#shared/guards';
 import { parseFrontmatter } from '#shared/frontmatter';
+import { PROJECT_PATH } from '#shared/layout';
 import { ROLE_MODEL_PATTERN } from '#lib/agent';
 
 export { ROLE_MODEL_PATTERN };
 
 const ROLE_DIRS = ['.agents/agents', 'agents'];
 const DERIVED = '.opencode/agents';
-const PROJECT_FILE = '.oc3/doc/project.yml';
 
 async function readOrNull(abs: string): Promise<string | null> {
   try {
@@ -58,7 +58,7 @@ function modelProviderMarker(model: string): string | null {
 }
 
 async function projectOverrides(root: string): Promise<Record<string, string>> {
-  const text = await readOrNull(path.join(root, PROJECT_FILE));
+  const text = await readOrNull(path.join(root, PROJECT_PATH));
   if (text === null) return {};
   let data: unknown;
   try {
@@ -76,7 +76,7 @@ async function projectOverrides(root: string): Promise<Record<string, string>> {
 }
 
 async function writeOverride(root: string, role: string, model: string): Promise<boolean> {
-  const file = path.join(root, PROJECT_FILE);
+  const file = path.join(root, PROJECT_PATH);
   const text = await readOrNull(file);
   if (text === null) return false;
   const lines = text.split('\n');
@@ -193,7 +193,7 @@ async function set(args: CommandArgs): Promise<number> {
   const saved = await writeOverride(args.root, role, model);
   console.log(
     `${role}: model → ${model} (${changed.join(', ')}; override → ${
-      saved ? PROJECT_FILE : 'нет .oc3/doc/project.yml — переживёт только до синка'
+      saved ? PROJECT_PATH : `нет ${PROJECT_PATH} — переживёт только до синка`
     })`,
   );
   return 0;
@@ -203,7 +203,7 @@ async function apply(args: CommandArgs): Promise<number> {
   const overrides = await projectOverrides(args.root);
   const roles = Object.keys(overrides);
   if (roles.length === 0) {
-    console.log(`override нет — ${PROJECT_FILE} → roles.models`);
+    console.log(`override нет — ${PROJECT_PATH} → roles.models`);
     return 0;
   }
   let applied = 0;
@@ -218,7 +218,7 @@ async function apply(args: CommandArgs): Promise<number> {
     applied++;
     console.log(`${role}: model → ${model} (${changed.join(', ')})`);
   }
-  console.log(`применено ${applied}/${roles.length} из ${PROJECT_FILE} → roles.models`);
+  console.log(`применено ${applied}/${roles.length} из ${PROJECT_PATH} → roles.models`);
   return 0;
 }
 

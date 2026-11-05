@@ -13,7 +13,7 @@ skill — протокол их выбора, подключения и откл
 
 ## Шаг 1. Каталог
 
-1. `curl` тянет индекс по `sync.index_source` из `.oc3/doc/project.yml`
+1. `curl` тянет индекс по `sync.index_source` из `.oc3/project.yml`
    (правила fetch — skill `source-sync`).
 2. Из группы `modules` возьми записи, у которых `applicable_to`
    содержит `agent-operational-contract-v3`, есть `feature` и нет
@@ -31,13 +31,13 @@ skill — протокол их выбора, подключения и откл
 тянет его по `raw`, сверь `sha256`; его `modules` становятся отметками
 чеклиста, а `answers` — дефолтами вопросов `asks`. Пресет — стартовая
 точка: пользователь правит отметки и ответы как обычно. Ключ пресета
-запиши в `.oc3/doc/project.yml` → `preset`.
+запиши в `.oc3/project.yml` → `preset`.
 
 Роли и skills пресета — тоже install-time вход: `role_skills`
 инвертируй в `roles` записей `.oc3/skills.yml`, `role_exceptions`
-запиши в `.oc3/doc/project.yml` → `roles.exceptions`, определения
+запиши в `.oc3/project.yml` → `roles.exceptions`, определения
 `roles` — в `.agents/agents/<name>.md`, `autonomy` — в
-`.oc3/doc/autonomy.yml`. Дальше runtime читает только `skills.yml` и файлы
+`.oc3/autonomy.yml`. Дальше runtime читает только `skills.yml` и файлы
 ролей; пресет вторым источником не остаётся.
 <!-- /expect:preset-first -->
 
@@ -46,7 +46,7 @@ skill — протокол их выбора, подключения и откл
 executor'у, разведка researcher'у, judge on; «custom» — с полями
 (`routing`: operator|executor, `research`: self|researcher, `judge`:
 on|off, `ticket_mode`: stop|all). Запиши ответ:
-`oc3 briefing set ...` → `.oc3/doc/project.yml` → `briefing`; текущий
+`oc3 briefing set ...` → `.oc3/project.yml` → `briefing`; текущий
 режим — `oc3 briefing`.
 
 На время установки держи маркер `.oc3/locks/install` (пустой файл):

@@ -3,7 +3,7 @@ checks:
   changelog:
     max_line: 120
     tags: [arch, stack, dep, milestone]
-  context-index: {}
+  context: {}
   adapters: {}
   secrets:
     allow:

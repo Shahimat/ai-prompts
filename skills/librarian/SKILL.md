@@ -39,8 +39,8 @@ harness те же намерения проверяются схемой `intent
 - `decision` — принятое решение: CHANGELOG (если проходит критерий) +
   слой, который оно меняет;
 - `fact` — как устроено сейчас: слой возможности или
-  `.oc3/doc/project.yml`;
-- `rule` — договорённость, как работаем: `.oc3/doc/conventions/<key>.yml`;
+  `.oc3/project.yml`;
+- `rule` — договорённость, как работаем: `.oc3/conventions/<key>.yml`;
 - `behavior-change` — изменилось ожидаемое поведение: слой возможности
   (например, behavior + `verified`);
 - `task` — работа на будущее: цель в `.oc3/goals/`, если оператор её завёл,
@@ -62,8 +62,8 @@ harness те же намерения проверяются схемой `intent
 <!-- expect:skill-runs -->
 | Что | Кто пишет |
 | --- | --- |
-| `.oc3/doc/project.yml`, `.oc3/doc/autonomy.yml`, `.oc3/skills.yml` | librarian |
-| `.oc3/doc/conventions/` | librarian |
+| `.oc3/project.yml`, `.oc3/autonomy.yml`, `.oc3/skills.yml` | librarian |
+| `.oc3/conventions/` | librarian |
 | `CHANGELOG.md` | librarian |
 | `provides.layers` — слои модулей | librarian |
 | `.oc3/.delta/` — создание и правка | librarian |
@@ -95,7 +95,7 @@ items:
     evidence: <чем подтверждено>
   - op: revise
     kind: rule
-    target: .oc3/doc/conventions/branches.yml
+    target: .oc3/conventions/branches.yml
     summary: <каким знание станет>
     evidence: <чем подтверждено>
     was: <каким было>
@@ -214,7 +214,7 @@ narrative. Новый namespace — только с «да» пользоват�
 Нашёл противоречие между документами или между документом и кодом — не
 сохраняй молча: одной строкой назови конфликт, предложи разрешение,
 дождись решения. Документ и источник реальности (`reality` в
-`.oc3/doc/project.yml`) расходятся — прав источник.
+`.oc3/project.yml`) расходятся — прав источник.
 
 ## Чего не делать
 

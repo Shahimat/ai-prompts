@@ -17,8 +17,8 @@ const PROJECT = [
 
 async function project(): Promise<string> {
   const root = await mkdtemp(path.join(tmpdir(), 'oc3-briefing-'));
-  await mkdir(path.join(root, '.oc3/doc'), { recursive: true });
-  await writeFile(path.join(root, '.oc3/doc/project.yml'), PROJECT, 'utf8');
+  await mkdir(path.join(root, '.oc3'), { recursive: true });
+  await writeFile(path.join(root, '.oc3/project.yml'), PROJECT, 'utf8');
   return root;
 }
 
@@ -37,7 +37,7 @@ describe('briefing', () => {
     const spy = vi.spyOn(console, 'log').mockImplementation((line) => logs.push(String(line)));
     try {
       expect(await main(['briefing', 'set', 'cheap', '--root', root])).toBe(0);
-      const text = await readFile(path.join(root, '.oc3/doc/project.yml'), 'utf8');
+      const text = await readFile(path.join(root, '.oc3/project.yml'), 'utf8');
       expect(text).toContain('briefing:\n  mode: cheap\n\nsync:');
       expect(await main(['briefing', '--root', root])).toBe(0);
     } finally {
@@ -65,7 +65,7 @@ describe('briefing', () => {
         ]),
       ).toBe(0);
       expect(await main(['briefing', 'set', 'roles', '--root', root])).toBe(0);
-      const text = await readFile(path.join(root, '.oc3/doc/project.yml'), 'utf8');
+      const text = await readFile(path.join(root, '.oc3/project.yml'), 'utf8');
       expect(text).toContain('mode: roles');
       expect(text).not.toContain('ticket_mode');
     } finally {
@@ -85,7 +85,7 @@ describe('briefing', () => {
     } finally {
       spy.mockRestore();
     }
-    const text = await readFile(path.join(root, '.oc3/doc/project.yml'), 'utf8');
+    const text = await readFile(path.join(root, '.oc3/project.yml'), 'utf8');
     expect(text).not.toContain('briefing');
     expect(errors.join('\n')).toContain('routing — operator | executor');
     expect(errors.join('\n')).toContain('режим вне списка');
@@ -100,6 +100,6 @@ describe('briefing', () => {
     } finally {
       spy.mockRestore();
     }
-    expect(errors.join('\n')).toContain('нет .oc3/doc/project.yml');
+    expect(errors.join('\n')).toContain('нет .oc3/project.yml');
   });
 });

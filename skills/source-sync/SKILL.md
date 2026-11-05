@@ -27,7 +27,7 @@ pre-processing (HTML → markdown, обрезка) искажает контен
 
 ## Конфигурация проекта
 
-`.oc3/doc/project.yml`:
+`.oc3/project.yml`:
 
 ```yaml
 sync:
@@ -56,7 +56,7 @@ Manifest каждого модуля — `.oc3/modules/<key>.yml` со свои�
 Совпало имя своей роли с новой ролью источника — стоп, вопрос
 пользователю.
 
-Модели ролей — override в `.oc3/doc/project.yml` → `roles.models`: синк
+Модели ролей — override в `.oc3/project.yml` → `roles.models`: синк
 его не трогает. Правка `model` руками в `.agents/agents/<name>.md`
 слетает — файл часть контракта. После применения плана запусти
 `oc3 models apply`: вернёт override в файлы ролей и производные.
@@ -138,7 +138,7 @@ Cold-start без node/npm допустим: OpenCode сам ставит пла
 7. Отчёт «Что нового» (ниже) и один блокирующий вопрос.
 8. После «да»: применяешь план к артефактам контракта — `.agents/`,
    блоки `AGENTS.md`, manifest'ы `.oc3/modules/`, блок `sync` в
-   `.oc3/doc/project.yml`; затем `oc3 models apply` — override моделей
+   `.oc3/project.yml`; затем `oc3 models apply` — override моделей
    из `roles.models` возвращается в перезаписанные роли; правки слоёв
    документации проекта — только через librarian. После — обнови
    `sync.index_sha`, `synced_sha` контракта и модулей, SHA в `parts`,

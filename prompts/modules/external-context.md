@@ -40,25 +40,25 @@ feature:
 `verified_at`, не копия.
 
 <!-- expect:external-reality -->
-- Источник реальности ядра (`reality` в `.oc3/doc/project.yml`) — ключи
+- Источник реальности ядра (`reality` в `.oc3/project.yml`) — ключи
   `external` целевых систем, не `this-repo`. Маршрут «как сейчас» ядра
   уже ведёт туда; модуль ядро не меняет.
 <!-- /expect:external-reality -->
-- Слои — `.oc3/doc/data/entities/` и `.oc3/doc/data/behavior/` модуля `domain`,
-  `.oc3/doc/manuals/` модуля `manuals` (если подключён). Модуль добавляет
+- Слои — `.oc3/data/entities/` и `.oc3/data/behavior/` модуля `domain`,
+  `.oc3/manuals/` модуля `manuals` (если подключён). Модуль добавляет
   поля entity через `extends`, словарь, тег журнала и skill.
 - Не для проекта со своим кодом: там `reality: [this-repo]` и хватает
   `domain`.
 
 ## Вопросы при подключении
 
-- `namespaces` — стартовые области в `.oc3/doc/project.yml` (ответ —
+- `namespaces` — стартовые области в `.oc3/project.yml` (ответ —
   это «да» на новые namespace). По умолчанию `systems`, `processes`:
   - `systems` — репозитории, трекеры, доски, wiki, формы, среды;
   - `org` — оценка, ownership, коммуникации, ограничения;
   - `processes` — intake, delivery, review, release, hotfix, escalation;
   - `knowledge` — устойчивые нюансы и pitfalls.
-- `starter-manuals` — заготовки в `.oc3/doc/manuals/`. Вопрос задаётся,
+- `starter-manuals` — заготовки в `.oc3/manuals/`. Вопрос задаётся,
   только если выбран `manuals`; иначе пропускается. По умолчанию
   `onboarding`, `create-ticket`.
 - `target-access` — по умолчанию `url-only`:
@@ -104,7 +104,7 @@ checkouts:
   <external-key>: <абсолютный путь>
 ```
 
-`.oc3/doc/project.yml` — что ставит модуль (остальное — ядро):
+`.oc3/project.yml` — что ставит модуль (остальное — ядро):
 
 ```yaml
 reality: [<target-repo>, <tracker>]   # ключи external, не this-repo
@@ -124,7 +124,7 @@ external:
 ## external-context
 
 - своего кода нет: «как сейчас» → системы из `reality`, код цели → `.oc3/local.yml`, иначе URL из `external`;
-- система, оргправило, процесс X → `.oc3/doc/data/entities/<id>.yml` (`type`, `canonical_source`, `target`);
+- система, оргправило, процесс X → `.oc3/data/entities/<id>.yml` (`type`, `canonical_source`, `target`);
 - термин → `.oc3/glossary/common.yml`;
 - формат записей, verified вне кода, audit ссылок → skill `external-context`.
 <!-- /module:external-context -->
@@ -135,7 +135,7 @@ external:
 
 1. Проверь, что `domain` подключён (иначе — `contract-setup` добавит).
 2. Собери у пользователя целевые системы: ключ, URL, какие из них —
-   источник реальности. План правки `.oc3/doc/project.yml` (`reality`,
+   источник реальности. План правки `.oc3/project.yml` (`reality`,
    `external`, `namespaces` из ответа) → «да» → через librarian.
 3. Создай `.oc3/glossary/common.yml` по шаблону.
 4. `local-checkout` — создай `.oc3/local.yml` с путями пользователя,
@@ -154,12 +154,12 @@ external:
 
 Переезжает:
 
-- `.oc3/doc/data/entities`, `.oc3/doc/data/behavior`, `.oc3/doc/manuals` — как есть; `title`
+- `.oc3/data/entities`, `.oc3/data/behavior`, `.oc3/manuals` — как есть; `title`
   entity сливается в `summary`; `type` v2 → справочник skill (маппинг
   там же);
 - поля `canonical_source`, `owner`, `access`, `related_entities`,
   `deprecated`, `legacy` — без изменений, теперь через `extends`;
-- карта canonical из `.oc3/doc/project.yml` → `external`; целевые
+- карта canonical из `.oc3/project.yml` → `external`; целевые
   системы → `reality`;
 - `.oc3/glossary/common.yml` — как есть; очередь `views` — в модуль
   `goals`;
@@ -167,7 +167,7 @@ external:
 
 Выбрасывается:
 
-- копии правил в `.oc3/doc/conventions/`: `verification`,
+- копии правил в `.oc3/conventions/`: `verification`,
   `entity-schema`, `behavior-schema`, `manual-schema`,
   `canonical-vs-cached`, `link-hygiene`, `goals`, `goal-consistency` —
   теперь skills `domain`, `external-context`, `manuals`, `goals`;
@@ -175,7 +175,7 @@ external:
 - фазы с обязательным порядком `docs → fix → refactor` и инъекция
   подфазы `docs` — в v3 тикет из шагов-коммитов (skill `workflow`);
 - ручной `context/index.yml` — упразднён: каталог — в бандле;
-- hook `block-memory-write-for-*.sh` и `.oc3/doc/manuals/setup-safety-hooks.md`
+- hook `block-memory-write-for-*.sh` и `.oc3/manuals/setup-safety-hooks.md`
   — memory выключается настройкой (раздел ядра «Memory агента»);
 - `sync.contract.key: external-project-context-v2` → ядро v3 и manifest
   этого модуля.

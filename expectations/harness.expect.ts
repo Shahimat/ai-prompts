@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 import * as cliPkg from '@shahimat/cli';
 import { BUILTIN_TREE, splitWords } from '@shahimat/cli';
 import {
-  buildContextIndex,
+  collectContext,
   computeSync,
   DELTA_SCHEMA,
   DEFAULT_CHANGELOG,
@@ -67,7 +67,7 @@ budget({ crit: 0, warn: 5 });
 
 describe('[harness] common', () => {
   crit(
-    'состав: команды ai-core — check, refresh, changelog, context, adapters, delta, outdated, expect, goals, roles, skills, operator, models, index, secrets, role, memory',
+    'состав: команды ai-core — check, refresh, changelog, tree, context, adapters, delta, outdated, expect, goals, roles, skills, operator, models, index, secrets, role, memory',
     () => Check.composition(),
   );
   crit(
@@ -195,9 +195,7 @@ describe('[harness] layers', () => {
 });
 
 describe('[harness] refresh', () => {
-  crit('скрипт ai refresh — context index и adapters sync, затем шаги check', () =>
-    Processes.refresh(),
-  );
+  crit('скрипт ai refresh — adapters sync, затем шаги check', () => Processes.refresh());
 });
 
 describe('[harness] docs-delta', () => {
@@ -214,7 +212,7 @@ describe('[harness] docs-delta', () => {
     back: 'apply',
     limit: 3,
   });
-  crit('verify в docs-delta — context index, adapters sync, delta check и шаги check', () =>
+  crit('verify в docs-delta — adapters sync, delta check и шаги check', () =>
     Processes.docsVerify(),
   );
 });
@@ -298,7 +296,7 @@ describe('[harness] ops', () => {
     () => Ops.briefHook(),
   );
   crit(
-    'действие наружу с уровнем never в .oc3/doc/autonomy.yml не выполняется даже прямой командой ai ops act',
+    'действие наружу с уровнем never в .oc3/autonomy.yml не выполняется даже прямой командой ai ops act',
     () => Ops.neverBlocks(),
   );
   crit('запись провайдера при уровне ask без «да» не выполняется: рантайм только предлагает', () =>
@@ -320,7 +318,7 @@ describe('[harness] ops', () => {
     Ops.defaultLimits(),
   );
   crit(
-    'намерения из job уходят в документацию только через docs-delta start: ticket-work сам не пишет в .oc3/doc/ проекта',
+    'намерения из job уходят в документацию только через docs-delta start: ticket-work сам не пишет в .oc3/ проекта',
     () => Ops.docsViaDelta(),
   );
 });
@@ -329,8 +327,9 @@ describe('[harness] check', () => {
   crit('команда ai check — все проверки из .oc3/ai-core.yml разом', () =>
     Check.commands(['check']),
   );
-  crit('проверки ai check: changelog, context-index, adapters, secrets — других нет', () =>
-    Check.checks(),
+  crit(
+    'проверки ai check: changelog, context, adapters, secrets из checks и всегда tree check — других нет',
+    () => Check.checks(),
   );
 });
 
@@ -341,15 +340,16 @@ describe('[harness] changelog', () => {
 });
 
 describe('[harness] context', () => {
-  crit('команда ai context index — генерация .oc3/doc/index.yml из слоёв документации', () =>
-    Check.commands(['context index']),
-  );
   crit(
-    'команда ai context check — сверка .oc3/doc/index.yml со слоями документации без записи',
+    'команда ai context check — проверка слоёв документации (id, namespace, summary) без записи',
     () => Check.commands(['context check']),
   );
-  warn('.oc3/doc/index.yml генерируется ai context index и не содержит даты генерации', () =>
-    Check.contextIndexNoDate(),
+});
+
+describe('[harness] tree', () => {
+  crit(
+    'команда ai tree check — валидация плоского дерева .oc3/ по JSON Schema: ядро контракта плюс расширения из manifest.json',
+    () => Check.commands(['tree check']),
   );
 });
 
@@ -595,7 +595,7 @@ describe('[harness] delta', () => {
   crit('delta close удаляет дельту только при чистом delta check и выполненных пунктах', () =>
     Check.deltaClose(),
   );
-  crit('context index не включает .oc3/.delta/', () => Check.deltaNotIndexed());
+  crit('слои модулей не включают .oc3/.delta/', () => Check.deltaNotIndexed());
   crit('схема дельты в пакете совпадает с expectations/schemas/docs-delta.schema.json', () =>
     Check.deltaSchema(),
   );
@@ -676,15 +676,12 @@ async function withGitProject(fn: (dir: string) => Promise<void>): Promise<void>
   const git = (...args: string[]) => spawnSync('git', args, { cwd: dir, encoding: 'utf8' });
   try {
     await mkdir(path.join(dir, '.opencode'), { recursive: true });
-    await mkdir(path.join(dir, '.oc3/doc/conventions'), { recursive: true });
+    await mkdir(path.join(dir, '.oc3/conventions'), { recursive: true });
     await mkdir(path.join(dir, '.oc3/.delta'), { recursive: true });
     await mkdir(path.join(dir, '.oc3/modules'), { recursive: true });
+    await writeFile(path.join(dir, '.oc3/project.yml'), 'name: demo\nnamespaces:\n  core: ядро\n');
     await writeFile(
-      path.join(dir, '.oc3/doc/project.yml'),
-      'name: demo\nnamespaces:\n  core: ядро\n',
-    );
-    await writeFile(
-      path.join(dir, '.oc3/doc/conventions/naming.yml'),
+      path.join(dir, '.oc3/conventions/naming.yml'),
       'key: naming\nsummary: kebab-case\nrule: x\n',
     );
     git('init', '-q');
@@ -729,7 +726,7 @@ async function usageCommands(): Promise<string[]> {
 const DECLARED_COMMANDS = [
   'check',
   'changelog lint',
-  'context index',
+  'tree check',
   'context check',
   'adapters sync',
   'adapters check',
@@ -893,6 +890,7 @@ class Check {
       'skills',
       'source-sync',
       'ticket-work',
+      'tree',
     ]);
     const planIter = await readRepo('expectations/harness-plan-review.expect.ts');
     expect(planIter).toContain("describe('[harness] plan-review'");
@@ -906,7 +904,7 @@ class Check {
   }
 
   static checks(): void {
-    expect([...KNOWN_CHECKS].sort()).toEqual(['adapters', 'changelog', 'context-index', 'secrets']);
+    expect([...KNOWN_CHECKS].sort()).toEqual(['adapters', 'changelog', 'context', 'secrets']);
   }
 
   static adapters(): void {
@@ -1117,8 +1115,6 @@ class Check {
     }
   }
 
-  static contextIndexNoDate = (): Promise<void> => judged(['@context-index-no-date']);
-
   static async memoryOff(): Promise<void> {
     const dir = await tempDir();
     try {
@@ -1155,7 +1151,7 @@ class Check {
   static async deltaCheck(): Promise<void> {
     await withGitProject(async (dir) => {
       await writeFile(
-        path.join(dir, '.oc3/doc/conventions/naming.yml'),
+        path.join(dir, '.oc3/conventions/naming.yml'),
         'key: naming\nsummary: snake_case\nrule: x\n',
       );
       expect(cli(['delta', 'check', '--root', dir])).toBe(1);
@@ -1171,7 +1167,7 @@ class Check {
       expect(cli(['delta', 'close', '--root', dir])).toBe(1);
       expect(existsSync(delta)).toBe(true);
       await writeFile(
-        path.join(dir, '.oc3/doc/conventions/naming.yml'),
+        path.join(dir, '.oc3/conventions/naming.yml'),
         'key: naming\nsummary: snake_case\nrule: x\n',
       );
       expect(cli(['delta', 'close', '--root', dir])).toBe(0);
@@ -1183,13 +1179,14 @@ class Check {
     await withGitProject(async (dir) => {
       await writeFile(
         path.join(dir, '.oc3/modules/m.yml'),
-        'provides:\n  index_layers:\n    - { section: drafts, dir: .oc3/doc, format: yml }\n',
+        'provides:\n  index_layers:\n    - { section: drafts, dir: .oc3, format: yml }\n',
       );
       await writeFile(
         path.join(dir, '.oc3/.delta/leak.yml'),
         'id: leak\nnamespace: core\nsummary: утечка\n',
       );
-      expect((await buildContextIndex(dir)).text).not.toContain('leak');
+      const diagnostics = await collectContext(dir);
+      expect(diagnostics.filter((d) => d.file.includes('.delta'))).toEqual([]);
     });
   }
 
@@ -1412,12 +1409,10 @@ class Guard {
   static async decision(): Promise<void> {
     const nodes = [...BUILTIN_TREE.commands].map((c) => c.path.join(' '));
     expect(nodes.includes('docs guard')).toBe(false);
-    expect(await docsGuard('executor', ['.oc3/doc/data/entities/a.yml'], repoRoot())).toContain(
+    expect(await docsGuard('executor', ['.oc3/data/entities/a.yml'], repoRoot())).toContain(
       'librarian',
     );
-    expect(
-      await docsGuard('librarian', ['.oc3/doc/data/entities/a.yml'], repoRoot()),
-    ).toBeUndefined();
+    expect(await docsGuard('librarian', ['.oc3/data/entities/a.yml'], repoRoot())).toBeUndefined();
   }
 
   static async installed(): Promise<void> {
@@ -1564,7 +1559,7 @@ class Layers {
         await writeFile(path.join(dir, 'CHANGELOG.md'), '- 2026-10-14 · без тега · b\n');
         await writeFile(
           path.join(dir, '.oc3/ai-core.yml'),
-          'adapters: [codex, opencode]\nchecks:\n  changelog: {}\n  context-index: {}\n  adapters: {}\n',
+          'adapters: [codex, opencode]\nchecks:\n  changelog: {}\n  context: {}\n  adapters: {}\n',
         );
         const session = await createSession(home, {
           harness: 'plan-review',
@@ -1813,7 +1808,6 @@ class Processes {
     const refresh = node(['refresh']);
     expect(kindOf(refresh)).toBe('script');
     expect(stepCommands(at(refresh, 'steps'))).toEqual([
-      'context index',
       'adapters sync',
       ...stepCommands(at(node(['check']), 'steps')),
     ]);
@@ -1821,7 +1815,6 @@ class Processes {
 
   static docsVerify(): void {
     expect(stepCommands(at(cliPkg, 'DOCS_VERIFY', 'steps'))).toEqual([
-      'context index',
       'adapters sync',
       'delta check',
       ...stepCommands(at(node(['check']), 'steps')),
@@ -1913,7 +1906,7 @@ class Processes {
         parseJson(await readFile(path.join(home, 'sessions', id, 'session.json'), 'utf8'));
       expect(at(await data(), 'state')).toBe('apply');
       await writeFile(
-        path.join(dir, '.oc3/doc/conventions/naming.yml'),
+        path.join(dir, '.oc3/conventions/naming.yml'),
         'key: naming\nsummary: snake_case\nrule: x\n',
       );
       const open = () => cli(['docs-delta', 'open', id.slice(0, 7), '--home', home]);
@@ -3155,7 +3148,7 @@ class Ops {
             now: new Date(),
           });
         const lines = await briefLines(home, dir);
-        expect(lines[0]).toContain('jobs 30');
+        expect(lines[0]).toContain('задач 30');
         expect(lines.length).toBeLessThanOrEqual(20);
       } finally {
         await rm(dir, { recursive: true, force: true });
@@ -3178,7 +3171,7 @@ class Ops {
   static async neverBlocks(): Promise<void> {
     await withOps(async (home, log) => {
       const dir = await opsProject(home, {
-        '.oc3/doc/autonomy.yml': 'levels:\n  self: [review.comment]\n  never: [review]\n',
+        '.oc3/autonomy.yml': 'levels:\n  self: [review.comment]\n  never: [review]\n',
         'note.md': 'текст',
       });
       try {

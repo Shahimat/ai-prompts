@@ -6,7 +6,7 @@ description: Правила репозитория-оверлея над чуж�
 # external-context
 
 Репозиторий описывает чужой живой проект и своего кода не держит.
-Источник реальности — системы из `.oc3/doc/project.yml` → `reality`
+Источник реальности — системы из `.oc3/project.yml` → `reality`
 (ключи `external`). Форматы entity и behavior, `verified`, namespace —
 skill `domain`; здесь только то, что добавляет этот модуль.
 
@@ -184,7 +184,7 @@ tracker:
 Только при `answers.legacy-v1: yes` в `.oc3/modules/external-context.yml`:
 
 - `registry/project.yaml`, `navigation.yaml`, `sources-of-truth.yaml`
-  → `.oc3/doc/project.yml` (`external`, `reality`, `namespaces`);
+  → `.oc3/project.yml` (`external`, `reality`, `namespaces`);
 - `registry/glossary.yaml` → `.oc3/glossary/common.yml`;
 - `assets/links/*.yaml` → entity `namespace: systems`; `repos` →
   `repo`, `trackers` → `tracker`, `boards` → `board`, `forms` →
@@ -199,7 +199,7 @@ tracker:
 - `knowledge/decisions.yaml` → `CHANGELOG.md` (строка с тегом) или
   выбросить;
 - `knowledge/faq.yaml`, `onboarding.md`, `procedures/playbooks/*.md` →
-  `.oc3/doc/manuals/`;
+  `.oc3/manuals/`;
 - `procedures/templates/*.yaml` — выбросить: схемы в skills.
 
 Перенесённое — `verified: false`, кроме проверенного сразу. После

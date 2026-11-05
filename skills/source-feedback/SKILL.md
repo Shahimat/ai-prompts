@@ -18,7 +18,7 @@ description: Предложения проекта в источник ai-prompt
 ## Протокол
 
 <!-- expect:source-feedback -->
-1. **Базис.** Из `.oc3/doc/project.yml` → `sync` и
+1. **Базис.** Из `.oc3/project.yml` → `sync` и
    `.oc3/modules/*.yml` возьми ключи, `synced_sha` и `parts`; `curl`
    тянет индекс по `sync.index_source` (правила fetch — skill
    `source-sync`). Это `base` файла: от какого состояния источника
@@ -80,7 +80,7 @@ description: Предложения проекта в источник ai-prompt
 
 ## `generalization` — локальные обобщения
 
-- `.oc3/doc/conventions/*.yml` — договорённость без имён и путей
+- `.oc3/conventions/*.yml` — договорённость без имён и путей
   проекта, которая подошла бы любому проекту этого вида →
   `pattern:<key>`, `module:<key>` или `contract`;
 - свои skills в `.agents/skills/`, которых нет в индексе → `new` или
@@ -150,7 +150,7 @@ description: Предложения проекта в источник ai-prompt
       "generalized": "В skill goals — сценарий периодического обзора: какие цели без движения дольше N дней.",
       "evidence": [
         {
-          "path": ".oc3/doc/conventions/<key>.yml",
+          "path": ".oc3/conventions/<key>.yml",
           "excerpt": "раз в неделю report по целям: без движения > 14 дней — вопрос пользователю"
         }
       ],
@@ -172,7 +172,7 @@ description: Предложения проекта в источник ai-prompt
 Файл покидает проект — в нём только обезличенное:
 
 - нет персональных данных, имён людей, почты, телефонов;
-- нет ссылок и указателей из `external` в `.oc3/doc/project.yml`, хостов
+- нет ссылок и указателей из `external` в `.oc3/project.yml`, хостов
   и внутренних адресов — вместо них `<url>`;
 - имя проекта, namespaces, доменные термины в `excerpt` и
   `generalized` — заменены на `<project>`, `<namespace>`, `<term>`;

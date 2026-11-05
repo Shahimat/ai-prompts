@@ -29,12 +29,7 @@ export {
 } from './shared/config.ts';
 export { formatDiagnostic, InputError, UsageError, type Diagnostic } from './shared/diagnostics.ts';
 export { WARNING_PREFIX } from './shared/report.ts';
-export {
-  buildContextIndex,
-  checkContextIndex,
-  runContext,
-  type ContextIndexResult,
-} from './commands/context/index.ts';
+export { runContext, collectContext } from './commands/context/index.ts';
 export {
   applyActions,
   checkAdapters,
@@ -57,6 +52,14 @@ export { runOperator } from './commands/operator/index.ts';
 export { runRoles, runSkills } from './commands/roles/index.ts';
 export { runMemory } from './commands/memory/index.ts';
 export {
+  buildTreeSchema,
+  checkOc3Tree,
+  mandateOf,
+  runTree,
+  type TreeManifest,
+  type TreeReport,
+} from './commands/tree/index.ts';
+export {
   buildBundles,
   bundleNodes,
   checkBundles,
@@ -77,15 +80,14 @@ export {
   type Revision,
 } from './commands/delta/index.ts';
 export {
+  ABOLISHED_INDEX,
   AI_CORE_PATH,
   AUTONOMY_PATH,
   BASELINE_DIR,
   BUNDLES_DIR,
-  CONTEXT_INDEX_PATH,
   CONVENTIONS_DIR,
   DATA_DIR,
   DELTA_DIR,
-  DOC_DIR,
   FEEDBACK_DIR,
   GLOSSARY_DIR,
   GOALS_DIR,

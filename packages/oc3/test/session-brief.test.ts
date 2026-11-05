@@ -52,16 +52,16 @@ const put = async (rel: string, content: string): Promise<void> => {
 };
 
 const memoryFixture = async (manifest: Record<string, unknown>): Promise<void> => {
-  await put('.oc3/doc/data/__schemas/manifest.schema.json', MANIFEST_SCHEMA);
-  await put('.oc3/doc/data/__schemas/conventions.schema.json', JSON.stringify({ type: 'array' }));
-  await put('.oc3/doc/data/__schemas/glossary.schema.json', JSON.stringify({ type: 'array' }));
+  await put('.oc3/data/__schemas/manifest.schema.json', MANIFEST_SCHEMA);
+  await put('.oc3/data/__schemas/conventions.schema.json', JSON.stringify({ type: 'array' }));
+  await put('.oc3/data/__schemas/glossary.schema.json', JSON.stringify({ type: 'array' }));
   await put('.oc3/manifest.json', JSON.stringify(manifest));
-  await put('.oc3/doc/project.yml', 'name: demo\nsummary: Демо-проект памяти\n');
+  await put('.oc3/project.yml', 'name: demo\nsummary: Демо-проект памяти\n');
 };
 
 async function putProject(text: string): Promise<void> {
-  await mkdir(path.join(root, '.oc3', 'doc'), { recursive: true });
-  await writeFile(path.join(root, '.oc3', 'doc', 'project.yml'), text, 'utf8');
+  await mkdir(path.join(root, '.oc3'), { recursive: true });
+  await writeFile(path.join(root, '.oc3', 'project.yml'), text, 'utf8');
 }
 
 describe('briefingLine', () => {
@@ -164,8 +164,8 @@ describe('memoryStart — вшивание стартового графа', () 
       data: [],
       files: { 'manuals/how.md': { namespace: ['docs'], weight: 1 } },
     });
-    await put('.oc3/doc/manuals/how.md', '# Как собрать\n\nnpm run build.\n');
-    await put('.oc3/doc/data/__schemas/glossary.schema.json', JSON.stringify({ type: 'array' }));
+    await put('.oc3/manuals/how.md', '# Как собрать\n\nnpm run build.\n');
+    await put('.oc3/data/__schemas/glossary.schema.json', JSON.stringify({ type: 'array' }));
     const cold = await memoryStart(root);
     expect(cold.diagnostics).toEqual([]);
     expect(cold.text).toContain('# Память проекта');

@@ -1,0 +1,93 @@
+run: 2
+status: pass
+summary: >-
+  фенс диаграммы восстановлен — @no-rule-copies (99–103) и @contract-kinds
+  (431–451) снова резолвятся; судейская механика закрыта (7 pending
+  погашены, ? 0), npm run ci в worktree зелёный (exit 0)
+items:
+  - key: paths-flatten
+    status: pass
+    evidence: >
+      на финальном дереве worktree: tree check — «tree check: ok», context
+      check — «ok»; .oc3/project.yml, .oc3/autonomy.yml,
+      .oc3/conventions/common.yml, .oc3/glossary/common.yml на месте,
+      .oc3/index.yml отсутствует; npm run ci — exit 0 (включая cli-тесты
+      36/36 и harness 78/78, где зафиксированы новые пути)
+    reason: >
+      Переезд .oc3/doc/… → .oc3/… подтверждён повторно на итоговом
+      состоянии; с run 1 регрессий нет.
+  - key: tree-validator
+    status: pass
+    evidence: >
+      `node packages/cli/dist/bin.js tree check --root .` — «tree check:
+      ok» на смигрированном дереве; ai-core тесты 243/243 и cli 36/36 в
+      прогоне ci (packages/ai-core/test/tree.test.ts среди них) — зелёные
+    reason: >
+      Валидатор дерева работает на финальном состоянии; реализация не
+      менялась с run 1 (проверено pass в run 1, сейчас повторно зелёная).
+  - key: migrate-v4
+    status: pass
+    evidence: >
+      oc3 тесты 139/139 в прогоне ci (packages/oc3/test/migrate.test.ts —
+      шаг v3→v4); собственное дерево смигрировано: .oc3/doc/ удалён
+      (git status — только удалённые .oc3/doc/*), плоские файлы на месте,
+      tree/context/memory check — ok
+    reason: >
+      Шаг v3→v4 полный, протестирован и применён; с run 1 не менялся.
+  - key: index-abolished
+    status: pass
+    evidence: >
+      `ls .oc3/index.yml` — «Нет такого файла или каталога»;
+      `context check --root .` — «ok» (команда index отсутствует);
+      ai-core тесты 243/243 включают refresh.test.ts с проверкой
+      отсутствия записи; index:check в ci — зелёный
+    reason: >
+      index.yml упразднён по всему стеку; с run 1 не менялся.
+  - key: docs-skills-prompts
+    status: pass
+    evidence: >
+      prompts/productivity/agent-operational-contract-v3.md — фенс
+      диаграммы «Что ставит ядро» снова один блок: открытие :61, закрытие
+      :86 после строк .agents/ (:83–85); проза «Запечатанный слой — …»
+      (:88) — после закрытия фенса; сироты-``` нет. Якоря читаются:
+      expect:no-rule-copies :99–103, expect:contract-kinds :431–451.
+      Подтверждение резолва: judged-вердикт вопроса a5651202c571 по
+      @contract-kinds и 9a8082835110 по @no-rule-copies принят в
+      expectations/.verdicts.json (apply без отклонений), в отчёте
+      presets kindsDeclared — ✓, crit 0
+    reason: >
+      Замечание run 1 устранено executor'ом ровно так, как указано в
+      вердикте: один фенс на всю диаграмму, проза после закрытия.
+      expect-файлы не менялись — те же проверки теперь находят якоря.
+  - key: judge-mechanics
+    status: pass
+    evidence: >
+      `expect judge expectations/index.expect.ts --root .` — «вопросов 7
+      в пакетах 1, проверок заголовков 0»; expectations/.judge/batch-1.md
+      — 7 вопросов (@extends-only, @docs-readonly ×4, @no-rule-copies,
+      @contract-kinds, @agents-md-readonly); batch-1.answer.json — 7
+      ответов, все true, с цитатами; пре-валидация тем же containsQuote
+      по dist-коду — 7/7 найдены; `--apply` — «вердикты сохранены» без
+      отклонений; store: 55 вердиктов (5 перезаписаны по изменившемуся
+      sha якорей, 2 новых), все 7 с at 2026-11-05; `expect report` —
+      «? 0», все judged-проверки ✓
+    reason: >
+      Судейская механика закрыта полностью: pending 7 → 0, ложных
+      «судья: нет» нет (все ответы true подтверждены доказательствами —
+      ядро контракта прямо содержит каждое утверждение).
+  - key: ci-green
+    status: pass
+    evidence: >
+      `npm run ci` в worktree — EXIT=0 (лог /tmp/opencode/ci-run2.log):
+      format:check, build ×4, typecheck ×7, lint, тесты ai-core 243 +
+      harness 78 + cli 36 + oc3 139 (все passed), packages-check,
+      index:check, memory:check «ok», expect report — «ожиданий 330:
+      crit 0 · warn 1 · info 4 · ? 0 — в бюджете». Единственный warn —
+      «неизмеримо» по заголовку plan-review в harness-plan-review.expect.ts,
+      бюджет warn:5 не менялся с HEAD (строка 43 совпадает с HEAD),
+      presets budget {crit: 0, warn: 0} тоже без изменений — проверки не
+      ослаблялись
+    reason: >
+      DoD «npm run ci в worktree — полностью зелёный» выполнен; warn 1
+      лежит в бюджете 5 и существовал до тикета (наследие HEAD), не
+      связан с этим тикетом.

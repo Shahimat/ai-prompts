@@ -45,10 +45,10 @@ describe('parseConfig', () => {
     });
   });
 
-  it('включает context-index', () => {
-    expect(parseConfig('checks:\n  context-index: {}\n').checks['context-index']).toEqual({});
-    expect(parseConfig('checks:\n  context-index:\n').checks['context-index']).toEqual({});
-    expect(() => parseConfig('checks:\n  context-index:\n    x: 1\n')).toThrow(/context-index: x/);
+  it('включает context', () => {
+    expect(parseConfig('checks:\n  context: {}\n').checks['context']).toEqual({});
+    expect(parseConfig('checks:\n  context:\n').checks['context']).toEqual({});
+    expect(() => parseConfig('checks:\n  context:\n    x: 1\n')).toThrow(/checks\.context: x/);
   });
 
   it('пропускает ключи из спецификации, которые ещё не реализованы', () => {

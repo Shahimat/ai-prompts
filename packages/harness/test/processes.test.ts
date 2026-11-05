@@ -22,9 +22,9 @@ async function put(rel: string, content: string): Promise<void> {
 const git = (...args: string[]) => spawnSync('git', args, { cwd: root, encoding: 'utf8' });
 
 async function project(): Promise<void> {
-  await put('.oc3/ai-core.yml', 'checks:\n  context-index: {}\n');
-  await put('.oc3/doc/project.yml', 'name: demo\nnamespaces:\n  core: ядро\n');
-  await put('.oc3/doc/conventions/naming.yml', 'key: naming\nsummary: kebab-case\nrule: x\n');
+  await put('.oc3/ai-core.yml', 'checks:\n  context: {}\n');
+  await put('.oc3/project.yml', 'name: demo\nnamespaces:\n  core: ядро\n');
+  await put('.oc3/conventions/naming.yml', 'key: naming\nsummary: kebab-case\nrule: x\n');
   git('init', '-q');
   git('add', '.');
   git('-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-qm', 'init');
@@ -83,11 +83,11 @@ describe('harness docs delta', () => {
       '.oc3/.delta/naming.yml',
       'summary: s\nitems:\n  - op: add\n    kind: rule\n    target: other\n    summary: новое\n    evidence: e\n',
     );
-    await put('.oc3/doc/conventions/other.yml', 'key: other\nsummary: новое\nrule: y\n');
+    await put('.oc3/conventions/other.yml', 'key: other\nsummary: новое\nrule: y\n');
     expect(await main(['docs-delta', 'open', await sessionId(), '--home', home], NOW)).toBe(0);
     expect(await state()).toBe('done');
     expect(existsSync(path.join(root, '.oc3/.delta/naming.yml'))).toBe(false);
-    expect(existsSync(path.join(root, '.oc3/doc/index.yml'))).toBe(true);
+    expect(existsSync(path.join(root, '.oc3/index.yml'))).toBe(false);
   });
 
   it('verify и close сессии не валят нарушения в дельтах прошлых сессий', async () => {
@@ -107,7 +107,7 @@ describe('harness docs delta', () => {
       '.oc3/.delta/naming.yml',
       'summary: s\nitems:\n  - op: add\n    kind: rule\n    target: other\n    summary: новое\n    evidence: e\n',
     );
-    await put('.oc3/doc/conventions/other.yml', 'key: other\nsummary: новое\nrule: y\n');
+    await put('.oc3/conventions/other.yml', 'key: other\nsummary: новое\nrule: y\n');
     expect(await main(['docs-delta', 'open', await sessionId(), '--home', home], NOW)).toBe(0);
     expect(await state()).toBe('done');
     expect(existsSync(path.join(root, '.oc3/.delta/naming.yml'))).toBe(false);
@@ -118,7 +118,7 @@ describe('harness docs delta', () => {
     await project();
     const args = ['--root', root, '--home', home];
     expect(await main(['docs-delta', 'start', '--name', 'naming', ...args], NOW)).toBe(0);
-    await put('.oc3/doc/conventions/naming.yml', 'key: naming\nsummary: snake_case\nrule: x\n');
+    await put('.oc3/conventions/naming.yml', 'key: naming\nsummary: snake_case\nrule: x\n');
     const id = await sessionId();
     for (let i = 0; i < 3; i++) {
       expect(await main(['docs-delta', 'open', id, '--home', home], NOW)).toBe(0);
@@ -157,6 +157,6 @@ describe('harness source sync', () => {
     );
     expect(await main(['source-sync', 'open', await sessionId(), '--home', home], NOW)).toBe(0);
     expect(await state()).toBe('done');
-    expect(existsSync(path.join(root, '.oc3/doc/index.yml'))).toBe(true);
+    expect(existsSync(path.join(root, '.oc3/index.yml'))).toBe(false);
   });
 });

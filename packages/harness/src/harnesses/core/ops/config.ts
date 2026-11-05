@@ -120,7 +120,7 @@ export type Level = (typeof LEVELS)[number];
 
 export const AUTONOMY_SCHEMA = {
   $schema: 'https://json-schema.org/draft/2020-12/schema',
-  title: '.oc3/doc/autonomy.yml — политика действий наружу',
+  title: '.oc3/autonomy.yml — политика действий наружу',
   type: 'object',
   required: ['levels'],
   properties: {

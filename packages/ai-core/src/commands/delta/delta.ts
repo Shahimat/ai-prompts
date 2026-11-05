@@ -5,7 +5,19 @@ import path from 'node:path';
 import { parse } from 'yaml';
 import { UsageError, type Diagnostic } from '#shared/diagnostics';
 import { errorCode, errorMessage, isOneOf, isRecord } from '#shared/guards';
-import { AI_CORE_PATH, CONTEXT_INDEX_PATH, DELTA_DIR, MODULES_DIR } from '#shared/layout';
+import {
+  AI_CORE_PATH,
+  DELTA_DIR,
+  MODULES_DIR,
+  PROJECT_PATH,
+  AUTONOMY_PATH,
+  CONVENTIONS_DIR,
+  MANUALS_DIR,
+  GLOSSARY_DIR,
+  KNOWLEDGE_DIR,
+  DATA_DIR,
+  SCHEMAS_DIR,
+} from '#shared/layout';
 import { compileSchema } from '#shared/schema';
 
 export const DELTA_SCHEMA = {
@@ -77,7 +89,7 @@ interface Broken {
   targets: string[];
 }
 
-const NOT_DOCS = [CONTEXT_INDEX_PATH, AI_CORE_PATH, `${MODULES_DIR}/`, `${DELTA_DIR}/`];
+const NOT_DOCS = [`${SCHEMAS_DIR}/`, `${MODULES_DIR}/`, `${DELTA_DIR}/`, AI_CORE_PATH];
 
 function git(root: string, args: string[]): { ok: boolean; out: string } {
   const r = spawnSync('git', args, { cwd: root, encoding: 'utf8' });
@@ -85,17 +97,27 @@ function git(root: string, args: string[]): { ok: boolean; out: string } {
 }
 
 async function docRoots(root: string): Promise<string[]> {
-  const roots = new Set(['.oc3/doc', '.oc3/modules', 'CHANGELOG.md']);
+  const roots = new Set([
+    CONVENTIONS_DIR,
+    MANUALS_DIR,
+    GLOSSARY_DIR,
+    KNOWLEDGE_DIR,
+    DATA_DIR,
+    MODULES_DIR,
+    PROJECT_PATH,
+    AUTONOMY_PATH,
+    'CHANGELOG.md',
+  ]);
   let manifests: string[] = [];
   try {
-    manifests = (await readdir(path.join(root, '.oc3/modules'))).filter((f) => f.endsWith('.yml'));
+    manifests = (await readdir(path.join(root, MODULES_DIR))).filter((f) => f.endsWith('.yml'));
   } catch (error) {
     if (errorCode(error) !== 'ENOENT') throw error;
   }
   for (const m of manifests) {
     let data: unknown;
     try {
-      data = parse(await readFile(path.join(root, '.oc3/modules', m), 'utf8'));
+      data = parse(await readFile(path.join(root, MODULES_DIR, m), 'utf8'));
     } catch {
       continue;
     }

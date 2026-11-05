@@ -4,10 +4,10 @@ kind: module
 applicable_to: [agent-operational-contract-v2, agent-operational-contract-v3]
 patterns: [source-sync]
 title: Модуль code-rules — правила стиля кода на fullstack js/ts
-use_case: Подключается к проекту на js/ts (frontend / backend / full). Приносит пакет атомарных правил стиля кода в подпапку .oc3/doc/conventions/code/. Стартовый набор — правило про комментарии; модуль расширяемый — новые правила js/ts добавляются как отдельные YAML в той же подпапке. Живёт как обычные проектные conventions, но группируется физически, чтобы пакет было видно и в дереве, и в diff.
+use_case: Подключается к проекту на js/ts (frontend / backend / full). Приносит пакет атомарных правил стиля кода в подпапку .oc3/conventions/code/. Стартовый набор — правило про комментарии; модуль расширяемый — новые правила js/ts добавляются как отдельные YAML в той же подпапке. Живёт как обычные проектные conventions, но группируется физически, чтобы пакет было видно и в дереве, и в diff.
 tags: [docs-as-code, code-style, javascript, typescript, agent-contract, module]
 feature:
-  summary: правила стиля кода на js/ts — пакет conventions в .oc3/doc/conventions/code/
+  summary: правила стиля кода на js/ts — пакет conventions в .oc3/conventions/code/
   default: false
   requires: []
   conflicts: []
@@ -20,7 +20,7 @@ feature:
 Ты — агент, применяющий этот модуль к проекту, где уже подключён один
 из базовых контрактов, перечисленных в `applicable_to` этого модуля
 (см. frontmatter). Модуль приносит пакет правил стиля кода на js/ts —
-атомарные convention-файлы в подпапке `.oc3/doc/conventions/code/`.
+атомарные convention-файлы в подпапке `.oc3/conventions/code/`.
 
 Модуль подчиняется правилу WRITE > UPDATE базы: только добавляет
 подпапку внутри существующего слоя conventions и файлы правил внутри
@@ -29,11 +29,11 @@ feature:
 Ничего не создавай без явного «да» от пользователя. Перед подключением
 выполни две проверки:
 
-1. `sync.contract.key` из `.oc3/doc/project.yml` проекта входит в
+1. `sync.contract.key` из `.oc3/project.yml` проекта входит в
    `applicable_to` этого модуля. Не входит — стоп, скажи пользователю,
    что модуль несовместим с подключённой базой, и покажи список
    поддерживаемых баз.
-2. Стек проекта — js/ts. Читаешь `stack` из `.oc3/doc/project.yml`.
+2. Стек проекта — js/ts. Читаешь `stack` из `.oc3/project.yml`.
    Признаки применимости: `javascript`, `typescript`, `js`, `ts`,
    `node`, `nodejs`, `deno`, `bun` или js/ts-фреймворки (`react`,
    `nextjs`, `nuxt`, `vue`, `svelte`, `nestjs`, `express`, `fastify`,
@@ -60,15 +60,15 @@ feature:
 
 Модуль **дополняет** существующий слой conventions базы. Всё, что
 модуль приносит — обычные атомарные conventions, читаемые тем же
-протоколом, что и conventions в корне `.oc3/doc/conventions/`.
+протоколом, что и conventions в корне `.oc3/conventions/`.
 
 ## Как модуль размещает правила
 
-Все правила модуля живут в подпапке `.oc3/doc/conventions/code/`
+Все правила модуля живут в подпапке `.oc3/conventions/code/`
 внутри существующего слоя conventions:
 
 ```
-.oc3/doc/
+.oc3/
   conventions/
     verification.yml          ← convention от базы
     naming.yml                ← convention от базы
@@ -80,7 +80,7 @@ feature:
 
 Правила размещения:
 
-- каждое правило — отдельный YAML `.oc3/doc/conventions/code/<key>.yml`
+- каждое правило — отдельный YAML `.oc3/conventions/code/<key>.yml`
   (атомарно, по правилу базы «одна convention — один файл»);
 - `key` внутри YAML — короткий (`comments`, `imports`), **без префикса
   `code-`**: физическая группировка ушла в путь, префикс дублировал бы
@@ -141,7 +141,7 @@ rule: |
 - у каждого правила обязательно поле `summary` — одна строка для
   индекса и маршрутизации;
 - бандлы собираются автоматически (`ai memory build`,
-  подпапка `.oc3/doc/conventions/code/` читается рекурсивно): записи
+  подпапка `.oc3/conventions/code/` читается рекурсивно): записи
   руками не вносятся — после изменения правил пересобери бандл;
 - блок `AGENTS.md`:
 
@@ -150,7 +150,7 @@ rule: |
   <!-- module:code-rules-fullstack-js-ts -->
   ## code-rules
 
-  - стиль кода на js/ts → `.oc3/doc/conventions/code/<key>.yml`.
+  - стиль кода на js/ts → `.oc3/conventions/code/<key>.yml`.
   <!-- /module:code-rules-fullstack-js-ts -->
   ```
   <!-- /expect:agents-md-readonly -->
@@ -164,7 +164,7 @@ rule: |
 1. Добавь новый шаблон правила в тело модуля отдельным подразделом
    в «Стартовый набор правил» (переименовать раздел в «Правила
    пакета», если станет уместно).
-2. Добавь путь `.oc3/doc/conventions/code/<key>.yml` в секцию
+2. Добавь путь `.oc3/conventions/code/<key>.yml` в секцию
    `provides.files` модуля.
 3. Пересобери `prompts/index.yml` в источнике `ai-prompts`
    (`npm run index:build`) — SHA модуля обновится.
@@ -185,7 +185,7 @@ rule: |
 
 - **Файл появился в новом `provides.files`, не было в старом.**
   Модуль добавил правило. Покажи шаблон из тела свежего модуля,
-  дождись «да», заведи файл в `.oc3/doc/conventions/code/<key>.yml`,
+  дождись «да», заведи файл в `.oc3/conventions/code/<key>.yml`,
   пересобери бандл (`ai memory build`).
 - **Файл был в старом `provides.files`, нет в новом.** Модуль убрал
   правило. Покажи файл под удаление вместе с его текущим содержимым
@@ -201,7 +201,7 @@ rule: |
   рассинхрона. Спроси: переустановить из шаблона свежего модуля или
   явно снять правило (в этом случае убери путь из `provides.files`
   manifest'а — фактически «локальный форк модуля» по этому правилу).
-- **Папка пустеет.** Если после апдейта в `.oc3/doc/conventions/code/`
+- **Папка пустеет.** Если после апдейта в `.oc3/conventions/code/`
   не осталось файлов из `provides.files` — удали и саму подпапку.
   Папка объявлена в `provides.layers`, её жизненный цикл — на модуле.
 
@@ -229,10 +229,10 @@ manifest.
 Модуль добавляет к базовым проверкам:
 
 - `provides.files` в manifest'е `.oc3/modules/code-rules-fullstack-js-ts.yml`
-  расходится с реальным содержимым `.oc3/doc/conventions/code/`
+  расходится с реальным содержимым `.oc3/conventions/code/`
   (файл заявлен, но отсутствует, или наоборот);
 - запись conventions в манифесте есть, а файла
-  `.oc3/doc/conventions/code/<key>.yml` нет (или наоборот);
+  `.oc3/conventions/code/<key>.yml` нет (или наоборот);
 - `key` внутри YAML не совпадает с именем файла без расширения;
 - `key` в YAML содержит префикс `code-` (не должен: префикс живёт
   в пути);
@@ -249,12 +249,12 @@ manifest.
 ```yaml
 provides:
   layers:
-    - .oc3/doc/conventions/code/
+    - .oc3/conventions/code/
   files:
-    - .oc3/doc/conventions/code/comments.yml
+    - .oc3/conventions/code/comments.yml
 ```
 
-- `layers: [.oc3/doc/conventions/code/]` — модуль вводит подпапку
+- `layers: [.oc3/conventions/code/]` — модуль вводит подпапку
   внутри существующего слоя conventions. Жизненный цикл подпапки — на
   модуле (создаём при подключении, удаляем при опустошении).
 - `files: [...]` — авторитетный список файлов правил, актуальный
@@ -266,7 +266,7 @@ provides:
 
 ## Обфусцированный пример
 
-`.oc3/doc/conventions/code/comments.yml` (после подключения):
+`.oc3/conventions/code/comments.yml` (после подключения):
 
 ```yaml
 key: comments
@@ -281,11 +281,11 @@ rule: |
 ```yaml
 conventions:
   - key: verification
-    path: .oc3/doc/conventions/verification.yml
+    path: .oc3/conventions/verification.yml
   - key: naming
-    path: .oc3/doc/conventions/naming.yml
+    path: .oc3/conventions/naming.yml
   - key: comments
-    path: .oc3/doc/conventions/code/comments.yml
+    path: .oc3/conventions/code/comments.yml
     module: code-rules-fullstack-js-ts
 ```
 
@@ -303,9 +303,9 @@ synced_sha: <hex>
 synced_at: 2026-07-12
 provides:
   layers:
-    - .oc3/doc/conventions/code/
+    - .oc3/conventions/code/
   files:
-    - .oc3/doc/conventions/code/comments.yml
+    - .oc3/conventions/code/comments.yml
 ```
 
 ## Поведение по умолчанию
@@ -314,8 +314,8 @@ provides:
 
 - предпочитай атомарный файл-правило вместо объединения нескольких
   смысловых пунктов в один YAML;
-- предпочитай подпапку `.oc3/doc/conventions/code/` вместо корня
-  `.oc3/doc/conventions/` для правил, привнесённых этим модулем;
+- предпочитай подпапку `.oc3/conventions/code/` вместо корня
+  `.oc3/conventions/` для правил, привнесённых этим модулем;
 - предпочитай короткий `key` без префикса `code-` — префикс сидит
   в пути, дублировать его в ключе не надо;
 - не редактируй базовые правила размещения conventions — модуль

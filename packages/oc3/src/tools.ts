@@ -76,7 +76,7 @@ const TOOLS: readonly Oc3Tool[] = [
   {
     name: 'models_set',
     description:
-      'Сменить модель роли: любая из каталога OpenCode вида provider/model[#variant]; сохраняется в .oc3/doc/project.yml → roles.models',
+      'Сменить модель роли: любая из каталога OpenCode вида provider/model[#variant]; сохраняется в .oc3/project.yml → roles.models',
     input: {
       type: 'object',
       properties: { role: str('имя роли'), model: str('модель вида provider/model#variant') },
@@ -89,14 +89,14 @@ const TOOLS: readonly Oc3Tool[] = [
   {
     name: 'models_apply',
     description:
-      'Применить roles.models из .oc3/doc/project.yml к .agents/agents и .opencode/agents — восстановление после source-sync',
+      'Применить roles.models из .oc3/project.yml к .agents/agents и .opencode/agents — восстановление после source-sync',
     input: { type: 'object', properties: {}, additionalProperties: false },
     command: OC3_COMMANDS.modelsApply,
     args: (_input, root) => base(root),
   },
   {
     name: 'briefing_show',
-    description: 'Режим работы сессии оператора из .oc3/doc/project.yml → briefing',
+    description: 'Режим работы сессии оператора из .oc3/project.yml → briefing',
     input: { type: 'object', properties: {}, additionalProperties: false },
     command: OC3_COMMANDS.briefingShow,
     args: (_input, root) => base(root),

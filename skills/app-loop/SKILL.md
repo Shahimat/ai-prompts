@@ -5,7 +5,7 @@ description: Петля «предметный домен ↔ приложени
 
 # app-loop
 
-Приложение (слой `domain`: `.oc3/doc/data/entities`, `.oc3/doc/data/behavior`) и
+Приложение (слой `domain`: `.oc3/data/entities`, `.oc3/data/behavior`) и
 предметный домен (`counterpart` из `.oc3/modules/app-loop.yml` →
 `answers`: `life` или `analysis`) связаны петлёй:
 
@@ -19,8 +19,8 @@ description: Петля «предметный домен ↔ приложени
 
 ## Маршруты
 
-- зачем существует фича X → `serves` в `.oc3/doc/data/entities/<id>.yml` /
-  `.oc3/doc/data/behavior/<id>.yml`;
+- зачем существует фича X → `serves` в `.oc3/data/entities/<id>.yml` /
+  `.oc3/data/behavior/<id>.yml`;
 - что автоматизирует потребность Y → `automated_by` в записи домена;
 - можно ли доверять числу из приложения → провенанс записи, затем
   `verified` behavior-источника.
@@ -31,7 +31,7 @@ description: Петля «предметный домен ↔ приложени
 `behavior`, тип записи домена из skill `<counterpart>`, `goal`).
 
 ```yaml
-# .oc3/doc/data/entities/sleep-tracker.yml (приложение)
+# .oc3/data/entities/sleep-tracker.yml (приложение)
 serves: [signal:sleep-depth, goal:better-sleep]
 
 # запись домена (поле — из формата модуля life / analysis)

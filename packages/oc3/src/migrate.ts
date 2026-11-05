@@ -1,28 +1,33 @@
 import { existsSync } from 'node:fs';
 import { mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { AI_CORE_PATH, BUNDLES_DIR, OPS_PATH, SKILLS_PATH } from '@shahimat/ai-core';
+import {
+  AI_CORE_PATH,
+  ABOLISHED_INDEX,
+  BUNDLES_DIR,
+  OPS_PATH,
+  SKILLS_PATH,
+} from '@shahimat/ai-core';
 import type { CommandArgs } from '@shahimat/ai-core';
 import { ensureMemorySkeleton } from '#install';
 
 const FILE_MAP: readonly (readonly [string, string])[] = [
-  ['context/project.yml', '.oc3/doc/project.yml'],
-  ['context/autonomy.yml', '.oc3/doc/autonomy.yml'],
-  ['context/glossary.yml', '.oc3/doc/glossary/common.yml'],
-  ['context/index.yml', '.oc3/doc/index.yml'],
+  ['context/project.yml', '.oc3/project.yml'],
+  ['context/autonomy.yml', '.oc3/autonomy.yml'],
+  ['context/glossary.yml', '.oc3/glossary/common.yml'],
   ['context/ops.yml', '.oc3/ops.yml'],
   ['context/skills.yml', '.oc3/skills.yml'],
   ['context/ai-core.yml', '.oc3/ai-core.yml'],
 ];
 
 const DIR_MAP: readonly (readonly [string, string])[] = [
-  ['context/conventions', '.oc3/doc/conventions'],
+  ['context/conventions', '.oc3/conventions'],
   ['context/.delta', '.oc3/.delta'],
   ['context/modules', '.oc3/modules'],
-  ['docs/entities', '.oc3/doc/data/entities'],
-  ['docs/behavior', '.oc3/doc/data/behavior'],
-  ['docs/manuals', '.oc3/doc/manuals'],
-  ['docs/knowledge', '.oc3/doc/knowledge'],
+  ['docs/entities', '.oc3/data/entities'],
+  ['docs/behavior', '.oc3/data/behavior'],
+  ['docs/manuals', '.oc3/manuals'],
+  ['docs/knowledge', '.oc3/knowledge'],
   ['goals', '.oc3/goals'],
   ['.ops/feedback', '.oc3/feedback'],
   ['.ops/operator', '.oc3/operator'],
@@ -58,12 +63,16 @@ const NEW_GITIGNORE: readonly string[] = [
 
 const CONFIG_FILES: readonly string[] = [AI_CORE_PATH, SKILLS_PATH, OPS_PATH];
 
+const DOC_PREFIX: readonly (readonly [string, string])[] = [['.oc3/doc/', '.oc3/']];
+
 const PREFIX_MAP: readonly (readonly [string, string])[] = [
   ...FILE_MAP,
   ...DIR_MAP.map(([from, to]) => [`${from}/`, `${to}/`] as const),
+  ...DOC_PREFIX,
 ];
 
 const OLD_LAYOUT_SIGNATURES: readonly string[] = [
+  '.oc3/doc',
   'context/project.yml',
   'context/ai-core.yml',
   'context/skills.yml',
@@ -89,6 +98,9 @@ const applyPrefixes = (text: string): string => {
   for (const [from, to] of PREFIX_MAP) out = out.split(from).join(to);
   return out;
 };
+
+const renameChecksKey = (text: string): string =>
+  text.replace(/^(\s*)context-index:(.*)$/gm, '$1context:$2');
 
 const walkFiles = async (dir: string): Promise<string[]> => {
   const entries = await readdir(dir, { withFileTypes: true, recursive: true });
@@ -137,6 +149,39 @@ const pruneEmpty = async (dir: string): Promise<void> => {
   if (rest.length === 0) await rm(dir, { recursive: true }).catch(() => undefined);
 };
 
+const migrateDocDir = async (root: string, report: Report): Promise<void> => {
+  const doc = path.join(root, '.oc3', 'doc');
+  if (!existsSync(doc)) return;
+  for (const entry of await readdir(doc, { withFileTypes: true })) {
+    const from = `.oc3/doc/${entry.name}`;
+    if (entry.name === ABOLISHED_INDEX) {
+      await rm(path.join(doc, entry.name), { force: true });
+      report.moved.push(`${from} → удалён (${ABOLISHED_INDEX} упразднён в v4)`);
+      continue;
+    }
+    const to = `.oc3/${entry.name}`;
+    if (existsSync(path.join(root, to))) {
+      report.legacy.push(`${from} → ${to}: цель уже существует — сверь и перенеси вручную`);
+      continue;
+    }
+    await rename(path.join(doc, entry.name), path.join(root, to));
+    report.moved.push(`${from} → ${to}`);
+  }
+  const rest = await readdir(doc).catch(() => ['x']);
+  if (rest.length === 0) {
+    await rm(doc, { recursive: true, force: true });
+    report.moved.push('.oc3/doc → удалён: плоская структура v4');
+  } else report.legacy.push('.oc3/doc: остался не пустым после переноса — проверь и удали вручную');
+};
+
+const dropAbolishedIndex = async (root: string, report: Report): Promise<void> => {
+  const rel = `context/${ABOLISHED_INDEX}`;
+  const abs = path.join(root, rel);
+  if (!existsSync(abs)) return;
+  await rm(abs, { force: true });
+  report.moved.push(`${rel} → удалён (${ABOLISHED_INDEX} упразднён в v4)`);
+};
+
 const migrateTicketDirs = async (root: string, report: Report): Promise<void> => {
   const ops = path.join(root, '.ops');
   if (!existsSync(ops)) return;
@@ -169,7 +214,8 @@ const rewriteConfigs = async (root: string, report: Report): Promise<void> => {
     const abs = path.join(root, rel);
     const text = await readFile(abs, 'utf8').catch(() => undefined);
     if (text === undefined) continue;
-    const next = applyPrefixes(text);
+    let next = applyPrefixes(text);
+    if (rel === AI_CORE_PATH) next = renameChecksKey(next);
     if (next === text) continue;
     await writeFile(abs, next, 'utf8');
     report.configs.push(`${rel}: префиксы путей заменены на .oc3/`);
@@ -194,6 +240,8 @@ const rewriteGitignore = async (root: string, report: Report): Promise<void> => 
 export async function migrateLayout(root: string): Promise<string[]> {
   const report: Report = { moved: [], legacy: [], configs: [] };
   await mkdir(path.join(root, BUNDLES_DIR), { recursive: true });
+  await migrateDocDir(root, report);
+  await dropAbolishedIndex(root, report);
   for (const [from, to] of FILE_MAP) await moveFile(root, from, to, report);
   for (const [from, to] of DIR_MAP) await moveTree(root, from, to, report);
   await migrateTicketDirs(root, report);
@@ -212,7 +260,9 @@ export async function migrateLayout(root: string): Promise<string[]> {
 
 export async function runMigrate(args: CommandArgs): Promise<number> {
   if (!detectOldLayout(args.root)) {
-    console.log('oc3 migrate: старая раскладка (context/, docs/, goals/, .ops/) не обнаружена');
+    console.log(
+      'oc3 migrate: старая раскладка (.oc3/doc/, context/, docs/, goals/, .ops/) не обнаружена',
+    );
     return 0;
   }
   const lines = await migrateLayout(args.root);

@@ -64,18 +64,18 @@ CHANGELOG.md                       ← журнал решений
 package.json                       ← devDependencies: @shahimat/ai-core, @shahimat/oc3
 .gitattributes                     ← eol=lf, CHANGELOG.md merge=union
 .gitignore                         ← .oc3/operator/, .oc3/locks/, .oc3/bundles/ — локальные и генерируемые
-.oc3/
-  doc/                             ← запечатанные факты: читает/пишет только librarian
-    project.yml                    ← реквизиты, reality, external, sync, roles.exceptions, roles.models
-    autonomy.yml                   ← единственный источник self/ask/never
-    glossary/common.yml            ← общие термины
-    conventions/<key>.yml          ← договорённости проекта
-    data/entities/                 ← сущности (data-структура; схема в data/__schemas/)
-    data/behavior/                 ← поведение (data-структура)
-    data/__schemas/*.schema.json   ← jsonschema структур данных и манифеста
-    manuals/<name>.md              ← процедурные руководства
-    knowledge/                     ← знания о внешних системах
-  .oc3/goals/                           ← цели и программы: *.expect.ts и *.expect.json
+.oc3/                              ← плоская структура: корень — константы, рядом рабочие каталоги
+  project.yml                      ← реквизиты, reality, external, sync, roles.exceptions, roles.models
+  autonomy.yml                     ← единственный источник self/ask/never
+  glossary/common.yml              ← общие термины (файл — из manifest.json → files)
+  conventions/<key>.yml            ← договорённости проекта
+  data/entities/                   ← сущности (data-структура; схема в data/__schemas/)
+  data/behavior/                   ← поведение (data-структура)
+  data/__schemas/*.schema.json     ← jsonschema структур данных и манифеста
+  manuals/<name>.md                ← процедурные руководства
+  knowledge/                       ← знания о внешних системах (файлы — из manifest.json → files)
+  manifest.json                    ← манифест памяти: namespace, data, budgets, files, layout
+  goals/                           ← цели и программы: *.expect.ts и *.expect.json
   bundles/                         ← сгенерированные бандлы (генерирует ai memory build)
   modules/<key>.yml                ← manifest'ы возможностей
   skills.yml                       ← каталог skills, requires, permissions, roles
@@ -84,20 +84,25 @@ package.json                       ← devDependencies: @shahimat/ai-core, @shah
   skills/                          ← core-skills и project-skills
   agents/                          ← роли: frontmatter + промпт
 ```
+
+Запечатанный слой — `.oc3/` без рабочих каталогов (goals/, bundles/,
+reports/, research/, verdicts/, sessions/, locks/, submit/, feedback/,
+operator/): читает и пишет только librarian; агентам — бандлы.
+
 Роли `operator` нет: оператор — primary-сессия, `kind` и `lifecycle` —
 из контракта; протокол — в `AGENTS.md`, allowlist — в `.oc3/skills.yml`.
 Файл ролей-конфига не создаётся: роль — файл `.agents/agents/<name>.md`.
 Канон для всех агентов — `AGENTS.md` и `.agents/`; файлы под инструмент
-(`.codex/`, `.opencode/`) — производные. Запечатанный слой фактов (`.oc3/doc/`)
+(`.codex/`, `.opencode/`) — производные. Запечатанный слой фактов (`.oc3/`)
 агентам не доступен: они читают бандлы (`.oc3/bundles/`).
 
 <!-- expect:no-rule-copies -->
-Правила самого контракта в `.oc3/doc/conventions/` **не копируются**.
+Правила самого контракта в `.oc3/conventions/` **не копируются**.
 Там — только договорённости проекта; правила контракта живут в
 `AGENTS.md` и skills и обновляются через source-sync.
 <!-- /expect:no-rule-copies -->
 
-### `.oc3/doc/project.yml`
+### `.oc3/project.yml`
 
 ```yaml
 name: <project>
@@ -126,7 +131,7 @@ sync:
 `external`. Документ и источник реальности расходятся — прав источник.
 Новый namespace — только с явного «да» пользователя.
 
-### `.oc3/doc/autonomy.yml`
+### `.oc3/autonomy.yml`
 
 Единственный источник уровней; пресет может задать дефолты, но
 установщик пишет их сюда. В `skills.yml` уровней нет.
@@ -184,7 +189,7 @@ skills:
 только `operator-feedback` и, как явное исключение, `browser-read`;
 любая другая запись с `roles: [operator]` — ошибка валидатора.
 
-### `.oc3/doc/conventions/<key>.yml` и `.gitattributes`
+### `.oc3/conventions/<key>.yml` и `.gitattributes`
 
 Одно правило — один файл: `key` (kebab-case, совпадает с именем файла),
 `summary` одной строкой и `rule`. `key` стабилен. В `.gitattributes` —
@@ -209,11 +214,11 @@ skills:
 
 Любой запрос — сначала оперативная память (`.oc3/bundles/index.md`): факты, веер узлов, каталоги; недостающее — через librarian.
 
-- как сейчас устроено X → источник реальности (`.oc3/doc/project.yml` → `reality`: код репозитория или целевые системы); почему X → `CHANGELOG.md`, затем `git log`;
-- как договорились → `.oc3/doc/conventions/<key>.yml`; реквизиты, namespaces, external, roles.exceptions, roles.models → `.oc3/doc/project.yml`;
-- цели, программы, тикеты → `.oc3/goals/`; роль, skills, browser, autonomy → `.agents/agents/`, `.oc3/skills.yml`, `.oc3/doc/autonomy.yml`; возможности → `.oc3/modules/*.yml`.
+- как сейчас устроено X → источник реальности (`.oc3/project.yml` → `reality`: код репозитория или целевые системы); почему X → `CHANGELOG.md`, затем `git log`;
+- как договорились → `.oc3/conventions/<key>.yml`; реквизиты, namespaces, external, roles.exceptions, roles.models → `.oc3/project.yml`;
+- цели, программы, тикеты → `.oc3/goals/`; роль, skills, browser, autonomy → `.agents/agents/`, `.oc3/skills.yml`, `.oc3/autonomy.yml`; возможности → `.oc3/modules/*.yml`.
 
-Полный обход запечатанного слоя (`.oc3/doc/`) и очереди (`.oc3/goals/`) запрещён: агентам читать можно только бандлы (`.oc3/bundles/`); иди по вееру.
+Полный обход запечатанного слоя (`.oc3/` без рабочих каталогов) и очереди (`.oc3/goals/`) запрещён: агентам читать можно только бандлы (`.oc3/bundles/`); иди по вееру.
 
 ## Жёсткие правила
 
@@ -223,7 +228,7 @@ skills:
 4. Документацию пишет только librarian по `docs_request`: оператор, executor и judge её читают; генерируемое меняет `ai`.
 5. Ничего не создавать, не переносить, не удалять без явного «да».
 6. Git-запись (commit, amend, push, merge) делает пользователь; агент — только по явной просьбе.
-7. Тяжёлая работа — ролям; действие наружу — по `.oc3/doc/autonomy.yml`; ролевые skills оператор не загружает.
+7. Тяжёлая работа — ролям; действие наружу — по `.oc3/autonomy.yml`; ролевые skills оператор не загружает.
 Блоки возможностей ниже обязательны наравне с этими правилами.
 ## Сценарии
 
@@ -232,7 +237,7 @@ skills:
 ## Оператор
 
 - старт сессии — брифинг: дефолт проекта или кастом на сессию (роли и модели можно добавить или убрать); без ответа роли и тикеты не запускаешь — «быстро» не отменяет; детали — skill `workflow`;
-- одна primary-сессия: приоритеты — порядок импортов программ и указания пользователя; пишет `.oc3/goals/`, `.oc3/operator/state.yml`, `.oc3/feedback/`, сбрасывает `*.expect.json`, не пишет `.oc3/doc/`, `CHANGELOG.md`, код;
+- одна primary-сессия: приоритеты — порядок импортов программ и указания пользователя; пишет `.oc3/goals/`, `.oc3/operator/state.yml`, `.oc3/feedback/`, сбрасывает `*.expect.json`, не пишет `.oc3/`, `CHANGELOG.md`, код;
 - роли запускает только с `background: true`; не блокируется и остаётся доступен человеку, просыпается на результате или сообщении;
 - цель — `.oc3/goals/<goal>.expect.ts`, программа — `.oc3/goals/program--<key>.expect.ts`, тикет — `describe('ticket: …')`; один активный тикет на цель, paused — `crit.wip`;
 - ролям — `brief` до 15 строк, от них — `report`; judge — `verdict`, librarian — `docs_request`; researcher от оператора — сколько угодно, от executor — ≤2 на тикет; executor — ≤5 активных (paused не считается); librarian — один;
@@ -255,7 +260,7 @@ skills:
 
 <!-- expect:docs-readonly -->
 В операторе, executor и judge файлы проектной документации только
-читаются. Правки `.oc3/doc/` и `CHANGELOG.md` делает librarian по
+читаются. Правки `.oc3/` и `CHANGELOG.md` делает librarian по
 формальному `docs_request`: что зафиксировать, зачем, evidence, слой,
 критерий готовности. Намерения — `decision`, `fact`, `rule`,
 `behavior-change`, `task`, `manual`, `revise`.
@@ -272,7 +277,7 @@ harness поток идёт через `docs-delta`; без модуля librari
 
 ## Роли и права
 
-- **operator** — читает документацию, код, `.oc3/doc/`, `.oc3/goals/`; пишет
+- **operator** — читает документацию, код, `.oc3/`, `.oc3/goals/`; пишет
   `.oc3/goals/`, `.oc3/operator/state.yml`, `.oc3/feedback/`; постоянная, одна.
 - **researcher** — читает всё по задаче; пишет `.oc3/research/<тикет>/`;
   свежая, параллельных много.
@@ -284,7 +289,7 @@ harness поток идёт через `docs-delta`; без модуля librari
 - **judge** — читает expectations, DoD и результат; пишет
   `.oc3/verdicts/<тикет>/<run>.yml`, `*.expect.json` и разрешённые
   строки `.oc3/goals/<goal>.expect.ts`; всегда свежий, без resume.
-- **librarian** — читает документацию, код, `.oc3/goals/`; пишет `.oc3/doc/`,
+- **librarian** — читает документацию, код, `.oc3/goals/`; пишет `.oc3/`,
   `CHANGELOG.md`; свежий, один.
 
 Модели — дефолты с override: роли — `zai-coding-plan/glm-5.3-flash#max`,
@@ -304,7 +309,7 @@ autonomy. Judge не меняет состав `describe`/`crit`/`warn`/`it.todo
   `lifecycle`, `concurrency`, `output`, `artifacts`; `skills` — в
   `.oc3/skills.yml`;
 - имена core-ролей зарезервированы; коллизия — ошибка; custom-роль не
-  переопределяет core-права; `role_exceptions` — в `.oc3/doc/project.yml`;
+  переопределяет core-права; `role_exceptions` — в `.oc3/project.yml`;
 - `output` обязателен для subagent-роли; роль без `output` — просто
   субагент, не роль контракта.
 
@@ -411,7 +416,7 @@ Browser — capability, не роль.
   `browser.screenshot`, `browser.click`, `browser.type`,
   `browser.submit` — в `.oc3/skills.yml`; уровни
   `self`/`ask`/`never` по действиям и доменам — только в
-  `.oc3/doc/autonomy.yml`. `submit`, платёж, удаление — по умолчанию
+  `.oc3/autonomy.yml`. `submit`, платёж, удаление — по умолчанию
   `ask` или `never`.
 - Нужен browser-tool/MCP: нативный browser OpenCode v2 не урезает
   действие механически, поэтому `browser-read` — инструкция плюс аудит;
@@ -438,7 +443,7 @@ Browser — capability, не роль.
 Пресет задаёт modules, install-time `role_skills`, `role_exceptions`,
 `roles` и дефолты `autonomy`; отдельной схемы `.oc3/goals/` нет.
 `role_skills` установщик инвертирует в `roles` записей
-`.oc3/skills.yml`; `role_exceptions` пишет в `.oc3/doc/project.yml` →
+`.oc3/skills.yml`; `role_exceptions` пишет в `.oc3/project.yml` →
 `roles.exceptions`. Общее: `goals` (старая очередь views) не
 подключается; `harness` — только для headless/CI, не по умолчанию;
 `.oc3/goals/` — плоские `*.expect.ts`; `app-loop` использует
@@ -523,7 +528,7 @@ pre-processing искажает контент, SHA не сойдётся. Сч�
 
 ### Конфигурация и проверка `key`
 
-Блок `sync` — в `.oc3/doc/project.yml`. Manifest'ы модулей — в
+Блок `sync` — в `.oc3/project.yml`. Manifest'ы модулей — в
 `.oc3/modules/<key>.yml`; skills и роли хранят SHA в `parts`, у skill
 в индексе — `files` с `raw` и `sha256`.
 
@@ -534,7 +539,7 @@ frontmatter с ожидаемым. Не совпало — стоп: защит�
 ### Развилка
 
 - **greenfield** — документации нет или только пустой `README.md`;
-- **v2** — в `.oc3/doc/project.yml` есть `sync.contract.key: agent-operational-contract-v2`;
+- **v2** — в `.oc3/project.yml` есть `sync.contract.key: agent-operational-contract-v2`;
 - **brownfield** — своя документация в любом виде. Не уверен — спроси.
 
 ### greenfield
@@ -543,8 +548,8 @@ frontmatter с ожидаемым. Не совпало — стоп: защит�
 2. Спроси одним блоком: название и одна строка о проекте, стек,
    namespaces, инструменты (Codex, OpenCode, другие).
 3. Запусти установщик: `npx @shahimat/oc3 init` — пакеты, `AGENTS.md`
-   по шаблону, каркас `.oc3/` (`doc/project.yml`, `ai-core.yml`,
-   `doc/autonomy.yml`, `skills.yml` с ролями по `role_skills` плюс core
+   по шаблону, каркас `.oc3/` (`project.yml`, `ai-core.yml`,
+   `autonomy.yml`, `skills.yml` с ролями по `role_skills` плюс core
    `contract-setup`, `workflow`, `source-sync`, `cli` с `roles: []`,
    пустой `.oc3/goals/`, манифест памяти), git-файлы, маркер установки
    `.oc3/locks/install` (сними после `/reload`), первичный build бандлов;
@@ -583,7 +588,7 @@ frontmatter с ожидаемым. Не совпало — стоп: защит�
    ядра, сними в конце; затем перенос шагами.
 
 Чужие трекеры, wiki, IaC и release notes не мигрируют: в
-`.oc3/doc/project.yml` → `external` — только указатель.
+`.oc3/project.yml` → `external` — только указатель.
 
 ## Поведение по умолчанию
 

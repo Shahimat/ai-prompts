@@ -34,14 +34,14 @@ export interface HarnessConfig {
   adapters: AdapterName[];
   checks: {
     changelog?: ChangelogOptions;
-    'context-index'?: Record<string, never>;
+    context?: Record<string, never>;
     adapters?: Record<string, never>;
     secrets?: SecretsOptions;
   };
 }
 
 const TOP_LEVEL_KEYS = ['adapters', 'checks', 'worktrees', 'rules'];
-export const KNOWN_CHECKS = ['changelog', 'context-index', 'adapters', 'secrets'] as const;
+export const KNOWN_CHECKS = ['changelog', 'context', 'adapters', 'secrets'] as const;
 
 function fail(message: string): never {
   throw new UsageError(`${CONFIG_PATH}: ${message}`);
@@ -127,7 +127,7 @@ export function parseConfig(text: string): HarnessConfig {
   if (!isRecord(checks)) fail('checks должно быть объектом');
   unknownKeys(checks, KNOWN_CHECKS, 'checks');
   if ('changelog' in checks) config.checks.changelog = parseChangelog(checks['changelog']);
-  for (const name of ['context-index', 'adapters'] as const) {
+  for (const name of ['context', 'adapters'] as const) {
     if (!(name in checks)) continue;
     const options = checks[name] ?? {};
     if (!isRecord(options)) fail(`checks.${name} должно быть объектом`);

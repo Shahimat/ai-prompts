@@ -1,0 +1,124 @@
+run: 1
+status: fail
+summary: переезд путей, валидатор tree, migrate v3→v4, упразднение index.yml и судейская механика — pass; но правка диаграммы в contract-v3.md сломала фенс-структуру: якоря @no-rule-copies и @contract-kinds мертвы, npm run ci красный (presets warn 1/0)
+items:
+  - key: paths-flatten
+    status: pass
+    evidence: >
+      grep `.oc3/doc` по packages/, skills/, prompts/, patterns/, AGENTS.md,
+      .oc3/*.yml — совпадения только в журнальной истории
+      (packages/harness/CHANGELOG.md:10, packages/oc3/CHANGELOG.md:8,19 —
+      записи прошлых версий, не живые указания); константы сведены к
+      packages/ai-core/src/shared/layout.ts (OC3_DIR, PROJECT_PATH,
+      AUTONOMY_PATH, SKILLS_PATH, AI_CORE_PATH, OC3_MANIFEST); diff — 102
+      файла (git status worktree)
+    reason: >
+      Переезд .oc3/doc/… → .oc3/… выполнен по всем заявленным пакетам
+      (ai-core, oc3, cli, harness) и текстам (skills, prompts, patterns,
+      AGENTS.md); в живых текстах путей старого уровня не осталось.
+  - key: tree-validator
+    status: pass
+    evidence: >
+      packages/ai-core/src/commands/tree/index.ts — coreSchema с
+      `$schema: https://json-schema.org/draft/2020-12/schema`; buildTreeSchema
+      мерджит расширения манифеста: data → `^data/(<имя>)/[^/]+\.yml$`,
+      files → enum, layout → oneOf-фрагмент (mergeLayout); mandateOf выдаёт
+      поручение вида «объяви в manifest.json (data / files / layout)»;
+      packages/cli/src/scripts/check.ts — шаг `{ command: ['tree', 'check'] }`
+      без enabledBy (всегда); packages/ai-core/src/registry.ts:15,56;
+      packages/ai-core/test/tree.test.ts; `ai tree check --root .` на
+      собственном дереве — «tree check: ok»
+    reason: >
+      Валидатор реализован как заявлено: JSON Schema draft 2020-12 с ядром в
+      ai-core и расширениями из .oc3/manifest.json, встроен в ai check и
+      registry, на смигрированном дереве репозитория зелёный.
+  - key: migrate-v4
+    status: pass
+    evidence: >
+      packages/oc3/src/migrate.ts:66 (DOC_PREFIX ['.oc3/doc/', '.oc3/']),
+      :103 (замена `context-index:` → `context:`), :156-159 (doc/index.yml →
+      «удалён (index.yml упразднён в v4)»), :173 («.oc3/doc → удалён:
+      плоская структура v4»); тесты packages/oc3/test/migrate.test.ts:94
+      («v3 → v4: переносит .oc3/doc/* в .oc3/*, удаляет index.yml и doc/»)
+      и :156 («заменяет префиксы .oc3/doc/ и ключ context-index → context»);
+      собственный .oc3 смигрирован самим migrate (git status: удалённые
+      .oc3/doc/*, новые .oc3/project.yml, autonomy.yml, conventions/, data/,
+      glossary/, knowledge/, manuals/); ai tree/context/memory check — ok
+    reason: >
+      Шаг v3→v4 полный и протестирован; применён к собственному репозиторию,
+      все три проверки на месте зелёные.
+  - key: index-abolished
+    status: pass
+    evidence: >
+      packages/ai-core/src/commands/context/index.ts — `if (command !==
+      'check') throw new UsageError(...)` (команды index нет);
+      packages/ai-core/src/shared/config.ts:44 — `KNOWN_CHECKS =
+      ['changelog', 'context', 'adapters', 'secrets']`;
+      packages/ai-core/src/shared/layout.ts:30 — `ABOLISHED_INDEX =
+      'index.yml'`; cli-скрипты refresh.ts и docs-verify.ts — без
+      index-шага; тесты packages/ai-core/test/refresh.test.ts:37,
+      packages/harness/test/processes.test.ts:90,160 —
+      `expect(existsSync(path.join(root, '.oc3/index.yml'))).toBe(false)`
+    reason: >
+      index.yml упразднён по всему стеку: команды ai context index нет,
+      ключ конфига переименован, скрипты и тесты зафиксировали отсутствие
+      записи.
+  - key: docs-skills-prompts
+    status: fail
+    evidence: >
+      prompts/productivity/agent-operational-contract-v3.md:83 — фенс
+      диаграммы «Что ставит ядро» закрыт досрочно (после строки ai-core.yml),
+      :88-90 — блок `.agents/` остался вне фенса, :91 — сирота-```, которая
+      открывает фенс без пары до :107 (```yaml): проза «Роли operator
+      нет…» (92-97) и якорь expect:no-rule-copies (99-103) попадают «в код»
+      — это видно и в CommonMark-рендере. Каскад паритета для наивного
+      трекера фенсов (markdownRegions в packages/ai-core/src/lib/expect/
+      anchors.ts): expect:contract-kinds (431-451) оказывается между
+      385→458, «внутри фенса». В HEAD диаграмма была одним фенсом 61-86 и
+      оба якоря резолвились. Следствие: expectations/
+      agent-operational-contract-v3.expect.ts — b0382fa4a478 «правила
+      контракта не копируются в .oc3/conventions» — «Error: @no-rule-copies:
+      в репозитории нет якоря»; expectations/presets.expect.ts:138
+      kindsDeclared — «Error: @contract-kinds: в репозитории нет якоря».
+      Пути .oc3/doc → .oc3 в самом файле переименованы корректно
+    reason: >
+      Executor'у: восстановить фенс-структуру раздела «Что ставит ядро» —
+      либо один фенс на всю диаграмму (`.oc3/` + `.agents/`, как в HEAD,
+      просу «Запечатанный слой…» — после закрытия), либо закрыть блок после
+      ai-core.yml и открыть новый фенс ПЕРЕД строкой `.agents/` (88),
+      убрав сироту на 91. Это документация — правит executor/librarian, не
+      judge. После правки оба якоря резолвятся, правки вердиктов не
+      потребуются (store уже свежий).
+  - key: judge-mechanics
+    status: pass
+    evidence: >
+      `ai expect judge expectations/index.expect.ts --root .` — «вопросов 21
+      в пакетах 1, проверок заголовков 3» (24 pending из ops-сводки) и
+      «удалено устаревших вердиктов 4»; expectations/.judge/batch-1.md — 21
+      вопрос по якорям @librarian-intents, @update-report, … — все
+      ответил true с дословными цитатами (пре-валидация нормализацией
+      containsQuote: 21/21 найдены); lint-{1,2,3}.answer.json — пустые
+      contradictions/unmeasurable (ревью всех заголовков трёх файлов:
+      противоречий и неизмеримых нет); `expect judge --apply` — «вердикты
+      сохранены», без отклонений; expectations/.verdicts.json — 53 verdicts,
+      9 lint-файлов, все live-записи свежие
+    reason: >
+      Судейская механика прогнана и закрыта: 24 pending погашены, lint трёх
+      файлов обновлён, устаревшие записи вычищены. Оставшиеся два сбоя — не
+      вопрос вердиктов: judged() падает на чтении якоря до проверки store
+      (см. docs-skills-prompts).
+  - key: ci-green
+    status: fail
+    evidence: >
+      `npm run ci` в worktree — exit 1; хвост: «ожиданий 330: crit 0 ·
+      warn 3 · info 4 · ? 0 — бюджет превышен»; блокер —
+      expectations/presets.expect.ts:17 `budget({ crit: 0, warn: 0 })` при
+      warn 1 от kindsDeclared (@contract-kinds). Остальные стадии зелёные:
+      format:check, build ×4 пакетов, typecheck ×6, lint, тесты ai-core /
+      harness / cli / oc3, packages-check, index:check, memory:check (лог
+      /tmp/opencode/ci-run.log); ai tree/context/memory check — ok
+    reason: >
+      DoD «npm run ci в worktree — полностью зелёный» не выполнен. Корень
+      один — фенс-ломка в contract-v3.md (см. docs-skills-prompts); после её
+      исправления ci должен пройти без перезапуска судьи: вердикты и lint
+      store уже свежие, pending 0.

@@ -116,21 +116,18 @@ const FORM_SCHEMAS: Record<string, string> = {
 };
 
 const seedFactFiles = async (): Promise<void> => {
-  await put('.oc3/doc/project.yml', 'name: demo\n');
-  await put('.oc3/doc/autonomy.yml', 'levels:\n  never: [vcs.write]\n');
+  await put('.oc3/project.yml', 'name: demo\n');
+  await put('.oc3/autonomy.yml', 'levels:\n  never: [vcs.write]\n');
+  await put('.oc3/glossary/common.yml', '- term: воркспейс\n  definition: корень репозитория\n');
   await put(
-    '.oc3/doc/glossary/common.yml',
-    '- term: воркспейс\n  definition: корень репозитория\n',
-  );
-  await put(
-    '.oc3/doc/conventions/naming.yml',
+    '.oc3/conventions/naming.yml',
     '- key: kebab\n  summary: имена файлов\n  rule: kebab-case\n',
   );
-  await put('.oc3/doc/data/entities/srv.yml', 'id: srv\nnamespace: vpn\nsummary: сервер\n');
-  await put('.oc3/doc/data/behavior/flow.yml', 'id: flow\nnamespace: vpn\ntitle: рукопожатие\n');
-  await put('.oc3/doc/data/__schemas/entities.schema.json', '{}');
-  await put('.oc3/doc/manuals/first-run.md', '# Первый запуск\n');
-  await put('.oc3/doc/knowledge/tooling.md', '# Тулинг\n');
+  await put('.oc3/data/entities/srv.yml', 'id: srv\nnamespace: vpn\nsummary: сервер\n');
+  await put('.oc3/data/behavior/flow.yml', 'id: flow\nnamespace: vpn\ntitle: рукопожатие\n');
+  await put('.oc3/data/__schemas/entities.schema.json', '{}');
+  await put('.oc3/manuals/first-run.md', '# Первый запуск\n');
+  await put('.oc3/knowledge/tooling.md', '# Тулинг\n');
 };
 
 const readManifest = async (): Promise<Record<string, unknown>> => {
@@ -151,8 +148,6 @@ describe('ensureMemorySkeleton', () => {
       data: ['behavior', 'entities'],
       budgets: { notes: 4096, start: 24576, node: 16384, optional_field: 3 },
       files: {
-        'autonomy.yml': { namespace: [], weight: 0 },
-        'project.yml': { namespace: [], weight: 0 },
         'conventions/naming.yml': { namespace: [], weight: 2 },
         'data/behavior/flow.yml': { namespace: [], weight: 2 },
         'data/entities/srv.yml': { namespace: [], weight: 2 },
@@ -174,7 +169,7 @@ describe('ensureMemorySkeleton', () => {
   it('скелет проходит схему манифеста и checkMemory без замечаний к манифесту', async () => {
     await seedFactFiles();
     for (const [name, schema] of Object.entries(FORM_SCHEMAS))
-      await put(`.oc3/doc/data/__schemas/${name}`, schema);
+      await put(`.oc3/data/__schemas/${name}`, schema);
 
     await ensureMemorySkeleton(root);
 
@@ -186,9 +181,9 @@ describe('ensureMemorySkeleton', () => {
   });
 
   it('повторный прогон: пользовательские веса и namespace сохраняются, новые файлы дописываются', async () => {
-    await put('.oc3/doc/project.yml', 'name: demo\n');
+    await put('.oc3/project.yml', 'name: demo\n');
     await put(
-      '.oc3/doc/conventions/naming.yml',
+      '.oc3/conventions/naming.yml',
       '- key: kebab\n  summary: имена\n  rule: kebab-case\n',
     );
     await ensureMemorySkeleton(root);
@@ -197,10 +192,7 @@ describe('ensureMemorySkeleton', () => {
     files['conventions/naming.yml'] = { namespace: ['docs'], weight: 5 };
     custom['namespace'] = ['docs'];
     await put('.oc3/manifest.json', `${JSON.stringify(custom, null, 2)}\n`);
-    await put(
-      '.oc3/doc/conventions/format.yml',
-      '- key: fmt\n  summary: формат\n  rule: prettier\n',
-    );
+    await put('.oc3/conventions/format.yml', '- key: fmt\n  summary: формат\n  rule: prettier\n');
 
     const lines = await ensureMemorySkeleton(root);
 
@@ -210,11 +202,11 @@ describe('ensureMemorySkeleton', () => {
     const nextFiles = isRecord(next['files']) ? next['files'] : {};
     expect(nextFiles['conventions/naming.yml']).toEqual({ namespace: ['docs'], weight: 5 });
     expect(nextFiles['conventions/format.yml']).toEqual({ namespace: [], weight: 2 });
-    expect(nextFiles['project.yml']).toEqual({ namespace: [], weight: 0 });
+    expect(nextFiles['project.yml']).toBeUndefined();
   });
 
   it('невалидный JSON манифеста — merge пропущен, файл не тронут', async () => {
-    await put('.oc3/doc/project.yml', 'name: demo\n');
+    await put('.oc3/project.yml', 'name: demo\n');
     await put('.oc3/manifest.json', '{ битый json');
 
     const lines = await ensureMemorySkeleton(root);
@@ -224,7 +216,7 @@ describe('ensureMemorySkeleton', () => {
   });
 
   it('NOTES.md пользователя не перетирается', async () => {
-    await put('.oc3/doc/project.yml', 'name: demo\n');
+    await put('.oc3/project.yml', 'name: demo\n');
     await put('.oc3/NOTES.md', '# мои заметки\n');
 
     const lines = await ensureMemorySkeleton(root);

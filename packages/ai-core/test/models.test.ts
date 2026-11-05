@@ -23,8 +23,8 @@ const PROJECT = (roles: string): string =>
   `name: demo\nsummary: тест\n${roles}\nsync:\n  index_source: https://example.com/index.yml\n`;
 
 async function putProject(root: string, roles: string): Promise<void> {
-  await mkdir(path.join(root, '.oc3/doc'), { recursive: true });
-  await writeFile(path.join(root, '.oc3/doc/project.yml'), PROJECT(roles), 'utf8');
+  await mkdir(path.join(root, '.oc3'), { recursive: true });
+  await writeFile(path.join(root, '.oc3/project.yml'), PROJECT(roles), 'utf8');
 }
 
 describe('models', () => {
@@ -55,7 +55,7 @@ describe('models', () => {
     expect(await readFile(path.join(root, '.opencode/agents/judge.md'), 'utf8')).toContain(
       'model: deepseek/deepseek-v4-pro#max',
     );
-    const project = await readFile(path.join(root, '.oc3/doc/project.yml'), 'utf8');
+    const project = await readFile(path.join(root, '.oc3/project.yml'), 'utf8');
     expect(project).toContain('  models:\n    judge: deepseek/deepseek-v4-pro#max');
     expect(project).toContain('  exceptions: []');
   });
@@ -73,7 +73,7 @@ describe('models', () => {
       });
       expect(code).toBe(0);
     }
-    const project = await readFile(path.join(root, '.oc3/doc/project.yml'), 'utf8');
+    const project = await readFile(path.join(root, '.oc3/project.yml'), 'utf8');
     expect(project.match(/^    judge: .*/gm)).toEqual(['    judge: ollama/qwen3:14b']);
   });
 
@@ -88,7 +88,7 @@ describe('models', () => {
       params: { role: 'judge', model: 'opencode/glm-5.3-flash-free#high' },
     });
     expect(code).toBe(0);
-    const project = await readFile(path.join(root, '.oc3/doc/project.yml'), 'utf8');
+    const project = await readFile(path.join(root, '.oc3/project.yml'), 'utf8');
     expect(project).toContain(
       'roles:\n  models:\n    judge: opencode/glm-5.3-flash-free#high\n\nsync:',
     );
@@ -105,7 +105,7 @@ describe('models', () => {
       params: { role: 'judge', model: 'deepseek/deepseek-flash#max' },
     });
     expect(code).toBe(0);
-    const project = await readFile(path.join(root, '.oc3/doc/project.yml'), 'utf8');
+    const project = await readFile(path.join(root, '.oc3/project.yml'), 'utf8');
     expect(project).toContain(
       'roles: { exceptions: [], models: { judge: deepseek/deepseek-flash#max } }',
     );
@@ -115,7 +115,7 @@ describe('models', () => {
       now: new Date(),
       params: { role: 'judge', model: 'ollama/qwen3:14b' },
     });
-    const updated = await readFile(path.join(root, '.oc3/doc/project.yml'), 'utf8');
+    const updated = await readFile(path.join(root, '.oc3/project.yml'), 'utf8');
     expect(updated).toContain('roles: { exceptions: [], models: { judge: ollama/qwen3:14b } }');
   });
 
@@ -245,7 +245,7 @@ describe('models', () => {
     } finally {
       spy.mockRestore();
     }
-    expect(logs).toContain('override нет — .oc3/doc/project.yml → roles.models');
+    expect(logs).toContain('override нет — .oc3/project.yml → roles.models');
   });
 
   it('паттерн модели допускает любые модели каталога OpenCode и запрещает прочее', () => {

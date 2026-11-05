@@ -2,22 +2,22 @@
 name: domain
 metadata:
   runs: check
-description: Правила слоя domain — entities (что есть) и behavior (как должно работать и проверено ли, verified). Загружай, когда читаешь или пишешь .oc3/doc/data/entities/ и .oc3/doc/data/behavior/, ставишь verified или делаешь audit.
+description: Правила слоя domain — entities (что есть) и behavior (как должно работать и проверено ли, verified). Загружай, когда читаешь или пишешь .oc3/data/entities/ и .oc3/data/behavior/, ставишь verified или делаешь audit.
 ---
 
 # domain
 
 Общая правда проекта для человека и агента:
 
-- `.oc3/doc/data/entities/<id>.yml` — «что это за штука, из чего состоит, от
+- `.oc3/data/entities/<id>.yml` — «что это за штука, из чего состоит, от
   чего зависит»;
-- `.oc3/doc/data/behavior/<id>.yml` — «как это должно работать и проверено ли».
+- `.oc3/data/behavior/<id>.yml` — «как это должно работать и проверено ли».
 
 ## Маршруты
 
-- как сейчас устроено X → `.oc3/doc/data/entities/<id>.yml`, затем код;
+- как сейчас устроено X → `.oc3/data/entities/<id>.yml`, затем код;
 - какие документы касаются файла F → поиск `paths` в entities;
-- как X должно себя вести и проверено ли → `.oc3/doc/data/behavior/<id>.yml`;
+- как X должно себя вести и проверено ли → `.oc3/data/behavior/<id>.yml`;
 - список id по namespace → `.oc3/bundles/index.md`.
 
 Читай entities и behaviors только нужного namespace.
@@ -27,7 +27,7 @@ description: Правила слоя domain — entities (что есть) и be
 ```yaml
 id: <kebab-case, совпадает с именем файла>
 kind: entity
-namespace: <из .oc3/doc/project.yml → namespaces>
+namespace: <из .oc3/project.yml → namespaces>
 summary: <одна строка — для индекса>
 paths: [<glob кода, который описывает entity>]
 version: <если применимо>
@@ -86,7 +86,7 @@ verified_note: <чем проверено или что мешает>
 ## Namespace
 
 - новый namespace — только с «да» пользователя, сначала в
-  `.oc3/doc/project.yml`;
+  `.oc3/project.yml`;
 - больше ~7 entities или ~12 behaviors в namespace — сигнал к
   дроблению (`<area>-<subarea>` или отдельная область), поднять в
   отчёте;
@@ -104,6 +104,6 @@ verified_note: <чем проверено или что мешает>
 
 <!-- expect:skill-runs -->
 <!-- metadata.runs: check -->
-С harness часть проверяет `ai check` (`context-index`): `id`,
+С harness часть проверяет `ai check` (`context`): `id`,
 namespace, `summary` / `title` — запусти его после правки.
 <!-- /expect:skill-runs -->

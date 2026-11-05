@@ -31,7 +31,7 @@
             }
           }
         },
-        "context-index": {
+        "context": {
           "type": ["object", "null"],
           "maxProperties": 0
         },

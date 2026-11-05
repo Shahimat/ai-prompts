@@ -63,7 +63,7 @@ describe('detectState', () => {
   });
 
   it('project.yml v3 есть, остального нет — v3-partial с деталями', async () => {
-    await put('.oc3/doc/project.yml', V3_PROJECT);
+    await put('.oc3/project.yml', V3_PROJECT);
     const detection = await detectState(root);
     expect(detection.state).toBe('v3-partial');
     expect(detection.details.join(' ')).toContain('AGENTS.md');
@@ -72,7 +72,7 @@ describe('detectState', () => {
   });
 
   it('все маркеры v3 без лок-маркера — v3-ok', async () => {
-    await put('.oc3/doc/project.yml', V3_PROJECT);
+    await put('.oc3/project.yml', V3_PROJECT);
     await put('AGENTS.md', 'правила\n<!-- module:worktrees -->\nсвой блок\n');
     await put(
       'package.json',
@@ -83,7 +83,7 @@ describe('detectState', () => {
   });
 
   it('JSONC с комментариями в plugins — v3-ok', async () => {
-    await put('.oc3/doc/project.yml', V3_PROJECT);
+    await put('.oc3/project.yml', V3_PROJECT);
     await put('AGENTS.md', '<!-- module:worktrees -->\n');
     await put(
       'package.json',
@@ -97,7 +97,7 @@ describe('detectState', () => {
   });
 
   it('ключ plugin вместо plugins с пакетом — не v3-ok, детект называет причину', async () => {
-    await put('.oc3/doc/project.yml', V3_PROJECT);
+    await put('.oc3/project.yml', V3_PROJECT);
     await put('AGENTS.md', '<!-- module:worktrees -->\n');
     await put(
       'package.json',
@@ -112,7 +112,7 @@ describe('detectState', () => {
   });
 
   it('plugins есть, но пакета в нём нет — не v3-ok', async () => {
-    await put('.oc3/doc/project.yml', V3_PROJECT);
+    await put('.oc3/project.yml', V3_PROJECT);
     await put('AGENTS.md', '<!-- module:worktrees -->\n');
     await put(
       'package.json',
@@ -125,7 +125,7 @@ describe('detectState', () => {
   });
 
   it('все маркеры v3, но лок-маркер установки — v3-partial', async () => {
-    await put('.oc3/doc/project.yml', V3_PROJECT);
+    await put('.oc3/project.yml', V3_PROJECT);
     await put('AGENTS.md', '<!-- module:worktrees -->\n');
     await put(
       'package.json',
@@ -139,7 +139,7 @@ describe('detectState', () => {
   });
 
   it('detectState помечает v2-хвосты при готовом ядре и отдаёт v2Leftovers', async () => {
-    await put('.oc3/doc/project.yml', V3_PROJECT);
+    await put('.oc3/project.yml', V3_PROJECT);
     await put('AGENTS.md', '<!-- module:worktrees -->\n');
     await put(
       'package.json',
@@ -218,7 +218,7 @@ describe('ensureProjectYml', () => {
   it('нет файла — каркас с плейсхолдерами, edition operator-centric', async () => {
     const lines = await ensureProjectYml(root, 'full');
     expect(lines[0]).toContain('каркас');
-    const text = await read('.oc3/doc/project.yml');
+    const text = await read('.oc3/project.yml');
     expect(text).toContain('edition: operator-centric');
     expect(text).toContain('runtime: full');
     expect(text).toContain('ЗАПОЛНИ');
@@ -228,10 +228,10 @@ describe('ensureProjectYml', () => {
   });
 
   it('есть v2-project.yml — дописывает runtime и sync.contract, своё сохраняет', async () => {
-    await put('.oc3/doc/project.yml', 'name: legacy\nroles:\n  models: {}\n');
+    await put('.oc3/project.yml', 'name: legacy\nroles:\n  models: {}\n');
     const lines = await ensureProjectYml(root, 'degraded');
     expect(lines.join(' ')).toContain('runtime: degraded');
-    const text = await read('.oc3/doc/project.yml');
+    const text = await read('.oc3/project.yml');
     expect(text).toContain('name: legacy');
     expect(text).toContain('runtime: degraded');
     expect(text).toContain('key: agent-operational-contract-v3');
@@ -239,10 +239,10 @@ describe('ensureProjectYml', () => {
   });
 
   it('битый YAML не переписывается', async () => {
-    await put('.oc3/doc/project.yml', 'briefing: [unclosed\n');
+    await put('.oc3/project.yml', 'briefing: [unclosed\n');
     const lines = await ensureProjectYml(root, 'full');
     expect(lines[0]).toContain('невалидный YAML');
-    expect(await read('.oc3/doc/project.yml')).toBe('briefing: [unclosed\n');
+    expect(await read('.oc3/project.yml')).toBe('briefing: [unclosed\n');
   });
 
   it('ensureSyncContractYaml вставляет contract под существующий sync, не дублирует', () => {
@@ -358,12 +358,11 @@ describe('каркас .oc3', () => {
     const first = await ensureContextSkeleton(root);
     expect(first.join(' ')).toContain('autonomy.yml');
     expect(first.join(' ')).toContain('skills.yml');
-    expect(await read('.oc3/doc/autonomy.yml')).toContain('external: deny');
+    expect(await read('.oc3/autonomy.yml')).toContain('external: deny');
     const second = await ensureContextSkeleton(root);
     expect(second.join(' ')).toContain('не трогаю');
     const names = await readdir(path.join(root, '.oc3'));
     expect(names).toContain('skills.yml');
-    const docNames = await readdir(path.join(root, '.oc3', 'doc'));
-    expect(docNames).toContain('autonomy.yml');
+    expect(names).toContain('autonomy.yml');
   });
 });
