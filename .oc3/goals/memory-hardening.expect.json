@@ -1,0 +1,33 @@
+{
+  "results": [
+    {
+      "run": 1,
+      "items": [
+        {
+          "key": "crit-1",
+          "status": "pass",
+          "evidence": "packages/ai-core/src/lib/memory.ts (коммит 6e098fe, ветка memory-hardening; код идентичен верифицированному diff'у worktree) — checkMemory после loadManifest: entry.weight < 0 || entry.weight > 9 → «<файл>: вес N вне 0..9 — вес — кольцо графа, не важность; назначь 0 общим фактам (инлайн в старт), 1 — старт-файлам веера, 2..9 — кольца»; схема манифеста weight {type integer, minimum 0} без максимума — 20/85/100 проходят схему и ловятся здесь; тест packages/ai-core/test/memory.test.ts «вес файла вне 0..9 — crit: вес — кольцо графа, не важность» (вес 100 → /вес 100 вне 0..9/ и /назначь 0 общим фактам/); npm test -w @shahimat/ai-core — 237 passed (прогон judge в worktree 11:38)",
+          "reason": "Проверка стоит после loadManifest, текст crit дословно содержит «вес — кольцо графа, не важность» и подсказку по кольцам; значения 20/85/100 отвергаются (схема без максимума, условие > 9 ловит все)"
+        },
+        {
+          "key": "crit-2",
+          "status": "pass",
+          "evidence": "packages/ai-core/src/lib/memory.ts (6e098fe) — entries.length > 0 && entries.every(([, entry]) => entry.weight > 1) → «оперативная память пуста: назначь вес 0 общим фактам, 1 — старт-файлам»; тест packages/ai-core/test/memory.test.ts «ни один файл не имеет вес ≤1 — crit: оперативная память пуста» — веса 3 и 2 → ровно один diagnostic, expect точного равенства сообщения; пустой files не триггерит (guard length > 0), валидные манифесты без files остаются зелёными",
+          "reason": "Условие «ни один файл не имеет вес ≤1» реализовано через every(> 1) с guard на пустой files; сообщение дословно по пункту"
+        },
+        {
+          "key": "crit-3",
+          "status": "pass",
+          "evidence": "packages/ai-core/src/lib/memory-graph.ts (6e098fe) — capSummary: cap в байтах, utf8-безопасная обрезка по кодпоинтам с «…» в бюджете; nodeBody — одна строка на файл «- [rel](../doc/rel) — пояснение», инлайн полного текста удалён; renderGraph(root, facts, summaryCap), renderMemoryGraph передаёт manifest.budgets.summary; memory.ts checkManifest — парс budgets['summary'] с fallback DEFAULT_BUDGETS.summary = 200; тесты memory-graph.test.ts «узел — каталог: ссылка с пояснением, полный текст факта не инлайнится» (полный текст manuals отсутствует в узле) и «длинный факт — короткое пояснение по budgets.summary, без дубля текста» (budgets.summary=80 → пояснение ≤80 байт с «…», longSummary отсутствует, ссылка ровно одна); поле budgets.summary теперь принято схемой (правка .oc3/doc/data/__schemas/manifest.schema.json — по фоллоуапу executor'а это staged правка оператора, закоммичена в 6e098fe) — cap из манифеста работает end-to-end",
+          "reason": "Каталог-рендер: ссылка + однострочное пояснение под байтовым капом из манифеста; полный текст не инлайнится, дублирования нет (инлайн-строки текста удалены, тест фиксирует ровно одну ссылку); до операторской правки схемы механизм работал через fallback-дефолт 200, ограничение было честно заявлено в отчёте с docs_request на librarian"
+        },
+        {
+          "key": "crit-4",
+          "status": "pass",
+          "evidence": "Четыре случая в тестах (6e098fe): memory.test.ts «вес файла вне 0..9…» (манифест с весом 100), «ни один файл не имеет вес ≤1…» (манифест без весов ≤1), memory-graph.test.ts «длинный факт — короткое пояснение по budgets.summary…» (длинный факт), «узел — каталог…» (отсутствие дубля текста в index); npm test -w @shahimat/ai-core — 237 passed (прогон judge); npm run ci зелёный — два независимых лога executor'а: /tmp/opencode/ci-memory-hardening.log (11:18) и /tmp/opencode/ci-start-cap.log (11:37, после followup) — оба завершаются «ожиданий 331: crit 0 · warn 1 · info 4 · ? 0 — в бюджете»; перегон judge в worktree: &&-цепочка ci дошла до последнего шага expect, т.е. format, 4 сборки, 4 typecheck, tsc:expectations/packages/scripts, lint, тесты 4 пакетов, packages:check, index:check, memory:check — зелёные и в judge-окружении; шаг expect в judge-окружении невоспроизводим environment-независимо: бинаря ai нет в PATH (глобально только @shahimat/oc3, bin ai принадлежит @shahimat/cli) — CLI-спавны ожиданий падают с loader-ошибками, набор падений нестабилен между прогонами (1 crit → 10 crit на разных чеках), вне диффа тикета; package.json, package-lock.json и package.json пакетов отсутствуют в worktree-диффе и в коммите 6e098fe (grep по version — 0 совпадений)",
+          "reason": "Все четыре случая покрыты unit-тестами и зелёные; CI зелёный подтверждён двумя логами executor'а и прямым перегоном всех слоёв кроме expect (который в judge-окружении ломается отсутствием бинаря ai, не кодом); версии и пины не тронуты"
+        }
+      ]
+    }
+  ]
+}

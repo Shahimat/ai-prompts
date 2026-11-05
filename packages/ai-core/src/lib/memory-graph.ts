@@ -419,10 +419,7 @@ export const renderGraph = async (root: string, facts: FactFile[]): Promise<Memo
   }
   if (nodes.length > 0) {
     start.push('## Узлы', '');
-    for (const node of nodes)
-      start.push(
-        `- [${node.key}](${node.dir}/${START_INDEX}) — sha ${node.dir}, файлов ${node.files.length}`,
-      );
+    for (const node of nodes) start.push(`- [${node.key}](${node.dir}/${START_INDEX})`);
     start.push('');
   }
   const skills = await skillsCatalog(root);

@@ -171,7 +171,7 @@ describe('renderGraph', () => {
     expect(start).toContain('## project.yml');
     expect(start).toContain('roles.models.executor — zai/demo#max');
     expect(start).toContain('- [code:1](');
-    expect(start).toMatch(/- \[code:1\]\([0-9a-f]{12}\/index\.md\) — sha [0-9a-f]{12}, файлов 2/);
+    expect(start).toMatch(/- \[code:1\]\([0-9a-f]{12}\/index\.md\)$/m);
     expect(start).toContain('- [code:2](');
     expect(start).toContain('- [docs:1](');
     expect(start).toContain('- executor — core, роли: executor');
