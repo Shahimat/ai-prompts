@@ -3,6 +3,7 @@ import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promis
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { isRecord } from '@shahimat/ai-core';
 import { detectOldLayout, migrateLayout } from '#migrate';
 
 let root: string;
@@ -144,5 +145,62 @@ describe('migrateLayout', () => {
     const lines = await migrateLayout(root);
     expect(lines.join('\n')).not.toContain('layout: .');
     expect((await readdir(path.join(root, '.oc3'))).sort()).toEqual(before.sort());
+  });
+
+  it('после переноса создаёт скелет памяти: манифест с перенесёнными файлами и NOTES.md', async () => {
+    await put('context/project.yml', 'name: demo\n');
+    await put('context/autonomy.yml', 'levels:\n  never: [vcs.write]\n');
+    await put(
+      'context/conventions/naming.yml',
+      '- key: kebab\n  summary: имена\n  rule: kebab-case\n',
+    );
+    await put('docs/entities/srv.yml', 'id: srv\nnamespace: vpn\nsummary: сервер\n');
+    await put('docs/manuals/first-run.md', '# Первый запуск\n');
+
+    const lines = await migrateLayout(root);
+
+    const manifest: unknown = JSON.parse(
+      await readFile(path.join(root, '.oc3/manifest.json'), 'utf8'),
+    );
+    expect(manifest).toMatchObject({
+      namespace: [],
+      data: ['entities'],
+      budgets: { notes: 4096, start: 10240, node: 16384, optional_field: 3 },
+    });
+    const files = isRecord(manifest) && isRecord(manifest['files']) ? manifest['files'] : {};
+    expect(files['project.yml']).toEqual({ namespace: [], weight: 0 });
+    expect(files['autonomy.yml']).toEqual({ namespace: [], weight: 0 });
+    expect(files['conventions/naming.yml']).toEqual({ namespace: [], weight: 2 });
+    expect(files['data/entities/srv.yml']).toEqual({ namespace: [], weight: 2 });
+    expect(files['manuals/first-run.md']).toEqual({ namespace: [], weight: 2 });
+    expect(await readFile(path.join(root, '.oc3/NOTES.md'), 'utf8')).toContain(
+      '# NOTES — неформальные факты до формализации',
+    );
+    expect(lines.join('\n')).toContain('скелет');
+  });
+
+  it('повторная миграция сохраняет пользовательские веса манифеста', async () => {
+    await put('context/project.yml', 'name: demo\n');
+    await put(
+      'context/conventions/naming.yml',
+      '- key: kebab\n  summary: имена\n  rule: kebab-case\n',
+    );
+    await migrateLayout(root);
+    const manifest: unknown = JSON.parse(
+      await readFile(path.join(root, '.oc3/manifest.json'), 'utf8'),
+    );
+    const files = isRecord(manifest) && isRecord(manifest['files']) ? manifest['files'] : {};
+    files['conventions/naming.yml'] = { namespace: ['docs'], weight: 7 };
+    await writeFile(
+      path.join(root, '.oc3/manifest.json'),
+      `${JSON.stringify(manifest, null, 2)}\n`,
+      'utf8',
+    );
+
+    await migrateLayout(root);
+
+    const next: unknown = JSON.parse(await readFile(path.join(root, '.oc3/manifest.json'), 'utf8'));
+    const nextFiles = isRecord(next) && isRecord(next['files']) ? next['files'] : {};
+    expect(nextFiles['conventions/naming.yml']).toEqual({ namespace: ['docs'], weight: 7 });
   });
 });

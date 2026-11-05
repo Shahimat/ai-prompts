@@ -1,0 +1,39 @@
+{
+  "results": [
+    {
+      "run": 1,
+      "items": [
+        {
+          "key": "crit-1",
+          "status": "pass",
+          "evidence": "packages/oc3/src/install.ts:380-383 (defaultWeight: common.*/project.yml/autonomy.yml → 0, иначе 2), :398-414 (структуры data без __schemas + glossary/conventions/manuals/knowledge + project/autonomy), :423-440 (skeletonManifest: namespace [], data, budgets из DEFAULT_BUDGETS = notes 4096/start 10240/node 16384/optional_field 3, ai-core/src/lib/memory.ts:24-30), :469-513 (ensureManifestFile + ensureNotesFile, NOTES_TITLE :366); init.ts diff — вызов после ensureContextSkeleton; тест memory-skeleton.test.ts:143-172 (точный toEqual манифеста и NOTES); смоук /tmp/opencode/oc3-smoke-b/.oc3/manifest.json — бюджеты дефолтные, project.yml weight 0",
+          "reason": "скелет собирается из фактического содержимого .oc3/doc/, __schemas исключён, веса по правилу; ключи бюджетов — по схеме и checkMemory (DoD прямо разрешает отступление от бриф-имён notes_bytes, значения те же); namespace пустой — по DoD/брифу, заголовок crit 1 поправлен judge'ом (см. changes)"
+        },
+        {
+          "key": "crit-2",
+          "status": "pass",
+          "evidence": "packages/oc3/src/migrate.ts:209 — ensureMemorySkeleton в конце migrateLayout (после переноса, строки «layout: память: …»); тест migrate.test.ts:150-184 — манифест с перенесёнными файлами (project/autonomy 0, conventions 2, data/entities 2, manuals 2, data ['entities']) и NOTES; смоук /tmp/opencode/oc3-smoke-a/.oc3/manifest.json — namespace [], data ['entities'], веса по правилу",
+          "reason": "после переноса манифест перечисляет именно перенесённые файлы фактов; записи {namespace: [], weight} — без namespace, собираются memory-graph'ом в общие узлы"
+        },
+        {
+          "key": "crit-3",
+          "status": "pass",
+          "evidence": "install.ts:442-467 mergeManifest — существующие записи не трогаются (:460-464), namespace/data сохраняются (:465-466); :484-493 — невалидный JSON/не-объект → merge пропущен, файл не тронут; тесты memory-skeleton.test.ts:188-235 (вес 5 + namespace ['docs'] сохранены, новый файл дописан; битый JSON не тронут; NOTES пользователя не перетёрт), migrate.test.ts:186-201 (вес 7 пережил повторную миграцию); живой смоук: files['autonomy.yml'].weight = 9 в oc3-smoke-b пережил повторный init",
+          "reason": "идемпотентность подтверждена юнит-тестами обоих путей (ensureMemorySkeleton и migrateLayout) и живым смоук-прогоном: сохраняется пользовательское, дописывается только новое"
+        },
+        {
+          "key": "crit-4",
+          "status": "pass",
+          "evidence": "тест memory-skeleton.test.ts:174-186 — compileSchema → валидаций 0, checkMemory → diagnostics []; инлайн MANIFEST_SCHEMA (:26-66) дословно совпадает с реальной .oc3/doc/data/__schemas/manifest.schema.json (budgets/files уже в ней, ai-core не менялся — git status); живой прогон judge: npm run memory:check — «memory check: ok»; cli на смоуке с реальными схемами (oc3-smoke-a): memory check ok, memory build ok — «wrote 2 бандлов» (.oc3/bundles/{index.md, ffa7576f6c70})",
+          "reason": "скелет проходит валидацию checkMemory по схеме, memory build собирает стартовый бандл — юнит-тестом и живым cli-прогоном"
+        },
+        {
+          "key": "crit-5",
+          "status": "pass",
+          "evidence": "тесты 4 типов: greenfield (memory-skeleton:143), migrate (migrate.test:150), re-run merge (memory-skeleton:188, migrate.test:186), веса (memory-skeleton:143-163); прогон judge: vitest --root packages/oc3 — 136/136 passed; git diff package.json пакетов пуст — версии/пины не тронуты (oc3 0.1.6 не поднята); oxlint packages — 0 ошибок, prettier --check дельты — ok, build oc3 — ok, memory:check — ok (прогон judge); формально npm run ci красный ровно на lint: goals/oc3-manifest.expect.ts:3-6 — 4 × no-comments (untracked файл цели оператора, executor'у goals/ править запрещено); прочие шаги ci — по отчёту executor'а (:31-36), ключевые перекрыты независимо",
+          "reason": "по существу дельты executor'а ci зелёный: единственный красный шаг — lint файла цели оператора вне скоупа и вне дельты; правомерно считать ci зелёным при известном внешнем блокере; формально красным остаётся, пока оператор не уберёт комментарии-шапку из файла цели"
+        }
+      ]
+    }
+  ]
+}

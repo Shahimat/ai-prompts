@@ -15,6 +15,7 @@ import {
   ensureLock,
   ensurePackageJson,
   ensureProjectYml,
+  ensureMemorySkeleton,
   ensureRoleAgents,
   ensureSkillsPreset,
   humanQuestions,
@@ -126,6 +127,7 @@ export async function runInit(args: CommandArgs): Promise<number> {
   for (const line of await ensureAgentsMd(args.root)) console.log(line);
   for (const line of await ensureProjectYml(args.root, runtime.runtime)) console.log(line);
   for (const line of await ensureContextSkeleton(args.root)) console.log(line);
+  for (const line of await ensureMemorySkeleton(args.root)) console.log(line);
   for (const line of await ensurePackageJson(args.root)) console.log(line);
   for (const line of await ensureGitFiles(args.root)) console.log(line);
   if (detection.state === 'v2' || detection.v2Leftovers)

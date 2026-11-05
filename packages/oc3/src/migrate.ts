@@ -3,6 +3,7 @@ import { mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promise
 import path from 'node:path';
 import { AI_CORE_PATH, BUNDLES_DIR, OPS_PATH, SKILLS_PATH } from '@shahimat/ai-core';
 import type { CommandArgs } from '@shahimat/ai-core';
+import { ensureMemorySkeleton } from '#install';
 
 const FILE_MAP: readonly (readonly [string, string])[] = [
   ['context/project.yml', '.oc3/doc/project.yml'],
@@ -205,6 +206,7 @@ export async function migrateLayout(root: string): Promise<string[]> {
   for (const c of report.configs) lines.push(`layout: ${c}`);
   for (const l of new Set(report.legacy)) lines.push(`layout: legacy — ${l}`);
   if (lines.length === 0) lines.push(`layout: переносить нечего, ${BUNDLES_DIR}/ на месте`);
+  for (const line of await ensureMemorySkeleton(root)) lines.push(`layout: ${line}`);
   return lines;
 }
 

@@ -4,7 +4,22 @@ import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import { parse } from 'yaml';
-import { isRecord, InputError } from '@shahimat/ai-core';
+import {
+  CONVENTIONS_DIR,
+  DATA_DIR,
+  DEFAULT_BUDGETS,
+  DOC_DIR,
+  GLOSSARY_DIR,
+  KNOWLEDGE_DIR,
+  MANUALS_DIR,
+  NOTES_PATH,
+  OC3_MANIFEST,
+  PROJECT_PATH,
+  AUTONOMY_PATH,
+  SCHEMAS_DIR,
+  isRecord,
+  InputError,
+} from '@shahimat/ai-core';
 import { CONFIGS, parseJsonc } from '#operator-agent';
 import {
   AGENTS_MD,
@@ -345,6 +360,156 @@ export async function ensureContextSkeleton(root: string): Promise<string[]> {
     lines.push(`${rel}: записан каркас`);
   }
   return lines;
+}
+
+const MEMORY_LABEL = 'память:';
+const NOTES_TITLE = '# NOTES — неформальные факты до формализации';
+const SCHEMAS_DIRNAME = path.basename(SCHEMAS_DIR);
+
+const docRel = (abs: string): string => abs.slice(DOC_DIR.length + 1);
+
+const COMMON_DOC_FILES: readonly string[] = [PROJECT_PATH, AUTONOMY_PATH].map(docRel);
+
+const DOC_FACT_DIRS: readonly string[] = [
+  GLOSSARY_DIR,
+  CONVENTIONS_DIR,
+  MANUALS_DIR,
+  KNOWLEDGE_DIR,
+].map(docRel);
+
+const defaultWeight = (rel: string): number => {
+  const base = rel.split('/').at(-1) ?? '';
+  return base.startsWith('common.') || COMMON_DOC_FILES.includes(rel) ? 0 : 2;
+};
+
+const listDocFiles = async (root: string, relDir: string): Promise<string[]> => {
+  const abs = path.join(root, DOC_DIR, relDir);
+  if (!existsSync(abs)) return [];
+  const entries = await readdir(abs, { withFileTypes: true, recursive: true });
+  return entries
+    .filter((item) => item.isFile())
+    .map(
+      (item) =>
+        `${relDir}/${path.relative(abs, path.join(item.parentPath, item.name)).split(path.sep).join('/')}`,
+    )
+    .sort();
+};
+
+const listDataStructures = async (root: string): Promise<string[]> => {
+  const abs = path.join(root, DATA_DIR);
+  if (!existsSync(abs)) return [];
+  const entries = await readdir(abs, { withFileTypes: true });
+  return entries
+    .filter((item) => item.isDirectory() && item.name !== SCHEMAS_DIRNAME)
+    .map((item) => item.name)
+    .sort();
+};
+
+const collectFactFiles = async (root: string, structures: readonly string[]): Promise<string[]> => {
+  const found = COMMON_DOC_FILES.filter((rel) => existsSync(path.join(root, DOC_DIR, rel)));
+  for (const dir of DOC_FACT_DIRS) found.push(...(await listDocFiles(root, dir)));
+  for (const name of structures)
+    found.push(...(await listDocFiles(root, `${docRel(DATA_DIR)}/${name}`)));
+  return [...new Set(found)].sort();
+};
+
+interface SkeletonManifest {
+  namespace: string[];
+  data: string[];
+  budgets: { notes: number; start: number; node: number; optional_field: number };
+  files: Record<string, { namespace: string[]; weight: number }>;
+}
+
+const skeletonManifest = (
+  files: readonly string[],
+  structures: readonly string[],
+): SkeletonManifest => {
+  const entries: Record<string, { namespace: string[]; weight: number }> = {};
+  for (const rel of files) entries[rel] = { namespace: [], weight: defaultWeight(rel) };
+  return {
+    namespace: [],
+    data: [...structures],
+    budgets: {
+      notes: DEFAULT_BUDGETS.notes,
+      start: DEFAULT_BUDGETS.start,
+      node: DEFAULT_BUDGETS.node,
+      optional_field: DEFAULT_BUDGETS.optionalField,
+    },
+    files: entries,
+  };
+};
+
+const mergeManifest = (
+  current: Record<string, unknown>,
+  files: readonly string[],
+  structures: readonly string[],
+): { manifest: Record<string, unknown>; addedFiles: number; addedData: number } => {
+  const knownData = Array.isArray(current['data'])
+    ? current['data'].filter((item): item is string => typeof item === 'string')
+    : [];
+  const data = [...knownData];
+  let addedData = 0;
+  for (const name of structures)
+    if (!data.includes(name)) {
+      data.push(name);
+      addedData += 1;
+    }
+  const rawFiles = isRecord(current['files']) ? current['files'] : {};
+  const mergedFiles: Record<string, unknown> = { ...rawFiles };
+  let addedFiles = 0;
+  for (const rel of files) {
+    if (isRecord(mergedFiles[rel])) continue;
+    mergedFiles[rel] = { namespace: [], weight: defaultWeight(rel) };
+    addedFiles += 1;
+  }
+  const namespace = Array.isArray(current['namespace']) ? current['namespace'] : [];
+  return { manifest: { ...current, namespace, data, files: mergedFiles }, addedFiles, addedData };
+};
+
+const ensureManifestFile = async (root: string): Promise<string[]> => {
+  const abs = path.join(root, OC3_MANIFEST);
+  const structures = await listDataStructures(root);
+  const found = await collectFactFiles(root, structures);
+  const summary = `файлов фактов: ${found.length}, структуры: ${structures.join(', ') || 'нет'}`;
+  const current = await readOrNull(abs);
+  if (current === null) {
+    await mkdir(path.dirname(abs), { recursive: true });
+    await writeFile(
+      abs,
+      `${JSON.stringify(skeletonManifest(found, structures), null, 2)}\n`,
+      'utf8',
+    );
+    return [`${MEMORY_LABEL} ${OC3_MANIFEST}: создан скелет — ${summary}, бюджеты по умолчанию`];
+  }
+  let data: unknown;
+  try {
+    data = JSON.parse(current);
+  } catch {
+    return [
+      `${MEMORY_LABEL} ${OC3_MANIFEST}: невалидный JSON — merge пропущен, приведи файл в порядок сам`,
+    ];
+  }
+  if (!isRecord(data))
+    return [`${MEMORY_LABEL} ${OC3_MANIFEST}: корень не объект — merge пропущен`];
+  const merged = mergeManifest(data, found, structures);
+  if (merged.addedFiles === 0 && merged.addedData === 0)
+    return [`${MEMORY_LABEL} ${OC3_MANIFEST}: на месте, записи сохранены — ${summary}`];
+  await writeFile(abs, `${JSON.stringify(merged.manifest, null, 2)}\n`, 'utf8');
+  return [
+    `${MEMORY_LABEL} ${OC3_MANIFEST}: merge — дописаны файлы фактов (${merged.addedFiles}), структуры (+${merged.addedData}); существующие веса и namespace сохранены`,
+  ];
+};
+
+const ensureNotesFile = async (root: string): Promise<string> => {
+  const abs = path.join(root, NOTES_PATH);
+  if (existsSync(abs)) return `${MEMORY_LABEL} ${NOTES_PATH}: уже есть — не трогаю`;
+  await mkdir(path.dirname(abs), { recursive: true });
+  await writeFile(abs, `${NOTES_TITLE}\n`, 'utf8');
+  return `${MEMORY_LABEL} ${NOTES_PATH}: создан с заголовком по умолчанию`;
+};
+
+export async function ensureMemorySkeleton(root: string): Promise<string[]> {
+  return [...(await ensureManifestFile(root)), await ensureNotesFile(root)];
 }
 
 export const WATCH_ROLES: readonly string[] = ['watch-request', 'watch-triage'];
