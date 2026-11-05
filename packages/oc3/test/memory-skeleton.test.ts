@@ -149,7 +149,7 @@ describe('ensureMemorySkeleton', () => {
     expect(await readManifest()).toEqual({
       namespace: [],
       data: ['behavior', 'entities'],
-      budgets: { notes: 4096, start: 10240, node: 16384, optional_field: 3 },
+      budgets: { notes: 4096, start: 24576, node: 16384, optional_field: 3 },
       files: {
         'autonomy.yml': { namespace: [], weight: 0 },
         'project.yml': { namespace: [], weight: 0 },

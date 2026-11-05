@@ -165,7 +165,7 @@ describe('migrateLayout', () => {
     expect(manifest).toMatchObject({
       namespace: [],
       data: ['entities'],
-      budgets: { notes: 4096, start: 10240, node: 16384, optional_field: 3 },
+      budgets: { notes: 4096, start: 24576, node: 16384, optional_field: 3 },
     });
     const files = isRecord(manifest) && isRecord(manifest['files']) ? manifest['files'] : {};
     expect(files['project.yml']).toEqual({ namespace: [], weight: 0 });

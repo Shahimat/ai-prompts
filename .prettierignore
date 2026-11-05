@@ -16,4 +16,5 @@ dist/
 expectations/.verdicts.json
 expectations/.judge/
 packages/harness/test/.tmp/
+packages/ai-core/test/.tmp/
 **/*.md

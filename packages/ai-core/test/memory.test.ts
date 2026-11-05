@@ -30,7 +30,19 @@ const SCHEMAS: Record<string, string> = {
           notes: { type: 'integer', minimum: 1 },
           start: { type: 'integer', minimum: 1 },
           node: { type: 'integer', minimum: 1 },
+          summary: { type: 'integer', minimum: 1 },
           optional_field: { type: 'integer', minimum: 1 },
+        },
+      },
+      files: {
+        type: 'object',
+        additionalProperties: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            namespace: { type: 'array', items: { type: 'string' } },
+            weight: { type: 'integer', minimum: 0 },
+          },
         },
       },
     },
@@ -77,7 +89,7 @@ const SCHEMAS: Record<string, string> = {
 const MANIFEST = JSON.stringify({
   namespace: [],
   data: ['entities'],
-  budgets: { notes: 4096, start: 10240, node: 16384, optional_field: 3 },
+  budgets: { notes: 4096, start: 24576, node: 16384, optional_field: 3 },
 });
 
 const put = async (rel: string, text: string): Promise<void> => {
@@ -173,8 +185,9 @@ describe('checkMemory', () => {
     expect(notes[0]?.message).toMatch(/4096/);
     expect(DEFAULT_BUDGETS).toEqual({
       notes: 4096,
-      start: 10240,
+      start: 24576,
       node: 16384,
+      summary: 200,
       optionalField: 3,
     });
   });
@@ -198,7 +211,7 @@ describe('checkMemory', () => {
       JSON.stringify({
         namespace: [],
         data: ['entities'],
-        budgets: { notes: 4096, start: 10240, node: 16384, optional_field: 4 },
+        budgets: { notes: 4096, start: 24576, node: 16384, optional_field: 4 },
       }),
     );
     let body = '';
@@ -214,5 +227,48 @@ describe('checkMemory', () => {
     await put('.oc3/doc/data/entities/broken.yml', 'id: [\n');
     const { diagnostics } = await checkMemory(root);
     expect(diagnostics.some((d) => d.message.includes('невалидный YAML'))).toBe(true);
+  });
+
+  it('вес файла вне 0..9 — crit: вес — кольцо графа, не важность', async () => {
+    await scaffold();
+    await put(
+      '.oc3/manifest.json',
+      JSON.stringify({
+        namespace: [],
+        data: ['entities'],
+        budgets: { notes: 4096, start: 24576, node: 16384, optional_field: 3 },
+        files: { 'data/entities/srv.yml': { namespace: [], weight: 100 } },
+      }),
+    );
+    await put('.oc3/doc/data/entities/srv.yml', 'id: srv\nnamespace: vpn\nsummary: сервер\n');
+    const { diagnostics } = await checkMemory(root);
+    const hit = diagnostics.filter((d) => d.file === '.oc3/manifest.json');
+    const ring = hit.find((d) => d.message.includes('кольцо графа, не важность'));
+    expect(ring?.message).toMatch(/вес 100 вне 0..9/);
+    expect(ring?.message).toMatch(/назначь 0 общим фактам/);
+  });
+
+  it('ни один файл не имеет вес ≤1 — crit: оперативная память пуста', async () => {
+    await scaffold();
+    await put(
+      '.oc3/manifest.json',
+      JSON.stringify({
+        namespace: [],
+        data: ['entities'],
+        budgets: { notes: 4096, start: 24576, node: 16384, optional_field: 3 },
+        files: {
+          'data/entities/srv.yml': { namespace: [], weight: 3 },
+          'data/entities/vpn.yml': { namespace: [], weight: 2 },
+        },
+      }),
+    );
+    await put('.oc3/doc/data/entities/srv.yml', 'id: srv\nnamespace: vpn\nsummary: сервер\n');
+    await put('.oc3/doc/data/entities/vpn.yml', 'id: vpn\nnamespace: vpn\nsummary: сеть\n');
+    const { diagnostics } = await checkMemory(root);
+    const hit = diagnostics.filter((d) => d.file === '.oc3/manifest.json');
+    expect(hit.length).toBe(1);
+    expect(hit[0]?.message).toBe(
+      'оперативная память пуста: назначь вес 0 общим фактам, 1 — старт-файлам',
+    );
   });
 });

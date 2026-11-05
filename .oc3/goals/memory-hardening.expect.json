@@ -1,0 +1,33 @@
+{
+  "results": [
+    {
+      "run": 1,
+      "items": [
+        {
+          "key": "crit-1",
+          "status": "pass",
+          "evidence": "packages/ai-core/src/lib/memory.ts:118-123 — checkMemory после loadManifest: entry.weight < 0 || entry.weight > 9 → «вес N вне 0..9 — вес — кольцо графа, не важность; назначь 0 общим фактам (инлайн в старт), 1 — старт-файлам веера, 2..9 — кольца»; схема .oc3/doc/data/__schemas/manifest.schema.json: weight {type integer, minimum 0} без максимума, 20/85/100 проходят схему и ловятся здесь; тест packages/ai-core/test/memory.test.ts:232-249 (вес 100 → «кольцо графа, не важность», «вес 100 вне 0..9», «назначь 0 общим фактам»); живой смоук CLI /tmp/opencode/judge-mh-smoke: веса 20/85/100 — три crit с подсказкой, memory check exit 1",
+          "reason": "Проверка стоит после loadManifest, текст crit дословно содержит «вес — кольцо графа, не важность» и подсказку по кольцам; значения 20/85/100 отвергаются (смок подтверждил все три)"
+        },
+        {
+          "key": "crit-2",
+          "status": "pass",
+          "evidence": "packages/ai-core/src/lib/memory.ts:124-128 — entries.length > 0 && entries.every(([, entry]) => entry.weight > 1) → «оперативная память пуста: назначь вес 0 общим фактам, 1 — старт-файлам»; тест packages/ai-core/test/memory.test.ts:251-273 (веса 3 и 2 → ровно один crit с дословным сообщением); смоук: веса 3/2 → crit; манифест без ключа files → crit отсутствует (пустой files не триггерит)",
+          "reason": "Условие «ни один файл не имеет вес ≤1» реализовано через every(> 1) с guard на пустой files; сообщение дословно по пункту"
+        },
+        {
+          "key": "crit-3",
+          "status": "pass",
+          "evidence": "packages/ai-core/src/lib/memory-graph.ts:262-271 capSummary (cap в байтах, utf8-безопасно, хвост «…»), :282-296 nodeBody — строка «- [rel](../doc/rel) — пояснение», полный текст факта не инлайнится; :364-368 renderGraph(summaryCap), :494 renderMemoryGraph передаёт manifest.budgets.summary; packages/ai-core/src/lib/memory.ts:29 DEFAULT_BUDGETS.summary = 200, :305 парс budgets.summary с fallback; тесты memory-graph.test.ts:331-349 («узел — каталог»: полный текст manuals отсутствует, «Запусти npm run build…» not.toContain) и :351-380 (budgets.summary=80 → пояснение ≤80 байт с «…», полный текст отсутствует, ссылка ровно одна); ограничение заявлено в отчёте .oc3/reports/memory-hardening/reports/memory-hardening-1.md:14 (left: budgets.summary отклоняется реальной схемой, docs_request librarian); реальная схема .oc3/doc/data/__schemas/manifest.schema.json — budgets additionalProperties: false, смоук даёт «/budgets must NOT have additional properties: summary»",
+          "reason": "Механизм капа из манифеста в коде есть (budgets.summary → renderGraph → capSummary) и дефолт 200 работает; по брифу пункт 3 судится по работоспособности механизма — ограничение схемы заявлено executor'ом в отчёте и подтверждено смоуком; дубль текста: тест проверяет отсутствие полного текста и ровно одну ссылку"
+        },
+        {
+          "key": "crit-4",
+          "status": "pass",
+          "evidence": "Четыре случая: memory.test.ts:232-249 (манифест с весом 100), :251-273 (манифест без весов ≤1), memory-graph.test.ts:351-380 (длинный факт при budgets.summary=80), :331-349 (дубль текста в index — полный текст отсутствует, ссылка одна); npm test -w @shahimat/ai-core — 237 passed (прогон judge, 19 файлов); npm run ci exit 0 (оператор и отчёт executor'а, строка 11, лог /tmp/opencode/ci-memory-hardening.log); package.json, package-lock.json и */package.json отсутствуют в git status/diff — версии и пины не тронуты",
+          "reason": "Все четыре случая покрыты unit-тестами и зелёные; CI зелёный (exit 0 заявлен и подтверждён повторным прогоном тестового слоя); зависимости не менялись"
+        }
+      ]
+    }
+  ]
+}
