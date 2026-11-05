@@ -9,5 +9,5 @@
     "todo": true,
     "subagent_depth": 2
   },
-  "plugins": ["@shahimat/oc3"]
+  "plugins": ["./packages/oc3"]
 }

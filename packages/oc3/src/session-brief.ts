@@ -14,7 +14,7 @@ import { describeBriefing, isBriefing } from '#briefing';
 
 const PROJECT_FILE = path.join('.oc3', 'doc', 'project.yml');
 const DEFAULT_LINE =
-  'брифинг: режим не задан — дефолт cheap: тикеты сам, доку librarian, judge off; до старта спроси схему (дефолтная или кастомная; достаточно текстового ответа), затем вызови oc3.briefing_done';
+  'брифинг: режим не задан — дефолт проекта — cheap: тикеты сам, доку librarian, judge off; до старта спроси: работаем в дефолте проекта или собираешь кастом на сессию (роли и модели можно добавить или убрать); достаточно текстового ответа, затем вызови oc3.briefing_done';
 
 export interface BriefingSystemPart {
   type: 'text';
@@ -42,7 +42,7 @@ export async function briefingLine(root: string): Promise<string> {
   if (!isBriefing(briefing)) return DEFAULT_LINE;
   const extras = describeBriefing(briefing).slice(1).join(', ');
   const mode = extras === '' ? briefing.mode : `${briefing.mode} (${extras})`;
-  return `брифинг: режим ${mode} — до ролей и тикетов спроси схему работы (дефолтная или кастомная; достаточно текстового ответа), затем вызови oc3.briefing_done; детали — skill workflow`;
+  return `брифинг: дефолт проекта — режим ${mode}; до ролей и тикетов спроси: работаем в дефолте проекта или собираешь кастом на сессию (роли и модели можно добавить или убрать); достаточно текстового ответа, затем вызови oc3.briefing_done; детали — skill workflow`;
 }
 
 export async function appendBriefing(

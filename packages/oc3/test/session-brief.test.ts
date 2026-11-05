@@ -70,7 +70,7 @@ describe('briefingLine', () => {
     const line = await briefingLine(root);
     expect(line.startsWith('брифинг:')).toBe(true);
     expect(line).toContain('режим roles');
-    expect(line).toContain('до ролей и тикетов спроси схему работы');
+    expect(line).toContain('до ролей и тикетов спроси');
     expect(line).toContain('skill workflow');
   });
 
@@ -86,8 +86,8 @@ describe('briefingLine', () => {
     await putProject('name: demo\nsummary: Демо\n');
     const line = await briefingLine(root);
     expect(line).toContain('режим не задан');
-    expect(line).toContain('дефолт cheap');
-    expect(line).toContain('до старта спроси схему');
+    expect(line).toContain('дефолт проекта — cheap');
+    expect(line).toContain('до старта спроси');
     expect(line).toContain('oc3.briefing_done');
   });
 
@@ -103,9 +103,10 @@ describe('briefingLine', () => {
     await putProject('briefing:\n  mode: roles\n');
     const line = await briefingLine(root);
     expect(line).toContain(
-      'спроси схему работы (дефолтная или кастомная; достаточно текстового ответа)',
+      'работаем в дефолте проекта или собираешь кастом на сессию (роли и модели можно добавить или убрать)',
     );
-    expect(line.indexOf('схему работы')).toBeLessThan(line.indexOf('oc3.briefing_done'));
+    expect(line).toContain('дефолт проекта — режим roles');
+    expect(line.indexOf('кастом на сессию')).toBeLessThan(line.indexOf('oc3.briefing_done'));
     expect(await briefingLine(root)).toContain('oc3.briefing_done');
     await putProject('name: demo\n');
     expect(await briefingLine(root)).toContain('достаточно текстового ответа');
@@ -136,7 +137,7 @@ describe('appendBriefing', () => {
     const input: BriefingSystem = { system: [] };
     await appendBriefing(input, root, seen, 's1');
     expect(input.system.length).toBe(1);
-    expect(input.system.at(0)?.text).toContain('дефолт cheap');
+    expect(input.system.at(0)?.text).toContain('дефолт проекта — cheap');
     expect(seen.has('s1')).toBe(true);
   });
 });

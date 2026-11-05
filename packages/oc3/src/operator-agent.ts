@@ -17,7 +17,7 @@ const OPERATOR = 'operator';
 const PLUGIN = '@shahimat/oc3';
 
 export const OPERATOR_PROMPT =
-  'Маршрут, правила и сценарии — AGENTS.md; брифинг и протоколы — skill workflow; первое сообщение сессии — брифинг схемы (дефолтная или кастомная), после ответа вызови oc3.briefing_done';
+  'Маршрут, правила и сценарии — AGENTS.md; брифинг и протоколы — skill workflow; первое сообщение сессии — брифинг: дефолт проекта или кастом на сессию, после ответа вызови oc3.briefing_done';
 
 export function operatorAgentMd(): string {
   return [

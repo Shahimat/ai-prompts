@@ -85,7 +85,7 @@ export async function briefLines(home: string, root: string): Promise<string[]> 
   const running = (await activeRoles(home)).filter((r) => r.project === path.resolve(root)).length;
   const queued = Math.max(0, (await waitingRoles(home)) - (await activeRoles(home)).length);
   const lines = [
-    `ops: jobs ${jobs.length} · ждут ответа ${asked.length} · ролей в работе ${running}, в очереди машины ${queued} · наблюдателей ${watches.length} · новых событий ${unseen.length}`,
+    `задач ${jobs.length} · ждут ответа ${asked.length} · в работе ${running} · машин в очереди ${queued} · наблюдателей ${watches.length} · новых событий ${unseen.length}`,
   ];
   for (const s of jobs.slice(0, 10))
     lines.push(

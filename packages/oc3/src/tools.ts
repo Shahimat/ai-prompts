@@ -204,7 +204,7 @@ export async function registerTools(ctx: Plugin.Context): Promise<void> {
     editor.add({
       name: 'briefing_done',
       description:
-        'Отметить брифинг сессии проведённым: вызови после ответа человека на вопрос о схеме работы (дефолтная или кастомная); до отметки гейт отказывает bash/edit/write/subagent, после — работа сессии разблокируется',
+        'Отметить брифинг сессии проведённым: вызови после ответа человека на вопрос «дефолт проекта или кастом на сессию»; до отметки гейт отказывает bash/edit/write/subagent, после — работа сессии разблокируется',
       input: { type: 'object', properties: {}, additionalProperties: false },
       options: { namespace: 'oc3', codemode: true },
       execute: (_input: unknown, context: { agent: string; sessionID: string }) =>

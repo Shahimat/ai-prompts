@@ -8,7 +8,7 @@ const SESSION_PATTERN = /^[A-Za-z0-9._-]+$/;
 const ACK_SUFFIX = '.briefing';
 const GATED = ['bash', 'edit', 'write', 'subagent'] as const;
 const GATE_MESSAGE =
-  'брифинг не проведён — спроси схему работы (дефолтная или кастомная), затем вызови oc3.briefing_done';
+  'брифинг не проведён — спроси: дефолт проекта или кастом на сессию, затем вызови oc3.briefing_done';
 
 export function briefingGate(action: string, acked: boolean): string | undefined {
   if (acked) return undefined;

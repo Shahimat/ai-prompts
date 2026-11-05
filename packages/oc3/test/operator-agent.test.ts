@@ -29,7 +29,7 @@ describe('ensureOperatorAgent', () => {
     expect(text).toContain('mode: primary');
     expect(text).toContain('AGENTS.md');
     expect(text).toContain('skill workflow');
-    expect(text).toContain('брифинг схемы');
+    expect(text).toContain('кастом на сессию');
     expect(text.startsWith('---\n')).toBe(true);
     expect(text).toContain('oc3.briefing_done');
   });

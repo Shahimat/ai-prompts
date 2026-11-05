@@ -19,7 +19,7 @@ describe('briefingGate', () => {
     for (const action of ['bash', 'edit', 'write', 'subagent']) {
       const message = briefingGate(action, false);
       expect(message).toContain('брифинг не проведён');
-      expect(message).toContain('схему работы (дефолтная или кастомная)');
+      expect(message).toContain('дефолт проекта или кастом на сессию');
       expect(message).toContain('oc3.briefing_done');
     }
   });

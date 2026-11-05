@@ -276,7 +276,7 @@ describe('ops: оператор', () => {
     const { short } = await job();
     out = [];
     expect(await run(['ops', 'brief'])).toBe(0);
-    expect(out[0]).toContain('jobs 1 · ждут ответа 1');
+    expect(out[0]).toContain('задач 1 · ждут ответа 1');
     expect(out.length).toBeLessThanOrEqual(20);
     expect(await run(['ops', 'status'])).toBe(0);
     expect(out.join('\n')).toContain(`.oc3/jobs/${short}`);
@@ -333,7 +333,7 @@ describe('ops: что работает сейчас', () => {
     expect(out[0]).toBe(
       `работает researcher · abc1234 · 4 мин · последний шаг: Grep · ${transcript}`,
     );
-    expect((await briefLines(home, root))[0]).toContain('ролей в работе 1');
+    expect((await briefLines(home, root))[0]).toContain('в работе 1');
   });
 });
 
