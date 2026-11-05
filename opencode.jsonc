@@ -1,4 +1,5 @@
 {
+  "default_agent": "operator",
   "$schema": "https://opencode.ai/config.json",
   "skills": ["./skills"],
   "worktree": {

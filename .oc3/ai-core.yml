@@ -8,5 +8,5 @@ checks:
   secrets:
     allow:
       - path: packages/harness/src/harnesses/core/ops/runner.ts
-        line: 162
+        line: 174
         reason: генерация случайного токена сессии в коде, не секрет

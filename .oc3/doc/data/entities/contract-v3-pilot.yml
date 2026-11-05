@@ -1,0 +1,4 @@
+id: contract-v3-pilot
+namespace: contract
+summary: Пилот контракта v3 в этом репозитории — развёртывание под OpenCode, рабочий цикл целей и тикетов, модели ролей
+manuals: [pilot]
