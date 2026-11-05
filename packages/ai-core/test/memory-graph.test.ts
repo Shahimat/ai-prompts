@@ -41,6 +41,7 @@ const MANIFEST_SCHEMA = JSON.stringify({
         notes: { type: 'integer', minimum: 1 },
         start: { type: 'integer', minimum: 1 },
         node: { type: 'integer', minimum: 1 },
+        summary: { type: 'integer', minimum: 1 },
         optional_field: { type: 'integer', minimum: 1 },
       },
     },
@@ -104,7 +105,7 @@ async function fixture(options: FixtureOptions = {}): Promise<void> {
       options.manifest ?? {
         namespace: ['code', 'docs'],
         data: ['entities'],
-        budgets: { notes: 4096, start: 10240, node: 16384, optional_field: 3 },
+        budgets: { notes: 4096, start: 24576, node: 16384, optional_field: 3 },
         files: {
           'conventions/code.yml': { namespace: ['code'], weight: 1 },
           'data/entities/user.yml': { namespace: ['code'], weight: 2 },
@@ -228,7 +229,7 @@ describe('renderGraph', () => {
       JSON.stringify({
         namespace: ['code', 'docs'],
         data: ['entities'],
-        budgets: { notes: 4096, start: 10240, node: 16384, optional_field: 3 },
+        budgets: { notes: 4096, start: 24576, node: 16384, optional_field: 3 },
         files: {
           'conventions/code.yml': { namespace: ['code'], weight: 2 },
           'data/entities/user.yml': { namespace: ['code'], weight: 2 },
@@ -327,7 +328,7 @@ describe('checkBundles', () => {
 });
 
 describe('renderGraph renders', () => {
-  it('выход без YAML/JSON-разметки: предложения и markdown-ссылки', async () => {
+  it('узел — каталог: ссылка с пояснением, полный текст факта не инлайнится', async () => {
     await fixture();
     const report = await buildBundles(root);
     const graph = report.graph;
@@ -336,12 +337,46 @@ describe('renderGraph renders', () => {
     expect(start).not.toMatch(/^(namespace|weight|files):/m);
     expect(start).not.toMatch(/^- key: /m);
     const code1 = graph.nodes.find((n) => n.key === 'code:1');
-    expect(code1?.text).toContain('- [conventions/code.yml](../doc/conventions/code.yml) —');
     expect(code1?.text).toContain(
-      'no-any — any в коде запрещён. Правило: Данные сужаются проверками, без as T и not-null',
+      '- [conventions/code.yml](../doc/conventions/code.yml) — 1 записей, первая: no-any',
     );
+    expect(code1?.text).toContain('- [manuals/how.md](../doc/manuals/how.md) — инструкция: ');
+    expect(code1?.text).not.toContain('Запусти npm run build в корне репозитория');
     const user = graph.nodes.find((n) => n.key === 'code:2');
-    expect(user?.text).toContain('user — домен code. Пользователь проекта');
+    expect(user?.text).toContain(
+      '- [data/entities/user.yml](../doc/data/entities/user.yml) — user — домен code. Пользователь проекта',
+    );
+  });
+
+  it('длинный факт — короткое пояснение по budgets.summary, без дубля текста', async () => {
+    await fixture({
+      manifest: {
+        namespace: ['code'],
+        data: ['entities'],
+        budgets: { notes: 4096, start: 24576, node: 16384, optional_field: 3, summary: 80 },
+        files: { 'data/entities/user.yml': { namespace: ['code'], weight: 1 } },
+      },
+    });
+    const longSummary = 'Очень длинное пояснение проекта про пользователей и их роли. '.repeat(6);
+    await put(
+      '.oc3/doc/data/entities/user.yml',
+      `id: user\nnamespace: code\nsummary: ${longSummary}\n`,
+    );
+    const report = await buildBundles(root);
+    const graph = report.graph;
+    if (graph === null) throw new Error('нет графа');
+    const node = graph.nodes.find((n) => n.key === 'code:1');
+    if (node === undefined) throw new Error('нет узла code:1');
+    const line = node.text
+      .split('\n')
+      .find((l) => l.startsWith('- [data/entities/user.yml](../doc/data/entities/user.yml)'));
+    if (line === undefined) throw new Error('нет строки каталога для факта');
+    const note = line.slice('- [data/entities/user.yml](../doc/data/entities/user.yml) — '.length);
+    expect(Buffer.byteLength(note, 'utf8')).toBeLessThanOrEqual(80);
+    expect(note).toContain('…');
+    expect(node.text).not.toContain(longSummary);
+    const links = node.text.split('- [data/entities/user.yml](').length - 1;
+    expect(links).toBe(1);
   });
 
   it('renderGraph строит веер без дубликатов узлов для общих файлов веса ≥1', async () => {
@@ -349,7 +384,7 @@ describe('renderGraph renders', () => {
       manifest: {
         namespace: ['code'],
         data: ['entities'],
-        budgets: { notes: 4096, start: 10240, node: 16384, optional_field: 3 },
+        budgets: { notes: 4096, start: 24576, node: 16384, optional_field: 3 },
         files: { 'data/entities/user.yml': { namespace: [], weight: 1 } },
       },
     });

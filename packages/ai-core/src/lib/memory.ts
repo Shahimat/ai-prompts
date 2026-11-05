@@ -18,13 +18,15 @@ export interface MemoryBudgets {
   notes: number;
   start: number;
   node: number;
+  summary: number;
   optionalField: number;
 }
 
 export const DEFAULT_BUDGETS: MemoryBudgets = {
   notes: 4096,
-  start: 10240,
+  start: 24576,
   node: 16384,
+  summary: 200,
   optionalField: 3,
 };
 
@@ -111,6 +113,19 @@ export async function checkMemory(root: string): Promise<{
   const diagnostics = [...loaded.diagnostics];
   const manifest = loaded.manifest;
   if (manifest === null) return { diagnostics, warnings };
+
+  const entries = Object.entries(manifest.files);
+  for (const [file, entry] of entries)
+    if (entry.weight < 0 || entry.weight > 9)
+      diagnostics.push({
+        file: OC3_MANIFEST,
+        message: `${file}: вес ${entry.weight} вне 0..9 — вес — кольцо графа, не важность; назначь 0 общим фактам (инлайн в старт), 1 — старт-файлам веера, 2..9 — кольца`,
+      });
+  if (entries.length > 0 && entries.every(([, entry]) => entry.weight > 1))
+    diagnostics.push({
+      file: OC3_MANIFEST,
+      message: 'оперативная память пуста: назначь вес 0 общим фактам, 1 — старт-файлам',
+    });
 
   const schemas = new Map<string, SchemaPair>();
   for (const name of [...manifest.data, 'conventions', 'glossary']) {
@@ -287,6 +302,7 @@ async function checkManifest(
       notes: int(budgets['notes'], DEFAULT_BUDGETS.notes),
       start: int(budgets['start'], DEFAULT_BUDGETS.start),
       node: int(budgets['node'], DEFAULT_BUDGETS.node),
+      summary: int(budgets['summary'], DEFAULT_BUDGETS.summary),
       optionalField: int(budgets['optional_field'], DEFAULT_BUDGETS.optionalField),
     },
     files,

@@ -259,6 +259,17 @@ const loadFacts = async (
 const nodeKeyOf = (namespace: string, weight: number): string =>
   `${namespace === '' ? GENERAL_NS : namespace}:${weight}`;
 
+const capSummary = (text: string, cap: number): string => {
+  if (Buffer.byteLength(text, 'utf8') <= cap) return text;
+  let out = '';
+  for (const ch of text) {
+    const next = `${out}${ch}`;
+    if (Buffer.byteLength(`${next}…`, 'utf8') > cap) break;
+    out = next;
+  }
+  return `${out}…`;
+};
+
 const nodeFrame = (key: string, weight: number, count: number, body: string): string =>
   `# Узел ${key}\n\nКольцо: ${weight}\nФайлов: ${count}\n\n${body}`;
 
@@ -268,14 +279,13 @@ interface Bucket {
   files: string[];
 }
 
-const nodeBody = (bucket: Bucket, facts: FactFile[], edges: GraphNode[]): string => {
+const nodeBody = (bucket: Bucket, facts: FactFile[], edges: GraphNode[], cap: number): string => {
   const byRel = new Map(facts.map((f) => [f.rel, f]));
   const lines: string[] = ['Файлы узла:', ''];
   for (const rel of bucket.files) {
     const summary = byRel.get(rel)?.summary ?? '';
-    lines.push(`- [${rel}](../doc/${rel}) — ${summary === '' ? 'факты проекта' : summary}`);
-    const text = byRel.get(rel)?.text.trimEnd() ?? '';
-    if (text !== '') lines.push('', text, '');
+    const note = summary === '' ? 'факты проекта' : capSummary(summary, cap);
+    lines.push(`- [${rel}](../doc/${rel}) — ${note}`);
   }
   if (edges.length > 0) {
     lines.push(`Глубже (кольцо ${bucket.weight + 1}):`, '');
@@ -351,7 +361,11 @@ const skillsCatalog = async (root: string): Promise<string[]> => {
     );
 };
 
-export const renderGraph = async (root: string, facts: FactFile[]): Promise<MemoryGraph> => {
+export const renderGraph = async (
+  root: string,
+  facts: FactFile[],
+  summaryCap: number,
+): Promise<MemoryGraph> => {
   const grouped = new Map<string, Bucket>();
   const bucketOf = (key: string, namespace: string, weight: number): Bucket => {
     const existing = grouped.get(key);
@@ -383,7 +397,7 @@ export const renderGraph = async (root: string, facts: FactFile[]): Promise<Memo
         const node = done.get(nodeKeyOf(b.namespace, b.weight));
         return node === undefined ? [] : [node];
       });
-    const body = nodeBody(bucket, facts, edges);
+    const body = nodeBody(bucket, facts, edges, summaryCap);
     const count = bucket.files.length;
     const frame = nodeFrame(key, bucket.weight, count, body);
     const sha = shaOf(frame);
@@ -474,7 +488,7 @@ export const renderMemoryGraph = async (
   if (manifest === null)
     return { report: { diagnostics, warnings: [], graph: null }, manifest: null };
   const facts = await loadFacts(root, manifest, diagnostics);
-  const graph = await renderGraph(root, facts);
+  const graph = await renderGraph(root, facts, manifest.budgets.summary);
   return {
     report: { diagnostics, warnings: [], graph },
     manifest,

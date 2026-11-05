@@ -20,7 +20,8 @@
         "notes": { "type": "integer", "minimum": 1 },
         "start": { "type": "integer", "minimum": 1 },
         "node": { "type": "integer", "minimum": 1 },
-        "optional_field": { "type": "integer", "minimum": 1 }
+        "optional_field": { "type": "integer", "minimum": 1 },
+        "summary": { "type": "integer", "minimum": 1 }
       }
     },
     "files": {
