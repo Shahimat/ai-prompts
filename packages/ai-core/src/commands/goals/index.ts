@@ -5,6 +5,7 @@ import type { CommandArgs } from '#shared/args';
 import { UsageError, type Diagnostic } from '#shared/diagnostics';
 import { errorCode, isRecord } from '#shared/guards';
 import { report } from '#shared/report';
+import { BASELINE_DIR, GOALS_DIR } from '#shared/layout';
 
 interface Step {
   kind: 'describe' | 'crit' | 'warn' | 'wip' | 'todo' | 'budget';
@@ -159,7 +160,7 @@ async function check(args: CommandArgs): Promise<number> {
   const ticket = args.ticket;
   if (ticket === undefined || ticket === '') throw new UsageError('нужен --ticket <key>');
   let { rel, goal } = await goalOf(args);
-  if (!goal.tickets.some((t) => t.key === ticket) && rel.startsWith('goals/program--')) {
+  if (!goal.tickets.some((t) => t.key === ticket) && rel.startsWith(`${GOALS_DIR}/program--`)) {
     for (const imported of await importsOf(args, rel)) {
       const text = await readOrNull(path.join(args.root, imported));
       if (text === null) continue;
@@ -175,7 +176,7 @@ async function check(args: CommandArgs): Promise<number> {
   if (!goal.tickets.some((t) => t.key === ticket))
     diagnostics.push({ file: rel, message: `нет тикета ${ticket}` });
 
-  const base = path.posix.join('.ops', ticket, 'baseline');
+  const base = path.posix.join(BASELINE_DIR, ticket);
   const candidates = [path.posix.join(base, rel), path.posix.join(base, path.posix.basename(rel))];
   let baselinePath: string | undefined;
   let baselineText: string | undefined;
@@ -203,10 +204,12 @@ async function check(args: CommandArgs): Promise<number> {
 }
 
 async function programFiles(args: CommandArgs): Promise<string[]> {
-  const dir = path.join(args.root, 'goals');
+  const dir = path.join(args.root, GOALS_DIR);
   const names = (await listDir(dir)).filter((n) => n.endsWith('.expect.ts'));
   const programs = names.filter((n) => n.startsWith('program--'));
-  return programs.length > 0 ? programs.map((n) => `goals/${n}`) : names.map((n) => `goals/${n}`);
+  return programs.length > 0
+    ? programs.map((n) => `${GOALS_DIR}/${n}`)
+    : names.map((n) => `${GOALS_DIR}/${n}`);
 }
 
 async function importsOf(args: CommandArgs, rel: string): Promise<string[]> {
@@ -261,7 +264,7 @@ async function status(args: CommandArgs): Promise<number> {
       : [posix(path.relative(args.root, path.resolve(args.root, rel)))];
   for (const file of files) {
     const goal = parseGoal(file, (await readOrNull(path.join(args.root, file))) ?? '');
-    if (file.startsWith('goals/program--')) {
+    if (file.startsWith(`${GOALS_DIR}/program--`)) {
       const imports = await importsOf(args, file);
       if (imports.length === 0) {
         console.log(`${file}: целей нет`);

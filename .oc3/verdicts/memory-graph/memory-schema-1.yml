@@ -1,0 +1,111 @@
+run: 1
+status: fail
+summary: >-
+  crit 1–5 pass — 5 схем с additionalProperties false, манифест с
+  namespace/data/budgets, валидатор checkMemory с тестами, живой прогон на
+  фактах ai-prompts — 0 диагностик; crit 6 fail — слой ai-config не разнесён и
+  не валидирован (в /mnt/dev/my/prj/ai-config нет .oc3/, правка чужого корня из
+  сессии запрещена guard'ом)
+items:
+  - key: crit-1
+    status: pass
+    evidence: >-
+      схемы форм — .oc3/doc/data/__schemas/conventions.schema.json и
+      glossary.schema.json (корень type array, items — плоский объект
+      правила/термина, additionalProperties false); факты —
+      .oc3/doc/conventions/common.yml одна область-список (4 правила, ключи
+      docs-delta-fallback / expectations-repo-scan / index-rebuild /
+      worktree-epic-assembly), .oc3/doc/glossary/common.yml — пустой список;
+      common-файлы не входят ни в один namespace (.oc3/manifest.json namespace
+      пуст) → общий, вес 0 по правилу «файл без namespace — общий»; форма
+      «область = список» поддержана индексом —
+      packages/ai-core/test/context-index.test.ts:168-184 «конвенции-области —
+      плоский список правил в одном файле» и collectConventions в
+      context-index.ts:235
+    reason: >-
+      Файл = одна область, внутри плоский YAML-список; обе схемы форм
+      лежат в __schemas; common-файлы получают вес 0 структурно (вне
+      namespace манифеста) — пункт выполнен
+  - key: crit-2
+    status: pass
+    evidence: >-
+      .oc3/doc/data/__schemas/manifest.schema.json — required [namespace, data]
+      (дословно «обязательные поля namespace — имена доменов и data — имена
+      структур»); .oc3/manifest.json — namespace и data: [entities, behavior]
+      присутствуют; структура name живёт в .oc3/doc/data/name/ — валидатор
+      читает файлы структур из DATA_DIR/name
+      (packages/ai-core/src/lib/memory.ts:106), схема каждой —
+      __schemas/name.schema.json (memory.ts:97-101); check валидирует манифест —
+      checkManifest memory.ts:205-262 (нет файла/схемы/битый JSON/нарушение
+      схемы → crit), манифест-схема additionalProperties false
+    reason: >-
+      Манифест с обязательными полями по своей схеме, раскладка
+      структура→директория и схема→__schemas реализованы в валидаторе,
+      check прогоняет манифест через manifest.schema.json — пункт
+      выполнен
+  - key: crit-3
+    status: pass
+    evidence: >-
+      значения — скаляр или список скаляров: все value-поля схем type string
+      либо array of string (entities.manuals, behavior.steps); вложенные объекты
+      отсечены схемой (type string + additionalProperties false) и тестом
+      packages/ai-core/test/memory.test.ts:136 «вложенный объект в значении и
+      перекрёстное упоминание — crit»; перекрёстные упоминания — CROSS_REF
+      регулярка «см./see» (memory.ts:42) в checkFactFile memory.ts:283-290 →
+      crit «факт рендерится ровно один раз, ссылки даёт бандл»; свободный текст
+      в фактах не проходит схемы (conventions/glossary/data валидируются всегда —
+      memory.ts:103-138), единственный инбокс свободного текста — NOTES
+      (memory.ts:160-170, крит только на превышение размера)
+    reason: >-
+      Запрет вложенности и перекрёстных упоминаний реализован и в
+      схемах, и отдельной проверкой валидатора; вне NOTES свободный
+      текст в фактах невозможен без нарушения схемы — пункт выполнен
+  - key: crit-4
+    status: pass
+    evidence: >-
+      скрипт-валидатор checkFactFile (memory.ts:264-291) прогоняет каждый файл
+      каждой data-структуры плюс conventions/glossary по своей jsonschema,
+      расхождение → crit с путём (тест memory.test.ts:127); все 5 схем —
+      additionalProperties false (проверено чтением
+      .oc3/doc/data/__schemas/*.schema.json); живой прогон на фактах репо —
+      checkMemory на корне проекта вернул пустые diagnostics и warnings; в
+      CLI/ci сознательно не включён — по заданию оператора это тикет
+      memory-generator («check вшит в npm run ci» — crit тикета 4)
+    reason: >-
+      Автопроверка каждого файла по своей схеме реализована и на репо
+      даёт ноль расхождений; невключение в ci — явно вынесено оператором
+      в тикет memory-generator, крит самого memory-generator (вшивание
+      check в ci) не нарушен
+  - key: crit-5
+    status: pass
+    evidence: >-
+      бюджеты в .oc3/manifest.json — notes 4096, start 10240, node 16384,
+      optional_field 3; дефолты при отсутствии budgets — DEFAULT_BUDGETS
+      memory.ts:23-28 + применение memory.ts:250-259; NOTES сверх бюджета → crit
+      (memory.ts:163-167, тест memory.test.ts:167); опциональное поле сверх
+      порога → WARN, не crit (memory.ts:293-313, счёт по файлам — буквально
+      «порог … дефолт 3 файла», тесты memory.test.ts:182,194); пороги
+      start/node посчитаются на бандлах в тикете memory-generator, в манифесте
+      они уже объявлены
+    reason: >-
+      Все четыре бюджета живут в манифесте с нужными дефолтами;
+      превышение NOTES — crit, порог опционального поля — WARN, тип
+      нарушения соответствует криту; счёт по файлам совпадает с
+      дословной формулировкой крита («3 файла»)
+  - key: crit-6
+    status: fail
+    evidence: >-
+      слой ai-prompts разнесён и валиден — .oc3/doc/conventions/common.yml,
+      .oc3/doc/glossary/common.yml, .oc3/manifest.json, живой checkMemory на
+      корне репо — diagnostics 0, warnings 0; слой ai-config не тронут: в
+      /mnt/dev/my/prj/ai-config нет .oc3/ (каталог отсутствует), факты не
+      разнесены по структурам, валидация не прогонялась; правка чужого проекта
+      из сессии этого репо запрещена ai-config guard'ом (edit/write вне корня
+      сессии — deny)
+    reason: >-
+      Крит требует оба существующих слоя; ai-config не мигрирован в
+      .oc3/ и не нормализован — половина пункта не выполнена и в этой
+      сессии невыполнима (границы сессии). Для ai-config нужна
+      отдельная сессия в его корне: oc3 init (мигратор перенесёт
+      layout), нормализация фактов по схемам, прогон checkMemory; либо
+      оператор явно передаёт этот остаток следующей попытке/тикету

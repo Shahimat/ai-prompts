@@ -1,5 +1,26 @@
 # CHANGELOG
 
+## 0.1.6
+
+- Память-сезл: чтение под `.oc3/` — deny по умолчанию; librarian —
+  полный доступ, остальным ролям — белый список (bundles, goals,
+  research, reports, verdicts, operator, locks, sessions, submit,
+  skills.yml, ai-core.yml); `.oc3/doc/**` и manifest — сообщение
+  «читает только librarian; агентам — бандлы».
+- `.oc3/manifest.json` — ручка графа памяти: namespace и веса файлов,
+  data-разделы, бюджеты notes/start/node/optional_field; манифест
+  правит librarian, граф собирается только из него.
+- `oc3 migrate`: переезд старой раскладки в `.oc3/` (context/ → doc,
+  docs/ → data|manuals|knowledge, goals, .ops — плоско) — rename
+  байт-в-байт, префиксы в ai-core/skills/ops.yml, .gitignore, отчёт
+  legacy-хвостов; `oc3 init` детектит старую раскладку и мигрирует
+  перед проверкой состояния.
+- Оператор-агент и брифинг на новых путях: режим проекта —
+  `.oc3/doc/project.yml`, ack брифинга —
+  `.oc3/sessions/<sessionID>.briefing`; после строки брифинга сессии
+  вшивается стартовый граф памяти (build-if-stale, один экземпляр
+  на сессию).
+
 ## 0.1.5
 
 - Окно ролей: `oc3 init --roles <список>` валидирует роли встроенного

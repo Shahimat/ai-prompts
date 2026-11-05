@@ -27,7 +27,7 @@ pre-processing (HTML → markdown, обрезка) искажает контен
 
 ## Конфигурация проекта
 
-`context/project.yml`:
+`.oc3/doc/project.yml`:
 
 ```yaml
 sync:
@@ -41,7 +41,7 @@ sync:
       agents: {<name>: <hex>}
 ```
 
-Manifest каждого модуля — `context/modules/<key>.yml` со своими
+Manifest каждого модуля — `.oc3/modules/<key>.yml` со своими
 `source`, `synced_sha`, `synced_at`, `provides` и `parts`; в `sync`
 проекта модули не дублируются.
 
@@ -56,7 +56,7 @@ Manifest каждого модуля — `context/modules/<key>.yml` со сво
 Совпало имя своей роли с новой ролью источника — стоп, вопрос
 пользователю.
 
-Модели ролей — override в `context/project.yml` → `roles.models`: синк
+Модели ролей — override в `.oc3/doc/project.yml` → `roles.models`: синк
 его не трогает. Правка `model` руками в `.agents/agents/<name>.md`
 слетает — файл часть контракта. После применения плана запусти
 `oc3 models apply`: вернёт override в файлы ролей и производные.
@@ -74,7 +74,7 @@ Manifest каждого модуля — `context/modules/<key>.yml` со сво
    `"plugins": ["@shahimat/oc3"]` и перезапусти OpenCode: плагин
    доустановится сам без node/npm, установщик доступен его
    инструментом.
-2. Установщик пишет ядро (AGENTS.md, context/, package.json,
+2. Установщик пишет ядро (AGENTS.md, каркас .oc3/, package.json,
    opencode.jsonc, .gitattributes/.gitignore). Вопросы, которые
    решает только человек (reality, реквизиты), он печатает списком —
    передай их пользователю, ответы верни повторным прогоном.
@@ -83,9 +83,9 @@ Manifest каждого модуля — `context/modules/<key>.yml` со сво
    executor, judge, librarian; watch-пара — только с модулем
    watchers) и передай выбор повторным прогоном
    `oc3 init --roles …` — установщик запишет агентов ролей и
-   привязки в context/skills.yml.
+   привязки в .oc3/skills.yml.
 4. Миграция v2 → v3: структура — установщик; содержательный перенос
-   очереди `context/views` в `goals/*.expect.ts` — по отчёту
+   очереди `context/views` в `.oc3/goals/*.expect.ts` — по отчёту
    миграции через librarian.
 5. Верификация: повторный прогон установщика — «ok»; с node в
    проекте — проверка проекта по skill `cli`.
@@ -106,16 +106,16 @@ Cold-start без node/npm допустим: OpenCode сам ставит пла
    <!-- expect:skill-runs -->
    <!-- metadata.runs: source-sync -->
    Если подключён harness — сценарий ведёт `ai source-sync
-   start`. Он печатает текущую версию из `context/ai-core.yml`, последнюю
+   start`. Он печатает текущую версию из `.oc3/ai-core.yml`, последнюю
    в npm и записи журнала пакета между ними (всегда, даже если индекс не
    менялся), и останавливается с заданием: шаги 3–8. После них —
    `ai source-sync open <id>`: harness пересоберёт адаптеры и
-   `context/index.yml` и проверит проект; провал вернёт задание.
+   `.oc3/bundles/index.md` и проверит проект; провал вернёт задание.
    <!-- /expect:skill-runs -->
 3. `curl` тянет `index.yml`, считай SHA-256. Совпал с `sync.index_sha` и
    harness актуален — «без изменений», выход (с harness — resume).
 4. Не совпал — читай индекс. Источники: контракт (`sync.contract.key`)
-   и модули (`context/modules/*.yml`); для каждого — его `parts`.
+   и модули (`.oc3/modules/*.yml`); для каждого — его `parts`.
 5. Сравни `sha256` из индекса с сохранёнными:
    - совпал — пропускаешь;
    - разошёлся у контракта или модуля — `curl` тянет файл по `raw`,
@@ -137,13 +137,13 @@ Cold-start без node/npm допустим: OpenCode сам ставит пла
      поставить, исчезнувшие удалить (в план).
 7. Отчёт «Что нового» (ниже) и один блокирующий вопрос.
 8. После «да»: применяешь план к артефактам контракта — `.agents/`,
-   блоки `AGENTS.md`, manifest'ы `context/modules/`, блок `sync` в
-   `context/project.yml`; затем `oc3 models apply` — override моделей
+   блоки `AGENTS.md`, manifest'ы `.oc3/modules/`, блок `sync` в
+   `.oc3/doc/project.yml`; затем `oc3 models apply` — override моделей
    из `roles.models` возвращается в перезаписанные роли; правки слоёв
    документации проекта — только через librarian. После — обнови
    `sync.index_sha`, `synced_sha` контракта и модулей, SHA в `parts`,
    `synced_at`; при обновлении harness — `version` в
-   `context/ai-core.yml`. Адаптеры и проверку с harness делает resume
+   `.oc3/ai-core.yml`. Адаптеры и проверку с harness делает resume
    процесса (шаг 2), без harness — вручную.
 <!-- /expect:sync-warns-deprecated -->
 

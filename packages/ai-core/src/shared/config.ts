@@ -3,8 +3,9 @@ import path from 'node:path';
 import { parse } from 'yaml';
 import { UsageError } from './diagnostics.ts';
 import { errorCode, errorMessage, isOneOf, isRecord } from './guards.ts';
+import { AI_CORE_PATH } from './layout.ts';
 
-export const CONFIG_PATH = 'context/ai-core.yml';
+export const CONFIG_PATH = AI_CORE_PATH;
 
 export interface ChangelogOptions {
   maxLine: number;

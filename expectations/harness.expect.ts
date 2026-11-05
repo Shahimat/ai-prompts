@@ -67,7 +67,7 @@ budget({ crit: 0, warn: 5 });
 
 describe('[harness] common', () => {
   crit(
-    'состав: команды ai-core — check, refresh, changelog, context, adapters, delta, outdated, expect, goals, roles, skills, operator, models, index, secrets, role',
+    'состав: команды ai-core — check, refresh, changelog, context, adapters, delta, outdated, expect, goals, roles, skills, operator, models, index, secrets, role, memory',
     () => Check.composition(),
   );
   crit(
@@ -91,7 +91,7 @@ describe('[harness] common', () => {
     Check.exitCodes(),
   );
   crit(
-    'неизвестный ключ в context/ai-core.yml — ошибка конфига, а не молча выключенная проверка',
+    'неизвестный ключ в .oc3/ai-core.yml — ошибка конфига, а не молча выключенная проверка',
     () => Check.strictConfig(),
   );
   crit('справка CLI строится из декларативного дерева команд', () => Check.commandTree());
@@ -298,7 +298,7 @@ describe('[harness] ops', () => {
     () => Ops.briefHook(),
   );
   crit(
-    'действие наружу с уровнем never в context/autonomy.yml не выполняется даже прямой командой ai ops act',
+    'действие наружу с уровнем never в .oc3/doc/autonomy.yml не выполняется даже прямой командой ai ops act',
     () => Ops.neverBlocks(),
   );
   crit('запись провайдера при уровне ask без «да» не выполняется: рантайм только предлагает', () =>
@@ -320,13 +320,13 @@ describe('[harness] ops', () => {
     Ops.defaultLimits(),
   );
   crit(
-    'намерения из job уходят в документацию только через docs-delta start: ticket-work сам не пишет в context/ и docs/ проекта',
+    'намерения из job уходят в документацию только через docs-delta start: ticket-work сам не пишет в .oc3/doc/ проекта',
     () => Ops.docsViaDelta(),
   );
 });
 
 describe('[harness] check', () => {
-  crit('команда ai check — все проверки из context/ai-core.yml разом', () =>
+  crit('команда ai check — все проверки из .oc3/ai-core.yml разом', () =>
     Check.commands(['check']),
   );
   crit('проверки ai check: changelog, context-index, adapters, secrets — других нет', () =>
@@ -341,14 +341,14 @@ describe('[harness] changelog', () => {
 });
 
 describe('[harness] context', () => {
-  crit('команда ai context index — генерация context/index.yml из слоёв документации', () =>
+  crit('команда ai context index — генерация .oc3/doc/index.yml из слоёв документации', () =>
     Check.commands(['context index']),
   );
   crit(
-    'команда ai context check — сверка context/index.yml со слоями документации без записи',
+    'команда ai context check — сверка .oc3/doc/index.yml со слоями документации без записи',
     () => Check.commands(['context check']),
   );
-  warn('context/index.yml генерируется ai context index и не содержит даты генерации', () =>
+  warn('.oc3/doc/index.yml генерируется ai context index и не содержит даты генерации', () =>
     Check.contextIndexNoDate(),
   );
 });
@@ -387,7 +387,7 @@ describe('[ai-core] docs guard', () => {
     'adapters sync пишет только производные объявленных адаптеров: ни settings.json, ни hook-конфигов',
     () => Guard.installed(),
   );
-  crit('версии пакетов — в package.json проекта: в context/ai-core.yml ключа version нет', () =>
+  crit('версии пакетов — в package.json проекта: в .oc3/ai-core.yml ключа version нет', () =>
     Guard.noConfigVersion(),
   );
 });
@@ -585,7 +585,7 @@ describe('[harness] expect plan', () => {
 });
 
 describe('[harness] delta', () => {
-  crit('команды ai delta check | close — дельта проектной документации в context/.delta/', () =>
+  crit('команды ai delta check | close — дельта проектной документации в .oc3/.delta/', () =>
     Check.commands(['delta check', 'delta close']),
   );
   crit(
@@ -595,7 +595,7 @@ describe('[harness] delta', () => {
   crit('delta close удаляет дельту только при чистом delta check и выполненных пунктах', () =>
     Check.deltaClose(),
   );
-  crit('context index не включает context/.delta/', () => Check.deltaNotIndexed());
+  crit('context index не включает .oc3/.delta/', () => Check.deltaNotIndexed());
   crit('схема дельты в пакете совпадает с expectations/schemas/docs-delta.schema.json', () =>
     Check.deltaSchema(),
   );
@@ -610,11 +610,11 @@ describe('[harness] secrets', () => {
     () => Check.secretsFound(),
   );
   crit(
-    'secrets включена в ai check по умолчанию; выключить её можно только явно в context/ai-core.yml',
+    'secrets включена в ai check по умолчанию; выключить её можно только явно в .oc3/ai-core.yml',
     () => Check.secretsByDefault(),
   );
   crit(
-    'ложное срабатывание снимается только явным исключением в context/ai-core.yml с указанием причины',
+    'ложное срабатывание снимается только явным исключением в .oc3/ai-core.yml с указанием причины',
     () => Check.secretsAllow(),
   );
   crit('в выводе найденный секрет замаскирован: путь, строка и тип — без значения', () =>
@@ -676,15 +676,15 @@ async function withGitProject(fn: (dir: string) => Promise<void>): Promise<void>
   const git = (...args: string[]) => spawnSync('git', args, { cwd: dir, encoding: 'utf8' });
   try {
     await mkdir(path.join(dir, '.opencode'), { recursive: true });
-    await mkdir(path.join(dir, 'context/conventions'), { recursive: true });
-    await mkdir(path.join(dir, 'context/.delta'), { recursive: true });
-    await mkdir(path.join(dir, 'context/modules'), { recursive: true });
+    await mkdir(path.join(dir, '.oc3/doc/conventions'), { recursive: true });
+    await mkdir(path.join(dir, '.oc3/.delta'), { recursive: true });
+    await mkdir(path.join(dir, '.oc3/modules'), { recursive: true });
     await writeFile(
-      path.join(dir, 'context/project.yml'),
+      path.join(dir, '.oc3/doc/project.yml'),
       'name: demo\nnamespaces:\n  core: ядро\n',
     );
     await writeFile(
-      path.join(dir, 'context/conventions/naming.yml'),
+      path.join(dir, '.oc3/doc/conventions/naming.yml'),
       'key: naming\nsummary: kebab-case\nrule: x\n',
     );
     git('init', '-q');
@@ -712,7 +712,7 @@ async function withSecretProject(
 ): Promise<void> {
   await withGitProject(async (dir) => {
     const git = (...args: string[]) => spawnSync('git', args, { cwd: dir, encoding: 'utf8' });
-    await writeFile(path.join(dir, 'context/ai-core.yml'), config);
+    await writeFile(path.join(dir, '.oc3/ai-core.yml'), config);
     await writeFile(path.join(dir, 'notes.md'), `# Заметки\n\n${notes}\n`);
     git('add', '.');
     await fn(dir);
@@ -752,6 +752,8 @@ const DECLARED_COMMANDS = [
   'outdated',
   'index build',
   'index check',
+  'memory build',
+  'memory check',
   'secrets scan',
   'role run <name>',
   'role channel <message>',
@@ -878,6 +880,7 @@ class Check {
       'expect',
       'goals',
       'index',
+      'memory',
       'models',
       'operator',
       'ops',
@@ -992,8 +995,8 @@ class Check {
       await writeFile(path.join(dir, 'CHANGELOG.md'), '- 2026-10-13 · без тега · b\n');
       expect(cli(['changelog', 'lint', '--root', dir])).toBe(1);
       expect(cli(['нет-такой-команды'])).toBe(2);
-      await mkdir(path.join(dir, 'context'));
-      await writeFile(path.join(dir, 'context/ai-core.yml'), 'checks:\n  nope: {}\n');
+      await mkdir(path.join(dir, '.oc3'));
+      await writeFile(path.join(dir, '.oc3/ai-core.yml'), 'checks:\n  nope: {}\n');
       expect(cli(['check', '--root', dir])).toBe(2);
     } finally {
       await rm(dir, { recursive: true, force: true });
@@ -1152,23 +1155,23 @@ class Check {
   static async deltaCheck(): Promise<void> {
     await withGitProject(async (dir) => {
       await writeFile(
-        path.join(dir, 'context/conventions/naming.yml'),
+        path.join(dir, '.oc3/doc/conventions/naming.yml'),
         'key: naming\nsummary: snake_case\nrule: x\n',
       );
       expect(cli(['delta', 'check', '--root', dir])).toBe(1);
-      await writeFile(path.join(dir, 'context/.delta/naming.yml'), REVISE_NAMING);
+      await writeFile(path.join(dir, '.oc3/.delta/naming.yml'), REVISE_NAMING);
       expect(cli(['delta', 'check', '--root', dir])).toBe(0);
     });
   }
 
   static async deltaClose(): Promise<void> {
     await withGitProject(async (dir) => {
-      const delta = path.join(dir, 'context/.delta/naming.yml');
+      const delta = path.join(dir, '.oc3/.delta/naming.yml');
       await writeFile(delta, REVISE_NAMING);
       expect(cli(['delta', 'close', '--root', dir])).toBe(1);
       expect(existsSync(delta)).toBe(true);
       await writeFile(
-        path.join(dir, 'context/conventions/naming.yml'),
+        path.join(dir, '.oc3/doc/conventions/naming.yml'),
         'key: naming\nsummary: snake_case\nrule: x\n',
       );
       expect(cli(['delta', 'close', '--root', dir])).toBe(0);
@@ -1179,11 +1182,11 @@ class Check {
   static async deltaNotIndexed(): Promise<void> {
     await withGitProject(async (dir) => {
       await writeFile(
-        path.join(dir, 'context/modules/m.yml'),
-        'provides:\n  index_layers:\n    - { section: drafts, dir: context, format: yml }\n',
+        path.join(dir, '.oc3/modules/m.yml'),
+        'provides:\n  index_layers:\n    - { section: drafts, dir: .oc3/doc, format: yml }\n',
       );
       await writeFile(
-        path.join(dir, 'context/.delta/leak.yml'),
+        path.join(dir, '.oc3/.delta/leak.yml'),
         'id: leak\nnamespace: core\nsummary: утечка\n',
       );
       expect((await buildContextIndex(dir)).text).not.toContain('leak');
@@ -1409,8 +1412,12 @@ class Guard {
   static async decision(): Promise<void> {
     const nodes = [...BUILTIN_TREE.commands].map((c) => c.path.join(' '));
     expect(nodes.includes('docs guard')).toBe(false);
-    expect(await docsGuard('executor', ['docs/entities/a.yml'], repoRoot())).toContain('librarian');
-    expect(await docsGuard('librarian', ['docs/entities/a.yml'], repoRoot())).toBeUndefined();
+    expect(await docsGuard('executor', ['.oc3/doc/data/entities/a.yml'], repoRoot())).toContain(
+      'librarian',
+    );
+    expect(
+      await docsGuard('librarian', ['.oc3/doc/data/entities/a.yml'], repoRoot()),
+    ).toBeUndefined();
   }
 
   static async installed(): Promise<void> {
@@ -1556,7 +1563,7 @@ class Layers {
         await writeFile(path.join(dir, 'AGENTS.md'), '# x\n');
         await writeFile(path.join(dir, 'CHANGELOG.md'), '- 2026-10-14 · без тега · b\n');
         await writeFile(
-          path.join(dir, 'context/ai-core.yml'),
+          path.join(dir, '.oc3/ai-core.yml'),
           'adapters: [codex, opencode]\nchecks:\n  changelog: {}\n  context-index: {}\n  adapters: {}\n',
         );
         const session = await createSession(home, {
@@ -1790,7 +1797,7 @@ async function withProcessSession(
   await withGitProject(async (dir) => {
     const home = await tempDir();
     try {
-      await writeFile(path.join(dir, 'context/ai-core.yml'), 'checks: {}\n');
+      await writeFile(path.join(dir, '.oc3/ai-core.yml'), 'checks: {}\n');
       const run = cliOut(['docs-delta', 'start', '--name', 'демо', '--root', dir, '--home', home]);
       expect(run.status).toBe(0);
       const [id = ''] = await readdir(path.join(home, 'sessions'));
@@ -1825,7 +1832,7 @@ class Processes {
     await withGitProject(async (dir) => {
       const home = await tempDir();
       try {
-        await writeFile(path.join(dir, 'context/ai-core.yml'), 'checks: {}\n');
+        await writeFile(path.join(dir, '.oc3/ai-core.yml'), 'checks: {}\n');
         const start = cliOut([
           'docs-delta',
           'start',
@@ -1906,7 +1913,7 @@ class Processes {
         parseJson(await readFile(path.join(home, 'sessions', id, 'session.json'), 'utf8'));
       expect(at(await data(), 'state')).toBe('apply');
       await writeFile(
-        path.join(dir, 'context/conventions/naming.yml'),
+        path.join(dir, '.oc3/doc/conventions/naming.yml'),
         'key: naming\nsummary: snake_case\nrule: x\n',
       );
       const open = () => cli(['docs-delta', 'open', id.slice(0, 7), '--home', home]);
@@ -2911,8 +2918,8 @@ class Root {
     const home = await tempDir();
     try {
       await mkdir(path.join(project, '.opencode', 'agents'), { recursive: true });
-      await mkdir(path.join(project, 'context'), { recursive: true });
-      await writeFile(path.join(project, 'context/ai-core.yml'), 'checks: {}\n');
+      await mkdir(path.join(project, '.oc3'), { recursive: true });
+      await writeFile(path.join(project, '.oc3/ai-core.yml'), 'checks: {}\n');
       await writeFile(
         path.join(project, '.opencode/agents/planner.md'),
         '---\ndescription: Планер\nmode: subagent\n---\nтело\n',
@@ -3008,7 +3015,7 @@ async function opsProject(home: string, extra: Record<string, string> = {}): Pro
   const dir = await tempDir();
   await mkdir(path.join(dir, '.opencode'));
   const files: Record<string, string> = {
-    'context/ops.yml': 'providers:\n  review: fake\n  schedule: fake\n',
+    '.oc3/ops.yml': 'providers:\n  review: fake\n  schedule: fake\n',
     ...extra,
   };
   for (const [rel, text] of Object.entries(files)) {
@@ -3171,7 +3178,7 @@ class Ops {
   static async neverBlocks(): Promise<void> {
     await withOps(async (home, log) => {
       const dir = await opsProject(home, {
-        'context/autonomy.yml': 'levels:\n  self: [review.comment]\n  never: [review]\n',
+        '.oc3/doc/autonomy.yml': 'levels:\n  self: [review.comment]\n  never: [review]\n',
         'note.md': 'текст',
       });
       try {
@@ -3238,8 +3245,8 @@ class Ops {
         const add = ['ops', 'watch', 'add', 'review', 'q', '--every', '1', ...base];
         expect(opsCli(add, env).status).toBe(0);
         expect(opsCli(['ops', 'tick', ...base], env).status).toBe(0);
-        const [file = ''] = await readdir(path.join(dir, '.ops/watches'));
-        const watch = path.join(dir, '.ops/watches', file);
+        const [file = ''] = await readdir(path.join(dir, '.oc3/watches'));
+        const watch = path.join(dir, '.oc3/watches', file);
         const text = await readFile(watch, 'utf8');
         await writeFile(watch, text.replace(/^next: .*$/m, 'next: 2000-01-01T00:00:00.000Z'));
         const second = opsCli(['ops', 'tick', ...base], env);

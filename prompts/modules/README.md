@@ -26,7 +26,7 @@
 
 Модуль **не редактирует** существующие правила, поля, файлы базы.
 Единственный разрешённый UPDATE — обновление ссылок на самого себя
-(регистрация в `context/index.yml`, обновление собственного manifest'а).
+(регистрация в `.oc3/bundles/index.md`, обновление собственного manifest'а).
 
 Если модулю нужно поменять что-то в базе — это уже не модуль, а PR в
 саму базу.
@@ -89,7 +89,7 @@ feature:
 
 - `skills`, `agents_md_block`, `harness_checks`;
 - `index_layers` — слои, которые `ai context index` включает в
-  `context/index.yml`: `section`, `dir` и `format` — `md` (frontmatter
+  `.oc3/bundles/index.md`: `section`, `dir` и `format` — `md` (frontmatter
   `id`, `namespace`, строка индекса — первый `# …`) или `yml` (поля
   `id`, `namespace`, `summary`); `id` = путь внутри слоя без
   расширения, `/` → `-`;
@@ -115,8 +115,8 @@ feature:
 
 1. **Назначение и границы.** Когда модуль применяется, что он делает,
    чего не делает.
-2. **Что модуль добавляет в проект.** Новые слои (`docs/...` /
-   `context/...`), новые правила, новые проверки, новые сценарии
+2. **Что модуль добавляет в проект.** Новые слои (`.oc3/doc/...` /
+   `.oc3/...`), новые правила, новые проверки, новые сценарии
    workflow.
 3. **Формат новых сущностей.** YAML-шаблоны, обфусцированные примеры,
    правила именования, поля.
@@ -124,7 +124,7 @@ feature:
    расхождениях, что фиксировать / что не фиксировать.
 5. **Секция `provides`** — авторитетный список того, что модуль
    привносит в проект-потребитель. Используется агентом при подключении
-   для создания `context/modules/<key>.yml` и при отключении — для
+   для создания `.oc3/modules/<key>.yml` и при отключении — для
    зачистки. Формат:
 
    ```yaml
@@ -134,7 +134,7 @@ feature:
      files:
        - <конкретные файлы>
      fields_in_index:
-       - <секции в context/index.yml>
+       - <секции в .oc3/bundles/index.md>
    ```
 
 ## Подключение модуля в проекте-потребителе
@@ -147,8 +147,8 @@ feature:
    `applicable_to`.
 3. Читает содержимое, предлагает план — какие слои и файлы будут
    заведены.
-4. После «да» — заводит файлы, создаёт `context/modules/<key>.yml` с
-   manifest'ом на основе секции `provides`, обновляет `context/index.yml`.
+4. После «да» — заводит файлы, создаёт `.oc3/modules/<key>.yml` с
+   manifest'ом на основе секции `provides`, обновляет `.oc3/bundles/index.md`.
 
 ## Обновление и отключение
 
@@ -157,12 +157,12 @@ feature:
   разошедшиеся источники (SHA-256 checkpoint).
 - **Отключение.** Агент читает `provides` из manifest'а, показывает
   список файлов на удаление, после «да» удаляет их + чистит
-  `context/index.yml` + удаляет сам manifest.
+  `.oc3/bundles/index.md` + удаляет сам manifest.
 
 ## Конфликты между модулями
 
 Если два подключённых модуля объявляют пересекающиеся `provides` (тот
-же слой, тот же файл, ту же секцию `context/index.yml`) — конфликт.
+же слой, тот же файл, ту же секцию `.oc3/bundles/index.md`) — конфликт.
 Ловится при подключении второго модуля или при синхронизации. Молча не
 мержим: стоп, поднимаем конфликт пользователю.
 
@@ -186,13 +186,13 @@ feature:
   внешних систем без API. Применим к v2 и v3.
 - [`code-rules-fullstack-js-ts`](code-rules-fullstack-js-ts.md) —
   правила стиля кода на fullstack js/ts, пакетом в подпапке
-  `context/conventions/code/`. Применим к v2 и v3.
+  `.oc3/doc/conventions/code/`. Применим к v2 и v3.
 - [`domain`](domain.md) — entities и behavior с `verified`. v3.
 - [`manuals`](manuals.md) — ручные процедуры для человека. v3, требует
   `domain`.
 - [`goals`](goals.md) — deprecated: старая очередь целей и программ
   (`context/views`). Для operator-centric v3 не ставится, работа живёт в
-  плоских `goals/*.expect.ts`.
+  плоских `.oc3/goals/*.expect.ts`.
 - [`harness`](harness.md) — headless/CI-автоматы через
   `@shahimat/harness`; не по умолчанию.
 - [`worktrees`](worktrees.md) — параллельные сессии в git worktree. v3.
@@ -202,7 +202,7 @@ feature:
   `automated_by`, `app-telemetry`, выравнивание целей. v3, требует
   `domain`.
 - [`data-access`](data-access.md) — каналы к внешним данным в
-  `context/data-access.yml`. v3.
+  `.oc3/data-access.yml`. v3.
 - [`privacy`](privacy.md) — приватность как правило агента и
   приложения. v3.
 - [`life`](life.md) — домен жизни: факты, сигналы, протоколы. v3,

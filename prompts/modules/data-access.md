@@ -4,7 +4,7 @@ kind: module
 applicable_to: [agent-operational-contract-v3]
 patterns: [source-sync]
 title: Модуль data-access — каналы к внешним данным
-use_case: Возможность ядра v3 для проектов, где агенту нужны живые данные вне репозитория — API приложения, MCP-сервер (например, корпус-хранилище книг), локальный экспорт. Заводит реестр каналов context/data-access.yml (что отдаёт, возможности и ограничения, свежесть, где взять секрет — без самих секретов) и правила чтения — свежесть, недоступность, минимальный срез.
+use_case: Возможность ядра v3 для проектов, где агенту нужны живые данные вне репозитория — API приложения, MCP-сервер (например, корпус-хранилище книг), локальный экспорт. Заводит реестр каналов .oc3/data-access.yml (что отдаёт, возможности и ограничения, свежесть, где взять секрет — без самих секретов) и правила чтения — свежесть, недоступность, минимальный срез.
 tags: [data-access, mcp, api, agent-contract, module]
 feature:
   summary: каналы к живым данным вне репозитория (MCP, API, экспорт) — возможности и ограничения канала, свежесть, недоступность, секреты вне git
@@ -43,14 +43,14 @@ feature:
 ```yaml
 provides:
   layers: []
-  files: [context/data-access.yml]
+  files: [.oc3/data-access.yml]
   skills: [data-access]
   agents_md_block: true
   harness_checks: []
 ```
 
-`context/data-access.yml` — собственный файл модуля, не блок в
-`context/project.yml`:
+`.oc3/data-access.yml` — собственный файл модуля, не блок в
+`.oc3/doc/project.yml`:
 
 ```yaml
 # Каналы к данным вне репозитория. Правила — skill data-access.
@@ -110,7 +110,7 @@ channels:
 <!-- module:data-access -->
 ## data-access
 
-- живые данные вне репозитория → только канал из `context/data-access.yml`, не заметки и не догадка;
+- живые данные вне репозитория → только канал из `.oc3/data-access.yml`, не заметки и не догадка;
 - канал недоступен или устарел — скажи прямо, чисел не выдумывай; секреты — вне репозитория, свежесть → skill `data-access`.
 <!-- /module:data-access -->
 ```
@@ -118,7 +118,7 @@ channels:
 
 ## Установка
 
-1. Создай `context/data-access.yml` с `kinds` из ответа и пустым
+1. Создай `.oc3/data-access.yml` с `kinds` из ответа и пустым
    `channels`.
 2. Поставь skill `data-access`, добавь блок в `AGENTS.md`.
 3. Спроси, какие каналы уже есть: для каждого — запись по формату,
@@ -133,8 +133,8 @@ channels:
 
 Переезжает сюда:
 
-- блок `data_access` из `context/project.yml` → `channels` в
-  `context/data-access.yml` (`corpus`, `app` → `name`; `auth` →
+- блок `data_access` из `.oc3/doc/project.yml` → `channels` в
+  `.oc3/data-access.yml` (`corpus`, `app` → `name`; `auth` →
   `secret` как указатель); блок из `project.yml` удаляется;
 - правила «Канала живых данных» (свежесть, недоступность) — в skill
   `data-access`.
@@ -146,7 +146,7 @@ channels:
 - провенанс и «транспорт ≠ провенанс» — модули домена и `app-loop`;
 - приватность прочитанных значений — модуль `privacy`.
 
-Выбрасывается: копии разделов в `context/conventions/` — правила в
+Выбрасывается: копии разделов в `.oc3/doc/conventions/` — правила в
 skill.
 
 ## Отключение

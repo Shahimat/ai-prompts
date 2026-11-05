@@ -1,0 +1,24 @@
+run: 3
+status: pass
+summary: вшивание памяти реализовано — 4 crit pass по коду и тестам через fake-opencode; живая проба — satisfactorily, гейт фазы оператора
+items:
+  - key: memory-inject.crit-1
+    status: pass
+    evidence: install.ts:64-70,124-128 plugins-детект (plugin vs plugins); :184-208 npm ping → runtime: full дефолт («плагин и hooks работают cold-start, node/npm для автоустановки плагина не нужны») / degraded только при недоступном реестре; :213+514-544 точные пины @shahimat/ai-core и @shahimat/oc3 в package.json; :264-268 upsertRuntimeYaml
+    reason: cold-start механика сверена — установка из plugins без node/npm, пин версии в конфиге, full дефолт, degraded только offline; непроверенность offline cold-start зафиксирована самой формулировкой крита
+  - key: memory-inject.crit-2
+    status: pass
+    evidence: session-brief.ts:73-86 memoryStart: checkBundles → диагностики или нет стартового index (:76) → buildBundles + writeGraph на месте (:78-85, холодный старт включён); appendBriefing:48-61 — seen по sessionID, system-part «Оперативная память проекта (стартовый граф)» (:68-71); тесты session-brief.test.ts:145-196 (один раз на сессию; холодный старт и стухшие — build на месте с prune; крит — без вшивания; нет манифеста — без памяти и без аварий)
+    reason: oc3-хук первого промпта убеждается в свежести графа (build-if-stale) и вшивает стартовый index во вход сессии отдельным system-part — хост-механика, ровно один экземпляр на сессию
+  - key: memory-inject.crit-3
+    status: pass
+    evidence: role.ts:21 маркер «память: <12-hex>»; :32-54 memoryPromptOf — стартовый index + узлы по маркерам, неизвестный узел → UsageError с перечнем валидных (:38-43); runRole :219,225 вшивает в system prompt; тесты role.test.ts:365-467 через fake-opencode (system в args.jsonl — fake-opencode.ts:9-19): маркер → узел в system (404-418), старт ровно один раз (420-435), отказ с перечнем и «ai memory build» без бандлов (437-448), runRole с маркером (450-466)
+    reason: вшивание в коде harness-раннера (плагин в child-сессиях не грузится), маркеры брифа разворачиваются в узлы, неизвестный узел — отказ с перечнем валидных
+  - key: memory-inject.crit-4
+    status: satisfactorily
+    evidence: executor не запускал (отчёт memory-inject-1.md — «зона оператора», раздел left); механика покрыта тестами session-brief.test.ts 11/11 и role.test.ts «роль: память»; живые бандлы собраны и свежи (ai memory check → ok)
+    reason: живая проба вшивания в оператор-сессии (первый промпт, свежий и стухший граф) — гейт фазы, зона оператора; run 3: негатив satisfactorily, остаток — ожидание оператора, executor-часть принята по тестам
+  - key: memory-inject.crit-5
+    status: pass
+    evidence: один рендер на namespace — узел на пару (memory-graph.ts:363-370, тест 184-195); ровно один экземпляр в сессию — Set-дедуп маркеров role.ts:34 (тест 416-417) и seen-set старта session-brief.ts:54-60 (тест 145-157); источник фактов — только .oc3/doc/ (loadFacts читает DOC_DIR)
+    reason: в бандлах по одному рендеру на каждый namespace файла, в сессию вшивается ровно один экземпляр (Set + один system-part); пересказ фактов механикой не предусмотрен — оператор передаёт только маркеры узлов

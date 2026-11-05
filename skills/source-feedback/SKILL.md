@@ -18,8 +18,8 @@ description: Предложения проекта в источник ai-prompt
 ## Протокол
 
 <!-- expect:source-feedback -->
-1. **Базис.** Из `context/project.yml` → `sync` и
-   `context/modules/*.yml` возьми ключи, `synced_sha` и `parts`; `curl`
+1. **Базис.** Из `.oc3/doc/project.yml` → `sync` и
+   `.oc3/modules/*.yml` возьми ключи, `synced_sha` и `parts`; `curl`
    тянет индекс по `sync.index_source` (правила fetch — skill
    `source-sync`). Это `base` файла: от какого состояния источника
    отличается проект.
@@ -80,14 +80,14 @@ description: Предложения проекта в источник ai-prompt
 
 ## `generalization` — локальные обобщения
 
-- `context/conventions/*.yml` — договорённость без имён и путей
+- `.oc3/doc/conventions/*.yml` — договорённость без имён и путей
   проекта, которая подошла бы любому проекту этого вида →
   `pattern:<key>`, `module:<key>` или `contract`;
 - свои skills в `.agents/skills/`, которых нет в индексе → `new` или
   `module:<key>`;
 - поля в слоях модулей, которых нет в модуле и в `provides.extends` →
   `module:<key>`;
-- свои слои и файлы в `context/`, которых нет ни в ядре, ни в
+- свои слои и файлы в `.oc3/`, которых нет ни в ядре, ни в
   `provides` модулей → `new` или `module:<key>`;
 - свои скрипты и шаги CI, которые проверяют или генерируют то же, что
   мог бы harness → `harness`;
@@ -150,7 +150,7 @@ description: Предложения проекта в источник ai-prompt
       "generalized": "В skill goals — сценарий периодического обзора: какие цели без движения дольше N дней.",
       "evidence": [
         {
-          "path": "context/conventions/<key>.yml",
+          "path": ".oc3/doc/conventions/<key>.yml",
           "excerpt": "раз в неделю report по целям: без движения > 14 дней — вопрос пользователю"
         }
       ],
@@ -172,7 +172,7 @@ description: Предложения проекта в источник ai-prompt
 Файл покидает проект — в нём только обезличенное:
 
 - нет персональных данных, имён людей, почты, телефонов;
-- нет ссылок и указателей из `external` в `context/project.yml`, хостов
+- нет ссылок и указателей из `external` в `.oc3/doc/project.yml`, хостов
   и внутренних адресов — вместо них `<url>`;
 - имя проекта, namespaces, доменные термины в `excerpt` и
   `generalized` — заменены на `<project>`, `<namespace>`, `<term>`;

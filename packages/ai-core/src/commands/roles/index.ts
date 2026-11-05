@@ -72,7 +72,7 @@ async function manifest(args: CommandArgs): Promise<{
   diags: Diagnostic[];
   roles: Map<string, string[]>;
 }> {
-  const file = 'context/skills.yml';
+  const file = '.oc3/skills.yml';
   const text = await readOrNull(path.join(args.root, file));
   if (text === null)
     return { skills: [], diags: [{ file, message: 'нет файла' }], roles: new Map() };
@@ -149,12 +149,12 @@ async function checkRoles(args: CommandArgs): Promise<number> {
   }
   for (const [role, skills] of m.roles) {
     if (!CORE_ROLES.includes(role) && !names.includes(role))
-      diagnostics.push({ file: 'context/skills.yml', message: `роль ${role} не существует` });
+      diagnostics.push({ file: '.oc3/skills.yml', message: `роль ${role} не существует` });
     if (role === 'operator')
       for (const skill of skills)
         if (!OPERATOR_SKILLS.includes(skill))
           diagnostics.push({
-            file: 'context/skills.yml',
+            file: '.oc3/skills.yml',
             message: `оператору нельзя skill ${skill}`,
           });
   }
@@ -170,7 +170,7 @@ async function checkSkills(args: CommandArgs): Promise<number> {
   for (const skill of m.skills) {
     const key = typeof skill['key'] === 'string' ? skill['key'] : '';
     if (key === '') {
-      diagnostics.push({ file: 'context/skills.yml', message: 'skill без key' });
+      diagnostics.push({ file: '.oc3/skills.yml', message: 'skill без key' });
       continue;
     }
     seen.add(key);
@@ -197,22 +197,22 @@ async function checkSkills(args: CommandArgs): Promise<number> {
       diagnostics.push({ file, message: 'нет description' });
     const roles = stringList(skill['roles']) ?? [];
     if (roles.length === 0 && skill['kind'] !== 'core')
-      diagnostics.push({ file: 'context/skills.yml', message: `skill ${key} не привязан к роли` });
+      diagnostics.push({ file: '.oc3/skills.yml', message: `skill ${key} не привязан к роли` });
     for (const role of roles) {
       if (!CORE_ROLES.includes(role) && !names.includes(role))
         diagnostics.push({
-          file: 'context/skills.yml',
+          file: '.oc3/skills.yml',
           message: `skill ${key}: роль ${role} не существует`,
         });
       if (role === 'operator' && !OPERATOR_SKILLS.includes(key))
-        diagnostics.push({ file: 'context/skills.yml', message: `оператору нельзя skill ${key}` });
+        diagnostics.push({ file: '.oc3/skills.yml', message: `оператору нельзя skill ${key}` });
     }
   }
   for (const name of await listDir(path.join(args.root, '.agents/skills')))
     if (!seen.has(name) && !CONTRACT_SKILLS.includes(name))
       diagnostics.push({
         file: `.agents/skills/${name}`,
-        message: 'skill не описан в context/skills.yml',
+        message: 'skill не описан в .oc3/skills.yml',
       });
   return report('skills check', diagnostics);
 }

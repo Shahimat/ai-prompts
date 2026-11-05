@@ -89,8 +89,8 @@ export async function listWatches(root: string): Promise<Watch[]> {
   for (const n of names)
     out.push(
       asWatch(
-        await readYaml(path.join(watchesDir(root), n), `.ops/watches/${n}`),
-        `.ops/watches/${n}`,
+        await readYaml(path.join(watchesDir(root), n), `.oc3/watches/${n}`),
+        `.oc3/watches/${n}`,
       ),
     );
   return out;

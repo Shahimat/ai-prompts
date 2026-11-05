@@ -11,7 +11,7 @@ export { ROLE_MODEL_PATTERN };
 
 const ROLE_DIRS = ['.agents/agents', 'agents'];
 const DERIVED = '.opencode/agents';
-const PROJECT_FILE = 'context/project.yml';
+const PROJECT_FILE = '.oc3/doc/project.yml';
 
 async function readOrNull(abs: string): Promise<string | null> {
   try {
@@ -193,7 +193,7 @@ async function set(args: CommandArgs): Promise<number> {
   const saved = await writeOverride(args.root, role, model);
   console.log(
     `${role}: model → ${model} (${changed.join(', ')}; override → ${
-      saved ? PROJECT_FILE : 'нет context/project.yml — переживёт только до синка'
+      saved ? PROJECT_FILE : 'нет .oc3/doc/project.yml — переживёт только до синка'
     })`,
   );
   return 0;

@@ -362,7 +362,7 @@ const verify: ActionDef<ProcessContext> = {
         break;
       }
     }
-    if (config.verify.length === 0) lines.push('проверок нет: context/ops.yml → verify');
+    if (config.verify.length === 0) lines.push('проверок нет: .oc3/ops.yml → verify');
     await writeFile(jobFile(s, 'verify.log'), `${lines.join('\n')}\n`, 'utf8');
     if (ok) await writeFile(jobFile(s, VERIFIED), `${await diffHash(ctx, dir)}\n`, 'utf8');
     await jobLog(s, `проверка: ${ok ? 'ok' : 'провал'}`);

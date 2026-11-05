@@ -1,0 +1,102 @@
+run: 1
+status: fail
+summary: >-
+  crit 1, 2, 4 pass — мигратор, потребители и host-границы подтверждены
+  (байт-в-байт по SHA, grep рабочих путей чист, red-пункты ci вне тикета
+  проверены); crit 3 fail — grep по skills/, prompts/, patterns/ не чист
+  (2 живые строки + deprecated-файлы), зона — параллельная правка оператора
+items:
+  - key: crit-1
+    status: pass
+    evidence: >-
+      packages/oc3/src/migrate.ts:7-41 — FILE_MAP/DIR_MAP/OPS_FLAT дословно
+      покрывают карту crit (context/project.yml→.oc3/doc/project.yml :8, autonomy
+      :9, glossary→glossary/common.yml :10, conventions :18, docs/entities|behavior
+      :21-22, manuals :23, knowledge :24, goals :25, skills.yml :13, ai-core.yml
+      :14, modules :20, .ops/feedback :26, operator/locks/submit/sessions :27-30,
+      per-тикет research/reports/verdicts :36-41); перенос rename =
+      байт-в-байт (moveFile migrate.ts:99-110) — SHA256 совпали для
+      .oc3/doc/project.yml, .oc3/doc/autonomy.yml, .oc3/skills.yml, .oc3/ai-core.yml
+      против HEAD:context/* и для .oc3/verdicts/contract-deploy/1.yml,
+      .oc3/reports/operator-agent/operator-agent.md,
+      .oc3/research/oc3-first-input-briefing/oc3-mechanics.md против
+      HEAD:.ops/*; старые корни отсутствуют (ls — context, docs, goals, .ops
+      absent); префиксы в конфигах — rewriteConfigs migrate.ts:166-176 (в
+      .oc3/ai-core.yml и .oc3/skills.yml старых префиксов grep не находит);
+      .gitignore переписан (.oc3/operator|locks|submit|sessions|bundles/);
+      legacy-хвосты — scanLegacy migrate.ts:155-164; installer-детект —
+      detectOldLayout migrate.ts:65-78 по контрактовым подписям, вызов в
+      packages/oc3/src/init.ts:91-93 до detectState; тесты
+      packages/oc3/test/migrate.test.ts 8/8 зелёные (vitest oc3 124/124)
+    reason: >-
+      Мигратор реализует карту крита один-в-один, перенос байт-в-байт
+      подтверждён SHA-сверкой перенесённых файлов против HEAD, старые
+      директории удалены, конфиги и .gitignore переписаны, legacy-хвосты
+      уходят в отчёт. Позиции вне карты крита (context/index.yml,
+      context/.delta, .ops/watches|jobs|suggest, .ops/<тикет>/baseline)
+      — задокументированные в отчёте интерпретации, согласованные с
+      crit-2 (старые корни обязаны исчезнуть): засчитываю как расширение
+      карты, не как самовольный перенос legacy
+  - key: crit-2
+    status: pass
+    evidence: >-
+      grep по packages/*/src, packages/*/test, scripts/, expectations/ (без dist)
+      рабочих путей старого значения не находит — остатки: v2-детект строк в
+      packages/oc3/src/install.ts:156,612 и init.ts:85 (context/workflow.md,
+      context/views — легаси-детект чужих v2-проектов, не рабочие пути v3),
+      descriptive title/description в expectations/schemas/*.json (не
+      функциональные пути), совпадения вида #commands/context/index — имена
+      модулей; потребители обновлены: packages/ai-core/src/shared/layout.ts:1-31 —
+      30 констант на .oc3/, packages/harness/src/harnesses/core/ops/paths.ts:6
+      PROJECT_OPS='.oc3', presets/external.yml:26 artifacts
+      [.oc3/reports/<ticket>/]; проверки: vitest ai-core 219/220, harness 78/78,
+      oc3 124/124, cli 35/35, npm run build / typecheck / lint — зелёные;
+      красное в ci — ровно 4 известных пункта вне тикетов, доводы проверены:
+      repo.test «совпадает с закоммиченным prompts/index.yml» — 24 стухших записи
+      все skills/*/SKILL.md (параллельная правка оператора, сверено python-сканом
+      index.yml против файлов), presetBudget analytical 8364>8192 (templates.ts
+      выровнен с целевым каноном оператора — байтовый тримминг за оператором),
+      docs-flow owners — skills/librarian/SKILL.md:71 «.oc3/bundles/ — build |
+      ai memory build» (команда появится в тикете memory-generator),
+      knowledge-external-gui — рассинхрон skills/↔prompts/ оператора
+    reason: >-
+      Все рабочие пути потребителей переведены на .oc3/ и подтверждены
+      константами и тестами; красные пункты ci воспроизведены и каждый
+      атрибутирован вне скоупа тикетов 1–3 (prompts/skills/presets-текст
+      оператора и будущая команда memory-generator) — «ci зелёный»
+      блокируется только этой параллельной правкой оператора
+  - key: crit-3
+    status: fail
+    evidence: >-
+      prompts/modules/analysis.md:144 — «ручной `context/index.yml` —
+      генерируется harness или не ведётся» и
+      prompts/modules/external-context.md:177 — «ручной `context/index.yml` —
+      упразднён» в живых модулях; deprecated-файлы: patterns/goals.md:62,66
+      (context/conventions/), patterns/goals.md:175 и skills/goals/SKILL.md:105
+      (docs/entities|behavior/*.yml), prompts/modules/goals.md:21,32,76
+      (goals/*.expect.ts, context/conventions/, context/views);
+      skills/source-sync/SKILL.md:88 — упоминание context/views в инструкции по
+      миграции v2
+    reason: >-
+      Grep по skills/, prompts/, patterns/ не чист: в двух живых модулях
+      остался старый контрактный путь context/index.yml (строки-статусы —
+      переформулировать на .oc3/doc/index.yml или убрать — индекс
+      упраздняется в memory-roles), в deprecated goals-паттерне/skill —
+      старые пути docs/entities|behavior и context/conventions в
+      inline-блоке. Зона правки — параллельная правка оператора (по
+      заданию executor эти файлы не трогал): довести тексты до чистого
+      grep и пересобрать prompts/index.yml (npm run index:build) тем же
+      коммитом. Исторические упоминания context/views в v2-легаси
+      секциях и deprecation-маркерах — не рабочие пути, допустимы
+  - key: crit-4
+    status: pass
+    evidence: >-
+      ls корня worktree — .agents/ и .opencode/ на месте, host-уровнем вне
+      .oc3/; в картах мигратора (FILE_MAP/DIR_MAP/OPS_FLAT migrate.ts:7-41)
+      .agents/ и .opencode/ отсутствуют — мигратор их не трогает;
+      legacy-хвосты вне карты — только строками в отчёте (report.legacy,
+      migrate.ts:150-152,159-163), самостоятельного переноса host-слоя нет
+    reason: >-
+      Host-директории .agents/ и .opencode/ остались вне .oc3/, мигратор
+      их не переносит, всё, что не на карте, уходит строками в отчёт
+      миграции без действий — пункт выполнен

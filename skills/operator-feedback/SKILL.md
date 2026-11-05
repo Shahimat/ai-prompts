@@ -1,6 +1,6 @@
 ---
 name: operator-feedback
-description: Сбор фидбека оператора по работе — метрики отвлечений, циклов и потерь токенов, причины, рекомендации и evidence; файл .ops/feedback/<ticket>.yml. Загружай по явному запросу «собери фидбек», «что улучшить в контракте».
+description: Сбор фидбека оператора по работе — метрики отвлечений, циклов и потерь токенов, причины, рекомендации и evidence; файл .oc3/feedback/<тикет>.yml. Загружай по явному запросу «собери фидбек», «что улучшить в контракте».
 ---
 
 # operator-feedback
@@ -20,9 +20,9 @@ description: Сбор фидбека оператора по работе — м
 
 ## Вход
 
-- `goals/` — цели, программы, тикеты, их стадии;
-- `.ops/<ticket>/reports/`, `verdicts/`, `checks/`, `research/`;
-- `.ops/operator/state.yml` — scratchpad и пометки пауз;
+- `.oc3/goals/` — цели, программы, тикеты, их стадии;
+- `.oc3/reports/<тикет>/`, `.oc3/verdicts/<тикет>/`, `checks/`, `.oc3/research/<тикет>/`;
+- `.oc3/operator/state.yml` — scratchpad и пометки пауз;
 - session stats инструмента, события watcher, замечания пользователя.
 
 Сырые логи и стенограммы не пересказываются и не цитируются: только
@@ -37,19 +37,19 @@ description: Сбор фидбека оператора по работе — м
 
 ## Scratchpad
 
-`.ops/operator/state.yml` — локальный кэш оператора, не memory и не
+`.oc3/operator/state.yml` — локальный кэш оператора, не memory и не
 источник истины; формат:
 
 ```yaml
 session: ses-1
 goal: обновить контракт
-priorities: [goals/program--contract.expect.ts]
+priorities: [.oc3/goals/program--contract.expect.ts]
 programs: [contract]
-tickets: [goals/contract.expect.ts#ticket-contract]
-results: [goals/contract.expect.json]
+tickets: [.oc3/goals/contract.expect.ts#ticket-contract]
+results: [.oc3/goals/contract.expect.json]
 waits: []
 open_questions: []
-pointers: [.ops/contract/]
+pointers: [.oc3/contract/]
 updated_at: 2026-11-01T10:00:00Z
 ```
 
@@ -73,7 +73,7 @@ updated_at: 2026-11-01T10:00:00Z
 
 ## Выход
 
-`.ops/feedback/<ticket>.yml`:
+`.oc3/feedback/<ticket>.yml`:
 
 ```yaml
 ticket: <key>
@@ -100,4 +100,4 @@ evidence: []
 ## Ответ
 
 Пользователю — до 10 строк: главная причина, 2–3 рекомендации, цена
-потерь и путь к файлу. Остальное остаётся в `.ops/feedback/`.
+потерь и путь к файлу. Остальное остаётся в `.oc3/feedback/`.

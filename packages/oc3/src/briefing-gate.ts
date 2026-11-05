@@ -17,7 +17,7 @@ export function briefingGate(action: string, acked: boolean): string | undefined
 }
 
 export function ackPath(root: string, sessionID: string): string {
-  return path.join(root, '.ops', 'sessions', `${sessionID}${ACK_SUFFIX}`);
+  return path.join(root, '.oc3', 'sessions', `${sessionID}${ACK_SUFFIX}`);
 }
 
 export function isBriefingAcked(root: string, sessionID: string): boolean {

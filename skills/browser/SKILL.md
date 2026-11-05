@@ -10,19 +10,19 @@ Browser — capability, а не роль. Полное управление бр
 `browser-read` (только чтение). Оператор браузером не управляет как
 основной работой.
 
-Skill без browser-tool бесполезен: `context/skills.yml` объявляет
+Skill без browser-tool бесполезен: `.oc3/skills.yml` объявляет
 `requires.tools` и permissions, runtime даёт tool. Если tool/MCP не
 подключён — скажи это, а не имитируй действие.
 
 ## Permissions
 
-Гранулярные permissions — в `context/skills.yml`:
+Гранулярные permissions — в `.oc3/skills.yml`:
 
 - `browser.navigate`, `browser.snapshot`, `browser.screenshot`;
 - `browser.click`, `browser.type`, `browser.submit`;
 - чтение console/network — в рамках выданного tool.
 
-Уровни `self` / `ask` / `never` — только в `context/autonomy.yml`, по
+Уровни `self` / `ask` / `never` — только в `.oc3/doc/autonomy.yml`, по
 действиям и доменам. Не перечислено — `ask`. `submit`, платёж, удаление
 и отправка формы людям — по умолчанию `ask` или `never`. Новое `self` —
 только решением пользователя.
@@ -57,7 +57,7 @@ Skill без browser-tool бесполезен: `context/skills.yml` объяв�
 ## Evidence
 
 Скриншоты, snapshot, console/network, логи CI — в
-`.ops/<ticket>/reports/` (или `.ops/<ticket>/research/` для разведки).
+`.oc3/reports/<тикет>/` (или `.oc3/research/<тикет>/` для разведки).
 Имя файла — с шагом и временем; в отчёте — указатель и что подтверждает
 файл. Секреты и персональные данные на evidence редактируются.
 

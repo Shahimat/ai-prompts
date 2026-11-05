@@ -60,7 +60,7 @@ const outOf = (root: string, sessionID: string): string => {
   const env = process.env[ENV_OUT];
   if (env !== undefined && env.trim() !== '') return path.resolve(env);
   if (!SESSION_PATTERN.test(sessionID)) throw fail(`sessionID некорректен: ${sessionID}`);
-  return path.join(root, '.ops', 'submit', `${sessionID}.json`);
+  return path.join(root, '.oc3', 'submit', `${sessionID}.json`);
 };
 
 export async function submitResult(call: SubmitCall): Promise<string> {

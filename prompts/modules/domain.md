@@ -4,7 +4,7 @@ kind: module
 applicable_to: [agent-operational-contract-v3]
 patterns: [source-sync]
 title: Модуль domain — entities и behavior с верификацией
-use_case: Возможность ядра v3. Заводит слой общей правды docs/entities/ (что есть) и docs/behavior/ (как должно работать, BDD-сценарии, verified с датой и способом проверки). Связь с кодом — поле paths у entity, автоматическая проверка — поле check у behavior.
+use_case: Возможность ядра v3. Заводит слой общей правды .oc3/doc/data/entities/ (что есть) и .oc3/doc/data/behavior/ (как должно работать, BDD-сценарии, verified с датой и способом проверки). Связь с кодом — поле paths у entity, автоматическая проверка — поле check у behavior.
 tags: [docs-as-code, bdd-verification, agent-contract, module]
 feature:
   summary: entities и behavior — что есть и как должно работать, verified по свежей проверке
@@ -30,7 +30,7 @@ feature:
 
 ```yaml
 provides:
-  layers: [docs/entities/, docs/behavior/]
+  layers: [.oc3/doc/data/entities/, .oc3/doc/data/behavior/]
   files: []
   skills: [domain]
   agents_md_block: true
@@ -47,8 +47,8 @@ namespace, проверки. Берётся из индекса источник
 <!-- module:domain -->
 ## domain
 
-- как устроено X → `docs/entities/<id>.yml`, затем код;
-- как X должно себя вести → `docs/behavior/<id>.yml`;
+- как устроено X → `.oc3/doc/data/entities/<id>.yml`, затем код;
+- как X должно себя вести → `.oc3/doc/data/behavior/<id>.yml`;
 - правила слоя и `verified` → skill `domain`.
 <!-- /module:domain -->
 ```
@@ -56,7 +56,7 @@ namespace, проверки. Берётся из индекса источник
 
 ## Установка
 
-1. Создай `docs/entities/` и `docs/behavior/`.
+1. Создай `.oc3/doc/data/entities/` и `.oc3/doc/data/behavior/`.
 2. Поставь skill `domain` в `.agents/skills/domain/`.
 3. Добавь блок в `AGENTS.md`.
 4. Предложи пользователю 1–3 стартовые entity по коду: план → «да» →
@@ -66,7 +66,7 @@ namespace, проверки. Берётся из индекса источник
 
 Слои уже есть — файлы не переносятся. Добавь в каждую entity
 `summary` (однострочные описания обычно есть в ручном
-`context/index.yml`) и, где очевидно, `paths`. `check` у behavior —
+`.oc3/bundles/index.md`) и, где очевидно, `paths`. `check` у behavior —
 по мере появления команд.
 
 ## Отключение

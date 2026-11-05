@@ -40,30 +40,30 @@ feature:
 `verified_at`, не копия.
 
 <!-- expect:external-reality -->
-- Источник реальности ядра (`reality` в `context/project.yml`) — ключи
+- Источник реальности ядра (`reality` в `.oc3/doc/project.yml`) — ключи
   `external` целевых систем, не `this-repo`. Маршрут «как сейчас» ядра
   уже ведёт туда; модуль ядро не меняет.
 <!-- /expect:external-reality -->
-- Слои — `docs/entities/` и `docs/behavior/` модуля `domain`,
-  `docs/manuals/` модуля `manuals` (если подключён). Модуль добавляет
+- Слои — `.oc3/doc/data/entities/` и `.oc3/doc/data/behavior/` модуля `domain`,
+  `.oc3/doc/manuals/` модуля `manuals` (если подключён). Модуль добавляет
   поля entity через `extends`, словарь, тег журнала и skill.
 - Не для проекта со своим кодом: там `reality: [this-repo]` и хватает
   `domain`.
 
 ## Вопросы при подключении
 
-- `namespaces` — стартовые области в `context/project.yml` (ответ —
+- `namespaces` — стартовые области в `.oc3/doc/project.yml` (ответ —
   это «да» на новые namespace). По умолчанию `systems`, `processes`:
   - `systems` — репозитории, трекеры, доски, wiki, формы, среды;
   - `org` — оценка, ownership, коммуникации, ограничения;
   - `processes` — intake, delivery, review, release, hotfix, escalation;
   - `knowledge` — устойчивые нюансы и pitfalls.
-- `starter-manuals` — заготовки в `docs/manuals/`. Вопрос задаётся,
+- `starter-manuals` — заготовки в `.oc3/doc/manuals/`. Вопрос задаётся,
   только если выбран `manuals`; иначе пропускается. По умолчанию
   `onboarding`, `create-ticket`.
 - `target-access` — по умолчанию `url-only`:
   - `url-only` — код цели читается по URL из `external`;
-  - `local-checkout` — есть локальные клоны, пути в `context/local.yml`;
+  - `local-checkout` — есть локальные клоны, пути в `.oc3/local.yml`;
   - `none` — кода цели не видно, правда только в живых системах.
 - `legacy-v1` — есть ли каталоги первой версии. По умолчанию `no`.
 
@@ -72,20 +72,20 @@ feature:
 ```yaml
 provides:
   layers: []                          # слои domain и manuals
-  files: [context/glossary.yml]       # + context/local.yml при local-checkout
+  files: [.oc3/glossary/common.yml]       # + .oc3/local.yml при local-checkout
   skills: [external-context]
   agents_md_block: true
   harness_checks: []
   changelog_tags: [org]
   extends:
     domain: [type, canonical_source, owner, access, related_entities, deprecated, legacy, target]
-  gitignore: [context/local.yml]      # только при local-checkout
+  gitignore: [.oc3/local.yml]      # только при local-checkout
 ```
 
 `org` — оргрешения: смена owner или команды, процесса, обязательной
 формы, шкалы оценки. Смысл полей и тега — skill `external-context`.
 
-`context/glossary.yml`:
+`.oc3/glossary/common.yml`:
 
 ```yaml
 # Словарь терминов проекта. Формат — skill external-context.
@@ -94,8 +94,8 @@ provides:
   related_entities: [<id>]
 ```
 
-`context/local.yml` — только при `target-access: local-checkout`;
-машинно-зависимый, строка `context/local.yml` добавляется в
+`.oc3/local.yml` — только при `target-access: local-checkout`;
+машинно-зависимый, строка `.oc3/local.yml` добавляется в
 `.gitignore`, файл не коммитится:
 
 ```yaml
@@ -104,7 +104,7 @@ checkouts:
   <external-key>: <абсолютный путь>
 ```
 
-`context/project.yml` — что ставит модуль (остальное — ядро):
+`.oc3/doc/project.yml` — что ставит модуль (остальное — ядро):
 
 ```yaml
 reality: [<target-repo>, <tracker>]   # ключи external, не this-repo
@@ -123,9 +123,9 @@ external:
 <!-- module:external-context -->
 ## external-context
 
-- своего кода нет: «как сейчас» → системы из `reality`, код цели → `context/local.yml`, иначе URL из `external`;
-- система, оргправило, процесс X → `docs/entities/<id>.yml` (`type`, `canonical_source`, `target`);
-- термин → `context/glossary.yml`;
+- своего кода нет: «как сейчас» → системы из `reality`, код цели → `.oc3/local.yml`, иначе URL из `external`;
+- система, оргправило, процесс X → `.oc3/doc/data/entities/<id>.yml` (`type`, `canonical_source`, `target`);
+- термин → `.oc3/glossary/common.yml`;
 - формат записей, verified вне кода, audit ссылок → skill `external-context`.
 <!-- /module:external-context -->
 ```
@@ -135,10 +135,10 @@ external:
 
 1. Проверь, что `domain` подключён (иначе — `contract-setup` добавит).
 2. Собери у пользователя целевые системы: ключ, URL, какие из них —
-   источник реальности. План правки `context/project.yml` (`reality`,
+   источник реальности. План правки `.oc3/doc/project.yml` (`reality`,
    `external`, `namespaces` из ответа) → «да» → через librarian.
-3. Создай `context/glossary.yml` по шаблону.
-4. `local-checkout` — создай `context/local.yml` с путями пользователя,
+3. Создай `.oc3/glossary/common.yml` по шаблону.
+4. `local-checkout` — создай `.oc3/local.yml` с путями пользователя,
    добавь строку в `.gitignore`.
 5. Поставь skill `external-context`, добавь блок в `AGENTS.md`.
 6. `starter-manuals` — заготовки manuals по формату skill `manuals`,
@@ -154,29 +154,28 @@ external:
 
 Переезжает:
 
-- `docs/entities`, `docs/behavior`, `docs/manuals` — как есть; `title`
+- `.oc3/doc/data/entities`, `.oc3/doc/data/behavior`, `.oc3/doc/manuals` — как есть; `title`
   entity сливается в `summary`; `type` v2 → справочник skill (маппинг
   там же);
 - поля `canonical_source`, `owner`, `access`, `related_entities`,
   `deprecated`, `legacy` — без изменений, теперь через `extends`;
-- карта canonical из `context/project.yml` → `external`; целевые
+- карта canonical из `.oc3/doc/project.yml` → `external`; целевые
   системы → `reality`;
-- `context/glossary.yml` — как есть; `context/views/` — в модуль
+- `.oc3/glossary/common.yml` — как есть; очередь `views` — в модуль
   `goals`;
 - `CHANGELOG.md` — по шагу 6 миграции ядра; оргрешения получают `[org]`.
 
 Выбрасывается:
 
-- копии правил в `context/conventions/`: `verification`,
+- копии правил в `.oc3/doc/conventions/`: `verification`,
   `entity-schema`, `behavior-schema`, `manual-schema`,
   `canonical-vs-cached`, `link-hygiene`, `goals`, `goal-consistency` —
   теперь skills `domain`, `external-context`, `manuals`, `goals`;
-- `context/workflow.md` (skill `workflow`), содержимое старой точки
-  входа → `AGENTS.md` по шаблону ядра;
+- `context/workflow.md` (skill `workflow`), содержимое старой точки  входа → `AGENTS.md` по шаблону ядра;
 - фазы с обязательным порядком `docs → fix → refactor` и инъекция
   подфазы `docs` — в v3 тикет из шагов-коммитов (skill `workflow`);
-- ручной `context/index.yml` — генерируется harness или удаляется;
-- hook `block-memory-write-for-*.sh` и `docs/manuals/setup-safety-hooks.md`
+- ручной `context/index.yml` — упразднён: каталог — в бандле;
+- hook `block-memory-write-for-*.sh` и `.oc3/doc/manuals/setup-safety-hooks.md`
   — memory выключается настройкой (раздел ядра «Memory агента»);
 - `sync.contract.key: external-project-context-v2` → ядро v3 и manifest
   этого модуля.
@@ -185,8 +184,8 @@ external:
 
 ## Отключение
 
-Удаляются skill, блок `AGENTS.md`, `context/local.yml` и строка в
-`.gitignore`. `context/glossary.yml` и поля `extends` в entities —
+Удаляются skill, блок `AGENTS.md`, `.oc3/local.yml` и строка в
+`.gitignore`. `.oc3/glossary/common.yml` и поля `extends` в entities —
 вопрос пользователю: удалить или оставить как обычные файлы и поля
 (тогда их не объявляет ни один слой — нужен свой модуль или
 convention). `reality` возвращать в `this-repo` — только если в

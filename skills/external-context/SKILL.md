@@ -6,20 +6,20 @@ description: Правила репозитория-оверлея над чуж�
 # external-context
 
 Репозиторий описывает чужой живой проект и своего кода не держит.
-Источник реальности — системы из `context/project.yml` → `reality`
+Источник реальности — системы из `.oc3/doc/project.yml` → `reality`
 (ключи `external`). Форматы entity и behavior, `verified`, namespace —
 skill `domain`; здесь только то, что добавляет этот модуль.
 
 ## Режим работы
 
 - cwd — репозиторий-оверлей; пишешь только в него.
-- Живой код цели — по пути из `context/local.yml` → `checkouts.<key>`;
+- Живой код цели — по пути из `.oc3/local.yml` → `checkouts.<key>`;
   файла или ключа нет — по URL из `external`; нет и URL — `unknown`,
   спроси.
 - Клон может отставать: в `verified_note` пиши коммит, по которому
   читал (`git -C <path> log -1 --format=%h`). `pull` и прочие
   git-операции в клоне делает пользователь.
-- `context/local.yml` машинно-зависим и не коммитится: факты из него в
+- `.oc3/local.yml` машинно-зависим и не коммитится: факты из него в
   слои не переносятся.
 
 ## Entity: справочник `type`
@@ -60,7 +60,7 @@ legacy: false
 - `owner` — кого спрашивать при проверке; неизвестен — `unknown`.
 - `target` — вместо `paths` из `domain`: своего кода нет, связь — с
   целевым репозиторием или системой. Для `repo` — ключ `external`,
-  чей клон ищется в `context/local.yml`.
+  чей клон ищется в `.oc3/local.yml`.
 - `related_entities` — без обязательной обратной ссылки, но ссылка на
   несуществующий id — ошибка.
 - `deprecated: true` — система или правило больше не актуальны, запись
@@ -99,7 +99,7 @@ legacy: false
   системе);
 - свежий тикет или PR в трекере — описанный процесс реально
   применяется;
-- код или конфиг цели — по `context/local.yml` или URL.
+- код или конфиг цели — по `.oc3/local.yml` или URL.
 
 Авторизация или JS делают `curl` бесполезным — проверку делает
 пользователь в браузере и сообщает результат.
@@ -159,7 +159,7 @@ legacy: false
 
 ## Glossary
 
-`context/glossary.yml` — один файл, не дробится:
+`.oc3/glossary/common.yml` — один файл, не дробится:
 
 ```yaml
 tracker:
@@ -181,11 +181,11 @@ tracker:
 
 ## Легаси v1
 
-Только при `answers.legacy-v1: yes` в `context/modules/external-context.yml`:
+Только при `answers.legacy-v1: yes` в `.oc3/modules/external-context.yml`:
 
 - `registry/project.yaml`, `navigation.yaml`, `sources-of-truth.yaml`
-  → `context/project.yml` (`external`, `reality`, `namespaces`);
-- `registry/glossary.yaml` → `context/glossary.yml`;
+  → `.oc3/doc/project.yml` (`external`, `reality`, `namespaces`);
+- `registry/glossary.yaml` → `.oc3/glossary/common.yml`;
 - `assets/links/*.yaml` → entity `namespace: systems`; `repos` →
   `repo`, `trackers` → `tracker`, `boards` → `board`, `forms` →
   `form`, `environments` → `env`, `docs` и `support-systems` →
@@ -199,7 +199,7 @@ tracker:
 - `knowledge/decisions.yaml` → `CHANGELOG.md` (строка с тегом) или
   выбросить;
 - `knowledge/faq.yaml`, `onboarding.md`, `procedures/playbooks/*.md` →
-  `docs/manuals/`;
+  `.oc3/doc/manuals/`;
 - `procedures/templates/*.yaml` — выбросить: схемы в skills.
 
 Перенесённое — `verified: false`, кроме проверенного сразу. После

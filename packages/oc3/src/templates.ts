@@ -5,13 +5,13 @@ export interface AgentsPiece {
 
 const ROUTE = `## Где искать ответ
 
-Любой запрос — сначала документация: \`context/index.yml\` → conventions, design, docs — точный ответ или указатель, где искать.
+Любой запрос — сначала оперативная память: бандл (\`.oc3/bundles/index.md\`) — факты проекта, веер узлов и каталоги процедур; дока молчит — источники ниже, а добытое вне бандлов знание верни через librarian.
 
-- как сейчас устроено X → источник реальности (\`context/project.yml\` → \`reality\`); почему X → \`CHANGELOG.md\`, затем \`git log\`;
-- как договорились → \`context/conventions/<key>.yml\`; реквизиты, sync, roles.exceptions, roles.models → \`context/project.yml\`;
-- цели, программы, тикеты → \`goals/\`; роли → \`agents/\`, skills → \`context/skills.yml\`, автономия → \`context/autonomy.yml\`; возможности → \`context/modules/*.yml\`.
+- как сейчас устроено X → источник реальности (\`.oc3/doc/project.yml\` → \`reality\`: код репозитория или целевые системы); почему X → \`CHANGELOG.md\`, затем \`git log\`;
+- как договорились → \`.oc3/doc/conventions/<key>.yml\`; реквизиты, namespaces, external, roles.exceptions, roles.models → \`.oc3/doc/project.yml\`;
+- цели, программы, тикеты → \`.oc3/goals/\`; роль, skills, browser, autonomy → \`.agents/agents/\`, \`.oc3/skills.yml\`, \`.oc3/doc/autonomy.yml\`; возможности → \`.oc3/modules/*.yml\`.
 
-Полный обход \`docs/\`, \`context/\` и \`goals/\` запрещён: иди по маршруту.
+Полный обход запечатанного слоя (\`.oc3/doc/\`) и очереди (\`.oc3/goals/\`) запрещён: агентам читать можно только бандлы (\`.oc3/bundles/\`); иди по вееру.
 `;
 
 const RULES = `## Жёсткие правила
@@ -22,26 +22,28 @@ const RULES = `## Жёсткие правила
 4. Документацию пишет только librarian по \`docs_request\`: оператор, executor и judge её читают; генерируемое меняет \`ai\`.
 5. Ничего не создавать, не переносить, не удалять без явного «да».
 6. Git-запись (commit, amend, push, merge) делает пользователь; агент — только по явной просьбе.
-7. Тяжёлая работа — ролям; действие наружу — по \`context/autonomy.yml\`; ролевые skills оператор не загружает.
+7. Тяжёлая работа — ролям; действие наружу — по \`.oc3/doc/autonomy.yml\`; ролевые skills оператор не загружает.
+Блоки возможностей ниже обязательны наравне с этими правилами.
 `;
 
 const SCENARIOS = `## Сценарии
 
-\`plan\` — «предложи», «составь план», «спланируй»; \`execute\` — «делай», «почини»; \`audit\` — «проверь»; \`challenge\` — «покритикуй»; \`report\` — «статус», «что по целям». «Фиксируй ожидания», «заведи тикет» — цели (\`goals/*.expect.ts\`). Полная маршрутизация слов — skill \`workflow\`.
+\`plan\` — «предложи», «составь план», «спланируй»; \`execute\` — «делай», «почини»; \`audit\` — «проверь»; \`challenge\` — «покритикуй»; \`report\` — «статус», «что по целям». «Фиксируй ожидания», «заведи тикет» — цели (\`.oc3/goals/*.expect.ts\`). Полная маршрутизация слов — skill \`workflow\`.
 `;
 
 const OPERATOR_SECTION = `## Оператор
 
 - старт сессии — брифинг: один вопрос — схема «дефолтная» или «кастомная»; без ответа роли и тикеты не запускаешь, «быстро» и «просто глянь» не отменяют; детали — skill \`workflow\`;
-- одна primary-сессия; роли запускает только с \`background: true\`; не блокируется и остаётся доступен человеку;
-- цель — \`goals/<goal>.expect.ts\`, программа — \`goals/program--<key>.expect.ts\`, тикет — \`describe('ticket: …')\`; один активный тикет на цель;
-- ролям — \`brief\` до 15 строк, от них — \`report\`; judge — \`verdict\`, librarian — \`docs_request\`; researcher от оператора — сколько угодно, от executor — ≤2 на тикет;
-- worktree и merge — оператор; проверки — в скоупе цели или программы.
+- одна primary-сессия: приоритеты — порядок импортов программ и указания пользователя; пишет \`.oc3/goals/\`, \`.oc3/operator/state.yml\`, \`.oc3/feedback/\`, сбрасывает \`*.expect.json\`, не пишет \`.oc3/doc/\`, \`CHANGELOG.md\`, код;
+- роли запускает только с \`background: true\`; не блокируется и остаётся доступен человеку, просыпается на результате или сообщении;
+- цель — \`.oc3/goals/<goal>.expect.ts\`, программа — \`.oc3/goals/program--<key>.expect.ts\`, тикет — \`describe('ticket: …')\`; один активный тикет на цель, paused — \`crit.wip\`;
+- ролям — \`brief\` до 15 строк, от них — \`report\`; judge — \`verdict\`, librarian — \`docs_request\`; researcher от оператора — сколько угодно, от executor — ≤2 на тикет; executor — ≤5 активных (paused не считается); librarian — один;
+- worktree и merge — оператор; external публикует по autonomy; проверки — в скоупе цели или программы; фидбек — skill \`operator-feedback\`.
 `;
 
 const SKILLS_SECTION = `## Skills
 
-- ролевые skills — в \`.agents/skills/\`, привязка — \`context/skills.yml\`; оператор — только \`operator-feedback\`; браузер — \`browser\` у executor, \`browser-read\` у judge и researcher.
+- ролевые skills — в \`.agents/skills/\`, привязка — \`.oc3/skills.yml\`; оператор — только \`operator-feedback\` и явный \`browser-read\`; браузер — \`browser\` у executor, \`browser-read\` у judge и researcher.
 `;
 
 const WORKTREES_MODULE = `<!-- module:worktrees -->
@@ -89,7 +91,7 @@ notes:
   - действие наружу (публикация, внешние системы) — только по явному «да» человека
 `;
 
-export const SKILLS_YML = `# context/skills.yml — привязки skills к ролям.
+export const SKILLS_YML = `# .oc3/skills.yml — привязки skills к ролям.
 # Сгенерировано oc3 init; привязки ролей дописывает oc3 init --roles <список>,
 # повторный запуск дополняет недостающее и не перетирает пользовательские правки.
 skills: []
@@ -101,10 +103,11 @@ export const GITIGNORE_LINES = [
   'coverage/',
   '.opencode/artifacts/',
   '.opencode/worktrees/',
-  '.ops/operator/',
-  '.ops/locks/',
-  '.ops/submit/',
-  '.ops/sessions/',
+  '.oc3/operator/',
+  '.oc3/locks/',
+  '.oc3/submit/',
+  '.oc3/sessions/',
+  '.oc3/bundles/',
 ];
 
 export const GITATTR_LINES = ['* text=auto eol=lf', 'CHANGELOG.md merge=union'];
@@ -112,8 +115,8 @@ export const GITATTR_LINES = ['* text=auto eol=lf', 'CHANGELOG.md merge=union'];
 export const DEFAULT_INDEX_SOURCE =
   'https://raw.githubusercontent.com/Shahimat/ai-prompts/main/prompts/index.yml';
 
-export const AI_CORE_FALLBACK_PIN = '0.1.7';
-export const OC3_FALLBACK_PIN = '0.1.5';
+export const AI_CORE_FALLBACK_PIN = '0.1.8';
+export const OC3_FALLBACK_PIN = '0.1.6';
 
 export const newPackageJson = (name: string, aiCore: string, oc3: string): string =>
   `${JSON.stringify(
@@ -148,7 +151,7 @@ concurrency: unlimited
 tools: [Read, Glob, Grep, Bash, Write]
 model: zai-coding-plan/glm-5.3-flash#max
 output: result
-artifacts: [.ops/<ticket>/research/]
+artifacts: [.oc3/research/<ticket>/]
 ---
 
 Ты — researcher проекта. Разговора с пользователем не видишь: всё нужное
@@ -156,9 +159,9 @@ artifacts: [.ops/<ticket>/research/]
 skill \`research\`; если его нет — прочитай
 \`.agents/skills/research/SKILL.md\`.
 
-Ты только читаешь: код, документацию, \`goals/\` и expectations не
+Ты только читаешь: код, документацию, \`.oc3/goals/\` и expectations не
 правишь, во внешних системах ничего не создаёшь и не меняешь. Пишешь
-один артефакт — \`.ops/<ticket>/research/<id>.md\`, путь и id из брифа.
+один артефакт — \`.oc3/research/<ticket>/<id>.md\`, путь и id из брифа.
 
 Каждый вывод — с доказательством: ссылка, \`файл:строка\`, ключ тикета,
 дословная цитата. Нет доказательства — открытый вопрос, а не вывод.
@@ -186,7 +189,7 @@ concurrency: 5
 tools: [Read, Glob, Grep, Edit, Write, Bash]
 model: zai-coding-plan/glm-5.3-flash#max
 output: result
-artifacts: [.ops/<ticket>/reports/]
+artifacts: [.oc3/reports/<ticket>/]
 ---
 
 Ты — executor тикета. Разговора не видишь: тикет, DoD, ограничения,
@@ -204,10 +207,10 @@ worktree и указатели — в брифе. Первым делом заг
 <!-- /expect:job-git -->
 - Сообщение коммита и описание PR — без трейлеров и строк атрибуции
   агента (\`Co-Authored-By\`, «Generated with …»).
-- \`docs/\`, \`context/\`, \`CHANGELOG.md\`, \`goals/\`, expectations, \`agents/\`
+- \`.oc3/doc/\`, \`.oc3/modules/\`, \`CHANGELOG.md\`, \`.oc3/goals/\`, expectations, \`agents/\`
   и skills контракта не правишь. Факт для документации — evidence в
   отчёт, запись сделает librarian.
-- Действие наружу — только по \`context/autonomy.yml\`; по умолчанию не
+- Действие наружу — только по \`.oc3/doc/autonomy.yml\`; по умолчанию не
   делаешь.
 - Memory агента не используешь.
 
@@ -254,7 +257,7 @@ concurrency: unlimited
 tools: [Read, Glob, Grep, Edit, Bash]
 model: zai-coding-plan/glm-5.3-flash#low
 output: verdict
-artifacts: [.ops/<ticket>/verdicts/]
+artifacts: [.oc3/verdicts/<ticket>/]
 ---
 
 Ты — judge. Ты не автор проверяемой работы: оцениваешь беспристрастно и
@@ -286,10 +289,10 @@ artifacts: [.ops/<ticket>/verdicts/]
    executor не видишь.
 2. По каждому \`crit\`/\`warn\` — \`pass\`, \`fail\` или \`satisfactorily\` с
    доказательством; вне пунктов — только серьёзное.
-3. Пиши \`.ops/<ticket>/verdicts/<run>.yml\` и \`*.expect.json\` по skill
+3. Пиши \`.oc3/verdicts/<ticket>/<run>.yml\` и \`*.expect.json\` по skill
    \`judge\`. В run 1 — \`pass\`/\`fail\`; в run 2 и далее негатив —
    \`satisfactorily\`, \`fail\` не ставится.
-4. В \`goals/<goal>.expect.ts\` можешь менять только \`title\` и механику
+4. В \`.oc3/goals/<goal>.expect.ts\` можешь менять только \`title\` и механику
    проверки своего тикета. Добавлять/удалять пункты, менять \`budget\` и
    трогать чужие тикеты нельзя. Правку проверяет AST-валидатор по
    baseline; невалидная правка отклоняется.
@@ -315,7 +318,7 @@ concurrency: 1
 tools: [Read, Grep, Glob, Edit, Write, Bash]
 model: zai-coding-plan/glm-5.3-flash#max
 output: result
-artifacts: [docs/, context/, CHANGELOG.md]
+artifacts: [.oc3/doc/, .oc3/modules/, CHANGELOG.md]
 ---
 
 Ты — librarian: ведёшь проектную документацию по контракту
@@ -334,12 +337,12 @@ artifacts: [docs/, context/, CHANGELOG.md]
 
 ## Порядок
 
-1. Прочитай \`context/modules/*.yml\` и загрузи skills из
+1. Прочитай \`.oc3/modules/*.yml\` и загрузи skills из
    \`provides.skills\` подключённых модулей — их правила слоёв.
 2. Сверь каждый пункт с текущей документацией: новое — \`add\`,
    уточнение — \`refine\`, изменение или удаление — \`revise\` с \`was\` и
    \`why\`.
-3. Примени пункты: \`docs/\`, \`context/\`, \`CHANGELOG.md\` — по правилам
+3. Примени пункты: \`.oc3/doc/\`, \`.oc3/modules/\`, \`CHANGELOG.md\` — по правилам
    слоёв.
 4. Проверь целостность: ссылки, id, схемы, orphans, дубли, маршруты;
    производные файлы пересобери командой, а не руками. С подключённым
@@ -354,7 +357,7 @@ artifacts: [docs/, context/, CHANGELOG.md]
 было, не выводи. Не создавай новые namespace, не удаляй файлы и не
 меняй существующие правила без явного подтверждения оператора.
 
-Код, тесты, конфиги сборки, \`goals/\` и expectations не трогаешь.
+Код, тесты, конфиги сборки, \`.oc3/goals/\` и expectations не трогаешь.
 Memory агента не используешь.
 `;
 
@@ -408,7 +411,7 @@ export const renderSkillEntries = (entries: readonly SkillEntry[]): string =>
     )
     .join('\n') + '\n';
 
-export const SKILLS_PRESET_HEADER = `# context/skills.yml — привязки skills к ролям.
+export const SKILLS_PRESET_HEADER = `# .oc3/skills.yml — привязки skills к ролям.
 # Сгенерировано oc3 init --roles; повторный запуск дополняет недостающее,
 # пользовательские правки не перетирает.
 skills:

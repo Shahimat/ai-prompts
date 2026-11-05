@@ -1,0 +1,32 @@
+run: 2
+status: pass
+summary: >-
+  crit 1–2 pass повторно — seal-гвард без изменений (OC3_READABLE — те же
+  11 позиций, deny по умолчанию, librarian-исключение), тесты зелёные на
+  текущем состоянии worktree
+items:
+  - key: crit-1
+    status: pass
+    evidence: >-
+      packages/oc3/src/guards.ts:47-59 — OC3_READABLE перепроверен чтением:
+      ровно 11 позиций белого списка (bundles/, goals/, research/, reports/,
+      verdicts/, operator/, locks/, sessions/, submit/, skills.yml,
+      ai-core.yml); librarian-исключение guards.ts:77, deny фактов/манифеста
+      с seal-сообщением :78-79, READ_ACTIONS read/grep/glob :199, ветка до
+      write-гвардов :203-211; целевой прогон guards.test.ts (вместе с
+      migrate.test.ts) — 20/20, полный suite oc3 — 124/124
+    reason: >-
+      Гвард не менялся с run 1, покрытие ролей (librarian/executor/judge/
+      researcher/main/безымянный + нормализация путей + .oc3x) зелёное на
+      текущем состоянии worktree — пункт подтверждён повторно
+  - key: crit-2
+    status: pass
+    evidence: >-
+      OC3_READABLE — единственная экспортированная константа guards.ts:47;
+      состав фиксирует тест «белый список не расширяется молча»
+      (guards.test.ts:68-82, toEqual 11 позиций) — входит в зелёный
+      oc3-прогон 124/124; deny-сообщение guards.ts:81 предписывает явную
+      правку конфига гварда с обоснованием
+    reason: >-
+      Механизм фиксации состава и процедура расширения не менялись, тест
+      зелёный — пункт подтверждён повторно

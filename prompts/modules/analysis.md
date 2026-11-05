@@ -43,7 +43,7 @@ behavior приложения, если оно есть.
 ## Вопросы при подключении
 
 - `namespaces` — стартовые области анализа. Каждая выбранная —
-  namespace в `context/project.yml` с описанием в одну строку:
+  namespace в `.oc3/doc/project.yml` с описанием в одну строку:
   - `ideology` — мои идеологические позиции и посты;
   - `philosophy` — философские источники и тезисы;
   - `process` — политические процессы: речи, обещания, разборы;
@@ -91,7 +91,7 @@ skill `analysis`.
 - всё приписанное — с локатором; оригинала нет — `verified: false`, не догадка;
 - `primary` / `secondary` / `own` не смешивать; оценка — как оценка;
 - сомнение в атрибуции → «не сверено» и вопрос; правило не ослабляется ради сценария;
-- вопрос по существу → `inquiry`: `context/index.yml` → `analysis/*`, на пробеле — внешний поиск; противоречие — `tension` + синтез, форматы → skill `analysis`.
+- вопрос по существу → `inquiry`: `.oc3/bundles/index.md` → `analysis/*`, на пробеле — внешний поиск; противоречие — `tension` + синтез, форматы → skill `analysis`.
 <!-- /module:analysis -->
 ```
 <!-- /expect:agents-md-readonly -->
@@ -100,7 +100,7 @@ skill `analysis`.
 ## Установка
 
 1. Создай шесть каталогов `analysis/*/`.
-2. Добавь выбранные namespaces в `context/project.yml` (план → «да»).
+2. Добавь выбранные namespaces в `.oc3/doc/project.yml` (план → «да»).
 3. Поставь skill `analysis` в `.agents/skills/analysis/`.
 4. Добавь блок в `AGENTS.md`.
 5. Подключён harness с `context-index` — `ai context index`.
@@ -133,7 +133,7 @@ skill `analysis`.
 Выбрасывается (план — пользователю, удаление после «да»):
 
 - `CHANGELOG-analysis.md` — после разбора записей;
-- копии правил в `context/conventions/`: `attribution-integrity`,
+- копии правил в `.oc3/doc/conventions/`: `attribution-integrity`,
   `dialectic`, `verification` — правила теперь в блоке и skill;
 - `context/workflow.md` — сценарии в skill `workflow` ядра, `inquiry` —
   в skill `analysis`;
@@ -141,7 +141,7 @@ skill `analysis`.
   модуля;
 - hook `block-memory-write-for-analytical-project.sh` и memory по
   проекту — по разделу «Memory агента» ядра;
-- ручной `context/index.yml` — генерируется harness или не ведётся.
+- ручной `context/index.yml` — упразднён: каталог — в бандле.
 
 `CHANGELOG-app.md`, `app/*`, `data_access`, `privacy`, `book-ingestion`,
 цели с `domain: analysis | app` — миграция модулей `app-loop`,
@@ -153,7 +153,7 @@ skill `analysis`.
 - Слои с содержимым — отдельный вопрос: удалить или оставить как
   обычные файлы проекта.
 - Skill `analysis` и блок `AGENTS.md` удаляются; namespaces в
-  `context/project.yml` — вопрос пользователю.
+  `.oc3/doc/project.yml` — вопрос пользователю.
 - Behavior приложения про атрибуцию остаются в слое `domain` до решения
   пользователя.
 

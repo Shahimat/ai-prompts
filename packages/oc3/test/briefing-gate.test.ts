@@ -37,15 +37,15 @@ describe('briefingGate', () => {
 });
 
 describe('ack по sessionID', () => {
-  it('mark пишет файл в .ops/sessions, виден только своей сессии', async () => {
+  it('mark пишет файл в .oc3/sessions, виден только своей сессии', async () => {
     expect(isBriefingAcked(root, 'ses_one')).toBe(false);
     const file = await markBriefingAcked(root, 'ses_one', new Date(0));
-    expect(file.startsWith(path.join(root, '.ops', 'sessions'))).toBe(true);
+    expect(file.startsWith(path.join(root, '.oc3', 'sessions'))).toBe(true);
     expect(file.endsWith('ses_one.briefing')).toBe(true);
     expect(await readFile(file, 'utf8')).toContain('briefing_done');
     expect(isBriefingAcked(root, 'ses_one')).toBe(true);
     expect(isBriefingAcked(root, 'ses_two')).toBe(false);
-    const sessions = path.join(root, '.ops', 'sessions');
+    const sessions = path.join(root, '.oc3', 'sessions');
     expect((await readdir(sessions)).length).toBe(1);
     await markBriefingAcked(root, 'ses_two', new Date(0));
     expect((await readdir(sessions)).length).toBe(2);
@@ -59,7 +59,7 @@ describe('ack по sessionID', () => {
     expect(isBriefingAcked(root, 'ses_')).toBe(false);
   });
 
-  it('ackPath кладёт файл рядом с submit-состоянием в .ops', () => {
-    expect(ackPath('/p', 'ses_x')).toBe(path.join('/p', '.ops', 'sessions', 'ses_x.briefing'));
+  it('ackPath кладёт файл рядом с submit-состоянием в .oc3', () => {
+    expect(ackPath('/p', 'ses_x')).toBe(path.join('/p', '.oc3', 'sessions', 'ses_x.briefing'));
   });
 });

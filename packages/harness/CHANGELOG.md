@@ -2,6 +2,14 @@
 
 Свежее сверху. Одна версия — список новых команд и проверок.
 
+## 0.5.1
+
+- Пути автоматов под новой раскладкой: `context/ops.yml` →
+  `.oc3/ops.yml`, `.ops/**` → `.oc3/**` (ops-раннер, docs-delta,
+  stale-сессии, source-sync, ticket-work), политика действий наружу —
+  `.oc3/doc/autonomy.yml`.
+- Пин `@shahimat/ai-core` — 0.1.8.
+
 ## 0.5.0
 
 - Отказ от Claude Code как хоста автоматов: `plan-review` работает на

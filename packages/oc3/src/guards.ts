@@ -4,7 +4,29 @@ import { homedir } from 'node:os';
 import path from 'node:path';
 import { parse } from 'yaml';
 import type { Plugin } from '@opencode/plugin';
-import { isRecord } from '@shahimat/ai-core';
+import {
+  AI_CORE_PATH,
+  BUNDLES_DIR,
+  CONTEXT_INDEX_PATH,
+  DELTA_DIR,
+  DOC_DIR,
+  GOALS_DIR,
+  LOCKS_DIR,
+  MODULES_DIR,
+  OC3_DIR,
+  OC3_MANIFEST,
+  OPERATOR_DIR,
+  OPS_PATH,
+  PROJECT_PATH,
+  RESEARCH_DIR,
+  REPORTS_DIR,
+  SESSIONS_DIR,
+  SKILLS_PATH,
+  SUBMIT_DIR,
+  VERDICTS_DIR,
+  isOneOf,
+  isRecord,
+} from '@shahimat/ai-core';
 
 export interface GoalRuns {
   file: string;
@@ -12,7 +34,54 @@ export interface GoalRuns {
   retry: boolean;
 }
 
-const DOCS_AREAS = ['docs/', 'context/'];
+const DOCS_AREAS = [
+  `${DOC_DIR}/`,
+  `${MODULES_DIR}/`,
+  DELTA_DIR,
+  OC3_MANIFEST,
+  SKILLS_PATH,
+  AI_CORE_PATH,
+  OPS_PATH,
+];
+
+export const OC3_READABLE: readonly string[] = [
+  `${BUNDLES_DIR}/`,
+  `${GOALS_DIR}/`,
+  `${RESEARCH_DIR}/`,
+  `${REPORTS_DIR}/`,
+  `${VERDICTS_DIR}/`,
+  `${OPERATOR_DIR}/`,
+  `${LOCKS_DIR}/`,
+  `${SESSIONS_DIR}/`,
+  `${SUBMIT_DIR}/`,
+  SKILLS_PATH,
+  AI_CORE_PATH,
+];
+
+const oc3Rel = (root: string, p: string): string | undefined => {
+  const rel = path
+    .relative(root, path.resolve(root, p.replace(/^\.\//, '')))
+    .split(path.sep)
+    .join('/');
+  return rel === OC3_DIR || rel.startsWith(`${OC3_DIR}/`) ? rel : undefined;
+};
+
+export function memorySeal(
+  agent: string | undefined,
+  paths: readonly string[],
+  root: string,
+): string | undefined {
+  for (const p of paths) {
+    const rel = oc3Rel(root, p);
+    if (rel === undefined) continue;
+    if (agent === 'librarian') continue;
+    if (rel.startsWith(`${DOC_DIR}/`) || rel === OC3_MANIFEST)
+      return `memory seal: запечатанный слой (${rel}) читает только librarian; агентам — бандлы (${BUNDLES_DIR}/)`;
+    if (OC3_READABLE.some((a) => rel === a || rel.startsWith(a))) continue;
+    return `memory seal: ${rel} вне белого списка чтения .oc3/ — читать можно только ${OC3_READABLE.join(', ')}; новый читаемый путь — явная правка конфига гварда с обоснованием`;
+  }
+  return undefined;
+}
 
 async function readOrNull(abs: string): Promise<string | null> {
   try {
@@ -23,7 +92,7 @@ async function readOrNull(abs: string): Promise<string | null> {
 }
 
 export async function isOperatorCentric(root: string): Promise<boolean> {
-  const text = await readOrNull(path.join(root, 'context/project.yml'));
+  const text = await readOrNull(path.join(root, PROJECT_PATH));
   if (text === null) return false;
   let data: unknown;
   try {
@@ -41,7 +110,7 @@ export async function docsGuard(
   paths: readonly string[],
   root: string,
 ): Promise<string | undefined> {
-  if (existsSync(path.join(root, '.ops/locks/install'))) return undefined;
+  if (existsSync(path.join(root, '.oc3/locks/install'))) return undefined;
   for (const p of paths) {
     const rel = p.replace(/^\.\//, '');
     const hit = DOCS_AREAS.some((a) => rel.startsWith(a)) || rel === 'CHANGELOG.md';
@@ -51,7 +120,7 @@ export async function docsGuard(
   return undefined;
 }
 
-const GENERATED_FILES = new Set(['context/index.yml']);
+const GENERATED_FILES = new Set([CONTEXT_INDEX_PATH]);
 const GENERATED_AREA = '.opencode/agents/';
 const GENERATED_MARKER = /^\s*(?:[#>]|<!--)?\s*generated\b[\s\S]*do not edit/i;
 const GENERATED_PROBE = 400;
@@ -101,13 +170,13 @@ export function runGate(goals: readonly GoalRuns[]): string | undefined {
 export async function goalRuns(root: string): Promise<GoalRuns[]> {
   let names: string[] = [];
   try {
-    names = (await readdir(path.join(root, 'goals'))).sort();
+    names = (await readdir(path.join(root, GOALS_DIR))).sort();
   } catch {
     return [];
   }
   const out: GoalRuns[] = [];
   for (const name of names.filter((n) => n.endsWith('.expect.json'))) {
-    const text = await readOrNull(path.join(root, 'goals', name));
+    const text = await readOrNull(path.join(root, GOALS_DIR, name));
     if (text === null) continue;
     let data: unknown;
     try {
@@ -117,7 +186,7 @@ export async function goalRuns(root: string): Promise<GoalRuns[]> {
     }
     if (!isRecord(data)) continue;
     const results = Array.isArray(data['results']) ? data['results'] : [];
-    out.push({ file: `goals/${name}`, runs: results.length, retry: data['retry'] === true });
+    out.push({ file: `${GOALS_DIR}/${name}`, runs: results.length, retry: data['retry'] === true });
   }
   return out;
 }
@@ -127,9 +196,19 @@ const targetIsJudge = (agent: string | undefined, hints: readonly string[]): boo
   return all.some((hint) => hint.includes('judge'));
 };
 
+const READ_ACTIONS = ['read', 'grep', 'glob'] as const;
+
 export async function registerGuards(ctx: Plugin.Context): Promise<void> {
   const root = ctx.location.directory;
   await ctx.permission.hook('evaluate', async (event) => {
+    if (isOneOf(READ_ACTIONS, event.action)) {
+      const seal = memorySeal(event.agent, event.resources, root);
+      if (seal !== undefined) {
+        event.effect = 'deny';
+        event.message = seal;
+      }
+      return;
+    }
     if (event.action === 'edit' || event.action === 'write') {
       const generated = await generatedGuard(event.agent, event.resources, root);
       if (generated !== undefined) {

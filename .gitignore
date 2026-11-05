@@ -10,7 +10,9 @@ dist/
 coverage/
 expectations/.judge/
 packages/harness/test/.tmp/
-.ops/operator/
-.ops/locks/
-.ops/submit/
-.ops/sessions/
+.oc3/operator/
+.oc3/locks/
+.oc3/submit/
+.oc3/sessions/
+
+.oc3/bundles/

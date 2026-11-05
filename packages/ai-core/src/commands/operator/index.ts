@@ -6,7 +6,7 @@ import { UsageError, type Diagnostic } from '#shared/diagnostics';
 import { errorCode, isRecord } from '#shared/guards';
 import { report, warn } from '#shared/report';
 
-const STATE = '.ops/operator/state.yml';
+const STATE = '.oc3/operator/state.yml';
 const LINES = 200;
 const BYTES = 16 * 1024;
 const FIELDS: readonly string[] = [

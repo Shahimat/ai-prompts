@@ -12,7 +12,7 @@ description: Параллельная работа в git worktree — где ж
 
 ## Где и как
 
-- Каталог — `worktrees.dir` из `context/ai-core.yml` или
+- Каталог — `worktrees.dir` из `.oc3/ai-core.yml` или
   `.opencode/worktrees/<name>` по умолчанию (совпадает с настройкой
   `worktree.directory` в `opencode.jsonc`). Каталог в `.gitignore`.
 - Создание: режим Worktree в OpenCode, режим Worktree в
@@ -30,17 +30,17 @@ description: Параллельная работа в git worktree — где ж
 
 - `CHANGELOG.md` — `merge=union` в `.gitattributes`: обе строки
   сохраняются. После слияния проверь порядок дат.
-- `context/index.yml`, `prompts/index.yml` и другие генерируемые — при
+- `.oc3/bundles/index.md`, `prompts/index.yml` и другие генерируемые — при
   конфликте не правь руками: возьми любую сторону и пересобери
   генератором.
-- `goals/*.expect.ts` — TypeScript; union не работает: конфликт
+- `.oc3/goals/*.expect.ts` — TypeScript; union не работает: конфликт
   импортов и тикетов решай руками, правку тикета сверь с baseline.
 - Адаптеры (`.opencode/`, `.codex/`) — пересобрать.
 
 <!-- expect:skill-runs -->
 <!-- metadata.runs: refresh -->
 С harness после слияния — `ai refresh`: пересоберёт адаптеры и
-`context/index.yml` и проверит проект, в том числе порядок дат журнала.
+`.oc3/bundles/index.md` и проверит проект, в том числе порядок дат журнала.
 <!-- /expect:skill-runs -->
 
 ## Сборка эпики

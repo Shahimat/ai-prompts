@@ -2,23 +2,23 @@
 name: domain
 metadata:
   runs: check
-description: Правила слоя domain — entities (что есть) и behavior (как должно работать и проверено ли, verified). Загружай, когда читаешь или пишешь docs/entities/ и docs/behavior/, ставишь verified или делаешь audit.
+description: Правила слоя domain — entities (что есть) и behavior (как должно работать и проверено ли, verified). Загружай, когда читаешь или пишешь .oc3/doc/data/entities/ и .oc3/doc/data/behavior/, ставишь verified или делаешь audit.
 ---
 
 # domain
 
 Общая правда проекта для человека и агента:
 
-- `docs/entities/<id>.yml` — «что это за штука, из чего состоит, от
+- `.oc3/doc/data/entities/<id>.yml` — «что это за штука, из чего состоит, от
   чего зависит»;
-- `docs/behavior/<id>.yml` — «как это должно работать и проверено ли».
+- `.oc3/doc/data/behavior/<id>.yml` — «как это должно работать и проверено ли».
 
 ## Маршруты
 
-- как сейчас устроено X → `docs/entities/<id>.yml`, затем код;
+- как сейчас устроено X → `.oc3/doc/data/entities/<id>.yml`, затем код;
 - какие документы касаются файла F → поиск `paths` в entities;
-- как X должно себя вести и проверено ли → `docs/behavior/<id>.yml`;
-- список id по namespace → `context/index.yml`.
+- как X должно себя вести и проверено ли → `.oc3/doc/data/behavior/<id>.yml`;
+- список id по namespace → `.oc3/bundles/index.md`.
 
 Читай entities и behaviors только нужного namespace.
 
@@ -27,7 +27,7 @@ description: Правила слоя domain — entities (что есть) и be
 ```yaml
 id: <kebab-case, совпадает с именем файла>
 kind: entity
-namespace: <из context/project.yml → namespaces>
+namespace: <из .oc3/doc/project.yml → namespaces>
 summary: <одна строка — для индекса>
 paths: [<glob кода, который описывает entity>]
 version: <если применимо>
@@ -86,7 +86,7 @@ verified_note: <чем проверено или что мешает>
 ## Namespace
 
 - новый namespace — только с «да» пользователя, сначала в
-  `context/project.yml`;
+  `.oc3/doc/project.yml`;
 - больше ~7 entities или ~12 behaviors в namespace — сигнал к
   дроблению (`<area>-<subarea>` или отдельная область), поднять в
   отчёте;

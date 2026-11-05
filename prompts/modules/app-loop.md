@@ -4,7 +4,7 @@ kind: module
 applicable_to: [agent-operational-contract-v3]
 patterns: [source-sync]
 title: Модуль app-loop — петля «домен ↔ приложение»
-use_case: Возможность ядра v3 для проектов, где в одном репозитории живут предметный домен (жизнь или анализ) и приложение, которое его автоматизирует. Связывает их двусторонней трассой serves ↔ automated_by, вводит провенанс app-telemetry (доверие = verified behavior-источника), поле domain у целей и планов goals/ и проверку выравнивания петли.
+use_case: Возможность ядра v3 для проектов, где в одном репозитории живут предметный домен (жизнь или анализ) и приложение, которое его автоматизирует. Связывает их двусторонней трассой serves ↔ automated_by, вводит провенанс app-telemetry (доверие = verified behavior-источника), поле domain у целей и планов .oc3/goals/ и проверку выравнивания петли.
 tags: [docs-as-code, app-loop, provenance, agent-contract, module]
 feature:
   summary: петля домен ↔ приложение — serves ↔ automated_by, провенанс app-telemetry, выравнивание планов
@@ -17,7 +17,7 @@ feature:
       multi: false
       options: [life, analysis]
     - key: plan-domain-field
-      question: Помечать цели и планы goals/ полем domain (app или предметный домен)?
+      question: Помечать цели и планы .oc3/goals/ полем domain (app или предметный домен)?
       multi: false
       options: ["yes", "no"]
 ---
@@ -46,7 +46,7 @@ feature:
 
 - `counterpart` — предметный домен петли: `life` или `analysis`.
   Соответствующий модуль должен быть подключён (см. «Установка»).
-- `plan-domain-field` — помечать ли цели и планы в `goals/` полем
+- `plan-domain-field` — помечать ли цели и планы в `.oc3/goals/` полем
   `domain` (`app | <counterpart>`). `yes` — по умолчанию: программа,
   цель и тикет читаются проще с меткой домена.
 
@@ -63,7 +63,7 @@ provides:
     domain: [serves]
 ```
 
-Поле `domain` у целей и планов `goals/` модуль не объявляет через
+Поле `domain` у целей и планов `.oc3/goals/` модуль не объявляет через
 `extends`: goals не модуль и не YAML-слой. Метка — правило skill
 `app-loop`, включается ответом `plan-domain-field: yes`.
 
@@ -96,7 +96,7 @@ skill `app-loop`.
    и встречных `automated_by` в домене → «да» → через librarian.
    Привязку, которую не вывести из кода и документов, не выдумывай —
    список «фичи без serves» пользователю.
-4. `plan-domain-field: yes` → план разметки целей и планов `goals/`
+4. `plan-domain-field: yes` → план разметки целей и планов `.oc3/goals/`
    полем `domain`.
 5. Прогони проверки петли из skill (включая выравнивание), находки —
    отчётом.
@@ -112,16 +112,16 @@ skill `app-loop`.
   `serves` у целей и шестая проверка;
 - значения `serves` в `app/entities|behavior/*.yml` и `automated_by` в
   домене сохраняются; сами файлы `app/entities|behavior` переезжают в
-  `docs/entities|behavior` по миграции модуля `domain`, ссылки
+  `.oc3/doc/data/entities|behavior` по миграции модуля `domain`, ссылки
   приводятся к формату skill.
 
 Выбрасывается:
 
 - копия «Правила верификации и провенанса» в
-  `context/conventions/verification.yml` — верификация в skill
+  `.oc3/doc/conventions/verification.yml` — верификация в skill
   `domain`, провенанс `app-telemetry` в skill `app-loop`, остальные
   провенансы — в модуле домена;
-- «Канал живых данных» и блок `data_access` в `context/project.yml` —
+- «Канал живых данных» и блок `data_access` в `.oc3/doc/project.yml` —
   в модуль `data-access`;
 - раздельные журналы `CHANGELOG-life|analysis.md` / `CHANGELOG-app.md` —
   один `CHANGELOG.md` по правилам ядра (теги доменов — в их модулях).

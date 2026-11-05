@@ -4,10 +4,10 @@ kind: module
 applicable_to: [agent-operational-contract-v2, agent-operational-contract-v3]
 patterns: [source-sync]
 title: Модуль knowledge — карта GUI внешних систем без API
-use_case: Подключается к проекту, где часть работы проходит через web-GUI провайдеров без API/CLI. Заводит слой docs/knowledge/ с картами интерфейсов, чтобы агент не просил повторный скриншот каждой новой сессии. Синтезированные из скринов текстовые карты + last_seen_at + reactive-протокол уточнений при расхождении.
+use_case: Подключается к проекту, где часть работы проходит через web-GUI провайдеров без API/CLI. Заводит слой .oc3/doc/knowledge/ с картами интерфейсов, чтобы агент не просил повторный скриншот каждой новой сессии. Синтезированные из скринов текстовые карты + last_seen_at + reactive-протокол уточнений при расхождении.
 tags: [docs-as-code, workflow, external-gui, agent-contract, module]
 feature:
-  summary: docs/knowledge — карты GUI внешних систем без API, чтобы не просить скриншоты заново
+  summary: .oc3/doc/knowledge — карты GUI внешних систем без API, чтобы не просить скриншоты заново
   default: false
   requires: []
   conflicts: []
@@ -19,7 +19,7 @@ feature:
 
 Ты — агент, применяющий этот модуль к проекту, где уже подключён один
 из базовых контрактов, перечисленных в `applicable_to` этого модуля
-(см. frontmatter выше). Модуль вводит новый слой `docs/knowledge/` —
+(см. frontmatter выше). Модуль вводит новый слой `.oc3/doc/knowledge/` —
 компактные текстовые карты интерфейсов внешних систем, к которым нет
 API/CLI и куда пользователь ходит руками.
 
@@ -27,14 +27,14 @@ API/CLI и куда пользователь ходит руками.
 файлы и правила; ничего в базе не редактирует.
 
 Ничего не создавай без явного «да» от пользователя. Перед подключением
-проверь, что `sync.contract.key` из `context/project.yml` проекта
+проверь, что `sync.contract.key` из `.oc3/doc/project.yml` проекта
 входит в `applicable_to` этого модуля. Не входит — стоп, скажи
 пользователю, что модуль несовместим с подключённой базой, и покажи
 список поддерживаемых баз.
 
 ## Назначение и границы
 
-Слой `docs/knowledge/` — **карта интерфейсов внешних систем без API**.
+Слой `.oc3/doc/knowledge/` — **карта интерфейсов внешних систем без API**.
 Отвечает на вопрос «где что находится в GUI провайдера X и как оттуда
 дойти до Y», чтобы агент говорил шаги словами, а не просил повторный
 скриншот в каждой новой сессии.
@@ -43,7 +43,7 @@ API/CLI и куда пользователь ходит руками.
 консоли, где есть API/CLI — не сюда (для API есть entity/behavior, для
 CLI — manuals).
 
-Слой `docs/knowledge/` — не про поведение системы («как оно должно
+Слой `.oc3/doc/knowledge/` — не про поведение системы («как оно должно
 работать»), а про **структуру интерфейса** («как он устроен визуально
 и как в нём двигаться»). Границы:
 
@@ -60,11 +60,10 @@ knowledge.
 
 ## Структура файлов
 
-Модуль добавляет папку `docs/knowledge/` в корень проекта:
+Модуль добавляет папку `.oc3/doc/knowledge/` в корень проекта:
 
 ```
-docs/
-  knowledge/
+.oc3/doc/  knowledge/
     <system>/
       <flow-or-screen>.md
 ```
@@ -107,7 +106,7 @@ entities: [<id>]
 Поля frontmatter:
 
 - `id` — стабильный kebab-case `<system>-<flow>`: путь файла внутри
-  `docs/knowledge/` без `.md`, где `/` заменён на `-`.
+  `.oc3/doc/knowledge/` без `.md`, где `/` заменён на `-`.
 - `kind: knowledge` — обязательно.
 - `namespace` — как у связанной entity (`infra`, `payments`, ...).
   Отдельного namespace для knowledge не заводим.
@@ -186,7 +185,7 @@ knowledge и в текущем скрине.
 
 ### Перед процедурой
 
-1. Читаешь `docs/knowledge/<system>/<flow>.md`.
+1. Читаешь `.oc3/doc/knowledge/<system>/<flow>.md`.
 2. Говоришь пользователю шаги словами по карте, без «пришли скрин».
 3. Пользователь идёт по шагам.
 
@@ -207,10 +206,10 @@ knowledge и в текущем скрине.
 3. По итогам работы: если задача попала под триггер заведения knowledge
    — спрашиваешь одной строкой «сохранить как knowledge? да/нет».
 4. При «да» — заводишь файл, обновляешь manifest модуля, обновляешь
-   `context/index.yml`:
+   `.oc3/bundles/index.md`:
    <!-- expect:skill-runs -->
-   <!-- metadata.runs: context index -->
-   в v3 — пересборкой `ai context index`, если подключён harness.
+   <!-- metadata.runs: memory build -->
+   в v3 — пересборкой `ai memory build`, если подключён harness.
    <!-- /expect:skill-runs -->
 
 ## Проверки внутренней непротиворечивости
@@ -227,21 +226,21 @@ knowledge и в текущем скрине.
 
 ## Что модуль привносит в проект (`provides`)
 
-При подключении модуля в проекте-потребителе `context/modules/knowledge-external-gui.yml`
+При подключении модуля в проекте-потребителе `.oc3/modules/knowledge-external-gui.yml`
 создаётся с секцией `provides`:
 
 ```yaml
 provides:
   layers:
-    - docs/knowledge/
+    - .oc3/doc/knowledge/
   fields_in_index:
     - knowledge
 ```
 
-- `layers: [docs/knowledge/]` — модуль вводит новую папку-слой.
+- `layers: [.oc3/doc/knowledge/]` — модуль вводит новую папку-слой.
   Отдельных фиксированных файлов не создаёт: файлы `<system>/<flow>.md`
   добавляются по мере работы.
-- `fields_in_index: [knowledge]` — в `context/index.yml` появляется
+- `fields_in_index: [knowledge]` — в манифесте появляется
   секция `knowledge` со списком заведённых файлов по namespace.
 
 ## Совместимость с v3
@@ -253,21 +252,21 @@ provides:
   внутренней непротиворечивости», «Обфусцированный пример» и «Поведение
   по умолчанию» — ставятся в проект skill'ом `knowledge-external-gui`
   (копия этих разделов; правятся вместе);
-- `context/index.yml` в v3 генерируется: вместо `fields_in_index`
+- `.oc3/bundles/index.md` в v3 генерируется: вместо `fields_in_index`
   manifest объявляет слой для индекса, и записи knowledge попадают в
   namespace своих файлов секцией `knowledge`;
 - `provides` в v3:
 
   ```yaml
   provides:
-    layers: [docs/knowledge/]
+    layers: [.oc3/doc/knowledge/]
     files: []
     skills: [knowledge-external-gui]
     agents_md_block: true
     harness_checks: []
     index_layers:
       - section: knowledge
-        dir: docs/knowledge
+        dir: .oc3/doc/knowledge
   ```
 
 - блок `AGENTS.md`:
@@ -277,7 +276,7 @@ provides:
   <!-- module:knowledge-external-gui -->
   ## knowledge
 
-  - где что в GUI внешней системы X → `docs/knowledge/<system>/`;
+  - где что в GUI внешней системы X → `.oc3/doc/knowledge/<system>/`;
   - правила слоя, скриншоты, свежесть → skill `knowledge-external-gui`.
   <!-- /module:knowledge-external-gui -->
   ```
@@ -285,7 +284,7 @@ provides:
 
 ## Обфусцированный пример
 
-`docs/knowledge/example-provider/webhooks-settings.md`:
+`.oc3/doc/knowledge/example-provider/webhooks-settings.md`:
 
 ```markdown
 ---

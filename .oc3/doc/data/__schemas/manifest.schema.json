@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": ".oc3/manifest.json — реестр памяти: namespace, data-структуры, бюджеты",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["namespace", "data"],
+  "properties": {
+    "namespace": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" }
+    },
+    "data": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" }
+    },
+    "budgets": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "notes": { "type": "integer", "minimum": 1 },
+        "start": { "type": "integer", "minimum": 1 },
+        "node": { "type": "integer", "minimum": 1 },
+        "optional_field": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "files": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "namespace": {
+            "type": "array",
+            "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" }
+          },
+          "weight": { "type": "integer", "minimum": 0 }
+        }
+      }
+    }
+  }
+}

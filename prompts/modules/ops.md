@@ -4,7 +4,7 @@ kind: module
 applicable_to: [agent-operational-contract-v3]
 patterns: [source-sync]
 title: Модуль ops — jobs по задачам вне сессии оператора
-use_case: Возможность ядра v3 для проекта, где оператор ведёт много параллельных работ. Работа по задаче — job, автомат ticket-work пакета @shahimat/harness - карточка задачи из провайдера tasks, исследование, план с «да» пользователя, правка в копии от провайдера vcs, лестница проверок, ревью по DoD, публикация по политике автономии и ожидание CI и влития, готовность к коммиту. Внешние системы — по mapping интерфейс → провайдер → система с проверкой ai ops providers check. Роли — отдельные процессы opencode run, журнал хода — в .ops/jobs/<id>/, сводка оператору — ai ops brief на старте сессии, строка прогонов — ai ops line в status line. Рантайм — opencode.
+use_case: Возможность ядра v3 для проекта, где оператор ведёт много параллельных работ. Работа по задаче — job, автомат ticket-work пакета @shahimat/harness - карточка задачи из провайдера tasks, исследование, план с «да» пользователя, правка в копии от провайдера vcs, лестница проверок, ревью по DoD, публикация по политике автономии и ожидание CI и влития, готовность к коммиту. Внешние системы — по mapping интерфейс → провайдер → система с проверкой ai ops providers check. Роли — отдельные процессы opencode run, журнал хода — в .oc3/jobs/<id>/, сводка оператору — ai ops brief на старте сессии, строка прогонов — ai ops line в status line. Рантайм — opencode.
 tags: [ops, jobs, harness, providers, agent-contract, module]
 feature:
   summary: jobs по задачам вне сессии оператора — карточка, план с «да», правка в копии, проверки, ревью, журнал хода
@@ -52,7 +52,7 @@ feature:
    «да» пользователя, замечание — новый план. «да» с хвостом — согласие,
    хвост уходит исполнителю замечанием.
 4. `implement` — роль `executor` правит копию от провайдера `vcs`.
-5. `verify` — команды из `context/ops.yml` → `verify` в копии; в
+5. `verify` — команды из `.oc3/ops.yml` → `verify` в копии; в
    `commit.md` и `pr.md` нет строк атрибуции агента, иначе провал.
 6. `review` — роль `judge` по DoD; карточка перечитывается из
    источника, смена DoD — вопрос пользователю. Провал — назад в
@@ -110,14 +110,14 @@ name, …методы }`. Одно имя на двух уровнях — ош�
 
 ### Mapping: интерфейс → система
 
-`context/ops.yml` → `providers` — запись проекта о том, какая система
+`.oc3/ops.yml` → `providers` — запись проекта о том, какая система
 стоит за интерфейсом: `provider`, `system` (имя из `systems` внешнего
 контекста) или `provider: none` с `why` — аналога нет. Записанное при
 синке не угадывается заново; интерфейс без записи — повод проверить
 инфраструктуру проекта на аналог.
 
 `npx ai ops providers check` — по каждому интерфейсу: запись mapping,
-провайдер загружается, проба чтения (`probe` в `context/ops.yml`) даёт
+провайдер загружается, проба чтения (`probe` в `.oc3/ops.yml`) даёт
 ответ нужной формы, уровень автономии методов записи. Код 1 — интерфейс
 без записи или с ошибкой.
 
@@ -139,7 +139,7 @@ name, …методы }`. Одно имя на двух уровнях — ош�
 
 1. Список действий прогона: запись в VCS, в задачи, в мессенджер, старт
    CI, действия в веб-интерфейсе.
-2. По каждому — откуда право: политика `context/autonomy.yml`
+2. По каждому — откуда право: политика `.oc3/doc/autonomy.yml`
    (`vcs.publish@<репозиторий>` — уровень для одной цели), настройки
    инструмента, доступ канала (`capabilities`, `limits` в
    `data-access`).
@@ -150,7 +150,7 @@ name, …методы }`. Одно имя на двух уровнях — ош�
 
 ### Граница: рантайм — не знание
 
-`.ops/` — состояние работ, а не документация и не memory. Устойчивое
+`.oc3/` — состояние работ, а не документация и не memory. Устойчивое
 из job попадает в документацию только через `docs-delta`. Роли и
 оператор не опираются на старые журналы как на источник правды.
 
@@ -168,14 +168,14 @@ name, …методы }`. Одно имя на двух уровнях — ош�
 ```yaml
 provides:
   layers: []
-  files: [context/ops.yml, .agents/agents/executor.md]
+  files: [.oc3/ops.yml, .agents/agents/executor.md]
   skills: []
   agents_md_block: true
   harness_checks: []
-  gitignore: [.ops/]
+  gitignore: [.oc3/operator/, .oc3/locks/, .oc3/sessions/, .oc3/submit/, .oc3/jobs/, .oc3/bundles/]
 ```
 
-`context/ops.yml`:
+`.oc3/ops.yml`:
 
 ```yaml
 # Провайдеры и проверки рантайма ops. Формат — блок ops в AGENTS.md.
@@ -191,7 +191,7 @@ repo: .                  # репозиторий кода для копий; п
 verify: []               # локальные проверки в копии: сборка, тесты, линт
 ```
 
-В `context/ai-core.yml` модуль добавляет hooks `ops-brief` — сводка
+В `.oc3/ai-core.yml` модуль добавляет hooks `ops-brief` — сводка
 `ai ops brief` на старте сессии, после `resume` и чистки контекста — и
 `ops-line` — строка прогонов `ai ops line` в status line инструмента:
 живые сессии автоматов проекта, роль, минуты, последний шаг.
@@ -205,8 +205,8 @@ verify: []               # локальные проверки в копии: с
 
 - задача → `npx ai ticket-work start <ref>`; ответ — `npx ai ticket-work answer <id> <текст>`;
 - сводка — `npx ai ops brief`; события — фоном `npx ai ops wait`;
-- журнал — `.ops/jobs/<id>/`, настройки — `context/ops.yml`; `.ops/` — рантайм, не знание;
-- внешние системы — по mapping в `context/ops.yml`; проверка — `npx ai ops providers check`.
+- журнал — `.oc3/jobs/<id>/`, настройки — `.oc3/ops.yml`; `.oc3/` — рантайм, не знание;
+- внешние системы — по mapping в `.oc3/ops.yml`; проверка — `npx ai ops providers check`.
 <!-- /module:ops -->
 ```
 <!-- /expect:agents-md-readonly -->
@@ -215,20 +215,20 @@ verify: []               # локальные проверки в копии: с
 
 1. Проверь `harness` (иначе `contract-setup` добавит); поставь роль
    `executor` из индекса, SHA — в `parts.agents`.
-2. Создай `context/ops.yml` по ответам: mapping по каждому интерфейсу
+2. Создай `.oc3/ops.yml` по ответам: mapping по каждому интерфейсу
    таблицы, команды `verify`, путь `repo`, если код не в этом
    репозитории.
 3. `project-provider` или найденный аналог — помоги написать провайдер в
    `.agents/providers/<интерфейс>/<имя>.ts` по таблице (план → «да»).
-4. Добавь `ops-brief` и `ops-line` в `hooks` в `context/ai-core.yml`,
-   блок — в `AGENTS.md`, строку `.ops/` — в `.gitignore`.
+4. Добавь `ops-brief` и `ops-line` в `hooks` в `.oc3/ai-core.yml`,
+   блок — в `AGENTS.md`, строку игнорируемых частей `.oc3/` — в `.gitignore`.
 5. `ai refresh` — hooks появляются в настройках инструмента;
    `ai ticket-work validate` — автомат пригоден;
    `npx ai ops providers check` — код 0.
 
 ## Отключение
 
-Удаляются блок, hooks `ops-brief` и `ops-line`, `context/ops.yml` (вопрос
+Удаляются блок, hooks `ops-brief` и `ops-line`, `.oc3/ops.yml` (вопрос
 пользователю) и строка `.gitignore`, если её не объявляет другой
 модуль. Незакрытые jobs — сначала список пользователю. Модули
 `watchers` и `dashboard` требуют `ops` — сначала они.

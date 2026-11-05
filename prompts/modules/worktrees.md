@@ -63,7 +63,7 @@ provides:
    по умолчанию `.opencode/worktrees/`.
 2. Создай `.worktreeinclude`, добавь каталог в `.gitignore`.
 3. Каталог не по умолчанию и подключён harness — `worktrees.dir` в
-   `context/ai-core.yml`.
+   `.oc3/ai-core.yml`.
 4. Поставь skill `worktrees`, добавь блок в `AGENTS.md`.
 
 `merge=union` для `CHANGELOG.md` уже стоит в `.gitattributes` ядра.

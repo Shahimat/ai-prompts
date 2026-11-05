@@ -26,7 +26,7 @@ const put = async (rel: string, text: string): Promise<void> => {
 const read = async (rel: string): Promise<string> => readFile(path.join(root, rel), 'utf8');
 
 const skillsData = async (): Promise<Record<string, unknown>> => {
-  const data: unknown = parse(await read('context/skills.yml'));
+  const data: unknown = parse(await read('.oc3/skills.yml'));
   if (!isRecord(data)) throw new Error('skills.yml не объект');
   return data;
 };
@@ -118,7 +118,7 @@ describe('ensureSkillsPreset', () => {
     const lines = await ensureSkillsPreset(root, ['researcher']);
     expect(lines[0]).toContain('пресет operator-centric');
     expect(lines[0]).toContain('researcher');
-    const text = await read('context/skills.yml');
+    const text = await read('.oc3/skills.yml');
     expect(text).toContain('# Сгенерировано oc3 init --roles');
     expect(await rolesOf('research')).toEqual(['researcher']);
     expect(await rolesOf('domain')).toEqual(['researcher']);
@@ -129,10 +129,10 @@ describe('ensureSkillsPreset', () => {
   });
 
   it('скелет skills: [] разворачивается в блочный список', async () => {
-    await put('context/skills.yml', '# пусто\nskills: []\n');
+    await put('.oc3/skills.yml', '# пусто\nskills: []\n');
     const lines = await ensureSkillsPreset(root, ['judge']);
     expect(lines[0]).toContain('дописаны привязки');
-    const text = await read('context/skills.yml');
+    const text = await read('.oc3/skills.yml');
     expect(text).toContain('# пусто');
     expect(text).not.toContain('skills: []');
     expect(await rolesOf('judge')).toEqual(['judge']);
@@ -141,7 +141,7 @@ describe('ensureSkillsPreset', () => {
 
   it('повторный запуск — merge: пользовательские записи и правки не перетираются', async () => {
     await put(
-      'context/skills.yml',
+      '.oc3/skills.yml',
       [
         '# мои привязки',
         'skills:',
@@ -156,7 +156,7 @@ describe('ensureSkillsPreset', () => {
     );
     const first = await ensureSkillsPreset(root, ['researcher']);
     expect(first[0]).toContain('дописаны привязки');
-    const text = await read('context/skills.yml');
+    const text = await read('.oc3/skills.yml');
     expect(text).toContain('# мои привязки');
     expect(text).toContain('key: life');
     expect(text.match(/key: research/g)?.length).toBe(1);
@@ -164,32 +164,32 @@ describe('ensureSkillsPreset', () => {
     expect(await rolesOf('manuals')).toEqual(['researcher']);
     const second = await ensureSkillsPreset(root, ['researcher']);
     expect(second[0]).toContain('на месте');
-    expect((await read('context/skills.yml')).match(/key: domain/g)?.length).toBe(1);
+    expect((await read('.oc3/skills.yml')).match(/key: domain/g)?.length).toBe(1);
   });
 
   it('второй прогон с расширенным списком добавляет только недостающее', async () => {
     await ensureSkillsPreset(root, ['researcher']);
-    const before = await read('context/skills.yml');
+    const before = await read('.oc3/skills.yml');
     const lines = await ensureSkillsPreset(root, ROLE_NAMES);
     expect(lines[0]).toContain('дописаны привязки');
-    expect(await read('context/skills.yml')).toContain('# Сгенерировано oc3 init --roles');
+    expect(await read('.oc3/skills.yml')).toContain('# Сгенерировано oc3 init --roles');
     expect(before).not.toContain('key: judge');
     expect(await rolesOf('judge')).toEqual(['judge']);
     expect(await rolesOf('executor')).toEqual(['executor']);
     expect(await rolesOf('librarian')).toEqual(['librarian']);
     expect(await rolesOf('domain')).toEqual([...ROLE_NAMES]);
-    expect((await read('context/skills.yml')).match(/key: research/g)?.length).toBe(1);
+    expect((await read('.oc3/skills.yml')).match(/key: research/g)?.length).toBe(1);
   });
 
   it('битый YAML не переписывается', async () => {
-    await put('context/skills.yml', 'skills: [unclosed\n');
+    await put('.oc3/skills.yml', 'skills: [unclosed\n');
     const lines = await ensureSkillsPreset(root, ['researcher']);
     expect(lines[0]).toContain('невалидный YAML');
-    expect(await read('context/skills.yml')).toBe('skills: [unclosed\n');
+    expect(await read('.oc3/skills.yml')).toBe('skills: [unclosed\n');
   });
 
   it('старый каркас без списка skills перезаписывается пресетом', async () => {
-    await put('context/skills.yml', 'roles: {}\n');
+    await put('.oc3/skills.yml', 'roles: {}\n');
     const lines = await ensureSkillsPreset(root, ['executor']);
     expect(lines[0]).toContain('старый каркас');
     expect(await rolesOf('executor')).toEqual(['executor']);

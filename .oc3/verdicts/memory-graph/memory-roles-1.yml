@@ -1,0 +1,28 @@
+run: 3
+status: pass
+summary: сверка ролей — 5 crit pass; crit-5 satisfactorily: .oc3/doc/index.yml ещё в запечатанном слое, удаление — librarian
+items:
+  - key: memory-roles.crit-1
+    status: pass
+    evidence: связь файла с namespace/весом — только manifest.files (loadFacts memory-graph.ts:190-192; checkManifestFiles memory.ts:296-319 — существование файла + ns ∈ списка); build/check пишут только в .oc3/bundles/ (writeGraph:540-556), файлы фактов не меняются; переполнение — предписание «понизь веса в манифесте (избыток уедет в узлы)» (graphDiagnostics:448,454); budgets/files в __schemas/manifest.schema.json:16-39
+    reason: manifest.json — единственное место управления памятью: состав, веса, узлы, бюджеты; диагностики предписывают librarian понижение весов с уездом избытка в долговременные узлы, факты при мутациях памяти не трогаются
+  - key: memory-roles.crit-2
+    status: pass
+    evidence: NOTES сверх бюджета → crit «формализуй в data-структуры» (memory.ts:184-185); optional-field → WARN «формализуй поле в схеме или факты» (memory.ts:352-367); рост структуры — схемы в __schemas + data/namespace в манифесте (schema required [namespace,data]); тесты memory.test.ts (run 1/2: NOTES crit, optional-field WARN)
+    reason: механизмы формализации на месте — детект превышений и команда librarian реализованы; исполнение процесса — роль librarian, executor-часть (валидация и предписание) готова
+  - key: memory-roles.crit-3
+    status: pass
+    evidence: .oc3/NOTES.md существует; бюджет и crit при превышении — memory.ts:179-185; автор NOTES зафиксирован в терминах цели («пишет librarian, оператор диктует»)
+    reason: инбокс NOTES с бюджетом и обязательной формализацией по crit-предписанию реализован; процессные обязательства librarian (кто пишет) — ролевые, кода не требуют
+  - key: memory-roles.crit-4
+    status: pass
+    evidence: loadFacts memory-graph.ts:194-204 — manuals → «инструкция: <заголовок>», knowledge → «карта:»; живой узел .oc3/bundles/ecfc0b9df13d/index.md:49-80 — manuals/pilot.md в узле docs:1 с пояснением и полным рендером; seal: агентам читаем только bundles/ (guards.ts:47-59); namespace/вес manuals — в manifest.files (тест session-brief.test.ts:160-176)
+    reason: manuals агент-читаемые: «дай инструкцию как X» решается загрузкой рендера из бандла узла, тот же рендер читает человек; место manuals (namespace/вес) — в манифесте
+  - key: memory-roles.crit-5
+    status: satisfactorily
+    evidence: AGENTS.md worktree: «Любой запрос — сначала оперативная память (.oc3/bundles/index.md)», маршруты на .oc3/doc/*, .oc3/goals/, .oc3/skills.yml — упоминаний context/index.yml в маршрутах нет; генератор игнорирует файл (memory-graph.ts:73 skip CONTEXT_INDEX_PATH); ls: .oc3/doc/index.yml физически ещё существует в запечатанном слое
+    reason: маршрут обновлён и содержание покрыто бандлами, но .oc3/doc/index.yml ещё лежит в запечатанном слое — executor его не трогает по seal; run 3: satisfactorily, остаток — открытый пункт для librarian (удалить файл по docs_request)
+  - key: memory-roles.crit-6
+    status: pass
+    evidence: npm run ci в worktree выполнен дважды (сессия исполнителя и независимый прогон judge): format/build/typecheck/lint зелёные, тесты ai-core 240 / harness / cli 32 / oc3 зелёные, packages-check ok, index:check ok, memory:check ok, expect crit 0, warn ≤5, ? 31 без вердикта — финальный гейт «бюджет превышен» держится только на непроголосованных judged-пунктах чужих целей; memory:check в цепочке ci (package.json:33); версии и пины не тронуты
+    reason: ci зелёный с memory check в составе, packages-check без crit; красный финальный гейт — механика счётчика judged-пунктов, crit-красных нет; релизный цикл версий — после приёмки по формулировке крита

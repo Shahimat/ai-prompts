@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": ".oc3/doc/data/__schemas/glossary.schema.json — область глоссария: плоский список терминов",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["term", "definition"],
+    "properties": {
+      "term": { "type": "string", "minLength": 1 },
+      "definition": { "type": "string", "minLength": 1 }
+    }
+  }
+}

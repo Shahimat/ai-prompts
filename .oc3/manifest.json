@@ -1,0 +1,14 @@
+{
+  "namespace": ["docs"],
+  "data": ["entities", "behavior"],
+  "budgets": {
+    "notes": 4096,
+    "start": 10240,
+    "node": 16384,
+    "optional_field": 3
+  },
+  "files": {
+    "knowledge/tooling.md": { "namespace": ["docs"], "weight": 1 },
+    "manuals/pilot.md": { "namespace": ["docs"], "weight": 1 }
+  }
+}

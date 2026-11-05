@@ -12,6 +12,7 @@ import {
   type CommandNode,
 } from '@shahimat/ai-core';
 import { runInit } from '#init';
+import { runMigrate } from '#migrate';
 import { runBriefing } from '#briefing';
 
 export const BIN = 'oc3';
@@ -119,6 +120,12 @@ const NODES: readonly CommandNode[] = [
     effect: 'mutation',
     options: '--roles <список>',
     run: runInit,
+  },
+  {
+    path: ['migrate'],
+    kind: 'command',
+    effect: 'mutation',
+    run: runMigrate,
   },
 ];
 

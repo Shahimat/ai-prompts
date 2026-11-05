@@ -135,7 +135,7 @@ export async function loadProvider(
   name: string,
 ): Promise<Provider> {
   if (name === 'none')
-    throw new UsageError(`провайдер ${iface} не выбран: context/ops.yml → providers.${iface}`);
+    throw new UsageError(`провайдер ${iface} не выбран: .oc3/ops.yml → providers.${iface}`);
   const own = fileAt(path.join(root, PROJECT_PROVIDERS), iface, name);
   const machine = fileAt(machineProviders(home), iface, name);
   const builtin = BUILTIN_PROVIDERS.find((p) => p.interface === iface && p.name === name);
@@ -188,7 +188,7 @@ export async function callWrite(
   if (fn === undefined) throw new UsageError(`${provider.source}: нет метода ${method}`);
   const level = levelOf(policy, action, target ?? targetOf(args), true);
   if (level === 'never')
-    throw new UsageError(`${action}: запрещено политикой context/autonomy.yml`);
+    throw new UsageError(`${action}: запрещено политикой .oc3/doc/autonomy.yml`);
   if (level === 'ask' && !approved) return { done: false, level };
   return { done: true, level, result: await fn(...args) };
 }

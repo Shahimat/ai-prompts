@@ -82,7 +82,7 @@ describe('submit_result', () => {
     await writeRole('executor', 'result');
     await submitResult(call('executor', { message: 'result', data: RESULT_DATA }, 'ses_abc'));
     expect(
-      JSON.parse(await readFile(path.join(root, '.ops', 'submit', 'ses_abc.json'), 'utf8')),
+      JSON.parse(await readFile(path.join(root, '.oc3', 'submit', 'ses_abc.json'), 'utf8')),
     ).toEqual(RESULT_DATA);
   });
 

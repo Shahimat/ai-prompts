@@ -4,14 +4,14 @@
 
 ## Где искать ответ
 
-Любой запрос — сначала документация: `context/index.yml` → conventions, design, docs — точный ответ или указатель, где искать. Дока молчит — источники ниже, а добытое вне доки знание верни через librarian.
+Любой запрос — сначала оперативная память (`.oc3/bundles/index.md`): факты, веер узлов, каталоги; недостающее — через librarian.
 
-- как сейчас устроено X → источник реальности (`context/project.yml` → `reality`: код этого репозитория); почему X → `CHANGELOG.md`, затем `git log`;
-- как договорились → `context/conventions/<key>.yml`; реквизиты, sync, roles.exceptions, roles.models → `context/project.yml`;
-- цели, программы, тикеты → `goals/`; роли → `agents/`, skills → `context/skills.yml`, автономия → `context/autonomy.yml`; возможности → `context/modules/*.yml`;
+- как сейчас устроено X → источник реальности (`.oc3/doc/project.yml` → `reality`: код этого репозитория); почему X → `CHANGELOG.md`, затем `git log`;
+- как договорились → `.oc3/doc/conventions/<key>.yml`; реквизиты, sync, roles.exceptions, roles.models → `.oc3/doc/project.yml`;
+- цели, программы, тикеты → `.oc3/goals/`; роли → `agents/`, skills → `.oc3/skills.yml`, автономия → `.oc3/doc/autonomy.yml`; возможности → `.oc3/modules/*.yml`;
 - как добавить промпт → `CONTRIBUTING.md` и `patterns/README.md`; индекс источников — `prompts/index.yml` (навигация, не правда); дизайн пакетов, автомата и оператора — `design/`.
 
-Полный обход `docs/`, `context/` и `goals/` запрещён: иди по маршруту.
+Полный обход запечатанного слоя (`.oc3/doc/`) и очереди (`.oc3/goals/`) запрещён: агентам читать можно только бандлы (`.oc3/bundles/`); иди по вееру.
 
 ## Жёсткие правила
 
@@ -21,7 +21,7 @@
 4. Документацию пишет только librarian по `docs_request`: оператор, executor и judge её читают; генерируемое меняет `ai`.
 5. Ничего не создавать, не переносить, не удалять без явного «да».
 6. Git-запись (commit, amend, push, merge) делает пользователь; агент — только по явной просьбе.
-7. Тяжёлая работа — ролям; действие наружу — по `context/autonomy.yml`; ролевые skills оператор не загружает.
+7. Тяжёлая работа — ролям; действие наружу — по `.oc3/doc/autonomy.yml`; ролевые skills оператор не загружает.
 Блоки возможностей ниже обязательны наравне с этими правилами.
 
 <!-- expect:attention:repo -->
@@ -34,20 +34,20 @@
 
 ## Сценарии
 
-`plan` — «предложи», «составь план», «спланируй»; `execute` — «делай», «почини»; `audit` — «проверь»; `challenge` — «покритикуй»; `report` — «статус», «что по целям». «Фиксируй ожидания», «заведи тикет» — цели (`goals/*.expect.ts`). Полная маршрутизация слов — skill `workflow`.
+`plan` — «предложи», «составь план»; `execute` — «делай», «почини»; `audit` — «проверь»; `challenge` — «покритикуй»; `report` — «статус», «что по целям»; «фиксируй ожидания» — цели. Полная маршрутизация — skill `workflow`.
 
 ## Оператор
 
-- старт сессии — брифинг: один вопрос — схема «дефолтная» или «кастомная»; без ответа роли и тикеты не запускаешь, «быстро» и «просто глянь» не отменяют; детали — skill `workflow`;
-- одна primary-сессия: приоритеты — порядок импортов программ и указания пользователя; пишет `goals/`, `.ops/operator/state.yml`, `.ops/feedback/`, сбрасывает `*.expect.json`, не пишет `docs/`, `context/`, `CHANGELOG.md`, код;
+- старт сессии — брифинг: схема «дефолтная» или «кастомная»; без ответа роли и тикеты не запускаешь — «быстро» не отменяет; детали — skill `workflow`;
+- одна primary-сессия: приоритеты — порядок импортов программ и указания пользователя; пишет `.oc3/goals/`, `.oc3/operator/state.yml`, `.oc3/feedback/`, сбрасывает `*.expect.json`, не пишет `.oc3/doc/`, `CHANGELOG.md`, код;
 - роли запускает только с `background: true`; не блокируется и остаётся доступен человеку, просыпается на результате или сообщении;
-- цель — `goals/<goal>.expect.ts`, программа — `goals/program--<key>.expect.ts`, тикет — `describe('ticket: …')`; один активный тикет на цель, paused — `crit.wip`;
+- цель — `.oc3/goals/<goal>.expect.ts`, программа — `.oc3/goals/program--<key>.expect.ts`, тикет — `describe('ticket: …')`; один активный тикет на цель, paused — `crit.wip`;
 - ролям — `brief` до 15 строк, от них — `report`; judge — `verdict`, librarian — `docs_request`; researcher от оператора — сколько угодно, от executor — ≤2 на тикет; executor — ≤5 активных (paused не считается); librarian — один;
 - worktree и merge — оператор; external публикует по autonomy; проверки — в скоупе цели или программы; фидбек — skill `operator-feedback`.
 
 ## Skills
 
-- ролевые skills — в `.agents/skills/`, привязка — `context/skills.yml`; оператор — только `operator-feedback`; браузер — `browser` у executor, `browser-read` у judge и researcher.
+- ролевые skills — в `.agents/skills/`, привязка — `.oc3/skills.yml`; оператор — только `operator-feedback`; браузер — `browser` у executor, `browser-read` у judge и researcher.
 
 <!-- module:worktrees -->
 ## worktrees

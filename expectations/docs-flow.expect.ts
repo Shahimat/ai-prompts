@@ -34,9 +34,9 @@ describe('[flow] delta', () => {
     'формат дельты — JSON Schema docs-delta: пункты add, refine, revise; у revise — что было и почему',
     () => Check.deltaFormat(),
   );
-  crit('дельта лежит в context/.delta/ и удаляется после приёмки', () => Check.deltaLifecycle());
+  crit('дельта лежит в .oc3/.delta/ и удаляется после приёмки', () => Check.deltaLifecycle());
   crit(
-    '.delta не входит в контекст проекта: context/index.yml и маршруты AGENTS.md её не включают',
+    '.delta не входит в контекст проекта: .oc3/doc/index.yml и маршруты AGENTS.md её не включают',
     () => Check.deltaOutOfContext(),
   );
   warn(
@@ -67,13 +67,14 @@ describe('[flow] delta', () => {
 const SCHEMAS = 'expectations/schemas';
 
 const OWNED = [
-  'context/project.yml',
-  'context/conventions/',
+  '.oc3/doc/project.yml',
+  '.oc3/doc/autonomy.yml',
+  '.oc3/skills.yml',
+  '.oc3/doc/conventions/',
   'CHANGELOG.md',
   'provides.layers',
-  '`context/.delta/` — создание',
-  '`context/.delta/` — удаление',
-  'context/index.yml',
+  '`.oc3/.delta/` — создание',
+  '`.oc3/.delta/` — удаление',
   'адаптеры',
 ];
 
@@ -114,9 +115,9 @@ class Check {
   }
 
   static async deltaLifecycle(): Promise<void> {
-    expect(DELTA_DIR).toBe('context/.delta');
+    expect(DELTA_DIR).toBe('.oc3/.delta');
     const text = await anchorText('docs-delta');
-    expect(text).toContain('context/.delta/<имя>.yml');
+    expect(text).toContain('.oc3/.delta/<имя>.yml');
     expect(text).toContain('ai delta close');
   }
 

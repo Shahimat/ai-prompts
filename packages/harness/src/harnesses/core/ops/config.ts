@@ -10,7 +10,7 @@ const PROVIDER_NAME = '^[a-z][a-z0-9-]*$';
 
 export const OPS_CONFIG_SCHEMA = {
   $schema: 'https://json-schema.org/draft/2020-12/schema',
-  title: 'context/ops.yml — провайдеры и проверки рантайма ops',
+  title: '.oc3/ops.yml — провайдеры и проверки рантайма ops',
   type: 'object',
   additionalProperties: false,
   properties: {
@@ -120,7 +120,7 @@ export type Level = (typeof LEVELS)[number];
 
 export const AUTONOMY_SCHEMA = {
   $schema: 'https://json-schema.org/draft/2020-12/schema',
-  title: 'context/autonomy.yml — политика действий наружу',
+  title: '.oc3/doc/autonomy.yml — политика действий наружу',
   type: 'object',
   required: ['levels'],
   properties: {

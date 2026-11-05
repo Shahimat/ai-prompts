@@ -55,6 +55,15 @@ export { runModels, ROLE_MODEL_PATTERN } from './commands/models/index.ts';
 export { runGoals } from './commands/goals/index.ts';
 export { runOperator } from './commands/operator/index.ts';
 export { runRoles, runSkills } from './commands/roles/index.ts';
+export { runMemory } from './commands/memory/index.ts';
+export {
+  buildBundles,
+  bundleNodes,
+  checkBundles,
+  startIndexText,
+  writeGraph,
+  type MemoryGraph,
+} from './lib/memory-graph.ts';
 export { COMMAND_NODES } from './registry.ts';
 export {
   checkDelta,
@@ -67,7 +76,39 @@ export {
   type DeltaResult,
   type Revision,
 } from './commands/delta/index.ts';
-export { CONTEXT_INDEX_PATH, DELTA_DIR } from './shared/layout.ts';
+export {
+  AI_CORE_PATH,
+  AUTONOMY_PATH,
+  BASELINE_DIR,
+  BUNDLES_DIR,
+  CONTEXT_INDEX_PATH,
+  CONVENTIONS_DIR,
+  DATA_DIR,
+  DELTA_DIR,
+  DOC_DIR,
+  FEEDBACK_DIR,
+  GLOSSARY_DIR,
+  GOALS_DIR,
+  JOBS_DIR,
+  KNOWLEDGE_DIR,
+  LOCKS_DIR,
+  MANUALS_DIR,
+  MODULES_DIR,
+  OC3_DIR,
+  OC3_MANIFEST,
+  NOTES_PATH,
+  OPERATOR_DIR,
+  OPS_PATH,
+  PROJECT_PATH,
+  RESEARCH_DIR,
+  REPORTS_DIR,
+  SCHEMAS_DIR,
+  SESSIONS_DIR,
+  SKILLS_PATH,
+  SUBMIT_DIR,
+  VERDICTS_DIR,
+  WATCHES_DIR,
+} from './shared/layout.ts';
 export {
   compileSchema,
   schemaErrors,
@@ -75,6 +116,12 @@ export {
   type SchemaIssue,
   type Validate,
 } from './shared/schema.ts';
+export {
+  checkMemory,
+  DEFAULT_BUDGETS,
+  type MemoryBudgets,
+  type MemoryManifest,
+} from './lib/memory.ts';
 export type { CommandNode, Effect, ScriptDef, ScriptNode, ScriptStep } from './shared/node.ts';
 export { parseAgent, type AgentDef } from './lib/agent.ts';
 export {

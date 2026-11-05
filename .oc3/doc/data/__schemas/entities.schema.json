@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": ".oc3/doc/data/__schemas/entities.schema.json — форма файла сущности",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "namespace", "summary"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "namespace": { "type": "string", "minLength": 1 },
+    "summary": { "type": "string", "minLength": 1 },
+    "manuals": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+  }
+}

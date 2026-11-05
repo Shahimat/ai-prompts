@@ -3,47 +3,47 @@
     "02c902fd5b62": {
       "question": "поведение ключевых skills > librarian: факт без evidence не записывается как проверенный",
       "evidence": {
-        "@librarian-intents": "e3c0a022ec4f50a5d6a2586aded2bacaad78295b3f90664d6524dccb6248fbaa"
+        "@librarian-intents": "8fd09a12bfb55abf76871bfdd7d6cbeaaca296dceb7aa823bc570a1c182896ed"
       },
       "verdict": true,
-      "quote": "Без `evidence` факт не записывается как проверенный: пометь `unknown` или спроси.",
+      "quote": "Без `evidence` факт не записывается как проверенный: пометь `unknown`",
       "ref": "@librarian-intents",
-      "reason": "Прямое правило librarian про evidence",
-      "at": "2026-11-04"
+      "reason": "Правило сформулировано напрямую: без evidence факт не помечается проверенным — пометь unknown или спроси.",
+      "at": "2026-11-05"
     },
     "067b5f1341aa": {
       "question": "обновление > есть skill обновления: сверяет источник, показывает новые и устаревшие модули, пресеты, версию harness и предлагает включить или отключить возможности",
       "evidence": {
         "@update-report": "d10cc0171aedf7ec103b10797e79cf0039496f05e3f598aa66114dc72dc34a28",
-        "@sync-warns-deprecated": "3cd73ae5c2d95d98bd99a26af17fd850f802b4758cbb32b51c40db3cb3326d27"
+        "@sync-warns-deprecated": "2ada0e746b93e182c0e41c3770ffe0e3290711cd1b3b0ef05732b63a3ff87631"
       },
       "verdict": true,
-      "quote": "**Новые модули** — подходящие по `applicable_to` и не подключённые:",
+      "quote": "открыть чеклист `contract-setup` — включить новые или отключить",
       "ref": "@update-report",
-      "reason": "Отчёт обновления показывает новые/устаревшие модули, пресеты, версию harness и предлагает чеклист contract-setup",
-      "at": "2026-11-04"
+      "reason": "Отчёт source-sync показывает новые и устаревшие модули, пресеты, версию harness; сверка — SHA-256 (шаги 3–5 @sync-warns-deprecated); вопрос предлагает включить/отключить.",
+      "at": "2026-11-05"
     },
     "135dc96a2bfc": {
       "question": "источник > обновление из источника предупреждает о deprecated-контракте и называет замену",
       "evidence": {
-        "@sync-warns-deprecated": "3cd73ae5c2d95d98bd99a26af17fd850f802b4758cbb32b51c40db3cb3326d27"
+        "@sync-warns-deprecated": "2ada0e746b93e182c0e41c3770ffe0e3290711cd1b3b0ef05732b63a3ff87631"
       },
       "verdict": true,
-      "quote": "контракт или модуль помечен в индексе `deprecated` — предупреди и назови замену (ключ или путь из поля)",
+      "quote": "контракт или модуль помечен в индексе `deprecated` — предупреди и",
       "ref": "@sync-warns-deprecated",
-      "reason": "Прямое правило предупреждения о deprecated с заменой",
-      "at": "2026-11-04"
+      "reason": "Шаг 6: deprecated — предупреди и назови замену (ключ или путь из поля), миграция по запросу.",
+      "at": "2026-11-05"
     },
     "1458ad2553ec": {
       "question": "приоритетные правила модулей > safety-boundaries: при признаке из списка red-flag агент прекращает сценарий и даёт контакт помощи",
       "evidence": {
-        "@safety-rule": "7d98268c6bceaba6658c79969f25bff82d2c6226f6b40cb4b878835972a55784"
+        "@safety-rule": "f9f762524c7e92b20665c4ed54e4ee3b5c90507e871c8b40c26fc076bf5b0229"
       },
       "verdict": true,
-      "quote": "другим) → стоп: не продолжать сценарий, не диагностировать, коротко\n  направить к профессиональной помощи или экстренным службам.",
+      "quote": "→ стоп: не продолжать сценарий, не диагностировать, коротко",
       "ref": "@safety-rule",
-      "reason": "При red-flag блок требует остановить сценарий и направить к помощи; SKILL уточняет контакты (112, врач, кризисная линия).",
-      "at": "2026-10-13"
+      "reason": "Red-flag → стоп сценария и направление к профессиональной помощи/экстренным; в skill — назвать контакты помощи.",
+      "at": "2026-11-05"
     },
     "192de8470552": {
       "question": "plan-review › переход composing —unclear→ > если блок для ожиданий выбрать нельзя, планер спрашивает пользователя, каким его строить",
@@ -103,13 +103,13 @@
     "3a42cc45ddae": {
       "question": "возможности и пресеты > модуль добавляет поля в чужие слои только через provides.extends",
       "evidence": {
-        "@extends-only": "ca61fcf249b1317aadec6dcaba5f448c0c5ef4347513285a7453ea4d473058f8"
+        "@extends-only": "28f17da8f74cb6d3a381daf3bec63b1f9b1962b662402379a03e984f8c09bb09"
       },
       "verdict": true,
-      "quote": "В чужое он добавляет явно, через `provides`: `extends` — поля в слоях других",
+      "quote": "он добавляет явно, через `provides`: `extends` — поля в слоях других",
       "ref": "@extends-only",
-      "reason": "Поля в чужие слои — только через provides.extends, иначе конфликт",
-      "at": "2026-11-04"
+      "reason": "В чужое модуль добавляет только явно через provides.extends; два модуля с одним полем — конфликт.",
+      "at": "2026-11-05"
     },
     "4c561d7a4565": {
       "question": "внимание пользователя — самый дорогой ресурс > основная сессия тратит контекст на доменную область; документацию и проверки ведут субагенты и harness",
@@ -125,13 +125,13 @@
     "533e8f9c8ae5": {
       "question": "предложения в источник > в предложении нет персональных данных и ссылок из external — только обезличенные выдержки",
       "evidence": {
-        "@feedback-sanitized": "55c619dc710371a3b69451cbbd4d01cbc82da67122a24bdc3d993ab6641ed0ce"
+        "@feedback-sanitized": "7db890c59323d5c24cc48a41cfb191bdad90cdcf6c6cf1190244299d9c6d3b01"
       },
       "verdict": true,
-      "quote": "нет персональных данных, имён людей, почты, телефонов;",
+      "quote": "нет ссылок и указателей из `external` в `.oc3/doc/project.yml`, хостов",
       "ref": "@feedback-sanitized",
-      "reason": "Файл обезличен: без ПД и ссылок external",
-      "at": "2026-11-04"
+      "reason": "Файл покидает проект только обезличенным: нет персональных данных, ссылок из external — вместо них <url>.",
+      "at": "2026-11-05"
     },
     "5459013b47ab": {
       "question": "plan-review › переход awaiting_input —exit→ > на просьбу о выходе планер ставит последней строкой ответа флаг [plan-review: exit]",
@@ -147,46 +147,46 @@
     "59df1d74a41f": {
       "question": "журнал решений > свой тег журнала модуль добавляет только через provides.changelog_tags",
       "evidence": {
-        "@module-tags": "bafca286daf7a45d373a0f482e0b8ad9eb03afdf6ebdc41a70bc50f70560f966"
+        "@module-tags": "1e845b9d62cc3a8931873f8dcbaf2410d4bf5eb04a4cd6dacb31a59992401b9a"
       },
       "verdict": true,
       "quote": "`tag`: `arch`, `stack`, `dep`, `milestone` плюс теги из",
       "ref": "@module-tags",
-      "reason": "Свои теги модуль даёт только через provides.changelog_tags (manifest, шаг 4-5)",
-      "at": "2026-11-04"
+      "reason": "Теги журнала — ядро плюс теги из provides.changelog_tags подключённых модулей; другой канал не описан.",
+      "at": "2026-11-05"
     },
     "5def1c64ae06": {
       "question": "external — внешний операционный контекст поверх чужого проекта > external: источник реальности — целевые системы из external, а не this-repo",
       "evidence": {
-        "@external-reality": "64b54629fe22e27c6e2092070d89dc656ea13898699bc81201bd7ffb2d845e17"
+        "@external-reality": "8096934a47c7cda3bab7672e205bfa6705c36c28a0f0f561bc6e4fbb4eae05cc"
       },
       "verdict": true,
-      "quote": "`external` целевых систем, не `this-repo`.",
+      "quote": "`external` целевых систем, не `this-repo`. Маршрут «как сейчас» ядра",
       "ref": "@external-reality",
-      "reason": "Источник реальности ядра — ключи external целевых систем, а не this-repo.",
-      "at": "2026-10-13"
+      "reason": "Прямо: источник реальности — ключи external целевых систем, не this-repo; модуль ядро не меняет.",
+      "at": "2026-11-05"
     },
     "5e0ec67ca28f": {
       "question": "предложения в источник > перед передачей файл предложения проходит ai secrets scan --file; без harness агент проверяет по тем же правилам сам",
       "evidence": {
-        "@feedback-sanitized": "55c619dc710371a3b69451cbbd4d01cbc82da67122a24bdc3d993ab6641ed0ce"
+        "@feedback-sanitized": "7db890c59323d5c24cc48a41cfb191bdad90cdcf6c6cf1190244299d9c6d3b01"
       },
       "verdict": true,
       "quote": "подключён harness — `ai secrets scan --file <путь>`;",
       "ref": "@feedback-sanitized",
-      "reason": "С harness — secrets scan, без — сам по тем же типам",
-      "at": "2026-11-04"
+      "reason": "После записи файла: с harness — ai secrets scan --file; без harness — сам по тем же типам секретов.",
+      "at": "2026-11-05"
     },
     "63aaccc6f834": {
       "question": "[harness] layers > skill запускает только то, что объявлено в metadata.runs; остальные команды harness лишь упоминает",
       "evidence": {
-        "@skill-runs": "b8ea90fb57c8f65ac99559e950363ad4bfa95729d55ff4642a5ddba5f62828aa"
+        "@skill-runs": "d54799dcec6caea2b15bd182b00f41aab41c76c3f27cf71e078cbdd44e1a1c75"
       },
       "verdict": true,
       "quote": "Сам skill запускает одно: `ai refresh` в конце каждой задачи и",
       "ref": "@skill-runs",
-      "reason": "Остальные команды — справка, запуск только по metadata.runs",
-      "at": "2026-11-04"
+      "reason": "Cli-skill запускает лишь отмеченное metadata.runs (ai refresh), остальное — справка; маркеры в других skills совпадают с запускаемой командой.",
+      "at": "2026-11-05"
     },
     "694f0f4b5141": {
       "question": "[harness] expect > в кэше вердиктов только вердикты живых ожиданий",
@@ -199,38 +199,27 @@
       "reason": "pruneStore удаляет из хранилища вердикты и lint-записи, не относящиеся к живым ожиданиям и файлам.",
       "at": "2026-11-04"
     },
-    "6c3c787c9f87": {
-      "question": "[harness] context > context/index.yml генерируется ai context index и не содержит даты генерации",
-      "evidence": {
-        "@context-index-no-date": "43e94409a39dbeb054ace50c4fcf3cab4bd0830b117058c9cb053828ac5c1335"
-      },
-      "verdict": true,
-      "quote": "const HEADER = '# generated by ai context index — do not edit manually\\n';",
-      "ref": "@context-index-no-date",
-      "reason": "Заголовок без даты, документ строится только из conventions и namespaces.",
-      "at": "2026-10-28"
-    },
     "6c3d6298ef3f": {
       "question": "[flow] delta > приёмка: пункты дельты выполнены, прежние ожидания документации без revise не нарушены",
       "evidence": {
-        "@docs-delta": "3b34e13b2b861e9524dcfed2e3d1f4397902cbdfb5b7613d9caab51ed8b96bac"
+        "@docs-delta": "4553f900933f3fa0b863768ad206acbad7fa7233d6e0227b5196a031697d9f97"
       },
       "verdict": true,
       "quote": "Приёмка: пункты выполнены, прежнее знание без `revise` не нарушено,",
       "ref": "@docs-delta",
-      "reason": "Явный критерий приёмки дельты",
-      "at": "2026-11-04"
+      "reason": "Шаг 5 приёмки дословно: пункты выполнены, прежнее знание без revise не нарушено, противоречий нет.",
+      "at": "2026-11-05"
     },
     "6dcc54fb2947": {
       "question": "документация проекта > librarian меняет только слои документации проекта и не трогает код",
       "evidence": {
-        "@docs-readonly": "1ed14c78e47c777f57f36ed96fb9c83fa528e6828443a615ac05cfe432f3f631"
+        "@docs-readonly": "48de5c04d651f71b757935238b432847cfd5364e9a5e27d659562ad409a84f96"
       },
       "verdict": true,
       "quote": "librarian меняет только слои документации проекта — код, тесты,",
       "ref": "@docs-readonly",
-      "reason": "Код, тесты, конфиги, goals и expectations librarian не трогает",
-      "at": "2026-11-04"
+      "reason": "Librarian меняет только слои документации; код, тесты, конфиги сборки, .oc3/goals/ и expectations не трогает.",
+      "at": "2026-11-05"
     },
     "7ae991731433": {
       "question": "поведение ключевых skills > executor: прогон expectations и вердикты — не его; приёмка — judge или оператор при judge-off",
@@ -241,17 +230,6 @@
       "quote": "сам прогон ожиданий не запускаешь и вердикты не пишешь.",
       "ref": "@acceptance-owner",
       "reason": "Приёмка — judge, при judge-off — оператор",
-      "at": "2026-11-04"
-    },
-    "8213ac9cfc7f": {
-      "question": "документация проекта > при подключённом harness генерируемые файлы (context/index.yml, адаптеры под инструменты) меняет только harness, не агент и не librarian",
-      "evidence": {
-        "@docs-readonly": "1ed14c78e47c777f57f36ed96fb9c83fa528e6828443a615ac05cfe432f3f631"
-      },
-      "verdict": true,
-      "quote": "не править сгенерированные файлы (`context/index.yml`, адаптеры в `.opencode/`, `.codex/`): правится источник, затем генерация",
-      "ref": "@docs-readonly",
-      "reason": "Доказательство прямо запрещает агентам править производные файлы: их пересобирает генерация (harness), librarian меняет только слои документации.",
       "at": "2026-11-04"
     },
     "8db8efa7768f": {
@@ -292,13 +270,13 @@
     "936b8919a329": {
       "question": "[flow] delta > add и refine не требуют внимания пользователя: строка в итоговом отчёте",
       "evidence": {
-        "@docs-delta": "3b34e13b2b861e9524dcfed2e3d1f4397902cbdfb5b7613d9caab51ed8b96bac"
+        "@docs-delta": "4553f900933f3fa0b863768ad206acbad7fa7233d6e0227b5196a031697d9f97"
       },
       "verdict": true,
       "quote": "`add` и `refine` вниманием пользователя не требуют — строка в отчёте.",
       "ref": "@docs-delta",
-      "reason": "Дословное подтверждение",
-      "at": "2026-11-04"
+      "reason": "Шаг 2 дословно: add и refine внимания пользователя не требуют — только строка в отчёте.",
+      "at": "2026-11-05"
     },
     "93fa98f600b1": {
       "question": "предложения в источник > дрейф поставленных частей определяется сверкой SHA с parts и индексом, а не на глаз",
@@ -347,46 +325,57 @@
     "a0973b8d4adc": {
       "question": "документация проекта > в основной сессии файлы проектной документации только читаются; правки — только через librarian, генерируемые файлы — через harness",
       "evidence": {
-        "@docs-readonly": "1ed14c78e47c777f57f36ed96fb9c83fa528e6828443a615ac05cfe432f3f631"
+        "@docs-readonly": "48de5c04d651f71b757935238b432847cfd5364e9a5e27d659562ad409a84f96"
       },
       "verdict": true,
-      "quote": "В операторе, executor и judge файлы проектной документации только читаются.",
+      "quote": "В операторе, executor и judge файлы проектной документации только",
       "ref": "@docs-readonly",
-      "reason": "Дословное подтверждение",
-      "at": "2026-11-04"
+      "reason": "Оператор, executor и judge только читают; правки — librarian по docs_request; генерируемое меняет только ai (harness).",
+      "at": "2026-11-05"
     },
     "a5651202c571": {
       "question": "виды контракта > ядро контракта перечисляет виды и что каждый включает; неподходящий вид — ручной выбор в том же чеклисте",
       "evidence": {
-        "@contract-kinds": "d604c4c9c9468b472136a0711b158d963ba74b3d3bcd355e9af6ec73d18a90d7"
+        "@contract-kinds": "0615eabb672fb59147b713b6d8d8fcbf42afd42724ffa036e205616f07632f14"
       },
       "verdict": true,
-      "quote": "ручной выбор в чеклисте",
+      "quote": "Вид не подходит — ручной выбор в чеклисте.",
       "ref": "@contract-kinds",
-      "reason": "неподходящий вид — ручной выбор в чеклисте",
-      "at": "2026-11-01"
+      "reason": "Ядро перечисляет operational/external/private/analytical с составом каждого; неподходящий вид — ручной выбор в чеклисте.",
+      "at": "2026-11-05"
+    },
+    "abf11cf20816": {
+      "question": "[harness] context > .oc3/doc/index.yml генерируется ai context index и не содержит даты генерации",
+      "evidence": {
+        "@context-index-no-date": "fd3237dca6f97ca32e2915e9170bff7a62d683bf6f3f388a318af35dffae4066"
+      },
+      "verdict": true,
+      "quote": "# generated by ai context index — do not edit manually",
+      "ref": "@context-index-no-date",
+      "reason": "Индекс генерирует ai context index; рендер строит вывод только из conventions и namespaces — даты генерации в нём нет.",
+      "at": "2026-11-05"
     },
     "ad1072a63379": {
       "question": "[flow] delta > дельту ведёт librarian: собирает из намерений, сверяет с текущей документацией, применяет",
       "evidence": {
-        "@docs-delta": "3b34e13b2b861e9524dcfed2e3d1f4397902cbdfb5b7613d9caab51ed8b96bac"
+        "@docs-delta": "4553f900933f3fa0b863768ad206acbad7fa7233d6e0227b5196a031697d9f97"
       },
       "verdict": true,
-      "quote": "1. Собери дельту из намерений. Сверь каждый пункт с текущей",
+      "quote": "Дельта — рабочий файл librarian: в маршруты и бандлы она не входит",
       "ref": "@docs-delta",
-      "reason": "Дельту ведёт librarian: собирает, сверяет, применяет",
-      "at": "2026-11-04"
+      "reason": "Дельта — рабочий файл librarian; шаги 1–4: собери из намерений, сверь с текущей документацией, примени по правилам слоёв.",
+      "at": "2026-11-05"
     },
     "ad846af081f3": {
       "question": "возможности и пресеты > contract-setup первым вопросом предлагает пресет или ручной выбор",
       "evidence": {
-        "@preset-first": "95ca3180080ed5423475ead1e3d549aeae4f821f6ab4d18633d617e92e578f38"
+        "@preset-first": "f9f0b6f94848b1b2dde4905b85abe9fc099d9ba5a1076024b8b7f1c036d36b21"
       },
       "verdict": true,
       "quote": "Это первый вопрос пользователю в contract-setup — до чеклиста и уточнений.",
       "ref": "@preset-first",
-      "reason": "Пресет или вручную — первый вопрос",
-      "at": "2026-11-04"
+      "reason": "Первый вопрос в contract-setup до чеклиста и уточнений: «пресет или вручную» с вариантами пресетов.",
+      "at": "2026-11-05"
     },
     "ad954830ff69": {
       "question": "private — личный проект > private: решения о жизни — в общий журнал с тегом [life], без значений, диагнозов и персональных данных",
@@ -454,6 +443,17 @@
       "reason": "Прямо указано: ожидание без готовой проверки записывается заглушкой crit.todo / crit.wip",
       "at": "2026-11-03"
     },
+    "bf5b04f3479e": {
+      "question": "документация проекта > при подключённом harness генерируемые файлы (.oc3/doc/index.yml, адаптеры под инструменты) меняет только harness, не агент и не librarian",
+      "evidence": {
+        "@docs-readonly": "48de5c04d651f71b757935238b432847cfd5364e9a5e27d659562ad409a84f96"
+      },
+      "verdict": true,
+      "quote": "Генерируемое меняет только `ai`; запись в документацию через shell",
+      "ref": "@docs-readonly",
+      "reason": "Генерируемое меняет только ai (harness); librarian не правит сгенерированные файлы — правится источник, затем генерация.",
+      "at": "2026-11-05"
+    },
     "c1f32eea1838": {
       "question": "[flow] delta > own-позиция записывается только в формулировке пользователя; вывод агента — разбор или tension",
       "evidence": {
@@ -468,36 +468,36 @@
     "ca5c9cebb854": {
       "question": "предложения в источник > агент только формирует файл предложения; передать его в источник решает пользователь",
       "evidence": {
-        "@source-feedback": "f496553c912a41f80c19f85c47256aa93f6049e358c46a6f04fa0c08d8b8b594"
+        "@source-feedback": "9ec060f96acc97113aee20732358aa8f690d587f9028a309ec731b56db2a357d"
       },
       "verdict": true,
-      "quote": "Агент только формирует файл. Передать его в источник — issue, PR, сообщение автору — решает и делает пользователь",
+      "quote": "Агент только формирует файл. Передать его в источник — issue, PR,",
       "ref": "@source-feedback",
-      "reason": "Прямое утверждение: агент формирует файл, передачу решает пользователь",
-      "at": "2026-11-04"
+      "reason": "Агент только формирует файл; передать в источник решает и делает пользователь — агент ничего не отправляет сам.",
+      "at": "2026-11-05"
     },
     "caf89a754c15": {
       "question": "[flow] delta > revise не блокирует работу: объявлен в дельте, попадает в отчёт и в тело сообщения коммита",
       "evidence": {
-        "@docs-delta": "3b34e13b2b861e9524dcfed2e3d1f4397902cbdfb5b7613d9caab51ed8b96bac",
+        "@docs-delta": "4553f900933f3fa0b863768ad206acbad7fa7233d6e0227b5196a031697d9f97",
         "@librarian-report": "749b0459dde1094e158f1bd3822b53ba7b64da7ccce25ae2fd53cc5cea9c8efa"
       },
       "verdict": true,
-      "quote": "`revise` работу не блокирует: он объявлен в дельте, попадает в отчёт и в тело сообщения коммита.",
+      "quote": "`revise` работу не блокирует: он объявлен в дельте, попадает в отчёт",
       "ref": "@docs-delta",
-      "reason": "Утверждение подтверждено дословно в пункте 3",
-      "at": "2026-11-04"
+      "reason": "Шаг 3: revise работу не блокирует, попадает в отчёт и тело коммита; в отчёте librarian строки revise идут в тело сообщения коммита.",
+      "at": "2026-11-05"
     },
     "cc7a387de090": {
       "question": "поведение ключевых skills > workflow: брифинг перед первым запуском ролей — схема запуска, модели, разведка, judge, режим тикетов",
       "evidence": {
-        "@briefing": "ba5fb38f40c07ebb5429236c411069862f9707c62b8a8bfa3b88dd20a9d03aa1"
+        "@briefing": "6a0b872332b27543a7a72a16ac0c68eb73ed6691778f239eeeccc1a8504b865b"
       },
       "verdict": true,
-      "quote": "Первое содержательное сообщение сессии — один вопрос: схема работы\n«дефолтная» или «кастомная»? Без ответа роли и тикеты не запускаешь —\nдаже когда запрос выглядит как готовая задача: сначала брифинг,\nпотом сценарий.",
+      "quote": "1. Схема запуска: тикеты — executor в worktree или сам; назови порог,",
       "ref": "@briefing",
-      "reason": "Брифинг — первое сообщение сессии, без ответа роли и тикеты не запускаются; кастомный чеклист покрывает ровно пять пунктов: схема запуска, модели, разведка, judge, режим тикетов.",
-      "at": "2026-11-04"
+      "reason": "Без ответа на брифинг роли и тикеты не запускаются; чеклист: схема запуска, модели, разведка, judge, режим тикетов.",
+      "at": "2026-11-05"
     },
     "cd9313efe910": {
       "question": "внимание пользователя — самый дорогой ресурс > основная сессия тратит контекст на доменную область; документацию и проверки ведут субагенты и harness",
@@ -510,38 +510,38 @@
       "reason": "Док — librarian, проверки — harness, правила записи основная сессия не читает",
       "at": "2026-11-04"
     },
-    "d35fa739f017": {
-      "question": "документация проекта > правила контракта не копируются в context/conventions",
+    "d3784ba9a3b1": {
+      "question": "документация проекта > правила контракта не копируются в .oc3/doc/conventions",
       "evidence": {
-        "@no-rule-copies": "773c8aa6b4c585aca8291e6b500e936fb3b4f823195c1275ec35a09636d812f1"
+        "@no-rule-copies": "747984ee61e95ca569a66f004876047f20912944bd3674f84b5edcdb61334eca"
       },
       "verdict": true,
-      "quote": "Правила самого контракта в `context/conventions/` **не копируются**.",
+      "quote": "Правила самого контракта в `.oc3/doc/conventions/` **не копируются**.",
       "ref": "@no-rule-copies",
-      "reason": "Правила контракта не копируются в context/conventions.",
-      "at": "2026-11-01"
+      "reason": "Прямо: правила контракта в conventions не копируются — там только договорённости проекта.",
+      "at": "2026-11-05"
     },
     "d5d9aaa34c6b": {
       "question": "предложения в источник > skill source-feedback собирает из проекта предложения в источник: дрейф поставленных частей, локальные обобщения, пробелы и обходы схемы",
       "evidence": {
-        "@source-feedback": "f496553c912a41f80c19f85c47256aa93f6049e358c46a6f04fa0c08d8b8b594"
+        "@source-feedback": "9ec060f96acc97113aee20732358aa8f690d587f9028a309ec731b56db2a357d"
       },
       "verdict": true,
-      "quote": "`drift` — поставленную из источника часть правили в проекте; - `generalization` — локальное решение, полезное не только этому проекту; - `gap` — схема молчит",
+      "quote": "- `drift` — поставленную из источника часть правили в проекте;",
       "ref": "@source-feedback",
-      "reason": "Все четыре вида кандидатов (drift, generalization, gap, friction) перечислены",
-      "at": "2026-11-04"
+      "reason": "Кандидаты по четырём видам: drift (дрейф поставленного), generalization (локальное решение), gap (схема молчит), friction (обход правила).",
+      "at": "2026-11-05"
     },
     "dcf7cbf12094": {
       "question": "приоритетные правила модулей > правило целостности атрибуции записано в блоке analysis для AGENTS.md",
       "evidence": {
-        "@attribution-rule": "f54e7939376faf7f706e02ebfe9bc1fb088be065c9c05835bd184fc695181375"
+        "@attribution-rule": "68b460800bf22777dff1051aa1ee68e4ab7573079d4ff993699da1f127f77a8a"
       },
       "verdict": true,
       "quote": "Целостность атрибуции — приоритетно; дополняет правила ядра:",
       "ref": "@attribution-rule",
-      "reason": "Правило целостности атрибуции записано в блоке analysis для AGENTS.md.",
-      "at": "2026-11-01"
+      "reason": "Блок module:analysis для AGENTS.md открывается правилом целостности атрибуции: дословность, локаторы, verified: false.",
+      "at": "2026-11-05"
     },
     "de808fdc116f": {
       "question": "[harness] expect > судья вызывается только для вердиктов, у которых изменились заголовок или доказательства",
@@ -579,13 +579,13 @@
     "f586544d451f": {
       "question": "документация проекта > шаблон AGENTS.md и блоки модулей не содержат указаний основной сессии самой править документацию — только ссылки на skills и harness; guardrail о достоверности знания допустим",
       "evidence": {
-        "@agents-md-readonly": "7dc88a726edcf02dc7a1af938029772f3ce8f5eb86cd24e2f430561b957ed9b7"
+        "@agents-md-readonly": "750519f7d5110f5530598318db5089f2888617a32ede6be5e192ce876b2491f8"
       },
       "verdict": true,
       "quote": "Документацию пишет только librarian по `docs_request`: оператор, executor и judge её читают; генерируемое меняет `ai`.",
       "ref": "@agents-md-readonly",
-      "reason": "Шаблон и блоки модулей лишь маршрутизируют в skills и harness (запись в документацию — docs-delta/source-sync), писать документацию самой сессии не предписано; guardrail о достоверности знания в analysis присутствует и допустим.",
-      "at": "2026-11-04"
+      "reason": "Шаблон направляет запись документации к librarian (правило 4), а блоки модулей — к skills и harness-команде docs-delta; указаний основной сессии править документацию нет, guardrail о достоверности знания присутствует (analysis, data-access, book-corpus).",
+      "at": "2026-11-05"
     },
     "f7310dcbc6e4": {
       "question": "plan-review › переход clarify_form —answered→ > после ответа планер записывает ожидания выбранным блоком",
@@ -601,13 +601,13 @@
     "fea56d1882e8": {
       "question": "поведение ключевых skills > contract-setup: модули подключаются по одному, каждый — с manifest и отчётом",
       "evidence": {
-        "@module-install": "6092cebbf78d022f9bd2f2e6fbd8787eaacc1678846eaf2655421c506ca35a92"
+        "@module-install": "5d58b834b946527053086ab3cb78679d4955f9abe10bd19920b234b73442c856"
       },
       "verdict": true,
       "quote": "По одному модулю; модуль — отдельный шаг с отчётом (skill `workflow`).",
       "ref": "@module-install",
-      "reason": "Модули по одному, шаг 4 описывает manifest context/modules/<key>.yml, отчёт — часть шага",
-      "at": "2026-11-04"
+      "reason": "contract-setup подключает по одному модулю отдельным шагом с отчётом; manifest .oc3/modules/<key>.yml — шаг 4.",
+      "at": "2026-11-05"
     },
     "ff81d6f20d87": {
       "question": "plan-review › переход gathering —gathered→ > планер переходит к записи ожиданий, когда список его открытых вопросов к пользователю пуст",
@@ -623,23 +623,10 @@
   },
   "lint": {
     "expectations/agent-operational-contract-v3.expect.ts": {
-      "titles": "3f5ef1e94041667cc3069311a08ef8c85d01aeb9220a40645879b3ac1ebae2eb",
+      "titles": "062b574fa15be495917a65ea1012a2dbea8a708fcd1ca4cf8223dbe3503e89f7",
       "contradictions": [],
-      "unmeasurable": [
-        {
-          "id": "1335d09ddc18",
-          "reason": "«основная сессия тратит контекст на доменную область» — оценочная формулировка без порога: нельзя ответить «да/нет», сколько контекста и на что именно потрачено, из артефактов не выводится"
-        },
-        {
-          "id": "d1b5dfa33e69",
-          "reason": "«вопрос — только там, где без его решения нельзя продолжить или откатить» — требует оценки каждой ситуации на глаз, критерий «нельзя продолжить» не формализован, числом не выражается"
-        },
-        {
-          "id": "91c851f796d5",
-          "reason": "«пресет включает все модули, которые требуют его модули» — циклическая/неоднозначная формулировка («его модули» без отсылки), да/нет-ответ не определён"
-        }
-      ],
-      "at": "2026-11-03"
+      "unmeasurable": [],
+      "at": "2026-11-05"
     },
     "expectations/ai-prompts.expect.ts": {
       "titles": "85d9b83cf4e46e9ad1f695ef8efe28848ba451af5fba64a18aeb00e77ff289b7",
@@ -648,10 +635,10 @@
       "at": "2026-10-30"
     },
     "expectations/docs-flow.expect.ts": {
-      "titles": "0d0f91ef241e2d34d3ea7232a721d6eeb7089663e8f0d3284252c1b667bee397",
+      "titles": "3379d40f89ba113538d6e0124e84b49d54be65dc73ab84c9819c4f61a4ab942b",
       "contradictions": [],
       "unmeasurable": [],
-      "at": "2026-11-01"
+      "at": "2026-11-05"
     },
     "expectations/harness-plan-review.expect.ts": {
       "titles": "ab912e8f510076ef1e49314ed1efff33341d273b02c1b4af6d1d5212bdc77e66",
@@ -665,10 +652,10 @@
       "at": "2026-11-03"
     },
     "expectations/harness.expect.ts": {
-      "titles": "a6eaa3d2c0855c03cb6538d33aea628195c180f39359261280381c90344607fd",
+      "titles": "d9ebc19fe8526dd4adfc652ebeca2c2bb7f67d1ac50e0d44e3c74c2924806f2a",
       "contradictions": [],
       "unmeasurable": [],
-      "at": "2026-11-03"
+      "at": "2026-11-05"
     },
     "expectations/presets.expect.ts": {
       "titles": "60e4e504f1956b4140c1e3edeaef0f27644cbb4b1c401604b18620429515cf82",
@@ -689,10 +676,10 @@
       "at": "2026-11-03"
     },
     "expectations/skills.expect.ts": {
-      "titles": "f7911755f897327950cb068241b5bdb83c9000775605c73f88f4b846a9108519",
+      "titles": "b18e886d26c6d482f90665fe9af4e16f2d65fefd6eb27b4bdcb864b61b0d00c3",
       "contradictions": [],
       "unmeasurable": [],
-      "at": "2026-11-02"
+      "at": "2026-11-05"
     }
   }
 }

@@ -1,0 +1,80 @@
+run: 2
+status: satisfactorily
+summary: >-
+  crit 1–5 pass повторно — memory.test.ts 9/9, живой checkMemory на фактах
+  репо — diagnostics 0, warnings 0; crit 6 — слой ai-config по-прежнему без
+  .oc3/ (проверено read-only), правка чужого корня вне границ сессии;
+  remediation готова к отдельной сессии в корне ai-config — негатив run 2
+items:
+  - key: crit-1
+    status: pass
+    evidence: >-
+      схемы форм и common-файлы не менялись: .oc3/doc/data/__schemas/
+      conventions.schema.json и glossary.schema.json (array,
+      additionalProperties false), .oc3/doc/conventions/common.yml —
+      одна область-список, .oc3/doc/glossary/common.yml — пустой список,
+      common вне namespace манифеста = вес 0
+    reason: >-
+      Пункт подтверждён повторно: состав слоя doc/ идентичен run 1,
+      memory.test.ts входит в зелёный ai-core-прогон 219/220 (единственный
+      красный — repo.test индекса, вне тикета)
+  - key: crit-2
+    status: pass
+    evidence: >-
+      .oc3/doc/data/__schemas/manifest.schema.json required [namespace,data];
+      .oc3/manifest.json с namespace и data: [entities, behavior];
+      checkManifest memory.ts:205-262 валидирует манифест, схемы структур из
+      __schemas (memory.ts:97-106); memory.test.ts — 9/9 целевым прогоном
+    reason: >-
+      Манифест и раскладка структур/схем без изменений, тесты зелёные —
+      пункт подтверждён повторно
+  - key: crit-3
+    status: pass
+    evidence: >-
+      value-поля схем — string/array of string + additionalProperties false;
+      CROSS_REF и запрет вложенности в checkFactFile (memory.ts:42,283-290);
+      NOTES — единственный инбокс свободного текста (memory.ts:160-170);
+      memory.test.ts:136 «вложенный объект в значении и перекрёстное
+      упоминание — crit» — 9/9
+    reason: >-
+      Запреты вложенности, note-блоков и перекрёстных упоминаний enforced
+      схемами и валидатором без изменений — пункт подтверждён повторно
+  - key: crit-4
+    status: pass
+    evidence: >-
+      свежий программный прогон checkMemory на корне worktree —
+      diagnostics: 0, warnings: 0; все 5 схем additionalProperties false;
+      checkFactFile memory.ts:264-291 валидирует каждый файл по своей схеме;
+      невключение в ci — по-прежнему тикет memory-generator
+    reason: >-
+      Автопроверка на текущих фактах репо снова даёт ноль расхождений —
+      пункт подтверждён повторно
+  - key: crit-5
+    status: pass
+    evidence: >-
+      .oc3/manifest.json budgets — notes 4096, start 10240, node 16384,
+      optional_field 3; DEFAULT_BUDGETS memory.ts:23-28; NOTES сверх бюджета
+      → crit (:163-167), optional-field по файлам → WARN (:293-313);
+      memory.test.ts 167,182,194 — в зелёном прогоне 9/9
+    reason: >-
+      Бюджеты и WARN/crit-разведение по типу нарушения без изменений —
+      пункт подтверждён повторно
+  - key: crit-6
+    status: satisfactorily
+    evidence: >-
+      read-only проверка /mnt/dev/my/prj/ai-config: .oc3/ отсутствует («ls:
+      невозможно получить доступ ... Нет такого файла или каталога»), старая
+      раскладка context/, docs/, goals/ на месте — слой не разнесён и не
+      валидирован; слой ai-prompts валиден повторно (checkMemory:
+      diagnostics 0, warnings 0). Инструменты remediation готовы в
+      worktree: packages/oc3/src/migrate.ts (oc3 migrate) и
+      packages/ai-core/src/lib/memory.ts (checkMemory) — запуск в корне
+      ai-config отдельной сессией
+    reason: >-
+      Половина пункта (ai-prompts) выполнена и переподтверждена; слой
+      ai-config — другой проект: нормализация запрещена брифом оператора
+      («нормализацию ai-config НЕ трогай») и guard'ом сессии (edit/write
+      вне корня ai-prompts — deny). Негатив во втором прогоне —
+      satisfactorily без fail; остаток передаётся следующей сессии
+      оператора: отдельная сессия в корне ai-config — oc3 migrate,
+      нормализация фактов по схемам, прогон checkMemory

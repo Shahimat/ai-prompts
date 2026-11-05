@@ -3,9 +3,11 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { UsageError } from '#shared/diagnostics';
-import { isRecord } from '#shared/guards';
+import { errorCode, isRecord } from '#shared/guards';
+import { BUNDLES_DIR } from '#shared/layout';
 import { compileSchema, issueText } from '#shared/schema';
 import { parseAgent, type AgentDef } from './agent.ts';
+import { bundleNodes, startIndexText, START_INDEX } from './memory-graph.ts';
 import {
   openCodeStepOf,
   spawnOpenCode,
@@ -15,6 +17,41 @@ import {
 } from './opencode.ts';
 import { runtime } from './runtime.ts';
 import { isProtocolMessage, PROTOCOL, SUBMIT_TOOL } from './protocol.ts';
+
+const MEMORY_MARKER = /память:\s*([0-9a-f]{12})/g;
+
+const nodeText = async (root: string, dir: string): Promise<string | null> => {
+  try {
+    return await readFile(path.join(root, BUNDLES_DIR, dir, START_INDEX), 'utf8');
+  } catch (error) {
+    if (errorCode(error) === 'ENOENT') return null;
+    throw error;
+  }
+};
+
+export const memoryPromptOf = async (root: string, task: string): Promise<string> => {
+  const start = await startIndexText(root);
+  const requested = [...new Set([...task.matchAll(MEMORY_MARKER)].map((m) => m[1] ?? ''))];
+  const nodes = await bundleNodes(root);
+  const known = new Set(nodes);
+  const unknown = requested.filter((sha) => !known.has(sha));
+  if (unknown.length > 0)
+    throw new UsageError(
+      `неизвестный узел памяти: ${[...new Set(unknown)].join(', ')} — валидные узлы: ${
+        nodes.length === 0 ? 'бандлы не собраны, запусти ai memory build' : nodes.join(', ')
+      }`,
+    );
+  const parts: string[] = [];
+  if (start !== null)
+    parts.push(`Оперативная память проекта (стартовый граф):\n\n${start.trimEnd()}`);
+  const loaded = await Promise.all(requested.map((sha) => nodeText(root, sha)));
+  for (const [i, text] of loaded.entries()) {
+    const sha = requested[i];
+    if (sha === undefined || text === null) continue;
+    parts.push(`Узел памяти ${sha}:\n\n${text.trimEnd()}`);
+  }
+  return parts.length === 0 ? '' : `\n\n${parts.join('\n\n')}`;
+};
 
 export const ROLE_DIRS = ['.agents/agents', 'agents'] as const;
 const DEFAULT_MODEL = 'zai-coding-plan/glm-5.3-flash#max';
@@ -79,7 +116,7 @@ export interface RoleOutcome {
 }
 
 const SESSION_FILE = /^[A-Za-z0-9._-]+$/;
-const SESSION_DIR = ['.ops', 'submit'] as const;
+const SESSION_DIR = ['.oc3', 'submit'] as const;
 
 export interface RoleSources {
   readonly submit: string | undefined;
@@ -179,12 +216,13 @@ export async function runRole(run: RoleRun): Promise<RoleOutcome> {
       progress(`роль ${run.role.name}: шаг ${steps} — ${step}`);
     };
   progress?.(`роль ${run.role.name}: запущена (${run.role.model ?? DEFAULT_MODEL})`);
+  const memory = await memoryPromptOf(run.root, run.task);
   const result = await spawnOpenCode(
     {
       cwd: run.root,
       agent: run.role.name,
       model: run.role.model ?? DEFAULT_MODEL,
-      prompt: roleSystemPrompt(run.role),
+      prompt: `${roleSystemPrompt(run.role)}${memory}`,
       task: run.task,
       out: run.out,
     },

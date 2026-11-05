@@ -8,7 +8,8 @@ import { main, selfCommand } from '@shahimat/cli';
 import { parseAgent } from '#lib/agent';
 import { advertisedSchema, serveChannel } from '#lib/mcp';
 import { PROTOCOL, SUBMIT_TOOL } from '#lib/protocol';
-import { askRole, findRole, roleSystemPrompt, roleTimeoutMs } from '#lib/role';
+import { askRole, findRole, memoryPromptOf, roleSystemPrompt, roleTimeoutMs } from '#lib/role';
+import { buildBundles, writeGraph } from '#lib/memory-graph';
 import { openCodeStepOf, opencodeArgs } from '#lib/opencode';
 import { setRuntime } from '#lib/runtime';
 import { isRecord } from '#shared/guards';
@@ -261,11 +262,11 @@ describe('роль: запуск', () => {
     });
   });
 
-  it('итог из файла сессии сервера .ops/submit/<sessionID>.json, когда канал не записал', async () => {
+  it('итог из файла сессии сервера .oc3/submit/<sessionID>.json, когда канал не записал', async () => {
     await put('agents/judge.md', roleFile('judge', 'verdict'));
-    process.env['FAKE_FILES'] = JSON.stringify({ '.ops/submit/s.json': '{"answers":[]}' });
+    process.env['FAKE_FILES'] = JSON.stringify({ '.oc3/submit/s.json': '{"answers":[]}' });
     expect(await askRole(root, 'judge', 'т')).toEqual({ data: { answers: [] }, costUsd: 0.25 });
-    process.env['FAKE_FILES'] = JSON.stringify({ '.ops/submit/s.json': '{"битый": true}' });
+    process.env['FAKE_FILES'] = JSON.stringify({ '.oc3/submit/s.json': '{"битый": true}' });
     process.env['FAKE_TEXT'] = '{"answers":[]}';
     expect(await askRole(root, 'judge', 'т')).toEqual({ data: { answers: [] }, costUsd: 0.25 });
   });
@@ -358,5 +359,109 @@ describe('роль: канал', () => {
       contradictions: [],
       unmeasurable: [],
     });
+  });
+});
+
+describe('роль: память', () => {
+  const buildBundlesFixture = async (): Promise<void> => {
+    await put(
+      '.oc3/doc/data/__schemas/manifest.schema.json',
+      JSON.stringify({
+        $schema: 'https://json-schema.org/draft/2020-12/schema',
+        type: 'object',
+        additionalProperties: false,
+        required: ['namespace', 'data'],
+        properties: {
+          namespace: { type: 'array', items: { type: 'string' } },
+          data: { type: 'array', items: { type: 'string' } },
+          files: {
+            type: 'object',
+            additionalProperties: {
+              type: 'object',
+              additionalProperties: false,
+              properties: {
+                namespace: { type: 'array', items: { type: 'string' } },
+                weight: { type: 'integer', minimum: 0 },
+              },
+            },
+          },
+        },
+      }),
+    );
+    await put('.oc3/manifest.json', JSON.stringify({ namespace: ['docs'], data: [] }));
+    await put('.oc3/doc/project.yml', 'name: demo\nsummary: Демо-проект памяти\n');
+    await put('.oc3/doc/manuals/how.md', '# Как собрать\n\nnpm run build.\n');
+    await put(
+      '.oc3/manifest.json',
+      JSON.stringify({
+        namespace: ['docs'],
+        data: [],
+        files: { 'manuals/how.md': { namespace: ['docs'], weight: 1 } },
+      }),
+    );
+  };
+
+  it('стартовый index и узлы из маркеров «память: <sha>» попадают в system prompt', async () => {
+    await buildBundlesFixture();
+    const build = await buildBundles(root);
+    const graph = build.graph;
+    if (graph === null) throw new Error('нет графа');
+    await writeGraph(root, graph);
+    const node = graph.nodes[0];
+    const prompt = await memoryPromptOf(root, `задание\nпамять: ${node?.dir}\n`);
+    expect(prompt).toContain('# Память проекта');
+    expect(prompt).toContain('Демо-проект памяти');
+    expect(prompt).toContain(`Узел памяти ${node?.dir}`);
+    expect(prompt).toContain('manuals/how.md');
+    const dedup = await memoryPromptOf(root, `память: ${node?.dir} и снова память: ${node?.dir}`);
+    expect(dedup.split(`Узел памяти ${node?.dir}`).length - 1).toBe(1);
+  });
+
+  it('повторный запуск RoleRun вшивает старт ровно один раз', async () => {
+    await buildBundlesFixture();
+    const build = await buildBundles(root);
+    const graph = build.graph;
+    if (graph === null) throw new Error('нет графа');
+    await writeGraph(root, graph);
+    await put('agents/executor.md', roleFile('executor', 'result'));
+    const submit = { status: 'done', changed: [], failed: [], questions: [], report: 'готово' };
+    process.env['FAKE_SUBMIT'] = JSON.stringify({ executor: submit });
+    process.env['FAKE_ARGS'] = path.join(home, 'args.jsonl');
+    await askRole(root, 'executor', 'Задание без маркеров памяти');
+    const seen: unknown = JSON.parse(await readFile(path.join(home, 'args.jsonl'), 'utf8'));
+    const system = isRecord(seen) && typeof seen['system'] === 'string' ? seen['system'] : '';
+    expect(system.match(/# Память проекта/g)?.length ?? 0).toBe(1);
+    expect(system).toContain('Оперативная память проекта');
+  });
+
+  it('неизвестный узел — отказ с перечнем валидных', async () => {
+    await buildBundlesFixture();
+    const build = await buildBundles(root);
+    const graph = build.graph;
+    if (graph === null) throw new Error('нет графа');
+    await writeGraph(root, graph);
+    await expect(memoryPromptOf(root, `память: 000000000000`)).rejects.toThrow(
+      `валидные узлы: ${graph.nodes[0]?.dir}`,
+    );
+    await rm(path.join(root, '.oc3', 'bundles'), { recursive: true, force: true });
+    await expect(memoryPromptOf(root, 'память: 000000000000')).rejects.toThrow('ai memory build');
+  });
+
+  it('runRole с маркером: инструкции содержат узел памяти', async () => {
+    await buildBundlesFixture();
+    const build = await buildBundles(root);
+    const graph = build.graph;
+    if (graph === null) throw new Error('нет графа');
+    await writeGraph(root, graph);
+    await put('agents/executor.md', roleFile('executor', 'result'));
+    const submit = { status: 'done', changed: [], failed: [], questions: [], report: 'готово' };
+    process.env['FAKE_SUBMIT'] = JSON.stringify({ executor: submit });
+    process.env['FAKE_ARGS'] = path.join(home, 'args.jsonl');
+    await askRole(root, 'executor', `задание\nпамять: ${graph.nodes[0]?.dir}`);
+    const seen: unknown = JSON.parse(await readFile(path.join(home, 'args.jsonl'), 'utf8'));
+    const system = isRecord(seen) && typeof seen['system'] === 'string' ? seen['system'] : '';
+    expect(system).toContain('# Память проекта');
+    expect(system).toContain(`Узел памяти ${graph.nodes[0]?.dir}`);
+    expect(system).toContain('manuals/how.md');
   });
 });

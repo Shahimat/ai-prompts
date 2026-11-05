@@ -39,11 +39,11 @@ harness те же намерения проверяются схемой `intent
 - `decision` — принятое решение: CHANGELOG (если проходит критерий) +
   слой, который оно меняет;
 - `fact` — как устроено сейчас: слой возможности или
-  `context/project.yml`;
-- `rule` — договорённость, как работаем: `context/conventions/<key>.yml`;
+  `.oc3/doc/project.yml`;
+- `rule` — договорённость, как работаем: `.oc3/doc/conventions/<key>.yml`;
 - `behavior-change` — изменилось ожидаемое поведение: слой возможности
   (например, behavior + `verified`);
-- `task` — работа на будущее: цель в `goals/`, если оператор её завёл,
+- `task` — работа на будущее: цель в `.oc3/goals/`, если оператор её завёл,
   иначе — сказать пользователю, куда записать;
 - `manual` — ручная процедура: слой manuals, если подключён;
 - `revise` — пересмотр существующего знания: пункт `op: revise` дельты
@@ -62,13 +62,13 @@ harness те же намерения проверяются схемой `intent
 <!-- expect:skill-runs -->
 | Что | Кто пишет |
 | --- | --- |
-| `context/project.yml`, `context/autonomy.yml`, `context/skills.yml` | librarian |
-| `context/conventions/` | librarian |
+| `.oc3/doc/project.yml`, `.oc3/doc/autonomy.yml`, `.oc3/skills.yml` | librarian |
+| `.oc3/doc/conventions/` | librarian |
 | `CHANGELOG.md` | librarian |
 | `provides.layers` — слои модулей | librarian |
-| `context/.delta/` — создание и правка | librarian |
-| `context/.delta/` — удаление после приёмки | `ai delta close`; шаг `close` harness `docs-delta`, без harness — librarian |
-| `context/index.yml` | `ai context index`; шаг `verify` harness `docs-delta` |
+| `.oc3/.delta/` — создание и правка | librarian |
+| `.oc3/.delta/` — удаление после приёмки | `ai delta close`; шаг `close` harness `docs-delta`, без harness — librarian |
+| `.oc3/bundles/` — build | `ai memory build`; шаг `verify` harness `docs-delta` |
 | адаптеры (`.opencode/`, `.codex/`) | `ai adapters sync`; шаг `verify` harness `docs-delta` |
 <!-- /expect:skill-runs -->
 
@@ -81,7 +81,7 @@ harness те же намерения проверяются схемой `intent
 Документация — система ожиданий: каждый факт, правило, позиция уже
 чему-то соответствует. Тихо удалить или ослабить знание — потерять его.
 Поэтому намерения сначала становятся дельтой —
-`context/.delta/<имя>.yml`, временными ожиданиями к целевому состоянию
+`.oc3/.delta/<имя>.yml`, временными ожиданиями к целевому состоянию
 документации:
 
 ```yaml
@@ -95,7 +95,7 @@ items:
     evidence: <чем подтверждено>
   - op: revise
     kind: rule
-    target: context/conventions/branches.yml
+    target: .oc3/doc/conventions/branches.yml
     summary: <каким знание станет>
     evidence: <чем подтверждено>
     was: <каким было>
@@ -116,8 +116,7 @@ items:
 <!-- /expect:skill-runs -->
 
 Без harness — та же сверка вручную по `git diff HEAD` слоёв, дельту
-удаляет librarian. Дельта — рабочий файл librarian: в маршруты и
-`context/index.yml` она не входит, оператор её не читает.
+удаляет librarian. Дельта — рабочий файл librarian: в маршруты и бандлы она не входит, оператор её не читает.
 
 1. Собери дельту из намерений. Сверь каждый пункт с текущей
    документацией: новое знание — `add`, совместимое уточнение —
@@ -155,9 +154,9 @@ items:
 - ссылки в обе стороны не битые, id и ключи уникальны;
 - нет orphan-файлов, дублей и двух записей об одном факте;
 - данные соответствуют схемам слоёв;
-- маршруты `AGENTS.md` и `context/index.yml` ведут к существующим
+- маршруты `AGENTS.md` и бандлы ведут к существующим
   файлам;
-- производные файлы (`context/index.yml`, адаптеры) пересобраны
+- производные файлы (бандлы, адаптеры) пересобраны
   командой, а не правкой руками.
 
 С подключённым модулем harness формальная проверка — шаг `verify`
@@ -167,20 +166,20 @@ items:
 ## Правила слоёв
 
 Слои ядра — ниже. Слои подключённых возможностей: прочитай
-`context/modules/*.yml`, для каждого модуля загрузи skills из
+`.oc3/modules/*.yml`, для каждого модуля загрузи skills из
 `provides.skills` и пиши по их правилам.
 
 Поля, которые модуль добавляет в чужие слои (`provides.extends`),
 пишутся по правилам skill этого модуля. Поле, не объявленное ни слоем,
 ни чьим-то `extends`, не заводи.
 
-### `context/project.yml`
+### project.yml
 
 Реквизиты и константы: имя, `summary`, стек, `namespaces`, `external`,
 `reality`, `preset`, `roles.exceptions`, `sync`. Компактный YAML, без
 narrative. Новый namespace — только с «да» пользователя.
 
-### `context/conventions/<key>.yml`
+### conventions/<key>.yml
 
 - одно правило — один файл; поля `key`, `summary`, `rule`;
 - `key` — kebab-case, совпадает с именем файла, не переименовывается;
@@ -215,7 +214,7 @@ narrative. Новый namespace — только с «да» пользоват�
 Нашёл противоречие между документами или между документом и кодом — не
 сохраняй молча: одной строкой назови конфликт, предложи разрешение,
 дождись решения. Документ и источник реальности (`reality` в
-`context/project.yml`) расходятся — прав источник.
+`.oc3/doc/project.yml`) расходятся — прав источник.
 
 ## Чего не делать
 
@@ -223,8 +222,8 @@ narrative. Новый namespace — только с «да» пользоват�
 - документацию пишет только librarian; оператор, executor и judge её
   только читают и передают `docs_request`;
 - librarian меняет только слои документации проекта — код, тесты,
-  конфиги сборки, `goals/` и expectations не трогает;
-- не править сгенерированные файлы (`context/index.yml`, адаптеры в
+  конфиги сборки, `.oc3/goals/` и expectations не трогает;
+- не править сгенерированные файлы (бандлы, адаптеры в
   `.opencode/`, `.codex/`): правится источник, затем
   генерация;
 <!-- /expect:docs-readonly -->

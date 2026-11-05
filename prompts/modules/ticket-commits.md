@@ -21,10 +21,10 @@ tags: [workflow, commits, agent-contract, module, deprecated]
 
 ## Если модуль подключён в проекте
 
-Отключи его по `provides` манифеста `context/modules/ticket-commits.yml`:
+Отключи его по `provides` манифеста `.oc3/modules/ticket-commits.yml`:
 
 1. Удали skill `.agents/skills/ticket-commits/` и его копии адаптеров.
 2. Удали блок `<!-- module:ticket-commits -->` из `AGENTS.md`.
-3. Удали манифест `context/modules/ticket-commits.yml`.
+3. Удали манифест `.oc3/modules/ticket-commits.yml`.
 
 План — пользователю, удаление — после явного «да».

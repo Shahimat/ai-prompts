@@ -36,7 +36,7 @@ async function probeOf(
   where: string,
 ): Promise<string> {
   if (iface !== 'tasks' && iface !== 'review' && iface !== 'checks') return 'проба не нужна';
-  if (query === undefined) return `пробы нет: context/ops.yml → probe.${iface}`;
+  if (query === undefined) return `пробы нет: .oc3/ops.yml → probe.${iface}`;
   if (iface === 'tasks') {
     const card = asCard(await call('fetch', [query]), where);
     return `карточка «${card.title}», DoD ${card.dod.length}`;
@@ -64,7 +64,7 @@ export async function providersReport(root: string, home: string): Promise<Inter
     out.push(row);
     if (mapping === undefined && !machine) {
       row.status = 'unmapped';
-      row.probe = `нет записи в context/ops.yml → providers.${iface}: найди аналог в инфраструктуре проекта или запиши provider: none с why`;
+      row.probe = `нет записи в .oc3/ops.yml → providers.${iface}: найди аналог в инфраструктуре проекта или запиши provider: none с why`;
       continue;
     }
     if (name === 'none') {

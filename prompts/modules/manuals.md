@@ -4,10 +4,10 @@ kind: module
 applicable_to: [agent-operational-contract-v3]
 patterns: [source-sync]
 title: Модуль manuals — ручные процедуры для человека
-use_case: Возможность ядра v3. Заводит слой docs/manuals/ — пошаговые чек-листы того, что делает человек руками. Требует domain — manual привязывается к entity, по ней определяется его область.
+use_case: Возможность ядра v3. Заводит слой .oc3/doc/manuals/ — пошаговые чек-листы того, что делает человек руками. Требует domain — manual привязывается к entity, по ней определяется его область.
 tags: [docs-as-code, manuals, agent-contract, module]
 feature:
-  summary: docs/manuals — пошаговые ручные процедуры для человека
+  summary: .oc3/doc/manuals — пошаговые ручные процедуры для человека
   default: true
   requires: [domain]
   conflicts: []
@@ -28,7 +28,7 @@ feature:
 
 ```yaml
 provides:
-  layers: [docs/manuals/]
+  layers: [.oc3/doc/manuals/]
   files: []
   skills: [manuals]
   agents_md_block: true
@@ -42,7 +42,7 @@ provides:
 <!-- module:manuals -->
 ## manuals
 
-- как сделать руками X → `docs/manuals/<name>.md`;
+- как сделать руками X → `.oc3/doc/manuals/<name>.md`;
 - формат и связи → skill `manuals`.
 <!-- /module:manuals -->
 ```
@@ -50,10 +50,10 @@ provides:
 
 ## Установка
 
-1. Создай `docs/manuals/`.
+1. Создай `.oc3/doc/manuals/`.
 2. Поставь skill `manuals` в `.agents/skills/manuals/`.
 3. Добавь блок в `AGENTS.md`.
-4. В `README.md` — строка «ручные процедуры — `docs/manuals/`».
+4. В `README.md` — строка «ручные процедуры — `.oc3/doc/manuals/`».
 
 ## Миграция с v2
 

@@ -32,7 +32,7 @@ description: Правила домена жизни — факты, сигнал
 - как выполнять рутину → `life/protocols/`;
 - текущие значения сигналов → канал `data-access`, если подключён;
   иначе спроси человека. Не бери числа из старых заметок и не выдумывай;
-- список id по namespace → `context/index.yml`.
+- список id по namespace → .oc3/bundles/index.md.
 
 Читай только нужный namespace. Значения из канала — ровно тот срез,
 что нужен вопросу.
@@ -42,7 +42,7 @@ description: Правила домена жизни — факты, сигнал
 - `id` — путь внутри слоя без `.yml`, `/` → `-`
   (`life/facts/health/no-dairy.yml` → `health-no-dairy`);
 - `kind` — `fact` | `signal` | `protocol`;
-- `namespace` — из `context/project.yml` → `namespaces`; новый — только
+- `namespace` — из `.oc3/doc/project.yml` → `namespaces`; новый — только
   с «да»;
 - `summary` — одна строка для индекса, без значений измерений.
 

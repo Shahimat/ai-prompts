@@ -24,12 +24,13 @@
     "format:check": "prettier --check .",
     "index:build": "node packages/cli/dist/bin.js index build --root . --raw-base https://raw.githubusercontent.com/Shahimat/ai-prompts/main",
     "index:check": "node packages/cli/dist/bin.js index check --root . --raw-base https://raw.githubusercontent.com/Shahimat/ai-prompts/main",
+    "memory:check": "node packages/cli/dist/bin.js memory check --root .",
     "packages:check": "node scripts/packages-check.ts",
     "expect": "node packages/cli/dist/bin.js expect report expectations/index.expect.ts --root .",
     "expect:judge": "node packages/cli/dist/bin.js expect judge expectations/index.expect.ts --root .",
     "expect:judge:opencode": "node scripts/expect-judge-opencode.ts",
     "expect:apply": "node packages/cli/dist/bin.js expect judge expectations/index.expect.ts --apply --root .",
-    "ci": "npm run format:check && npm run build -w @shahimat/ai-core && npm run build -w @shahimat/harness && npm run build -w @shahimat/cli && npm run build -w @shahimat/oc3 && npm run typecheck:ai-core && npm run typecheck:harness && npm run typecheck:cli && npm run typecheck:oc3 && npm run tsc:expectations && npm run tsc:packages && npm run tsc:scripts && npm run lint && npm test -w @shahimat/ai-core && npm test -w @shahimat/harness && npm test -w @shahimat/cli && npm test -w @shahimat/oc3 && node scripts/packages-check.ts && npm run index:check && npm run expect"
+    "ci": "npm run format:check && npm run build -w @shahimat/ai-core && npm run build -w @shahimat/harness && npm run build -w @shahimat/cli && npm run build -w @shahimat/oc3 && npm run typecheck:ai-core && npm run typecheck:harness && npm run typecheck:cli && npm run typecheck:oc3 && npm run tsc:expectations && npm run tsc:packages && npm run tsc:scripts && npm run lint && npm test -w @shahimat/ai-core && npm test -w @shahimat/harness && npm test -w @shahimat/cli && npm test -w @shahimat/oc3 && node scripts/packages-check.ts && npm run index:check && npm run memory:check && npm run expect"
   },
   "devDependencies": {
     "@shahimat/ai-core": "*",

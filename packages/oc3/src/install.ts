@@ -83,7 +83,7 @@ async function readOrNull(abs: string): Promise<string | null> {
 }
 
 async function parseProject(root: string): Promise<Record<string, unknown> | null> {
-  const text = await readOrNull(path.join(root, 'context', 'project.yml'));
+  const text = await readOrNull(path.join(root, '.oc3', 'doc', 'project.yml'));
   if (text === null) return null;
   try {
     const data: unknown = parse(text);
@@ -110,9 +110,9 @@ export async function detectState(root: string): Promise<Detection> {
   const v2 = workflowV2 || viewsV2;
   const project = await parseProject(root);
   const projectV3 = hasV3Contract(project);
-  if (project === null) details.push('нет context/project.yml');
+  if (project === null) details.push('нет .oc3/doc/project.yml');
   else if (!projectV3)
-    details.push('в context/project.yml нет sync.contract v3 (operator-centric)');
+    details.push('в .oc3/doc/project.yml нет sync.contract v3 (operator-centric)');
   let agentsV3 = false;
   const agents = await readOrNull(path.join(root, 'AGENTS.md'));
   if (agents === null) details.push('нет AGENTS.md');
@@ -143,14 +143,14 @@ export async function detectState(root: string): Promise<Detection> {
       details.push('package.json: невалидный JSON');
     }
   }
-  const lock = existsSync(path.join(root, '.ops', 'locks', 'install'));
+  const lock = existsSync(path.join(root, '.oc3', 'locks', 'install'));
   const points = [projectV3, agentsV3, pluginWired, depsOk].filter((item) => item).length;
   let state: ContractState;
   if (v2 && !projectV3) state = 'v2';
   else if (points === 4 && !lock && !v2) state = 'v3-ok';
   else if (points === 0 && !v2) state = 'nothing';
   else state = 'v3-partial';
-  if (lock && state !== 'v2') details.push('есть .ops/locks/install — установка не завершена');
+  if (lock && state !== 'v2') details.push('есть .oc3/locks/install — установка не завершена');
   if (v2 && state !== 'v2')
     details.push(
       'остались артефакты v2 (context/workflow.md или context/views/) — нужен отчёт миграции',
@@ -205,7 +205,7 @@ export function resolveRuntime(online: boolean): {
     runtime: 'degraded',
     lines: [
       'runtime: degraded — реестр npm недоступен: автоустановка плагина при первом старте opencode не выполнится',
-      'после появления сети перезапусти opencode (или поставь @shahimat/oc3 сам) и верни runtime: full в context/project.yml',
+      'после появления сети перезапусти opencode (или поставь @shahimat/oc3 сам) и верни runtime: full в .oc3/doc/project.yml',
     ],
   };
 }
@@ -305,25 +305,25 @@ export function ensureSyncContractYaml(text: string): { text: string; changed: b
 }
 
 export async function ensureProjectYml(root: string, runtime: string): Promise<string[]> {
-  const abs = path.join(root, 'context', 'project.yml');
+  const abs = path.join(root, '.oc3', 'doc', 'project.yml');
   const lines: string[] = [];
   const current = await readOrNull(abs);
   if (current === null) {
     await mkdir(path.dirname(abs), { recursive: true });
     await writeFile(abs, PROJECT_YML, 'utf8');
-    return ['context/project.yml: записан каркас — поля-плейсхолдеры в вопросах ниже'];
+    return ['.oc3/doc/project.yml: записан каркас — поля-плейсхолдеры в вопросах ниже'];
   }
   try {
     parse(current);
   } catch {
-    return ['context/project.yml: невалидный YAML — дополнять не рискую, приведи в порядок сам'];
+    return ['.oc3/doc/project.yml: невалидный YAML — дополнять не рискую, приведи в порядок сам'];
   }
   let text = upsertRuntimeYaml(current, runtime);
   const sync = ensureSyncContractYaml(text);
   text = sync.text;
   await writeFile(abs, text, 'utf8');
   lines.push(
-    `context/project.yml: runtime: ${runtime} записан, ${sync.changed ? 'sync.contract v3 дописан' : 'sync.contract v3 на месте'}; остальное содержание сохранено`,
+    `.oc3/doc/project.yml: runtime: ${runtime} записан, ${sync.changed ? 'sync.contract v3 дописан' : 'sync.contract v3 на месте'}; остальное содержание сохранено`,
   );
   return lines;
 }
@@ -331,18 +331,18 @@ export async function ensureProjectYml(root: string, runtime: string): Promise<s
 export async function ensureContextSkeleton(root: string): Promise<string[]> {
   const lines: string[] = [];
   const files: readonly [string, string][] = [
-    ['autonomy.yml', AUTONOMY_YML],
-    ['skills.yml', SKILLS_YML],
+    ['.oc3/doc/autonomy.yml', AUTONOMY_YML],
+    ['.oc3/skills.yml', SKILLS_YML],
   ];
-  for (const [name, content] of files) {
-    const abs = path.join(root, 'context', name);
+  for (const [rel, content] of files) {
+    const abs = path.join(root, rel);
     if (existsSync(abs)) {
-      lines.push(`context/${name}: уже есть — не трогаю`);
+      lines.push(`${rel}: уже есть — не трогаю`);
       continue;
     }
     await mkdir(path.dirname(abs), { recursive: true });
     await writeFile(abs, content, 'utf8');
-    lines.push(`context/${name}: записан каркас`);
+    lines.push(`${rel}: записан каркас`);
   }
   return lines;
 }
@@ -455,7 +455,7 @@ export async function ensureSkillsPreset(
   root: string,
   roles: readonly EmbeddedRole[],
 ): Promise<string[]> {
-  const abs = path.join(root, 'context', 'skills.yml');
+  const abs = path.join(root, '.oc3', 'skills.yml');
   const wanted = skillsForRoles(roles);
   if (wanted.length === 0) return [];
   const label = `пресет operator-centric по ролям (${roles.join(', ')})`;
@@ -464,20 +464,20 @@ export async function ensureSkillsPreset(
   if (current === null) {
     await mkdir(path.dirname(abs), { recursive: true });
     await writeFile(abs, fresh, 'utf8');
-    return [`context/skills.yml: записан ${label} — ${wanted.length} привязок`];
+    return [`.oc3/skills.yml: записан ${label} — ${wanted.length} привязок`];
   }
   let data: unknown;
   try {
     data = parse(current);
   } catch {
     return [
-      'context/skills.yml: невалидный YAML — привязки пресета не дописываю, приведи файл в порядок сам',
+      '.oc3/skills.yml: невалидный YAML — привязки пресета не дописываю, приведи файл в порядок сам',
     ];
   }
   if (!isRecord(data) || !Array.isArray(data['skills'])) {
     await writeFile(abs, fresh, 'utf8');
     return [
-      `context/skills.yml: старый каркас без списка skills — перезаписан ${label} (${wanted.length} привязок)`,
+      `.oc3/skills.yml: старый каркас без списка skills — перезаписан ${label} (${wanted.length} привязок)`,
     ];
   }
   const existing = new Map<string, string>();
@@ -496,7 +496,7 @@ export async function ensureSkillsPreset(
     return signature !== entry.roles.join(',') && owned.has(`${entry.key}|${signature}`);
   });
   if (missing.length === 0 && stale.length === 0)
-    return [`context/skills.yml: ${label} на месте (${wanted.length} привязок) — без изменений`];
+    return [`.oc3/skills.yml: ${label} на месте (${wanted.length} привязок) — без изменений`];
   let text = current;
   for (const entry of stale) text = replaceSkillEntry(text, entry);
   if (missing.length > 0) text = insertSkillEntries(text, missing);
@@ -508,7 +508,7 @@ export async function ensureSkillsPreset(
     parts.push(
       `дописаны привязки (${missing.length}: ${missing.map((entry) => entry.key).join(', ')})`,
     );
-  return [`context/skills.yml: ${parts.join('; ')} — пользовательские записи сохранены`];
+  return [`.oc3/skills.yml: ${parts.join('; ')} — пользовательские записи сохранены`];
 }
 
 export async function ensurePackageJson(root: string): Promise<string[]> {
@@ -580,10 +580,10 @@ export async function ensureGitFiles(root: string): Promise<string[]> {
 }
 
 export async function ensureLock(root: string): Promise<string> {
-  const abs = path.join(root, '.ops', 'locks', 'install');
+  const abs = path.join(root, '.oc3', 'locks', 'install');
   await mkdir(path.dirname(abs), { recursive: true });
   await writeFile(abs, `oc3 init ${new Date().toISOString()}\n`, 'utf8');
-  return 'маркер установки .ops/locks/install создан — сними его (rm .ops/locks/install) после ответов на вопросы';
+  return 'маркер установки .oc3/locks/install создан — сними его (rm .oc3/locks/install) после ответов на вопросы';
 }
 
 export async function migrationReport(root: string): Promise<string[]> {
@@ -603,7 +603,7 @@ export async function migrationReport(root: string): Promise<string[]> {
     for (const name of names) {
       const base = name.replace(/\.(ya?ml|json)$/, '');
       lines.push(
-        `  context/views/${name} → goals/${base}.expect.ts — переложи записи в describe/crit (skill goals)`,
+        `  context/views/${name} → .oc3/goals/${base}.expect.ts — переложи записи в describe/crit (skill goals)`,
       );
     }
   }
@@ -616,9 +616,9 @@ export async function migrationReport(root: string): Promise<string[]> {
 
 export async function humanQuestions(created: boolean, rolesSelected = false): Promise<string[]> {
   const lines = ['вопросы человеку (без ответов установку не завершай):'];
-  if (created) lines.push('  1. заполни name и summary в context/project.yml');
-  else lines.push('  1. проверь name и summary в context/project.yml');
-  lines.push('  2. впиши reality — код-базу проекта (репозиторий, стек) в context/project.yml');
+  if (created) lines.push('  1. заполни name и summary в .oc3/doc/project.yml');
+  else lines.push('  1. проверь name и summary в .oc3/doc/project.yml');
+  lines.push('  2. впиши reality — код-базу проекта (репозиторий, стек) в .oc3/doc/project.yml');
   lines.push(
     `  3. подтверди реквизиты источника контракта (sync.index_source, по умолчанию ${DEFAULT_INDEX_SOURCE})`,
   );

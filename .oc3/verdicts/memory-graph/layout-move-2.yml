@@ -1,0 +1,82 @@
+run: 2
+status: satisfactorily
+summary: >-
+  crit 1, 2, 4 pass — перепроверены свежими прогонами (build/lint зелёные,
+  vitest 4 пакетов, migrate+guards 20/20); crit 3 — оператор дочистил
+  бо́льшую часть параллельной правкой (deprecated-маркеры на goals
+  паттерне/модуле/skill, живые skills на .oc3/, external-context.md:177
+  переформулирован), осталась одна живая строка analysis.md:144 и стухший
+  сгенерированный prompts/index.yml — негатив run 2, зона оператора
+items:
+  - key: crit-1
+    status: pass
+    evidence: >-
+      карта без изменений — packages/oc3/src/migrate.ts:7-41
+      (FILE_MAP/DIR_MAP/OPS_FLAT); целевой прогон vitest
+      packages/oc3/test/migrate.test.ts + guards.test.ts — 2 файла, 20/20;
+      полный suite oc3 — 124/124; npm run build — зелёный
+    reason: >-
+      Мигратор не менялся с run 1, тесты карты переноса зелёные на
+      текущем состоянии worktree — пункт подтверждён повторно
+  - key: crit-2
+    status: pass
+    evidence: >-
+      потребители не откатывались: packages/ai-core/src/shared/layout.ts —
+      30 констант .oc3/, packages/harness/src/harnesses/core/ops/paths.ts:6
+      PROJECT_OPS='.oc3', presets/external.yml:26; vitest: harness 78/78,
+      oc3 124/124, cli 35/35, ai-core 219/220 — единственный красный тот же
+      repo.test «совпадает с закоммиченным prompts/index.yml» (воспроизведён,
+      причина та же — index стух от параллельной правки skills/ оператором);
+      npm run build и npm run lint (oxlint --deny-warnings) — зелёные
+    reason: >-
+      Состояние идентично run 1: рабочие пути потребителей чисты, сборка и
+      линт зелёные; красный repo.test — сгенерированный индекс против
+      правок оператора, лечится npm run index:build в его коммите и не
+      относится к коду тикета
+  - key: crit-3
+    status: satisfactorily
+    evidence: >-
+      Остаток не-чистого grep — ровно две позиции: (1)
+      prompts/modules/analysis.md:144 — «- ручной `context/index.yml` —
+      генерируется harness или не ведётся.» — живой модуль, строка не
+      менялась с run 1; (2) prompts/index.yml — сгенерированный индекс: 9
+      упоминаний старых путей в titles + стухшие SHA skills (тот же красный
+      repo.test). Дочистено оператором в этой же сессии (git status: 46
+      файлов в skills/prompts/patterns, ~457 вставок): patterns/goals.md:5
+      deprecated-маркер + блок-цитата «Deprecated в operator-centric v3» —
+      упоминания :62,66,175 исторические; prompts/modules/goals.md:14
+      deprecated — :32,76 исторические; skills/goals/SKILL.md:4 deprecated —
+      :105 историческое; живые skills переписаны на .oc3/ —
+      skills/cli/SKILL.md «конфиг .oc3/ai-core.yml», skills/domain/SKILL.md
+      «.oc3/doc/data/entities/ и .oc3/doc/data/behavior/»,
+      skills/judge/SKILL.md «.oc3/verdicts/<тикет>/<run>.yml»,
+      skills/operator-feedback/SKILL.md «.oc3/feedback/<тикет>.yml»,
+      skills/research/SKILL.md «.oc3/research/<тикет>/<id>.md»;
+      prompts/modules/external-context.md:177 переформулирован в
+      deprecation-статус «- ручной `context/index.yml` — упразднён:
+      каталог — в бандле;»; productivity-контракты с десятками старых путей
+      помечены deprecated (personal-project.md «deprecated:
+      presets/private.yml», analytical-project.md «deprecated:
+      presets/analytical.yml», v2-контракты исторические по v2-редакции);
+      agent-operational-contract-v3.md:558,564 — детект v2-раскладки и
+      карта миграции context/views → .oc3/goals/ (легаси-детект, допустимо
+      по критерию run 1); skills/source-sync/SKILL.md:88 — инструкция по
+      миграции v2 → v3 (допустимо)
+    reason: >-
+      Executor зону не трогал по брифу оператора («AGENTS.md, prompts/,
+      skills/, patterns/ — НЕ ТРОГАЙ»); оператор дочистил почти всё:
+      deprecated-файлы получили явные маркеры, живые skills и
+      external-context переписаны. Замечание остаётся: живая строка
+      analysis.md:144 со старым путём и стухший сгенерированный index.yml.
+      Негатив во втором прогоне — satisfactorily без fail; остаток
+      передаётся оператору: переформулировать/убрать analysis.md:144 и
+      пересобрать prompts/index.yml (npm run index:build) тем же коммитом
+  - key: crit-4
+    status: pass
+    evidence: >-
+      .agents/ и .opencode/ присутствуют в корне worktree, вне .oc3/;
+      карты migrate.ts:7-41 их не содержат; legacy-хвосты — только
+      report.legacy (migrate.ts:150-152,159-163)
+    reason: >-
+      Host-слой не перенесён в .oc3/, мигратор его не трогает — пункт
+      подтверждён повторно на текущем состоянии worktree

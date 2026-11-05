@@ -5,6 +5,7 @@ import { parse } from 'yaml';
 import type { CommandArgs } from '@shahimat/ai-core';
 import { isRecord } from '@shahimat/ai-core';
 import { ensureDefaultAgent, ensureOperatorAgent, ensurePluginEntry } from '#operator-agent';
+import { detectOldLayout, migrateLayout } from '#migrate';
 import {
   detectState,
   detectTools,
@@ -26,7 +27,7 @@ import {
 } from '#install';
 
 const PACKAGES = ['@shahimat/ai-core', '@shahimat/oc3'];
-const PROJECT_FILE_LABEL = 'context/project.yml';
+const PROJECT_FILE_LABEL = '.oc3/doc/project.yml';
 
 async function readOrNull(abs: string): Promise<string | null> {
   try {
@@ -38,7 +39,7 @@ async function readOrNull(abs: string): Promise<string | null> {
 
 async function readinessProblems(root: string): Promise<string[]> {
   const problems: string[] = [];
-  const project = await readOrNull(path.join(root, 'context/project.yml'));
+  const project = await readOrNull(path.join(root, '.oc3/doc/project.yml'));
   if (project === null) problems.push(`нет ${PROJECT_FILE_LABEL} — разверни контракт v3`);
   else {
     try {
@@ -72,9 +73,9 @@ async function readinessProblems(root: string): Promise<string[]> {
     problems.push(
       'opencode.json(c): в plugins нет "@shahimat/oc3" — добавь запись и выполни /reload',
     );
-  if (existsSync(path.join(root, '.ops/locks/install')))
+  if (existsSync(path.join(root, '.oc3/locks/install')))
     problems.push(
-      'есть .ops/locks/install — установка не завершена: сними маркер в конце установки',
+      'есть .oc3/locks/install — установка не завершена: сними маркер в конце установки',
     );
   return problems;
 }
@@ -87,6 +88,10 @@ const STATE_LABELS: Record<string, string> = {
 };
 
 export async function runInit(args: CommandArgs): Promise<number> {
+  if (detectOldLayout(args.root)) {
+    console.log('layout: обнаружена старая раскладка — переношу в .oc3/ по карте миграции');
+    for (const line of await migrateLayout(args.root)) console.log(line);
+  }
   const rolesFlag = args.params?.['roles'];
   const roles = rolesFlag === undefined ? null : parseRoles(rolesFlag);
   const detection = await detectState(args.root);
@@ -117,7 +122,7 @@ export async function runInit(args: CommandArgs): Promise<number> {
   }
   const tools = await detectTools();
   for (const hint of toolHints(tools)) console.log(hint);
-  const projectExisted = existsSync(path.join(args.root, 'context', 'project.yml'));
+  const projectExisted = existsSync(path.join(args.root, '.oc3', 'doc', 'project.yml'));
   for (const line of await ensureAgentsMd(args.root)) console.log(line);
   for (const line of await ensureProjectYml(args.root, runtime.runtime)) console.log(line);
   for (const line of await ensureContextSkeleton(args.root)) console.log(line);

@@ -28,13 +28,13 @@ afterEach(async () => {
 });
 
 describe('ai refresh', () => {
-  it('пересобирает context/index.yml и проверяет проект', async () => {
-    await put('context/ai-core.yml', 'checks:\n  context-index: {}\n');
-    await put('context/project.yml', 'name: demo\nnamespaces:\n  core: ядро\n');
-    await put('context/conventions/naming.yml', 'key: naming\nsummary: kebab-case\nrule: x\n');
+  it('пересобирает .oc3/doc/index.yml и проверяет проект', async () => {
+    await put('.oc3/ai-core.yml', 'checks:\n  context-index: {}\n');
+    await put('.oc3/doc/project.yml', 'name: demo\nnamespaces:\n  core: ядро\n');
+    await put('.oc3/doc/conventions/naming.yml', 'key: naming\nsummary: kebab-case\nrule: x\n');
     git('init', '-q');
     expect(await main(['refresh', '--root', root], NOW)).toBe(0);
-    expect(existsSync(path.join(root, 'context/index.yml'))).toBe(true);
+    expect(existsSync(path.join(root, '.oc3/doc/index.yml'))).toBe(true);
   });
 
   it('2 — нет ai-core.yml', async () => {

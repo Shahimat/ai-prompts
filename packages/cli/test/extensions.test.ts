@@ -49,7 +49,7 @@ describe('ai: расширения проекта из .agents/', () => {
       '.agents/scripts/greet.yml',
       'path: [greet]\nsteps:\n  - command: [hello, раз]\n  - command: [hello, два]\n',
     );
-    await put('context/ai-core.yml', 'checks:\n  secrets: false\n');
+    await put('.oc3/ai-core.yml', 'checks:\n  secrets: false\n');
     const { tree, scripts } = await loadTree(root);
     expect(tree.findCommand(['greet'])?.command.kind).toBe('script');
     expect(scripts.map((s) => s.path.join(' '))).toContain('greet');

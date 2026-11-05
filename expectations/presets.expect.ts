@@ -201,7 +201,7 @@ class Check {
       concurrency: 5,
       output: 'result',
       skills: ['browser', 'data-access', 'domain', 'executor', 'external-context', 'manuals'],
-      artifacts: ['.ops/<ticket>/reports/'],
+      artifacts: ['.oc3/reports/<ticket>/'],
       exceptions: ['executor'],
     });
   }

@@ -32,7 +32,7 @@
    `patterns/<key>.md`, помеченного как «Inline-блок для целевого
    промпта».
 4. Если паттерн требует конфигурации на стороне проекта-потребителя
-   (например, полей в `context/project.yml`) — прописать это в самом
+   (например, полей в `.oc3/doc/project.yml`) — прописать это в самом
    inline-блоке.
 
 Inline-копия может жить не в самом промпте, а в skill, который промпт
@@ -104,4 +104,4 @@ frontmatter `patterns:`) или в рамках синхронизации то�
 - [`goals`](goals.md) — deprecated в operator-centric v3: система целей и
   программ как internal-очередь работы (`context/views/goals.yaml` +
   `goal--<key>.yaml` + `program--<key>.yaml`); остаётся для старых
-  проектов, новые работают в плоских `goals/*.expect.ts`.
+  проектов, новые работают в плоских `.oc3/goals/*.expect.ts`.

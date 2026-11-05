@@ -4,6 +4,7 @@ import { runContext } from '#commands/context/index';
 import { runDelta } from '#commands/delta/index';
 import { runExpect } from '#commands/expect/index';
 import { runGoals } from '#commands/goals/index';
+import { runMemory } from '#commands/memory/index';
 import { runModels } from '#commands/models/index';
 import { runOperator } from '#commands/operator/index';
 import { runOutdated } from '#commands/outdated/index';
@@ -43,6 +44,18 @@ export const COMMAND_NODES: readonly CommandNode[] = [
     kind: 'command',
     effect: 'query',
     run: (args) => runContext('check', args),
+  },
+  {
+    path: ['memory', 'build'],
+    kind: 'command',
+    effect: 'mutation',
+    run: (args) => runMemory('build', args),
+  },
+  {
+    path: ['memory', 'check'],
+    kind: 'command',
+    effect: 'query',
+    run: (args) => runMemory('check', args),
   },
   {
     path: ['delta', 'check'],

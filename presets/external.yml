@@ -23,7 +23,7 @@ roles:
     concurrency: 5
     skills: [executor, domain, manuals, external-context, browser, data-access]
     output: result
-    artifacts: [.ops/<ticket>/reports/]
+    artifacts: [.oc3/reports/<ticket>/]
 role_skills:
   operator: [operator-feedback]
   researcher: [research, domain, manuals, external-context, browser-read]

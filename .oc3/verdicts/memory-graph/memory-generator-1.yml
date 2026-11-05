@@ -1,0 +1,32 @@
+run: 3
+status: pass
+summary: ai memory build/check реализованы полностью — все 7 crit pass по коду, тестам и живым бандлам
+items:
+  - key: memory-generator.crit-1
+    status: pass
+    evidence: packages/ai-core/src/lib/memory-graph.ts:406-432 старт (инлайн веса 0 :412-419; веер «- [docs:1](ecfc0b9df13d/index.md) — sha …, файлов 2» :422-425; skillsCatalog:325-352 строка на skill; goalsHeaders:288-323 describe/it AST-парсером одной строкой), writeGraph:540-546; registry.ts:49-59; живой .oc3/bundles/index.md:5-81; тест memory-graph.test.ts:163-182
+    reason: build строит стартовый index по всем секциям крита (инлайн, веер ключ/SHA/число файлов, каталог skills, заголовки goals/programs) и узлы .oc3/bundles/<sha12>/index.md — код, тест и живой бандл сходятся
+  - key: memory-generator.crit-2
+    status: pass
+    evidence: memory-graph.ts:363-370 — weight 0 → инлайн (continue); namespace-массив → bucketOf(nodeKeyOf(ns, weight)) на каждый ns; пустой ns при weight≥1 → common:<N> (nodeKeyOf:259-260); тесты 184-195 (manuals/how.md в code:1 и docs:1) и 347-362 (common:1); живой узел docs:1 содержит manuals/pilot.md
+    reason: группировка ровно по парам (namespace из массива, вес); файл с несколькими namespace попадает в узел каждого, без namespace с весом ≥1 — общий узел кольца
+  - key: memory-generator.crit-3
+    status: pass
+    evidence: nodeBody memory-graph.ts:271-286 — «- [rel](../doc/rel) — <пояснение-суммари>» («инструкция:»/«карта:» :194-204); рёбра только своего namespace: b.weight === bucket.weight + 1 && b.namespace === bucket.namespace (:380-385); директории плоские — только <sha12>/index.md (writeGraph:544-546); тест 197-218 (ребро на code:2, not.toContain('docs:1'), dir = 12 символов)
+    reason: index узла несёт ссылки на файлы с пояснением «что получишь при загрузке» и рёбра на узлы N+1 своего namespace; глубина ссылками, вложенных директорий нет
+  - key: memory-generator.crit-4
+    status: pass
+    evidence: memory-graph.ts:392-400 — dir = sha.slice(0,12), шапка «# Узел <key>» + «SHA: <полный>» (тест 206); checkBundles:503-510 — стухшие каталоги диагностикой «нет в актуальном графе, build удалит»; writeGraph:548-554 удаляет не-актуальные; тесты 220-248 (смена весов → новый префикс), 252-266 (prune), 282-305 (диагностика + удаление)
+    reason: имя директории — префикс sha256 рендера узла (12 символов), полный SHA и ключ в шапке; check перечисляет стухшие как диагностику, build удаляет их и создаёт актуальные
+  - key: memory-generator.crit-5
+    status: pass
+    evidence: itemLine memory-graph.ts:104-116 + LABELS:82-91 («Правило:», «Причина:», «Шаги:», «Manuals:», «домен»), flattenRecord:118-139 («путь — значение»); тест 329-345: not.toMatch(/^(namespace|weight|files):/m), not.toMatch(/^- key: /m), «no-any — … Правило: …»; живой bundles/index.md:9-35 — предложения и markdown-ссылки, YAML/JSON-фрагментов нет
+    reason: выход без разметки данных: рендер полей data-файлов по известным ключам jsonschema → готовые предложения; единственные служебные элементы — markdown-ссылки на узлы и файлы
+  - key: memory-generator.crit-6
+    status: pass
+    evidence: commands/memory/index.ts:10-15 — check = checkMemory + checkBundles; checkBundles memory-graph.ts:487-529 — пересборка рендера vs существующие index.md и каталоги (SHA входов vs файлы); graphDiagnostics:443-457 — cap старта/узла с «понизь веса в манифесте (избыток уедет в узлы) или формализуй в data-структуры»; memory.ts:184-185 NOTES «формализуй в data-структуры», :367 optional-field WARN; package.json:27 memory:check, :33 — шаг в цепочке ci; тест 307-326 (cap 100 → exit 1), cli.test.ts:173-188
+    reason: check покрывает SHA-сравнение, cap старта/узла, NOTES-бюджет и optional-field WARN с громким отказом-перечнем «что формализовать, что уезжает в долговременную»; memory:check вшит в npm run ci
+  - key: memory-generator.crit-7
+    status: pass
+    evidence: writeGraph memory-graph.ts:540-556 (полная перезапись + rm не-актуальных); тест 252-266 «повторный build идемпотентен и удаляет стухшие каталоги» (removed = 1); cli.test.ts:190-213 повторный build — состав каталогов равен; живой прогон: build → wrote 2 бандлов, повторный build без изменений, check ok
+    reason: повторный build идемпотентен и удаляет стухшие каталоги автоматически — ручные шаги не нужны

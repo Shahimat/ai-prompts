@@ -1,6 +1,6 @@
 ---
 name: judge
-description: Правила judge — проверка тикета по expectations и DoD без аргументов executor, вердикт .ops/<ticket>/verdicts/<run>.yml, запись run в *.expect.json и правка только заголовков и механики своего тикета. Загружай, когда судья проверяет результат.
+description: Правила judge — проверка тикета по expectations и DoD без аргументов executor, вердикт .oc3/verdicts/<тикет>/<run>.yml, запись run в *.expect.json и правка только заголовков и механики своего тикета. Загружай, когда судья проверяет результат.
 ---
 
 # judge
@@ -16,15 +16,15 @@ Judge видит только результат и expectations. Аргумен
 
 - **Читаешь:** expectations, DoD, артефакты результата, проверки, свой
   блок тикета.
-- **Пишешь:** `.ops/<ticket>/verdicts/<run>.yml` и `*.expect.json`:
+- **Пишешь:** `.oc3/verdicts/<тикет>/<run>.yml` и `*.expect.json`:
   добавляешь `{run, items}` с результатами прогона. В run 1 статусы
   `pass`/`fail`; в run 2 и далее негатив — `satisfactorily`,
-  `fail` не ставится. В `goals/<goal>.expect.ts` можешь править только
+  `fail` не ставится. В `.oc3/goals/<goal>.expect.ts` можешь править только
   `title` и механику проверки внутри своего тикета.
 - **Не можешь:** добавлять или удалять `describe`, `crit`, `warn`,
   `it.todo`, менять `budget`, трогать чужие тикеты и файлы программ,
   писать код или документацию.
-- Baseline `.ops/<ticket>/baseline/` не трогаешь: его обновляет только
+- Baseline `.oc3/baseline/<тикет>/` не трогаешь: его обновляет только
   оператор после merge.
 - Memory агента не используется.
 
@@ -75,7 +75,7 @@ Baseline — снимок активного файла цели на старт
 
 ## Вердикт
 
-`.ops/<ticket>/verdicts/<run>.yml`:
+`.oc3/verdicts/<тикет>/<run>.yml`:
 
 ```yaml
 run: 1
@@ -87,7 +87,7 @@ items:
     evidence: <путь:строка или чем проверено>
     reason: <что именно не сходится и что сделать>
 changes:
-  - <что изменено в goals/<goal>.expect.ts, если менял>
+  - <что изменено в .oc3/goals/<goal>.expect.ts, если менял>
 ```
 
 `status`: `pass`, `fail`, `conflict`, `paused`; в run 2 и далее `fail`

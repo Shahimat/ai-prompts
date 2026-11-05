@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "context/.delta/<имя>.yml — дельта проектной документации",
+  "title": ".oc3/.delta/<имя>.yml — дельта проектной документации",
   "type": "object",
   "additionalProperties": false,
   "required": ["summary", "items"],

@@ -2,7 +2,7 @@
 name: cli
 metadata:
   runs: refresh
-description: Как пользоваться CLI ai в проекте — refresh и check, команды, автоматы и свои расширения в .agents/, конфиг context/ai-core.yml. Загружай перед завершением задачи, при правке сгенерированных файлов, при ошибках ai check и при работе со своими командами, скриптами и автоматами.
+description: Как пользоваться CLI ai в проекте — refresh и check, команды, автоматы и свои расширения в .agents/, конфиг .oc3/ai-core.yml. Загружай перед завершением задачи, при правке сгенерированных файлов, при ошибках ai check и при работе со своими командами, скриптами и автоматами.
 ---
 
 # cli
@@ -19,7 +19,7 @@ description: Как пользоваться CLI ai в проекте — refres
 (`file:*.tgz`): с архивами `npm ci` в CI падает, а `outdated` читает
 только `dependencies` и `devDependencies`.
 
-Конфиг команд — `context/ai-core.yml`.
+Конфиг команд — `.oc3/ai-core.yml`.
 
 ## Свои расширения
 
@@ -64,7 +64,7 @@ npx ai <автомат> start | open <id> | …
 
 - `ai refresh` — `context index` и `adapters sync` (если включены в
   `checks`), затем шаги `ai check`.
-- `ai check` — все проверки из `checks` в `context/ai-core.yml`:
+- `ai check` — все проверки из `checks` в `.oc3/ai-core.yml`:
   `changelog lint`, `context check`, `adapters check`, `secrets scan`.
 - `ai secrets scan` — секреты (ключи API, токены, пароли,
   приватные ключи) в отслеживаемых файлах; в `ai check` включена
@@ -73,7 +73,7 @@ npx ai <автомат> start | open <id> | …
   наружу. В выводе — путь, строка и тип, без значения.
 - `ai changelog lint` — формат `CHANGELOG.md`: строка до
   `max_line`, три части через ` · `, тег из списка, дата, порядок.
-- `ai context index` — пересобрать `context/index.yml` из слоёв,
+- `ai memory build` — пересобрать бандлы `.oc3/bundles/` из слоёв,
   включая слои модулей из `provides.index_layers` их manifest'ов; шаг
   `ai refresh`.
 - `ai adapters sync` — пересобрать файлы под инструменты
@@ -107,7 +107,7 @@ npx ai <автомат> start | open <id> | …
 ## Сгенерированное не правится руками
 
 <!-- expect:docs-readonly -->
-`context/index.yml`, `.opencode/agents/*` (метка «generated … do not
+`.oc3/bundles/`, `.opencode/agents/*` (метка «generated … do not
 edit» в файле), `.codex/agents/*`, сгенерированный `.codex/config.toml`
 — производные. Правишь источник,
 затем генерация. Ручную правку копии ловит проверка `adapters`.
@@ -117,7 +117,7 @@ edit» в файле), `.codex/agents/*`, сгенерированный `.codex
 перенести в `AGENTS.md` или `.agents/`, файл удалить.
 <!-- /expect:docs-readonly -->
 
-## `context/ai-core.yml`
+## `.oc3/ai-core.yml`
 
 ```yaml
 adapters: [codex, opencode]
@@ -129,7 +129,7 @@ checks:
   adapters: {}
   secrets:                         # есть всегда; false — выключить
     allow:
-      - path: docs/manuals/aws.md
+      - path: .oc3/doc/manuals/aws.md
         line: 12
         reason: пример ключа из документации AWS
 ```
@@ -142,9 +142,9 @@ checks:
 <!-- expect:skill-runs -->
 - `CHANGELOG.md:12: длина 180 символов > 120` — переписать строку через
   librarian: решение одной фразой, детали — в git log.
-- `docs/entities/x.yml: нет поля summary` — добавить однострочный
+- `.oc3/doc/data/entities/x.yml: нет поля summary` — добавить однострочный
   `summary`, пересобрать индекс.
-- `context/index.yml: устарел` — `ai refresh`.
+- `.oc3/bundles/: устарел` — `ai refresh`.
 - `notes.md:3: секрет: токен GitHub` — значение убрать, вместо него
   указатель на хранилище; секрет уже в истории git — сказать
   пользователю: его нужно отозвать. Ложное срабатывание — исключение в

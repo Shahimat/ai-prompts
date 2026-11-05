@@ -71,7 +71,7 @@ describe('копии источников', () => {
 });
 
 describe('субагенты', () => {
-  crit('субагент librarian не перечисляет skills: привязка — в context/skills.yml', () =>
+  crit('субагент librarian не перечисляет skills: привязка — в .oc3/skills.yml', () =>
     Check.librarianNoSkills(),
   );
   crit(

@@ -18,10 +18,10 @@ export interface Briefing {
   ticket_mode?: string;
 }
 
-const FILE_LABEL = 'context/project.yml';
+const FILE_LABEL = '.oc3/doc/project.yml';
 
 export async function runBriefing(command: string | undefined, args: CommandArgs): Promise<number> {
-  const file = path.join(args.root, 'context', 'project.yml');
+  const file = path.join(args.root, '.oc3', 'doc', 'project.yml');
   if (command === 'set') return briefingSet(file, args.params ?? {});
   return briefingShow(file);
 }

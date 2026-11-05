@@ -72,7 +72,7 @@ function byRole(plan: Record<string, unknown>): void {
 async function project(): Promise<void> {
   await put('README.md', 'hello world\n');
   await put('tasks/t1.md', TASK);
-  await put('context/ops.yml', 'verify:\n  - node -e "process.exit(0)"\n');
+  await put('.oc3/ops.yml', 'verify:\n  - node -e "process.exit(0)"\n');
   for (const r of ['researcher', 'executor', 'judge', 'watch-triage', 'watch-request'])
     await put(`.agents/agents/${r}.md`, roleFile(r));
   git('init', '-q');
@@ -142,7 +142,7 @@ describe('ticket-work: путь задачи', () => {
     expect(await run(['ticket-work', 'start', 'tasks/t1.md'])).toBe(0);
     expect(await stateOf()).toBe('plan-gate');
     const { short, id } = await job();
-    const dir = path.join(root, '.ops', 'jobs', short);
+    const dir = path.join(root, '.oc3', 'jobs', short);
     expect(await read('task.md', dir)).toContain('- README содержит hello world');
     expect((await readdir(path.join(dir, 'runs'))).sort()).toEqual([
       'plan-1.jsonl',
@@ -209,12 +209,12 @@ describe('ticket-work: путь задачи', () => {
     const { short } = await job();
     await main(['ticket-work', 'answer', short, 'добавь тест', '--home', home], NOW);
     expect(await stateOf()).toBe('plan-gate');
-    expect(await read(`.ops/jobs/${short}/plan-remark.md`)).toContain('добавь тест');
+    expect(await read(`.oc3/jobs/${short}/plan-remark.md`)).toContain('добавь тест');
     await main(['ticket-work', 'answer', short, 'да', '--home', home], NOW);
     expect(await stateOf()).toBe('ready');
     await main(['ticket-work', 'answer', short, 'переименуй функцию', '--home', home], NOW);
     expect(await stateOf()).toBe('ready');
-    expect(await read(`.ops/jobs/${short}/feedback-1.md`)).toContain('переименуй функцию');
+    expect(await read(`.oc3/jobs/${short}/feedback-1.md`)).toContain('переименуй функцию');
   });
 
   it('DoD изменился в источнике — вопрос; «нет» — ревью по прежнему DoD', async () => {
@@ -230,7 +230,7 @@ describe('ticket-work: путь задачи', () => {
     expect(await stateOf()).toBe('review');
     await main(['ticket-work', 'answer', short, 'нет', '--home', home], NOW);
     expect(await stateOf()).toBe('ready');
-    expect(await read(`.ops/jobs/${short}/dod-previous.md`)).toContain(
+    expect(await read(`.oc3/jobs/${short}/dod-previous.md`)).toContain(
       'README содержит hello world',
     );
     const judge = (await readFile(path.join(home, 'args.jsonl'), 'utf8'))
@@ -279,7 +279,7 @@ describe('ops: оператор', () => {
     expect(out[0]).toContain('jobs 1 · ждут ответа 1');
     expect(out.length).toBeLessThanOrEqual(20);
     expect(await run(['ops', 'status'])).toBe(0);
-    expect(out.join('\n')).toContain(`.ops/jobs/${short}`);
+    expect(out.join('\n')).toContain(`.oc3/jobs/${short}`);
     out = [];
     expect(await run(['ops', 'wait', '--timeout', '0'])).toBe(0);
     expect(out.join('\n')).toContain('question');
@@ -368,8 +368,8 @@ describe('ops: наблюдатели', () => {
   beforeEach(async () => {
     await put('providers/review/fake.mjs', REVIEW_PROVIDER, home);
     await put('providers/schedule/fake.mjs', SCHEDULE_PROVIDER, home);
-    await put('context/ops.yml', 'providers:\n  review: fake\n  schedule: fake\n');
-    await put('context/autonomy.yml', 'levels:\n  self: [review.approve]\n');
+    await put('.oc3/ops.yml', 'providers:\n  review: fake\n  schedule: fake\n');
+    await put('.oc3/doc/autonomy.yml', 'levels:\n  self: [review.approve]\n');
     vi.stubEnv('FAKE_REVIEW', path.join(home, 'review.json'));
     vi.stubEnv('FAKE_REVIEW_LOG', path.join(home, 'review.log'));
     vi.stubEnv('FAKE_SCHEDULE', path.join(home, 'schedule.log'));
@@ -405,7 +405,7 @@ describe('ops: наблюдатели', () => {
     expect(await readFile(path.join(home, 'review.log'), 'utf8')).toBe('approve 123 lgtm\n');
     const all = await events();
     const suggest = all.find((e) => e.kind === 'suggest')?.text ?? '';
-    expect(suggest).toContain('ai ops act review comment 123 --file .ops/suggest/');
+    expect(suggest).toContain('ai ops act review comment 123 --file .oc3/suggest/');
     expect(all.find((e) => e.kind === 'request')?.text).toContain('Поправить тест');
     const file = /--file (\S+)/.exec(suggest)?.[1] ?? '';
     expect(await run(['ops', 'act', 'review', 'comment', '123', '--file', file])).toBe(0);
@@ -422,8 +422,8 @@ describe('ops: наблюдатели', () => {
     await put('review.json', JSON.stringify({ items: [], done: true }), home);
     await run(['ops', 'tick']);
     expect((await events()).map((e) => e.kind)).toContain('watch-stopped');
-    expect(existsSync(path.join(root, '.ops', 'watches'))).toBe(true);
-    expect((await readdir(path.join(root, '.ops', 'watches'))).length).toBe(0);
+    expect(existsSync(path.join(root, '.oc3', 'watches'))).toBe(true);
+    expect((await readdir(path.join(root, '.oc3', 'watches'))).length).toBe(0);
     await expect(run(['ops', 'watch', 'add', 'tasks', 'q'])).rejects.toThrow(
       'интерфейс review или checks',
     );
@@ -444,8 +444,8 @@ describe('ops: наблюдатели', () => {
     expect(await run(['ops', 'schedule', 'status'])).toBe(0);
     expect(out.join('\n')).toContain('active');
     expect(await run(['ops', 'tick', '--all'])).toBe(0);
-    const watch = (await readdir(path.join(root, '.ops', 'watches')))[0] ?? '';
-    expect(await read(`.ops/watches/${watch}`)).toContain('fingerprint');
+    const watch = (await readdir(path.join(root, '.oc3', 'watches')))[0] ?? '';
+    expect(await read(`.oc3/watches/${watch}`)).toContain('fingerprint');
     expect(await run(['ops', 'schedule', 'off'])).toBe(0);
     expect(await readFile(path.join(home, 'schedule.log'), 'utf8')).toContain(
       'remove dev.shahimat.ai-ops-tick',
@@ -453,7 +453,7 @@ describe('ops: наблюдатели', () => {
   });
 
   it('политика never запрещает действие наружу даже по прямой команде', async () => {
-    await put('context/autonomy.yml', 'levels:\n  never: [schedule.install, review]\n');
+    await put('.oc3/doc/autonomy.yml', 'levels:\n  never: [schedule.install, review]\n');
     await expect(run(['ops', 'schedule', 'on'])).rejects.toThrow('запрещено политикой');
     await put('note.md', 'текст');
     await expect(
@@ -524,7 +524,7 @@ describe('ops: провайдеры и дашборд', () => {
         redirect: 'manual',
       });
       expect(posted.status).toBe(303);
-      expect(await read(`.ops/jobs/${short}/questions.json`)).toContain('ответ из браузера');
+      expect(await read(`.oc3/jobs/${short}/questions.json`)).toContain('ответ из браузера');
       expect((await events()).map((e) => e.kind)).toContain('answered');
     } finally {
       server.close();
@@ -556,7 +556,7 @@ describe('ticket-work: лестница проверок и публикация
     await put('.agents/providers/vcs/pub.mjs', VCS_PROVIDER);
     await put('providers/review/fake.mjs', REVIEW_PROVIDER, home);
     await put(
-      'context/ops.yml',
+      '.oc3/ops.yml',
       [
         'providers:',
         '  vcs: { provider: pub, system: репозиторий кода }',
@@ -573,11 +573,11 @@ describe('ticket-work: лестница проверок и публикация
   });
 
   it('«да» с хвостом принимает план; публикация после зелёного verify; влитие закрывает job', async () => {
-    await put('context/autonomy.yml', 'levels:\n  self: [vcs.publish@target]\n');
+    await put('.oc3/doc/autonomy.yml', 'levels:\n  self: [vcs.publish@target]\n');
     byRole(ROLES);
     await run(['ticket-work', 'start', 'tasks/t1.md']);
     const { short } = await job();
-    const dir = path.join(root, '.ops', 'jobs', short);
+    const dir = path.join(root, '.oc3', 'jobs', short);
     expect(
       await main(['ticket-work', 'answer', short, 'да. только README', '--home', home], NOW),
     ).toBe(0);
@@ -605,7 +605,7 @@ describe('ticket-work: лестница проверок и публикация
     byRole(ROLES);
     await run(['ticket-work', 'start', 'tasks/t1.md']);
     const { short } = await job();
-    const dir = path.join(root, '.ops', 'jobs', short);
+    const dir = path.join(root, '.oc3', 'jobs', short);
     await put('commit.md', 'feat: x\n\nCo-Authored-By: Agent <a@b>\n', dir);
     await main(['ticket-work', 'answer', short, 'да', '--home', home], NOW);
     expect(await read('verify.log', dir)).toContain('атрибуция агента');
@@ -624,7 +624,7 @@ describe('ticket-work: лестница проверок и публикация
 describe('ops: mapping, проверка провайдеров и строка прогонов', () => {
   it('providers check: интерфейс без записи mapping или с ошибкой — код 1; none с why — ok', async () => {
     await put(
-      'context/ops.yml',
+      '.oc3/ops.yml',
       [
         'providers:',
         '  tasks: { provider: local, system: файлы задач }',
@@ -642,8 +642,8 @@ describe('ops: mapping, проверка провайдеров и строка 
     expect(text).toContain('карточка «Добавить приветствие», DoD 1');
     expect(text).toMatch(/notify\t.*unmapped/);
     await put(
-      'context/ops.yml',
-      `${await read('context/ops.yml')}`.replace(
+      '.oc3/ops.yml',
+      `${await read('.oc3/ops.yml')}`.replace(
         'probe:',
         '  notify: { provider: none, why: нет }\nprobe:',
       ),
@@ -653,7 +653,7 @@ describe('ops: mapping, проверка провайдеров и строка 
 
   it('providers check на платформе без планировщика: schedule none — платформенный факт, код 0', async () => {
     await put(
-      'context/ops.yml',
+      '.oc3/ops.yml',
       [
         'providers:',
         '  tasks: { provider: local, system: файлы задач }',

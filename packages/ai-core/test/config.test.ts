@@ -100,10 +100,10 @@ describe('loadConfig', () => {
     expect(await loadConfig(root)).toBeNull();
   });
 
-  it('читает context/ai-core.yml', async () => {
+  it('читает .oc3/ai-core.yml', async () => {
     root = await mkdtemp(path.join(tmpdir(), 'harness-config-'));
-    await mkdir(path.join(root, 'context'));
-    await writeFile(path.join(root, 'context/ai-core.yml'), 'checks:\n  changelog: {}\n');
+    await mkdir(path.join(root, '.oc3'));
+    await writeFile(path.join(root, '.oc3/ai-core.yml'), 'checks:\n  changelog: {}\n');
     expect((await loadConfig(root))?.checks.changelog).toEqual(DEFAULT_CHANGELOG);
   });
 });

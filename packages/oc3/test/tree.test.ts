@@ -9,7 +9,7 @@ describe('oc3 tree', () => {
       OC3_TREE.findCommand(['models', 'set', 'judge', 'zai-coding-plan/glm-5.3#max']),
     ).toBeDefined();
     expect(OC3_TREE.findCommand(['models', 'apply'])).toBeDefined();
-    expect(OC3_TREE.findCommand(['goals', 'check', 'goals/a.expect.ts'])).toBeDefined();
+    expect(OC3_TREE.findCommand(['goals', 'check', '.oc3/goals/a.expect.ts'])).toBeDefined();
     expect(OC3_TREE.findCommand(['goals', 'status'])).toBeDefined();
     expect(OC3_TREE.findCommand(['operator', 'state', 'check'])).toBeDefined();
     expect(OC3_TREE.findCommand(['adapters', 'sync'])).toBeDefined();

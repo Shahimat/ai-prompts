@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs';
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -53,7 +53,7 @@ describe('ai changelog lint', () => {
 
   it('берёт параметры из ai-core.yml', async () => {
     await put('CHANGELOG.md', '- 2026-10-13 · [infra] a · b\n');
-    await put('context/ai-core.yml', 'checks:\n  changelog:\n    tags: [infra]\n');
+    await put('.oc3/ai-core.yml', 'checks:\n  changelog:\n    tags: [infra]\n');
     expect(await main(['changelog', 'lint', '--root', root], NOW)).toBe(0);
   });
 });
@@ -65,19 +65,19 @@ describe('ai check', () => {
   });
 
   it('0 — ни одной проверки не включено', async () => {
-    await put('context/ai-core.yml', 'checks:\n  secrets: false\n');
+    await put('.oc3/ai-core.yml', 'checks:\n  secrets: false\n');
     expect(await main(['check', '--root', root], NOW)).toBe(0);
   });
 
   it('1 — включённая проверка нашла нарушения', async () => {
-    await put('context/ai-core.yml', 'checks:\n  changelog: {}\n');
+    await put('.oc3/ai-core.yml', 'checks:\n  changelog: {}\n');
     await put('CHANGELOG.md', BAD);
     expect(await main(['check', '--root', root], NOW)).toBe(1);
     expect(stderr.at(-1)).toBe('check (changelog lint, secrets scan): есть нарушения');
   });
 
   it('2 — ошибка в ai-core.yml', async () => {
-    await put('context/ai-core.yml', 'checks:\n  nope: {}\n');
+    await put('.oc3/ai-core.yml', 'checks:\n  nope: {}\n');
     expect(await run(['check', '--root', root])).toBe(2);
   });
 });
@@ -106,15 +106,15 @@ describe('справка', () => {
 
 describe('ai context index', () => {
   it('пишет индекс; check с context-index проходит', async () => {
-    await put('context/project.yml', 'namespaces:\n  vpn: доступ\n');
-    await put('docs/entities/srv.yml', 'id: srv\nnamespace: vpn\nsummary: сервер\n');
-    await put('context/ai-core.yml', 'checks:\n  context-index: {}\n');
+    await put('.oc3/doc/project.yml', 'namespaces:\n  vpn: доступ\n');
+    await put('.oc3/doc/data/entities/srv.yml', 'id: srv\nnamespace: vpn\nsummary: сервер\n');
+    await put('.oc3/ai-core.yml', 'checks:\n  context-index: {}\n');
     expect(await main(['context', 'index', '--root', root], NOW)).toBe(0);
     expect(await main(['check', '--root', root], NOW)).toBe(0);
   });
 
   it('1 — при нарушениях, но индекс записан', async () => {
-    await put('docs/entities/srv.yml', 'id: srv\nnamespace: vpn\n');
+    await put('.oc3/doc/data/entities/srv.yml', 'id: srv\nnamespace: vpn\n');
     expect(await main(['context', 'index', '--root', root], NOW)).toBe(1);
     expect(stderr.join('\n')).toMatch(/нет поля summary/);
   });
@@ -122,12 +122,93 @@ describe('ai context index', () => {
 
 describe('ai context check', () => {
   it('сверяет индекс без записи: нет индекса — 1, после context index — 0', async () => {
-    await put('context/project.yml', 'namespaces:\n  vpn: доступ\n');
-    await put('docs/entities/srv.yml', 'id: srv\nnamespace: vpn\nsummary: сервер\n');
+    await put('.oc3/doc/project.yml', 'namespaces:\n  vpn: доступ\n');
+    await put('.oc3/doc/data/entities/srv.yml', 'id: srv\nnamespace: vpn\nsummary: сервер\n');
     expect(await main(['context', 'check', '--root', root], NOW)).toBe(1);
-    expect(existsSync(path.join(root, 'context/index.yml'))).toBe(false);
+    expect(existsSync(path.join(root, '.oc3/doc/index.yml'))).toBe(false);
     expect(await main(['context', 'index', '--root', root], NOW)).toBe(0);
     expect(await main(['context', 'check', '--root', root], NOW)).toBe(0);
+  });
+});
+
+const MANIFEST_SCHEMA = JSON.stringify({
+  $schema: 'https://json-schema.org/draft/2020-12/schema',
+  type: 'object',
+  additionalProperties: false,
+  required: ['namespace', 'data'],
+  properties: {
+    namespace: { type: 'array', items: { type: 'string' } },
+    data: { type: 'array', items: { type: 'string' } },
+    budgets: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        notes: { type: 'integer', minimum: 1 },
+        start: { type: 'integer', minimum: 1 },
+        node: { type: 'integer', minimum: 1 },
+        optional_field: { type: 'integer', minimum: 1 },
+      },
+    },
+    files: {
+      type: 'object',
+      additionalProperties: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          namespace: { type: 'array', items: { type: 'string' } },
+          weight: { type: 'integer', minimum: 0 },
+        },
+      },
+    },
+  },
+});
+
+const ARRAY_SCHEMA = (title: string): string =>
+  JSON.stringify({
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    title,
+    type: 'array',
+  });
+
+describe('ai memory check', () => {
+  it('0 без бандлов при валидном манифесте; 1 при переполнении старта', async () => {
+    await put('.oc3/doc/data/__schemas/manifest.schema.json', MANIFEST_SCHEMA);
+    await put('.oc3/doc/data/__schemas/conventions.schema.json', ARRAY_SCHEMA('конвенции'));
+    await put('.oc3/doc/data/__schemas/glossary.schema.json', ARRAY_SCHEMA('глоссарий'));
+    await put('.oc3/manifest.json', JSON.stringify({ namespace: [], data: [] }));
+    expect(await main(['memory', 'check', '--root', root], NOW)).toBe(0);
+    await put(
+      '.oc3/manifest.json',
+      JSON.stringify({ namespace: [], data: [], budgets: { start: 5 } }),
+    );
+    await put('.oc3/doc/project.yml', 'name: demo\nsummary: текст про запас\n');
+    expect(await main(['memory', 'check', '--root', root], NOW)).toBe(1);
+    expect(stderr.join('\n')).toMatch(/cap 5/);
+  });
+});
+
+describe('ai memory build', () => {
+  it('пишет стартовый index и узел; повторный build идемпотентен', async () => {
+    await put('.oc3/doc/data/__schemas/manifest.schema.json', MANIFEST_SCHEMA);
+    await put('.oc3/doc/data/__schemas/conventions.schema.json', ARRAY_SCHEMA('конвенции'));
+    await put('.oc3/doc/data/__schemas/glossary.schema.json', ARRAY_SCHEMA('глоссарий'));
+    await put('.oc3/manifest.json', JSON.stringify({ namespace: ['docs'], data: [] }));
+    await put('.oc3/doc/manuals/how.md', '# Как собрать\n\nnpm run build.\n');
+    await put(
+      '.oc3/manifest.json',
+      JSON.stringify({
+        namespace: ['docs'],
+        data: [],
+        files: { 'manuals/how.md': { namespace: ['docs'], weight: 1 } },
+      }),
+    );
+    expect(await main(['memory', 'build', '--root', root], NOW)).toBe(0);
+    expect(existsSync(path.join(root, '.oc3/bundles/index.md'))).toBe(true);
+    expect(stderr.join('\n')).toMatch(/wrote 2 бандлов/);
+    const before = await readdir(path.join(root, '.oc3', 'bundles'));
+    expect(await main(['memory', 'build', '--root', root], NOW)).toBe(0);
+    expect(await readdir(path.join(root, '.oc3', 'bundles'))).toEqual(before);
+    expect(await main(['memory', 'check', '--root', root], NOW)).toBe(0);
   });
 });
 
@@ -138,7 +219,7 @@ describe('ai adapters sync', () => {
 
   it('генерирует, check с adapters проходит; ручной config.toml — 1', async () => {
     await put('AGENTS.md', '# x\n');
-    await put('context/ai-core.yml', 'adapters: [codex]\nchecks:\n  adapters: {}\n');
+    await put('.oc3/ai-core.yml', 'adapters: [codex]\nchecks:\n  adapters: {}\n');
     expect(await main(['adapters', 'sync', '--root', root], NOW)).toBe(0);
     expect(await main(['check', '--root', root], NOW)).toBe(0);
 
@@ -155,7 +236,7 @@ describe('ai adapters check', () => {
 
   it('сверяет адаптеры без записи: до sync — 1, после — 0', async () => {
     await put('AGENTS.md', '# x\n');
-    await put('context/ai-core.yml', 'adapters: [codex]\n');
+    await put('.oc3/ai-core.yml', 'adapters: [codex]\n');
     expect(await main(['adapters', 'check', '--root', root], NOW)).toBe(1);
     expect(existsSync(path.join(root, '.codex/config.toml'))).toBe(false);
     expect(await main(['adapters', 'sync', '--root', root], NOW)).toBe(0);

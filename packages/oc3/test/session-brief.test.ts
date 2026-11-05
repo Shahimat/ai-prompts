@@ -1,8 +1,8 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { appendBriefing, briefingLine, type BriefingSystem } from '#session-brief';
+import { appendBriefing, briefingLine, memoryStart, type BriefingSystem } from '#session-brief';
 
 let root: string;
 
@@ -14,9 +14,54 @@ afterEach(async () => {
   await rm(root, { recursive: true, force: true });
 });
 
+const MANIFEST_SCHEMA = JSON.stringify({
+  $schema: 'https://json-schema.org/draft/2020-12/schema',
+  type: 'object',
+  additionalProperties: false,
+  required: ['namespace', 'data'],
+  properties: {
+    namespace: { type: 'array', items: { type: 'string' } },
+    data: { type: 'array', items: { type: 'string' } },
+    budgets: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        notes: { type: 'integer', minimum: 1 },
+        start: { type: 'integer', minimum: 1 },
+        node: { type: 'integer', minimum: 1 },
+        optional_field: { type: 'integer', minimum: 1 },
+      },
+    },
+    files: {
+      type: 'object',
+      additionalProperties: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          namespace: { type: 'array', items: { type: 'string' } },
+          weight: { type: 'integer', minimum: 0 },
+        },
+      },
+    },
+  },
+});
+
+const put = async (rel: string, content: string): Promise<void> => {
+  await mkdir(path.dirname(path.join(root, rel)), { recursive: true });
+  await writeFile(path.join(root, rel), content, 'utf8');
+};
+
+const memoryFixture = async (manifest: Record<string, unknown>): Promise<void> => {
+  await put('.oc3/doc/data/__schemas/manifest.schema.json', MANIFEST_SCHEMA);
+  await put('.oc3/doc/data/__schemas/conventions.schema.json', JSON.stringify({ type: 'array' }));
+  await put('.oc3/doc/data/__schemas/glossary.schema.json', JSON.stringify({ type: 'array' }));
+  await put('.oc3/manifest.json', JSON.stringify(manifest));
+  await put('.oc3/doc/project.yml', 'name: demo\nsummary: Демо-проект памяти\n');
+};
+
 async function putProject(text: string): Promise<void> {
-  await mkdir(path.join(root, 'context'), { recursive: true });
-  await writeFile(path.join(root, 'context', 'project.yml'), text, 'utf8');
+  await mkdir(path.join(root, '.oc3', 'doc'), { recursive: true });
+  await writeFile(path.join(root, '.oc3', 'doc', 'project.yml'), text, 'utf8');
 }
 
 describe('briefingLine', () => {
@@ -93,5 +138,60 @@ describe('appendBriefing', () => {
     expect(input.system.length).toBe(1);
     expect(input.system.at(0)?.text).toContain('дефолт cheap');
     expect(seen.has('s1')).toBe(true);
+  });
+});
+
+describe('memoryStart — вшивание стартового графа', () => {
+  it('свежие бандлы: стартовый index попадает в системный промпт один раз на сессию', async () => {
+    await memoryFixture({ namespace: [], data: [] });
+    const first = await memoryStart(root);
+    expect(first.diagnostics).toEqual([]);
+    expect(first.text).toContain('# Память проекта');
+    expect(first.text).toContain('Демо-проект памяти');
+    const seen = new Set<string>();
+    const input: BriefingSystem = { system: [] };
+    await appendBriefing(input, root, seen, 's1');
+    expect(input.system.some((p) => p.text.includes('# Память проекта'))).toBe(true);
+    const second: BriefingSystem = { system: [] };
+    await appendBriefing(second, root, seen, 's1');
+    expect(second.system.some((p) => p.text.includes('# Память проекта'))).toBe(false);
+  });
+
+  it('холодный старт и стухшие бандлы: build выполняется на месте, стухий каталог удаляется', async () => {
+    await memoryFixture({
+      namespace: ['docs'],
+      data: [],
+      files: { 'manuals/how.md': { namespace: ['docs'], weight: 1 } },
+    });
+    await put('.oc3/doc/manuals/how.md', '# Как собрать\n\nnpm run build.\n');
+    await put('.oc3/doc/data/__schemas/glossary.schema.json', JSON.stringify({ type: 'array' }));
+    const cold = await memoryStart(root);
+    expect(cold.diagnostics).toEqual([]);
+    expect(cold.text).toContain('# Память проекта');
+    const dirs = await readdir(path.join(root, '.oc3', 'bundles'));
+    expect(dirs).toHaveLength(2);
+    const dirsNoIndex = dirs.filter((d) => d !== 'index.md');
+    expect(dirsNoIndex).toHaveLength(1);
+    const nodeDir = path.join(root, '.oc3', 'bundles', dirsNoIndex[0] ?? '');
+    expect(await readFile(path.join(nodeDir, 'index.md'), 'utf8')).toContain('manuals/how.md');
+    await mkdir(path.join(root, '.oc3', 'bundles', 'deadbeefdead'), { recursive: true });
+    const stale = await memoryStart(root);
+    expect(stale.diagnostics).toEqual([]);
+    expect(stale.text).toContain('# Память проекта');
+    expect(await readdir(path.join(root, '.oc3', 'bundles'))).toEqual(dirs);
+  });
+
+  it('крит после сборки (переполнение старта) — без вшивания, с диагностиками', async () => {
+    await memoryFixture({ namespace: [], data: [], budgets: { start: 5 } });
+    const report = await memoryStart(root);
+    expect(report.text).toBe('');
+    expect(report.diagnostics.length).toBeGreaterThan(0);
+    expect(report.diagnostics.some((d) => d.message.includes('cap 5'))).toBe(true);
+  });
+
+  it('нет манифеста — без памяти и без аварий', async () => {
+    const report = await memoryStart(root);
+    expect(report.text).toBe('');
+    expect(report.diagnostics.some((d) => d.message.includes('нет манифеста'))).toBe(true);
   });
 });

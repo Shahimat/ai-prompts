@@ -5,12 +5,12 @@ import path from 'node:path';
 import { parse } from 'yaml';
 import { UsageError, type Diagnostic } from '#shared/diagnostics';
 import { errorCode, errorMessage, isOneOf, isRecord } from '#shared/guards';
-import { CONTEXT_INDEX_PATH, DELTA_DIR } from '#shared/layout';
+import { AI_CORE_PATH, CONTEXT_INDEX_PATH, DELTA_DIR, MODULES_DIR } from '#shared/layout';
 import { compileSchema } from '#shared/schema';
 
 export const DELTA_SCHEMA = {
   $schema: 'https://json-schema.org/draft/2020-12/schema',
-  title: 'context/.delta/<имя>.yml — дельта проектной документации',
+  title: '.oc3/.delta/<имя>.yml — дельта проектной документации',
   type: 'object',
   additionalProperties: false,
   required: ['summary', 'items'],
@@ -77,7 +77,7 @@ interface Broken {
   targets: string[];
 }
 
-const NOT_DOCS = [CONTEXT_INDEX_PATH, 'context/ai-core.yml', 'context/modules/', `${DELTA_DIR}/`];
+const NOT_DOCS = [CONTEXT_INDEX_PATH, AI_CORE_PATH, `${MODULES_DIR}/`, `${DELTA_DIR}/`];
 
 function git(root: string, args: string[]): { ok: boolean; out: string } {
   const r = spawnSync('git', args, { cwd: root, encoding: 'utf8' });
@@ -85,19 +85,17 @@ function git(root: string, args: string[]): { ok: boolean; out: string } {
 }
 
 async function docRoots(root: string): Promise<string[]> {
-  const roots = new Set(['context', 'docs', 'CHANGELOG.md']);
+  const roots = new Set(['.oc3/doc', '.oc3/modules', 'CHANGELOG.md']);
   let manifests: string[] = [];
   try {
-    manifests = (await readdir(path.join(root, 'context/modules'))).filter((f) =>
-      f.endsWith('.yml'),
-    );
+    manifests = (await readdir(path.join(root, '.oc3/modules'))).filter((f) => f.endsWith('.yml'));
   } catch (error) {
     if (errorCode(error) !== 'ENOENT') throw error;
   }
   for (const m of manifests) {
     let data: unknown;
     try {
-      data = parse(await readFile(path.join(root, 'context/modules', m), 'utf8'));
+      data = parse(await readFile(path.join(root, '.oc3/modules', m), 'utf8'));
     } catch {
       continue;
     }

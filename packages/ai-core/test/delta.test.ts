@@ -48,13 +48,13 @@ beforeEach(async () => {
   git('init', '-q');
   git('config', 'user.email', 't@t');
   git('config', 'user.name', 't');
-  await put('context/project.yml', 'name: demo\nnamespaces:\n  core: ядро\n');
+  await put('.oc3/doc/project.yml', 'name: demo\nnamespaces:\n  core: ядро\n');
   await put(
-    'context/conventions/naming.yml',
+    '.oc3/doc/conventions/naming.yml',
     'key: naming\nsummary: kebab-case\nrule: имена в kebab-case\n',
   );
   await put('CHANGELOG.md', '- 2026-10-01 · [arch] монолит · проще\n');
-  await put('context/modules/analysis.yml', 'provides:\n  layers: [analysis/claims/]\n');
+  await put('.oc3/modules/analysis.yml', 'provides:\n  layers: [analysis/claims/]\n');
   await put('analysis/claims/a.yml', 'id: a\nsummary: тезис\n');
   git('add', '.');
   git('commit', '-qm', 'init');
@@ -67,9 +67,9 @@ afterEach(async () => {
 
 describe('ai delta check', () => {
   it('0 — только добавления, без дельты', async () => {
-    await put('context/conventions/new.yml', 'key: new\nsummary: новое\nrule: x\n');
+    await put('.oc3/doc/conventions/new.yml', 'key: new\nsummary: новое\nrule: x\n');
     await put(
-      'context/conventions/naming.yml',
+      '.oc3/doc/conventions/naming.yml',
       'key: naming\nsummary: kebab-case\nrule: имена в kebab-case\nreason: читаемость\n',
     );
     expect(await main(['delta', 'check', '--root', root], NOW)).toBe(0);
@@ -77,12 +77,12 @@ describe('ai delta check', () => {
 
   it('1 — изменённое значение без revise', async () => {
     await put(
-      'context/conventions/naming.yml',
+      '.oc3/doc/conventions/naming.yml',
       'key: naming\nsummary: snake_case\nrule: имена в snake_case\n',
     );
     expect(await main(['delta', 'check', '--root', root], NOW)).toBe(1);
     expect(stderr[0]).toMatch(
-      /^context\/conventions\/naming\.yml: изменено существующее знание без пункта revise в дельте: summary; rule/,
+      /^\.oc3\/doc\/conventions\/naming\.yml: изменено существующее знание без пункта revise в дельте: summary; rule/,
     );
   });
 
@@ -98,10 +98,10 @@ describe('ai delta check', () => {
 
   it('0 — изменение покрыто revise по id; строка пересмотра в выводе', async () => {
     await put(
-      'context/conventions/naming.yml',
+      '.oc3/doc/conventions/naming.yml',
       'key: naming\nsummary: snake_case\nrule: имена в snake_case\n',
     );
-    await put('context/.delta/naming.yml', REVISE);
+    await put('.oc3/.delta/naming.yml', REVISE);
     expect(await main(['delta', 'check', '--root', root], NOW)).toBe(0);
     expect(stdout[0]).toBe(
       'revise naming: было «имена в kebab-case» → имена в snake_case; почему: совместимость с внешним API',
@@ -110,19 +110,19 @@ describe('ai delta check', () => {
 
   it('1 — revise без was и why не проходит схему, путь до поля в сообщении', async () => {
     await put(
-      'context/.delta/bad.yml',
+      '.oc3/.delta/bad.yml',
       'summary: s\nitems:\n  - op: revise\n    kind: rule\n    target: naming\n    summary: s\n    evidence: e\n',
     );
     expect(await main(['delta', 'check', '--root', root], NOW)).toBe(1);
     expect(
       stderr.some((l) =>
-        l.startsWith("context/.delta/bad.yml: /items/0 must have required property 'was'"),
+        l.startsWith(".oc3/.delta/bad.yml: /items/0 must have required property 'was'"),
       ),
     ).toBe(true);
   });
 
   it('конфиг harness, manifest модулей и index.yml — не документация', async () => {
-    await put('context/modules/analysis.yml', 'provides:\n  layers: []\n');
+    await put('.oc3/modules/analysis.yml', 'provides:\n  layers: []\n');
     const { revisions } = await checkDelta(root);
     expect(revisions).toEqual([]);
   });
@@ -135,35 +135,32 @@ describe('ai delta check', () => {
 
 describe('ai delta close', () => {
   it('1 — пункт не выполнен: дельта остаётся', async () => {
-    await put('context/.delta/naming.yml', REVISE);
+    await put('.oc3/.delta/naming.yml', REVISE);
     expect(await main(['delta', 'close', '--root', root], NOW)).toBe(1);
-    expect(stderr[0]).toBe('context/.delta/naming.yml: пункт 1 (revise naming) не выполнен');
-    expect(existsSync(path.join(root, 'context/.delta/naming.yml'))).toBe(true);
+    expect(stderr[0]).toBe('.oc3/.delta/naming.yml: пункт 1 (revise naming) не выполнен');
+    expect(existsSync(path.join(root, '.oc3/.delta/naming.yml'))).toBe(true);
   });
 
   it('0 — приёмка пройдена: дельта удалена, пересмотры в выводе', async () => {
     await put(
-      'context/conventions/naming.yml',
+      '.oc3/doc/conventions/naming.yml',
       'key: naming\nsummary: snake_case\nrule: имена в snake_case\n',
     );
-    await put('context/.delta/naming.yml', REVISE);
+    await put('.oc3/.delta/naming.yml', REVISE);
     expect(await main(['delta', 'close', '--root', root], NOW)).toBe(0);
-    expect(existsSync(path.join(root, 'context/.delta/naming.yml'))).toBe(false);
+    expect(existsSync(path.join(root, '.oc3/.delta/naming.yml'))).toBe(false);
     expect(revisionLines((await checkDelta(root)).deltas)).toEqual([]);
     expect(stdout[0]).toMatch(/^revise naming: /);
   });
 });
 
 describe('context index и .delta', () => {
-  it('файлы context/.delta/ не попадают в индекс', async () => {
+  it('файлы .oc3/.delta/ не попадают в индекс', async () => {
     await put(
-      'context/modules/analysis.yml',
-      'provides:\n  index_layers:\n    - { section: drafts, dir: context, format: yml }\n',
+      '.oc3/modules/analysis.yml',
+      'provides:\n  index_layers:\n    - { section: drafts, dir: .oc3/doc, format: yml }\n',
     );
-    await put(
-      'context/.delta/naming.yml',
-      'id: leak\nnamespace: core\nsummary: не должно попасть\n',
-    );
+    await put('.oc3/.delta/naming.yml', 'id: leak\nnamespace: core\nsummary: не должно попасть\n');
     const { text } = await buildContextIndex(root);
     expect(text).not.toContain('leak');
   });
@@ -176,41 +173,41 @@ describe('delta: предложения из проектов', () => {
     main(['delta', 'close', '--root', root, ...(name === undefined ? [] : ['--name', name])], NOW);
 
   it('revise с якорем target#поле засчитывается по файлу', async () => {
-    await put('context/.delta/naming.yml', REVISE.replace('target: naming', 'target: naming#rule'));
-    await put('context/conventions/naming.yml', 'key: naming\nsummary: snake_case\nrule: x\n');
+    await put('.oc3/.delta/naming.yml', REVISE.replace('target: naming', 'target: naming#rule'));
+    await put('.oc3/doc/conventions/naming.yml', 'key: naming\nsummary: snake_case\nrule: x\n');
     expect(await close('naming')).toBe(0);
     expect(matchesTarget('AGENTS.md#skills', 'AGENTS.md')).toBe(true);
   });
 
   it('close --name закрывает только свою дельту: чужая невыполненная не мешает', async () => {
-    await put('context/.delta/mine.yml', ADD_RULE('context/conventions/mine.yml'));
-    await put('context/.delta/other.yml', ADD_RULE('context/conventions/other.yml'));
-    await put('context/conventions/mine.yml', 'key: mine\nsummary: s\nrule: r\n');
+    await put('.oc3/.delta/mine.yml', ADD_RULE('.oc3/doc/conventions/mine.yml'));
+    await put('.oc3/.delta/other.yml', ADD_RULE('.oc3/doc/conventions/other.yml'));
+    await put('.oc3/doc/conventions/mine.yml', 'key: mine\nsummary: s\nrule: r\n');
     expect(await close('mine')).toBe(0);
-    expect(existsSync(path.join(root, 'context/.delta/mine.yml'))).toBe(false);
-    expect(existsSync(path.join(root, 'context/.delta/other.yml'))).toBe(true);
+    expect(existsSync(path.join(root, '.oc3/.delta/mine.yml'))).toBe(false);
+    expect(existsSync(path.join(root, '.oc3/.delta/other.yml'))).toBe(true);
     expect(await close('nope')).toBe(1);
   });
 
   it('принятый revise помнится до коммита: следующая сессия не падает «знание без revise»', async () => {
-    await put('context/.delta/naming.yml', REVISE);
-    await put('context/conventions/naming.yml', 'key: naming\nsummary: snake_case\nrule: x\n');
+    await put('.oc3/.delta/naming.yml', REVISE);
+    await put('.oc3/doc/conventions/naming.yml', 'key: naming\nsummary: snake_case\nrule: x\n');
     expect(await close('naming')).toBe(0);
     expect(existsSync(path.join(root, ACCEPTED_FILE))).toBe(true);
-    await put('context/.delta/next.yml', ADD_RULE('context/conventions/next.yml'));
-    await put('context/conventions/next.yml', 'key: next\nsummary: s\nrule: r\n');
+    await put('.oc3/.delta/next.yml', ADD_RULE('.oc3/doc/conventions/next.yml'));
+    await put('.oc3/doc/conventions/next.yml', 'key: next\nsummary: s\nrule: r\n');
     expect((await checkDelta(root)).diagnostics).toEqual([]);
     expect(await close('next')).toBe(0);
     git('add', '.');
     git('commit', '-qm', 'принято');
-    await put('context/.delta/last.yml', ADD_RULE('context/conventions/last.yml'));
-    await put('context/conventions/last.yml', 'key: last\nsummary: s\nrule: r\n');
+    await put('.oc3/.delta/last.yml', ADD_RULE('.oc3/doc/conventions/last.yml'));
+    await put('.oc3/doc/conventions/last.yml', 'key: last\nsummary: s\nrule: r\n');
     expect(await close('last')).toBe(0);
     expect(existsSync(path.join(root, ACCEPTED_FILE))).toBe(false);
   });
 
-  it('пункт о файле внутри context/.delta считается выполненным', async () => {
-    await put('context/.delta/fix.yml', ADD_RULE('context/.delta/other.yml'));
+  it('пункт о файле внутри .oc3/.delta считается выполненным', async () => {
+    await put('.oc3/.delta/fix.yml', ADD_RULE('.oc3/.delta/other.yml'));
     expect(await close('fix')).toBe(0);
   });
 });
@@ -225,71 +222,73 @@ describe('delta: дельты прошлых сессий и закоммиче�
   const naming = 'key: naming\nsummary: snake_case\nrule: имена в snake_case\n';
 
   it('дельта, попавшая в коммит вместе с правкой, закрывается: пункт засчитан по коммиту', async () => {
-    await put('context/.delta/naming.yml', REVISE);
-    await put('context/conventions/naming.yml', naming);
+    await put('.oc3/.delta/naming.yml', REVISE);
+    await put('.oc3/doc/conventions/naming.yml', naming);
     git('add', '.');
     git('commit', '-qm', 'сбой сессии');
     expect(await main(['delta', 'check', '--root', root], NOW)).toBe(0);
     expect(stderr[0]).toMatch(
-      /^предупреждение: context\/\.delta\/naming\.yml: дельта попала в коммит — закрой её: ai delta close --name naming/,
+      /^предупреждение: \.oc3\/\.delta\/naming\.yml: дельта попала в коммит — закрой её: ai delta close --name naming/,
     );
     expect(await main(['delta', 'close', '--root', root, '--name', 'naming'], NOW)).toBe(0);
-    expect(existsSync(path.join(root, 'context/.delta/naming.yml'))).toBe(false);
+    expect(existsSync(path.join(root, '.oc3/.delta/naming.yml'))).toBe(false);
   });
 
   it('закоммиченная дельта без правки цели не закрывается', async () => {
-    await put('context/.delta/naming.yml', REVISE);
+    await put('.oc3/.delta/naming.yml', REVISE);
     git('add', '.');
     git('commit', '-qm', 'только дельта');
     expect(await main(['delta', 'close', '--root', root, '--name', 'naming'], NOW)).toBe(1);
-    expect(stderr).toContain('context/.delta/naming.yml: пункт 1 (revise naming) не выполнен');
+    expect(stderr).toContain('.oc3/.delta/naming.yml: пункт 1 (revise naming) не выполнен');
   });
 
   it('check и close --name: нарушения чужой дельты — предупреждение, сессию не валят', async () => {
-    await put('context/.delta/old.yml', 'summary: [сломано\n');
-    await put('context/.delta/mine.yml', ADD('context/conventions/mine.yml'));
-    await put('context/conventions/mine.yml', 'key: mine\nsummary: s\nrule: r\n');
+    await put('.oc3/.delta/old.yml', 'summary: [сломано\n');
+    await put('.oc3/.delta/mine.yml', ADD('.oc3/doc/conventions/mine.yml'));
+    await put('.oc3/doc/conventions/mine.yml', 'key: mine\nsummary: s\nrule: r\n');
     expect(await main(['delta', 'check', '--root', root], NOW)).toBe(1);
     stderr = [];
     expect(await main(['delta', 'check', '--root', root, '--name', 'mine'], NOW)).toBe(0);
-    expect(stderr[0]).toMatch(/^предупреждение: context\/\.delta\/old\.yml: невалидный YAML/);
+    expect(stderr[0]).toMatch(/^предупреждение: \.oc3\/\.delta\/old\.yml: невалидный YAML/);
     expect(stderr[1]).toMatch(/^дельты прошлых сессий с нарушениями \(1\)/);
     expect(await main(['delta', 'close', '--root', root, '--name', 'mine'], NOW)).toBe(0);
-    expect(existsSync(path.join(root, 'context/.delta/old.yml'))).toBe(true);
+    expect(existsSync(path.join(root, '.oc3/.delta/old.yml'))).toBe(true);
   });
 
   it('check --name: «без revise» вне целей своей дельты — предупреждение, по своим целям — нарушение', async () => {
-    await put('context/.delta/mine.yml', ADD('context/conventions/mine.yml'));
-    await put('context/conventions/mine.yml', 'key: mine\nsummary: s\nrule: r\n');
-    await put('context/conventions/naming.yml', naming);
+    await put('.oc3/.delta/mine.yml', ADD('.oc3/doc/conventions/mine.yml'));
+    await put('.oc3/doc/conventions/mine.yml', 'key: mine\nsummary: s\nrule: r\n');
+    await put('.oc3/doc/conventions/naming.yml', naming);
     expect(await main(['delta', 'check', '--root', root], NOW)).toBe(1);
     stderr = [];
     expect(await main(['delta', 'check', '--root', root, '--name', 'mine'], NOW)).toBe(0);
     expect(stderr[0]).toMatch(
-      /^предупреждение: context\/conventions\/naming\.yml: изменено существующее знание без пункта revise/,
+      /^предупреждение: \.oc3\/doc\/conventions\/naming\.yml: изменено существующее знание без пункта revise/,
     );
     expect(stderr[1]).toMatch(/^изменения вне целей дельты mine без пункта revise \(1\)/);
-    await put('context/.delta/mine.yml', ADD('naming'));
+    await put('.oc3/.delta/mine.yml', ADD('naming'));
     stderr = [];
     expect(await main(['delta', 'check', '--root', root, '--name', 'mine'], NOW)).toBe(1);
-    expect(stderr[0]).toMatch(/^context\/conventions\/naming\.yml: изменено существующее знание/);
+    expect(stderr[0]).toMatch(
+      /^\.oc3\/doc\/conventions\/naming\.yml: изменено существующее знание/,
+    );
   });
 
   it('своя дельта не прошла схему: close --name сообщает ошибку схемы, а не «дельты нет»', async () => {
-    await put('context/.delta/naming.yml', LONG);
+    await put('.oc3/.delta/naming.yml', LONG);
     expect(await main(['delta', 'close', '--root', root, '--name', 'naming'], NOW)).toBe(1);
     expect(stderr[0]).toBe(
-      'context/.delta/naming.yml: /summary must NOT have more than 200 characters',
+      '.oc3/.delta/naming.yml: /summary must NOT have more than 200 characters',
     );
   });
 
   it('дельта не прошла схему: первой — ошибка схемы, производные «без revise» свёрнуты', async () => {
-    await put('context/.delta/naming.yml', LONG);
-    await put('context/conventions/naming.yml', naming);
+    await put('.oc3/.delta/naming.yml', LONG);
+    await put('.oc3/doc/conventions/naming.yml', naming);
     expect(await main(['delta', 'check', '--root', root], NOW)).toBe(1);
     expect(stderr).toEqual([
-      'context/.delta/naming.yml: /summary must NOT have more than 200 characters',
-      'context/.delta/naming.yml: дельта не прошла схему — нарушения «без revise» по её целям (1) скрыты как следствие; исправь схему',
+      '.oc3/.delta/naming.yml: /summary must NOT have more than 200 characters',
+      '.oc3/.delta/naming.yml: дельта не прошла схему — нарушения «без revise» по её целям (1) скрыты как следствие; исправь схему',
       'delta check: нарушений 2',
     ]);
   });

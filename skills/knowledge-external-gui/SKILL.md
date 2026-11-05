@@ -1,18 +1,12 @@
 ---
 name: knowledge-external-gui
 metadata:
-  runs: context index
-description: Карты GUI внешних систем без API в docs/knowledge/ — формат, когда заводить, как извлекать из скриншотов, свежесть, что делать при расхождении. Загружай, когда задача идёт через web-GUI провайдера или пользователь присылает скриншот.
+  runs: memory build
+description: Карты GUI внешних систем без API в .oc3/doc/knowledge/ — формат, когда заводить, как извлекать из скриншотов, свежесть, что делать при расхождении. Загружай, когда задача идёт через web-GUI провайдера или пользователь присылает скриншот.
 ---
-
-# knowledge-external-gui
-
-Копия разделов модуля `knowledge-external-gui` из `ai-prompts` —
-правила работы со слоем `docs/knowledge/`.
-
 ## Назначение и границы
 
-Слой `docs/knowledge/` — **карта интерфейсов внешних систем без API**.
+Слой `.oc3/doc/knowledge/` — **карта интерфейсов внешних систем без API**.
 Отвечает на вопрос «где что находится в GUI провайдера X и как оттуда
 дойти до Y», чтобы агент говорил шаги словами, а не просил повторный
 скриншот в каждой новой сессии.
@@ -21,7 +15,7 @@ description: Карты GUI внешних систем без API в docs/knowl
 консоли, где есть API/CLI — не сюда (для API есть entity/behavior, для
 CLI — manuals).
 
-Слой `docs/knowledge/` — не про поведение системы («как оно должно
+Слой `.oc3/doc/knowledge/` — не про поведение системы («как оно должно
 работать»), а про **структуру интерфейса** («как он устроен визуально
 и как в нём двигаться»). Границы:
 
@@ -38,11 +32,10 @@ knowledge.
 
 ## Структура файлов
 
-Модуль добавляет папку `docs/knowledge/` в корень проекта:
+Модуль добавляет папку `.oc3/doc/knowledge/` в корень проекта:
 
 ```
-docs/
-  knowledge/
+.oc3/doc/  knowledge/
     <system>/
       <flow-or-screen>.md
 ```
@@ -85,7 +78,7 @@ entities: [<id>]
 Поля frontmatter:
 
 - `id` — стабильный kebab-case `<system>-<flow>`: путь файла внутри
-  `docs/knowledge/` без `.md`, где `/` заменён на `-`.
+  `.oc3/doc/knowledge/` без `.md`, где `/` заменён на `-`.
 - `kind: knowledge` — обязательно.
 - `namespace` — как у связанной entity (`infra`, `payments`, ...).
   Отдельного namespace для knowledge не заводим.
@@ -164,7 +157,7 @@ knowledge и в текущем скрине.
 
 ### Перед процедурой
 
-1. Читаешь `docs/knowledge/<system>/<flow>.md`.
+1. Читаешь `.oc3/doc/knowledge/<system>/<flow>.md`.
 2. Говоришь пользователю шаги словами по карте, без «пришли скрин».
 3. Пользователь идёт по шагам.
 
@@ -185,10 +178,10 @@ knowledge и в текущем скрине.
 3. По итогам работы: если задача попала под триггер заведения knowledge
    — спрашиваешь одной строкой «сохранить как knowledge? да/нет».
 4. При «да» — заводишь файл, обновляешь manifest модуля, обновляешь
-   `context/index.yml`:
+   `.oc3/bundles/index.md`:
    <!-- expect:skill-runs -->
-   <!-- metadata.runs: context index -->
-   в v3 — пересборкой `ai context index`, если подключён harness.
+   <!-- metadata.runs: memory build -->
+   в v3 — пересборкой `ai memory build`, если подключён harness.
    <!-- /expect:skill-runs -->
 
 ## Проверки внутренней непротиворечивости
@@ -205,7 +198,7 @@ knowledge и в текущем скрине.
 
 ## Обфусцированный пример
 
-`docs/knowledge/example-provider/webhooks-settings.md`:
+`.oc3/doc/knowledge/example-provider/webhooks-settings.md`:
 
 ```markdown
 ---

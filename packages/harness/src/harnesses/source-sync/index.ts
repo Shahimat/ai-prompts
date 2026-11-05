@@ -16,7 +16,7 @@ function registry(): Registry<ProcessContext> {
         'source-update',
         handoff<ProcessContext>(
           () =>
-            'сверь источники по их index.yml и обнови подключённые файлы и version в context/ai-core.yml по skill source-sync',
+            'сверь источники по их index.yml и обнови подключённые файлы и version в .oc3/ai-core.yml по skill source-sync',
         ),
       ],
       ['source-refresh', scriptAction<ProcessContext>(['refresh'])],

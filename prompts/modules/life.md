@@ -13,7 +13,7 @@ feature:
   conflicts: []
   asks:
     - key: areas
-      question: Какие области жизни ведём? Выбранные станут namespaces в context/project.yml.
+      question: Какие области жизни ведём? Выбранные станут namespaces в .oc3/doc/project.yml.
       multi: true
       options: [health, sport, psyche, routine, nutrition, sleep]
 ---
@@ -41,7 +41,7 @@ feature:
 ## Вопросы при подключении
 
 - `areas` — области жизни. Каждая выбранная становится namespace в
-  `context/project.yml` с описанием в одну строку (`health: здоровье и
+  `.oc3/doc/project.yml` с описанием в одну строку (`health: здоровье и
   восстановление`); выбор и есть «да» на эти namespaces. Новые области
   позже — по обычному правилу ядра.
 
@@ -83,11 +83,11 @@ provides:
 ## Установка
 
 1. Создай `life/facts/`, `life/signals/`, `life/protocols/`.
-2. Добавь namespaces из `areas` в `context/project.yml`.
+2. Добавь namespaces из `areas` в `.oc3/doc/project.yml`.
 3. Поставь skill `life` в `.agents/skills/life/`, добавь блок в
    `AGENTS.md`.
 4. Подключён harness — тег `life` в `checks.changelog.tags`
-   `context/ai-core.yml`.
+   `.oc3/ai-core.yml`.
 5. Спроси, с чего начать: 1–3 факта или сигнала со слов человека —
    план → «да» → через librarian. Значений в файлы не пишем.
 
@@ -105,14 +105,14 @@ provides:
   приложения (`app-loop`), связь с целью живёт в цели;
 - `CHANGELOG-life.md` → строки в `CHANGELOG.md` с `[life]`, до 120
   символов, без значений и диагнозов; WIP и подробности — выбросить;
-- namespaces жизни в `context/project.yml` — остаются; `areas`
+- namespaces жизни в `.oc3/doc/project.yml` — остаются; `areas`
   отмечаются по ним.
 
 Выбрасывается:
 
 - второй журнал `CHANGELOG-life.md` (судьба `CHANGELOG-app.md` — по
   миграции `app-loop`);
-- копия `context/conventions/verification.yml`: часть про провенанс —
+- копия `.oc3/doc/conventions/verification.yml`: часть про провенанс —
   в skill `life`, часть про код — в skill `domain`;
 - копии `safety-boundaries.yml` и `privacy.yml` — заменяются модулями
   `safety-boundaries` и `privacy`;
@@ -131,7 +131,7 @@ Brownfield (заметки, дневники, трекеры) — классиф
 
 - `life/` с содержимым — вопрос: удалить или оставить обычными файлами;
 - namespaces из `areas` — вопрос: убрать или оставить;
-- skill, блок `AGENTS.md`, тег в `context/ai-core.yml` удаляются;
+- skill, блок `AGENTS.md`, тег в `.oc3/ai-core.yml` удаляются;
   записи `[life]` в `CHANGELOG.md` остаются.
 
 ## Синхронизация

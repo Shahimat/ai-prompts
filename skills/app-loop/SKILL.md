@@ -5,8 +5,8 @@ description: Петля «предметный домен ↔ приложени
 
 # app-loop
 
-Приложение (слой `domain`: `docs/entities`, `docs/behavior`) и
-предметный домен (`counterpart` из `context/modules/app-loop.yml` →
+Приложение (слой `domain`: `.oc3/doc/data/entities`, `.oc3/doc/data/behavior`) и
+предметный домен (`counterpart` из `.oc3/modules/app-loop.yml` →
 `answers`: `life` или `analysis`) связаны петлёй:
 
 - мотивация течёт `<counterpart> → app`: фича существует ради
@@ -19,8 +19,8 @@ description: Петля «предметный домен ↔ приложени
 
 ## Маршруты
 
-- зачем существует фича X → `serves` в `docs/entities/<id>.yml` /
-  `docs/behavior/<id>.yml`;
+- зачем существует фича X → `serves` в `.oc3/doc/data/entities/<id>.yml` /
+  `.oc3/doc/data/behavior/<id>.yml`;
 - что автоматизирует потребность Y → `automated_by` в записи домена;
 - можно ли доверять числу из приложения → провенанс записи, затем
   `verified` behavior-источника.
@@ -31,7 +31,7 @@ description: Петля «предметный домен ↔ приложени
 `behavior`, тип записи домена из skill `<counterpart>`, `goal`).
 
 ```yaml
-# docs/entities/sleep-tracker.yml (приложение)
+# .oc3/doc/data/entities/sleep-tracker.yml (приложение)
 serves: [signal:sleep-depth, goal:better-sleep]
 
 # запись домена (поле — из формата модуля life / analysis)
@@ -79,7 +79,7 @@ Behavior-источник — behavior из `automated_by` записи, кот�
 При `plan-domain-field: yes`:
 
 - `domain: app | <counterpart>` — у каждой цели, плана и тикета в
-  `goals/`; программа — по своей платформенной работе (обычно `app`);
+  `.oc3/goals/`; программа — по своей платформенной работе (обычно `app`);
 - app-цель может нести `serves` (какой цели или записи домена служит);
   цель домена — `automated_by` (если поле есть в модуле домена);
 - выравнивание проверяется в скоупе программы или цели, вместе с их

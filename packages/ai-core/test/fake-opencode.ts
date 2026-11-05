@@ -1,4 +1,4 @@
-export const FAKE_OPENCODE = `import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs';
+export const FAKE_OPENCODE = `import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 const args = process.argv.slice(2);
 let task = '';
@@ -6,11 +6,17 @@ for await (const chunk of process.stdin) task += chunk;
 const flag = (name) => { const i = args.indexOf(name); return i === -1 ? undefined : args[i + 1]; };
 const agent = flag('--agent');
 const model = flag('--model');
+let system = '';
+try {
+  const config = JSON.parse(process.env.OPENCODE_CONFIG_CONTENT);
+  system = readFileSync(config.instructions[0], 'utf8');
+} catch {}
 const record = {
   agent,
   model,
   args,
   prompt: task,
+  system,
   env: {
     submit: process.env.HARNESS_SUBMIT_OUT,
     config: process.env.OPENCODE_CONFIG_CONTENT,

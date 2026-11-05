@@ -4,7 +4,7 @@ kind: contract
 title: Операционный контракт агента v3 — оператор, роли, цели
 patterns: [source-sync]
 tags: [docs-as-code, workflow, agent-contract, agents-md, skills, roles, goals, operator]
-use_case: Скармливается AI-агенту одной ссылкой, чтобы развернуть в проекте оператор-центричный контракт v3 — тонкий AGENTS.md с протоколом оператора, роли researcher/executor/judge/librarian и external-executor, плоские goals/ с целями и программами, формальные сообщения, реестр skills в context/skills.yml, browser-capability, autonomy и пресеты. Harness, ops и watchers — опциональные модули для headless-задач.
+use_case: Скармливается AI-агенту одной ссылкой, чтобы развернуть в проекте оператор-центричный контракт v3 — тонкий AGENTS.md с протоколом оператора, роли researcher/executor/judge/librarian и external-executor, плоские .oc3/goals/ с целями и программами, формальные сообщения, реестр skills в .oc3/skills.yml, browser-capability, autonomy и пресеты. Harness, ops и watchers — опциональные модули для headless-задач.
 ---
 
 # Операционный контракт агента v3 — оператор, роли, цели
@@ -19,8 +19,8 @@ use_case: Скармливается AI-агенту одной ссылкой, 
 - **Роли:** `researcher`, `executor`, `judge`, `librarian`;
   `external-executor` — external-пресет. `oracle` и `reviewer` не
   существуют: быстрый ответ — researcher, оценка DoD — judge.
-- **`goals/` вместо очереди:** плоские `goals/<goal>.expect.ts` и
-  `goals/program--<key>.expect.ts`; программа импортирует свои цели,
+- **`.oc3/goals/` вместо очереди:** плоские `.oc3/goals/<goal>.expect.ts` и
+  `.oc3/goals/program--<key>.expect.ts`; программа импортирует свои цели,
   приоритет — порядок импортов, тикет — `describe('ticket: …')`.
 - **Фон и модели.** Оператор запускает роли только в фоне; модели —
   дефолты (`zai-coding-plan/glm-5.3-flash#max`, judge — flash `#low`); override
@@ -34,7 +34,7 @@ use_case: Скармливается AI-агенту одной ссылкой, 
   свежий, сверх двух run'ов (с `retry: true` — трёх) — гейт.
 - **Skills — ролям.** Оператор не загружает ролевые skills; исключения —
   `operator-feedback` и явный `browser-read`. Привязка — `roles` в
-  `context/skills.yml`. Документацию пишет только librarian.
+  `.oc3/skills.yml`. Документацию пишет только librarian.
 - **Memory агента запрещена.** Устойчивое — в репозитории; локальные
   state, locks и event log — явные кэши без решений. Harness, ops и
   watchers — модули headless-рантайма, не центр интерактивной работы.
@@ -61,33 +61,41 @@ AGENTS.md                          ← протокол оператора, ма
 CHANGELOG.md                       ← журнал решений
 package.json                       ← devDependencies: @shahimat/ai-core, @shahimat/oc3
 .gitattributes                     ← eol=lf, CHANGELOG.md merge=union
-.gitignore                         ← .ops/operator/, .ops/locks/ — локальные
-context/
-  project.yml                      ← реквизиты, reality, external, sync, roles.exceptions, roles.models
-  ai-core.yml                      ← конфиг CLI: adapters, hooks, checks
-  autonomy.yml                     ← единственный источник self/ask/never
-  skills.yml                       ← каталог skills, requires, permissions, roles
-  index.yml                        ← карта документации (генерирует ai)
-  conventions/<key>.yml            ← договорённости проекта
+.gitignore                         ← .oc3/operator/, .oc3/locks/, .oc3/bundles/ — локальные и генерируемые
+.oc3/
+  doc/                             ← запечатанные факты: читает/пишет только librarian
+    project.yml                    ← реквизиты, reality, external, sync, roles.exceptions, roles.models
+    autonomy.yml                   ← единственный источник self/ask/never
+    glossary/common.yml            ← общие термины
+    conventions/<key>.yml          ← договорённости проекта
+    data/entities/                 ← сущности (data-структура; схема в data/__schemas/)
+    data/behavior/                 ← поведение (data-структура)
+    data/__schemas/*.schema.json   ← jsonschema структур данных и манифеста
+    manuals/<name>.md              ← процедурные руководства
+    knowledge/                     ← знания о внешних системах
+  .oc3/goals/                           ← цели и программы: *.expect.ts и *.expect.json
+  bundles/                         ← сгенерированные бандлы (генерирует ai memory build)
   modules/<key>.yml                ← manifest'ы возможностей
+  skills.yml                       ← каталог skills, requires, permissions, roles
+  ai-core.yml                      ← конфиг CLI: adapters, hooks, checks
 .agents/
   skills/                          ← core-skills и project-skills
   agents/                          ← роли: frontmatter + промпт
-goals/                             ← цели и программы: *.expect.ts и *.expect.json
 ```
 Роли `operator` нет: оператор — primary-сессия, `kind` и `lifecycle` —
-из контракта; протокол — в `AGENTS.md`, allowlist — в `context/skills.yml`.
-`context/roles.yml` не создаётся: роль — файл `.agents/agents/<name>.md`.
+из контракта; протокол — в `AGENTS.md`, allowlist — в `.oc3/skills.yml`.
+Файл ролей-конфига не создаётся: роль — файл `.agents/agents/<name>.md`.
 Канон для всех агентов — `AGENTS.md` и `.agents/`; файлы под инструмент
-(`.codex/`, `.opencode/`) — производные.
+(`.codex/`, `.opencode/`) — производные. Запечатанный слой фактов (`.oc3/doc/`)
+агентам не доступен: они читают бандлы (`.oc3/bundles/`).
 
 <!-- expect:no-rule-copies -->
-Правила самого контракта в `context/conventions/` **не копируются**.
+Правила самого контракта в `.oc3/doc/conventions/` **не копируются**.
 Там — только договорённости проекта; правила контракта живут в
 `AGENTS.md` и skills и обновляются через source-sync.
 <!-- /expect:no-rule-copies -->
 
-### `context/project.yml`
+### `.oc3/doc/project.yml`
 
 ```yaml
 name: <project>
@@ -116,7 +124,7 @@ sync:
 `external`. Документ и источник реальности расходятся — прав источник.
 Новый namespace — только с явного «да» пользователя.
 
-### `context/autonomy.yml`
+### `.oc3/doc/autonomy.yml`
 
 Единственный источник уровней; пресет может задать дефолты, но
 установщик пишет их сюда. В `skills.yml` уровней нет.
@@ -137,7 +145,7 @@ domains:
 `vcs.publish@<репозиторий>`, явно разрешённое пользователем. Репозиторий
 проекта — всегда `never`. Новое `self` — только решением пользователя.
 
-### `context/skills.yml`
+### `.oc3/skills.yml`
 
 Реестр skills: что установлено, какие tools и permissions нужны, каким
 ролям привязано. `roles` — единственный runtime-источник привязки;
@@ -174,7 +182,7 @@ skills:
 только `operator-feedback` и, как явное исключение, `browser-read`;
 любая другая запись с `roles: [operator]` — ошибка валидатора.
 
-### `context/conventions/<key>.yml` и `.gitattributes`
+### `.oc3/doc/conventions/<key>.yml` и `.gitattributes`
 
 Одно правило — один файл: `key` (kebab-case, совпадает с именем файла),
 `summary` одной строкой и `rule`. `key` стабилен. В `.gitattributes` —
@@ -197,13 +205,13 @@ skills:
 
 ## Где искать ответ
 
-Любой запрос — сначала документация (`context/index.yml` → conventions, design, docs): точный ответ или указатель, где искать; дока молчит — источники ниже, а добытое вне доки знание верни через librarian.
+Любой запрос — сначала оперативная память (`.oc3/bundles/index.md`): факты, веер узлов, каталоги; недостающее — через librarian.
 
-- как сейчас устроено X → источник реальности (`context/project.yml` → `reality`: код репозитория или целевые системы); почему X → `CHANGELOG.md`, затем `git log`;
-- как договорились → `context/conventions/<key>.yml`; реквизиты, namespaces, external, roles.exceptions, roles.models → `context/project.yml`;
-- цели, программы, тикеты → `goals/`; роль, skills, browser, autonomy → `.agents/agents/`, `context/skills.yml`, `context/autonomy.yml`; возможности → `context/modules/*.yml`.
+- как сейчас устроено X → источник реальности (`.oc3/doc/project.yml` → `reality`: код репозитория или целевые системы); почему X → `CHANGELOG.md`, затем `git log`;
+- как договорились → `.oc3/doc/conventions/<key>.yml`; реквизиты, namespaces, external, roles.exceptions, roles.models → `.oc3/doc/project.yml`;
+- цели, программы, тикеты → `.oc3/goals/`; роль, skills, browser, autonomy → `.agents/agents/`, `.oc3/skills.yml`, `.oc3/doc/autonomy.yml`; возможности → `.oc3/modules/*.yml`.
 
-Полный обход `docs/`, `context/` и `goals/` запрещён: иди по маршруту.
+Полный обход запечатанного слоя (`.oc3/doc/`) и очереди (`.oc3/goals/`) запрещён: агентам читать можно только бандлы (`.oc3/bundles/`); иди по вееру.
 
 ## Жёсткие правила
 
@@ -213,24 +221,24 @@ skills:
 4. Документацию пишет только librarian по `docs_request`: оператор, executor и judge её читают; генерируемое меняет `ai`.
 5. Ничего не создавать, не переносить, не удалять без явного «да».
 6. Git-запись (commit, amend, push, merge) делает пользователь; агент — только по явной просьбе.
-7. Тяжёлая работа — ролям; действие наружу — по `context/autonomy.yml`; ролевые skills оператор не загружает.
+7. Тяжёлая работа — ролям; действие наружу — по `.oc3/doc/autonomy.yml`; ролевые skills оператор не загружает.
 Блоки возможностей ниже обязательны наравне с этими правилами.
 ## Сценарии
 
-`plan` — «предложи», «составь план», «спланируй»; `execute` — «делай», «почини»; `audit` — «проверь»; `challenge` — «покритикуй»; `report` — «статус», «что по целям». «Фиксируй ожидания», «заведи тикет» — цели (`goals/*.expect.ts`). Полная маршрутизация слов — skill `workflow`.
+`plan` — «предложи», «составь план»; `execute` — «делай», «почини»; `audit` — «проверь»; `challenge` — «покритикуй»; `report` — «статус», «что по целям»; «фиксируй ожидания» — цели. Полная маршрутизация — skill `workflow`.
 
 ## Оператор
 
-- старт сессии — брифинг: один вопрос — схема «дефолтная» или «кастомная»; без ответа роли и тикеты не запускаешь, «быстро» и «просто глянь» не отменяют; детали — skill `workflow`;
-- одна primary-сессия: приоритеты — порядок импортов программ и указания пользователя; пишет `goals/`, `.ops/operator/state.yml`, `.ops/feedback/`, сбрасывает `*.expect.json`, не пишет `docs/`, `context/`, `CHANGELOG.md`, код;
+- старт сессии — брифинг: схема «дефолтная» или «кастомная»; без ответа роли и тикеты не запускаешь — «быстро» не отменяет; детали — skill `workflow`;
+- одна primary-сессия: приоритеты — порядок импортов программ и указания пользователя; пишет `.oc3/goals/`, `.oc3/operator/state.yml`, `.oc3/feedback/`, сбрасывает `*.expect.json`, не пишет `.oc3/doc/`, `CHANGELOG.md`, код;
 - роли запускает только с `background: true`; не блокируется и остаётся доступен человеку, просыпается на результате или сообщении;
-- цель — `goals/<goal>.expect.ts`, программа — `goals/program--<key>.expect.ts`, тикет — `describe('ticket: …')`; один активный тикет на цель, paused — `crit.wip`;
+- цель — `.oc3/goals/<goal>.expect.ts`, программа — `.oc3/goals/program--<key>.expect.ts`, тикет — `describe('ticket: …')`; один активный тикет на цель, paused — `crit.wip`;
 - ролям — `brief` до 15 строк, от них — `report`; judge — `verdict`, librarian — `docs_request`; researcher от оператора — сколько угодно, от executor — ≤2 на тикет; executor — ≤5 активных (paused не считается); librarian — один;
 - worktree и merge — оператор; external публикует по autonomy; проверки — в скоупе цели или программы; фидбек — skill `operator-feedback`.
 
 ## Skills
 
-- ролевые skills — в `.agents/skills/`, привязка — `context/skills.yml`; оператор — только `operator-feedback` и явный `browser-read`; браузер — `browser` у executor, `browser-read` у judge и researcher.
+- ролевые skills — в `.agents/skills/`, привязка — `.oc3/skills.yml`; оператор — только `operator-feedback` и явный `browser-read`; браузер — `browser` у executor, `browser-read` у judge и researcher.
 
 <!-- блоки возможностей ниже добавляет contract-setup -->
 ````
@@ -245,13 +253,13 @@ skills:
 
 <!-- expect:docs-readonly -->
 В операторе, executor и judge файлы проектной документации только
-читаются. Правки `docs/`, `context/` и `CHANGELOG.md` делает librarian по
+читаются. Правки `.oc3/doc/` и `CHANGELOG.md` делает librarian по
 формальному `docs_request`: что зафиксировать, зачем, evidence, слой,
 критерий готовности. Намерения — `decision`, `fact`, `rule`,
 `behavior-change`, `task`, `manual`, `revise`.
 
 Librarian проверяет целостность: ссылки, id, схемы, orphans, дубли,
-маршруты; производные файлы (`context/index.yml`, адаптеры) пересобирает
+маршруты; производные файлы (бандлы `.oc3/bundles/`, адаптеры) пересобирает
 команда. Неоднозначный вопрос — оператору. Отчёт — до 10 строк.
 
 Генерируемое меняет только `ai`; запись в документацию через shell
@@ -262,20 +270,20 @@ harness поток идёт через `docs-delta`; без модуля librari
 
 ## Роли и права
 
-- **operator** — читает документацию, код, `context/`, `goals/`; пишет
-  `goals/`, `.ops/operator/state.yml`, `.ops/feedback/`; постоянная, одна.
-- **researcher** — читает всё по задаче; пишет `.ops/<ticket>/research/`;
+- **operator** — читает документацию, код, `.oc3/doc/`, `.oc3/goals/`; пишет
+  `.oc3/goals/`, `.oc3/operator/state.yml`, `.oc3/feedback/`; постоянная, одна.
+- **researcher** — читает всё по задаче; пишет `.oc3/research/<тикет>/`;
   свежая, параллельных много.
 - **executor** — читает документацию и код; пишет код, тесты, конфиги,
-  `.ops/<ticket>/reports/` в своём worktree; запускает judge и
+  `.oc3/reports/<тикет>/` в своём worktree; запускает judge и
   researcher; возобновляемый; ≤5 активных, paused не считается.
 - **external-executor** — читает документацию и код; пишет удалённый
-  target и `.ops/<ticket>/reports/`; возобновляемый; ≤5 активных.
+  target и `.oc3/reports/<тикет>/`; возобновляемый; ≤5 активных.
 - **judge** — читает expectations, DoD и результат; пишет
-  `.ops/<ticket>/verdicts/<run>.yml`, `*.expect.json` и разрешённые
-  строки `goals/<goal>.expect.ts`; всегда свежий, без resume.
-- **librarian** — читает документацию, код, `goals/`; пишет `docs/`,
-  `context/`, `CHANGELOG.md`; свежий, один.
+  `.oc3/verdicts/<тикет>/<run>.yml`, `*.expect.json` и разрешённые
+  строки `.oc3/goals/<goal>.expect.ts`; всегда свежий, без resume.
+- **librarian** — читает документацию, код, `.oc3/goals/`; пишет `.oc3/doc/`,
+  `CHANGELOG.md`; свежий, один.
 
 Модели — дефолты с override: роли — `zai-coding-plan/glm-5.3-flash#max`,
 watch-роли — flash `#max`, judge — flash `#low`; override — `oc3 models
@@ -289,27 +297,27 @@ autonomy. Judge не меняет состав `describe`/`crit`/`warn`/`it.todo
 ## Кастомные роли
 
 - роль — файл `.agents/agents/<name>.md` (frontmatter + промпт); реестра
-  `context/roles.yml` нет;
+  файла ролей-конфига нет;
 - frontmatter: `name`, `kind`, `description`, `model`, `permissions`,
   `lifecycle`, `concurrency`, `output`, `artifacts`; `skills` — в
-  `context/skills.yml`;
+  `.oc3/skills.yml`;
 - имена core-ролей зарезервированы; коллизия — ошибка; custom-роль не
-  переопределяет core-права; `role_exceptions` — в `context/project.yml`;
+  переопределяет core-права; `role_exceptions` — в `.oc3/doc/project.yml`;
 - `output` обязателен для subagent-роли; роль без `output` — просто
   субагент, не роль контракта.
 
 ## Цели, программы и тикеты
 
-`goals/` — плоский набор `*.expect.ts`, замена `context/views`. Никаких
-`goals/index.yml`, `goals/README.md`, `expectations.yml`,
+`.oc3/goals/` — плоский набор `*.expect.ts`, замена очереди views. Никаких
+index- и README-файлов внутри, `expectations.yml`,
 `proposal/specs/design/tasks` нет.
 
-- **Цель** — `goals/<goal>.expect.ts`: `describe('goal: …')`, внутри
+- **Цель** — `.oc3/goals/<goal>.expect.ts`: `describe('goal: …')`, внутри
   тикеты `describe('ticket: …')` со своими `crit`/`warn`/`it.todo`.
-- **Программа** — `goals/program--<key>.expect.ts`: только импорты
+- **Программа** — `.oc3/goals/program--<key>.expect.ts`: только импорты
   своих целей; порядок импортов = приоритет. Программ много, единой
   очереди нет; одна цель — ровно в одной программе.
-- **Тикет** — блок `describe('ticket: …')`, артефакты `.ops/<ticket>/`.
+- **Тикет** — блок `describe('ticket: …')`, артефакты `.oc3/<тикет>/`.
   Один активный тикет на файл цели; параллель — между целями. Тикет
   принят, когда ≥80% его `crit`/`warn` — `pass`; остальные
   `satisfactorily` — принятый остаток.
@@ -322,25 +330,25 @@ autonomy. Judge не меняет состав `describe`/`crit`/`warn`/`it.todo
   «satisfactorily»; 80% — по `pass`, меньше — один повторный цикл
   (`retry: true`), затем к человеку. Запуск сверх бюджета — гейт.
 - **Baseline.** На старте тикета оператор снимает копию активного файла
-  в `.ops/<ticket>/baseline/`; `oc3 goals check goals/<goal>.expect.ts
+  в `.oc3/baseline/<тикет>/`; `oc3 goals check .oc3/goals/<goal>.expect.ts
   --ticket <key>` сравнивает AST: состав и `budget` неизменны, разрешены
   только заголовки и тела проверок активного тикета. Обновляет baseline
   только оператор после merge.
-- **Скоуп.** `oc3 expect report goals/<goal>.expect.ts` — цель,
-  `goals/program--<key>.expect.ts` — программа. `goals/` не входит в
+- **Скоуп.** `oc3 expect report .oc3/goals/<goal>.expect.ts` — цель,
+  `.oc3/goals/program--<key>.expect.ts` — программа. `.oc3/goals/` не входит в
   `npm run expect`.
-- **Коммит.** `goals/` коммитится; завершённая цель удаляется из
-  программы и `goals/`, история — git. `.ops/<ticket>/` и
-  `*.expect.json` коммитятся; `.ops/operator/state.yml` — локальный.
+- **Коммит.** `.oc3/goals/` коммитится; завершённая цель удаляется из
+  программы и `.oc3/goals/`, история — git. `.oc3/<тикет>/` и
+  `*.expect.json` коммитятся; `.oc3/operator/state.yml` — локальный.
 
 ## Scratchpad оператора
-`.ops/operator/state.yml` — локальный кэш, не memory и не истина; в git
+`.oc3/operator/state.yml` — локальный кэш, не memory и не истина; в git
 не идёт. Поля: `session`, `goal`, `priorities`, `programs`, `tickets`,
 `results`, `waits`, `open_questions`, `pointers`, `updated_at`;
-`decisions` нет — решение пишется в `goals/` или docs, в state — ссылка.
+`decisions` нет — решение пишется в `.oc3/goals/` или docs, в state — ссылка.
 Лимит 200 строк /
 16 KB; 80% — предупреждение, 100% — блокировка. На рестарте и новой
-машине — восстановление из `goals/`, docs и git; state не переносится.
+машине — восстановление из `.oc3/goals/`, docs и git; state не переносится.
 ## Формальные сообщения
 
 Свободного чата между оператором и ролями нет. Общие поля: `id`, `from`,
@@ -366,14 +374,14 @@ autonomy. Judge не меняет состав `describe`/`crit`/`warn`/`it.todo
 
 ```
 .agents/skills/<name>/SKILL.md   # проектные и установленные core-skills
-context/skills.yml               # каталог skills и привязка к ролям
+.oc3/skills.yml               # каталог skills и привязка к ролям
 ```
 
 - `skills/` в источнике — core-skills; `.agents/skills/` в проекте —
   установленные core и project-skills.
 - core-skill обновляется source-sync, проект его не редактирует; нужен
   другой вариант — project-skill с `extends: <core>` или новым именем.
-- `roles` в `context/skills.yml` — единственный runtime-источник
+- `roles` в `.oc3/skills.yml` — единственный runtime-источник
   привязки; `role_skills` пресета — только вход установки.
 - Операции: добавить — skill + запись с `roles`; обновить project —
   локально и `sha`; обновить core — только source-sync; удалить — убрать
@@ -383,7 +391,7 @@ context/skills.yml               # каталог skills и привязка к 
   tools/permissions; у оператора только allowlist; нет секретов и
   skills без роли.
 - Runtime: OpenCode и Codex читают `.agents/skills` (Codex — плюс
-  инструкции роли); привязка везде из `context/skills.yml`.
+  инструкции роли); привязка везде из `.oc3/skills.yml`.
 
 ## Browser
 
@@ -399,16 +407,16 @@ Browser — capability, не роль.
   свой lifecycle, credentials или модель.
 - Permissions `browser.navigate`, `browser.snapshot`,
   `browser.screenshot`, `browser.click`, `browser.type`,
-  `browser.submit` — в `context/skills.yml`; уровни
+  `browser.submit` — в `.oc3/skills.yml`; уровни
   `self`/`ask`/`never` по действиям и доменам — только в
-  `context/autonomy.yml`. `submit`, платёж, удаление — по умолчанию
+  `.oc3/doc/autonomy.yml`. `submit`, платёж, удаление — по умолчанию
   `ask` или `never`.
 - Нужен browser-tool/MCP: нативный browser OpenCode v2 не урезает
   действие механически, поэтому `browser-read` — инструкция плюс аудит;
   механический запрет — через MCP-провайдера с permission на каждый
   `<server>_<tool>`.
 - Evidence — скриншоты, snapshot, console/network, логи CI — в
-  `.ops/<ticket>/reports/` или `research/`. Judge проверяет через
+  `.oc3/reports/<тикет>/` или `research/`. Judge проверяет через
   `browser-read` или evidence executor, без побочных действий.
 
 ## Пресеты
@@ -426,12 +434,12 @@ Browser — capability, не роль.
   analysis, app-loop, data-access, book-corpus.
 
 Пресет задаёт modules, install-time `role_skills`, `role_exceptions`,
-`roles` и дефолты `autonomy`; отдельной схемы `goals/` нет.
+`roles` и дефолты `autonomy`; отдельной схемы `.oc3/goals/` нет.
 `role_skills` установщик инвертирует в `roles` записей
-`context/skills.yml`; `role_exceptions` пишет в `context/project.yml` →
-`roles.exceptions`. Общее: `goals` (старая очередь `context/views`) не
+`.oc3/skills.yml`; `role_exceptions` пишет в `.oc3/doc/project.yml` →
+`roles.exceptions`. Общее: `goals` (старая очередь views) не
 подключается; `harness` — только для headless/CI, не по умолчанию;
-`goals/` — плоские `*.expect.ts`; `app-loop` использует
+`.oc3/goals/` — плоские `*.expect.ts`; `app-loop` использует
 `plan-domain-field`. Вид не подходит — ручной выбор в чеклисте.
 <!-- /expect:contract-kinds -->
 
@@ -449,7 +457,7 @@ feature:
   conflicts: [<ключи модулей>]
 ```
 
-Подключённый модуль оставляет manifest `context/modules/<key>.yml` и блок
+Подключённый модуль оставляет manifest `.oc3/modules/<key>.yml` и блок
 в `AGENTS.md`. Модуль только добавляет и не переопределяет ядро. В чужое
 он добавляет явно, через `provides`: `extends` — поля в слоях других
 модулей (`{domain: [serves]}`), два модуля с одним полем — конфликт;
@@ -466,7 +474,7 @@ dashboard — модули headless-рантайма, в интерактивн�
 - **Codex** — читает `AGENTS.md` и `.agents/skills/` сам; субагенты в
   `.codex/agents/`, memory выключена в `.codex/config.toml`;
 - **OpenCode** — `.opencode/agents` из `.agents/agents`, skills из
-  `context/skills.yml`, плагин `@shahimat/oc3` (guards и гейт прогонов
+  `.oc3/skills.yml`, плагин `@shahimat/oc3` (guards и гейт прогонов
   judge), `experimental.subagent_depth: 2`.
 
 Модели — дефолты; override — `oc3 models set` в `roles.models`, после
@@ -513,8 +521,8 @@ pre-processing искажает контент, SHA не сойдётся. Сч�
 
 ### Конфигурация и проверка `key`
 
-Блок `sync` — в `context/project.yml`. Manifest'ы модулей — в
-`context/modules/<key>.yml`; skills и роли хранят SHA в `parts`, у skill
+Блок `sync` — в `.oc3/doc/project.yml`. Manifest'ы модулей — в
+`.oc3/modules/<key>.yml`; skills и роли хранят SHA в `parts`, у skill
 в индексе — `files` с `raw` и `sha256`.
 
 Тянешь контракт или модуль по прямой ссылке — сверь `key` из
@@ -524,7 +532,7 @@ frontmatter с ожидаемым. Не совпало — стоп: защит�
 ### Развилка
 
 - **greenfield** — документации нет или только пустой `README.md`;
-- **v2** — в `context/project.yml` есть `sync.contract.key: agent-operational-contract-v2`;
+- **v2** — в `.oc3/doc/project.yml` есть `sync.contract.key: agent-operational-contract-v2`;
 - **brownfield** — своя документация в любом виде. Не уверен — спроси.
 
 ### greenfield
@@ -532,40 +540,33 @@ frontmatter с ожидаемым. Не совпало — стоп: защит�
 1. Проверь `node --version` ≥ 24: без Node контракт не ставится.
 2. Спроси одним блоком: название и одна строка о проекте, стек,
    namespaces, инструменты (Codex, OpenCode, другие).
-3. Поставь ядро: `@shahimat/ai-core`, `@shahimat/oc3` и `vitest` в
-   `devDependencies` (версии из `npm view`; нет `package.json` — создай
-   минимальный), `npm install` после «да»; skills и роли из индекса,
-   `AGENTS.md` по шаблону, `context/project.yml`, `context/ai-core.yml`,
-   `context/autonomy.yml`, `context/skills.yml` (роли по `role_skills`
-   плюс core `contract-setup`, `workflow`, `source-sync`, `cli` с
-   `roles: []`), пустой `goals/`; `.gitignore` — `.ops/operator/`,
-   `.ops/locks/`; маркер установки — пустой файл `.ops/locks/install`,
-   guard пропускает установщика, сними после `/reload`; затем
-   `oc3 context index` и `oc3 adapters sync`; в конце добавь
+3. Запусти установщик: `npx @shahimat/oc3 init` — пакеты, `AGENTS.md`
+   по шаблону, каркас `.oc3/` (`doc/project.yml`, `ai-core.yml`,
+   `doc/autonomy.yml`, `skills.yml` с ролями по `role_skills` плюс core
+   `contract-setup`, `workflow`, `source-sync`, `cli` с `roles: []`,
+   пустой `.oc3/goals/`, манифест памяти), git-файлы, маркер установки
+   `.oc3/locks/install` (сними после `/reload`), первичный build бандлов;
+   вопросы, решаемые человеком, установщик печатает списком — передай их
+   пользователю и верни ответы повторным прогоном.
+4. Верификация: повторный `oc3 init` — «v3-ok»; `oc3 adapters sync`;
    `"@shahimat/oc3"` в `plugins` `opencode.jsonc` (`/reload`).
-4. Запусти skill `contract-setup`: чеклист возможностей.
-5. Отчёт: что поставлено, где лежит, что дальше.
+5. Запусти skill `contract-setup`: чеклист возможностей.
+6. Отчёт: что поставлено, где лежит, что дальше.
 
 ### Миграция с v2
 
-v2-слои (`docs/entities`, `docs/behavior`, `docs/manuals`,
-`context/views`) сохраняются: они становятся слоями модулей domain,
-manuals и, для старых проектов, deprecated-модуля goals.
+Установщик детектит v2-раскладку (`context/workflow.md`, `context/views`)
+и переносит структуру в `.oc3/`; содержательный перенос — не молчаливая
+конверсия. Порядок:
 
-1. Старую точку входа → `AGENTS.md` по шаблону; маршруты и правила —
-   из неё, лишнее — в слои.
-2. Удалить `context/workflow.md` и копии правил контракта в
-   `context/conventions/`; добавить `summary` в `conventions/*.yml` и
-   `docs/entities/*.yml`.
-3. Для operator-centric завести `goals/` из живых задач старой очереди:
-   цель на файл, программа с импортами; закрытые не переносятся.
-4. `contract-setup`: domain, manuals и остальное по выбору; ручной
-   `context/index.yml` → генерируемый.
-5. `CHANGELOG.md`: строки без тега и длиннее 120 — показать; решения
-   сжать, остальное — git log.
-6. Memory — по разделу «Memory агента».
-7. `sync.contract.key` → `agent-operational-contract-v3`, `edition` →
-   `operator-centric`, SHA — из индекса.
+1. `npx @shahimat/oc3 init` — структура, каркас, вопросы человеку.
+2. Содержательный перенос по отчёту миграции (через librarian): очередь
+   `context/views` → цели/программы `.oc3/goals/`; удалить
+   `context/workflow.md` и копии правил контракта в `conventions/`.
+3. `contract-setup`: domain, manuals и остальное по выбору.
+4. Чистка `CHANGELOG.md`: строки без тега и длиннее 120 — показать,
+   решения сжать, остальное — git log.
+5. Memory — по разделу «Memory агента».
 
 Миграция — тикет; нарезка на коммиты — по глобальным правилам.
 
@@ -576,11 +577,11 @@ manuals и, для старых проектов, deprecated-модуля goals.
 2. Карта: «файл X — это Y» и целевое место: слой ядра, слой возможности
    или «шум — удалить».
 3. Конфликты с моделью — с вариантом разрешения и trade-off.
-4. Ядро + `contract-setup` с маркером `.ops/locks/install` на время
+4. Ядро + `contract-setup` с маркером `.oc3/locks/install` на время
    ядра, сними в конце; затем перенос шагами.
 
 Чужие трекеры, wiki, IaC и release notes не мигрируют: в
-`context/project.yml` → `external` — только указатель.
+`.oc3/doc/project.yml` → `external` — только указатель.
 
 ## Поведение по умолчанию
 

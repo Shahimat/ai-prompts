@@ -13,12 +13,12 @@ skill — протокол их выбора, подключения и откл
 
 ## Шаг 1. Каталог
 
-1. `curl` тянет индекс по `sync.index_source` из `context/project.yml`
+1. `curl` тянет индекс по `sync.index_source` из `.oc3/doc/project.yml`
    (правила fetch — skill `source-sync`).
 2. Из группы `modules` возьми записи, у которых `applicable_to`
    содержит `agent-operational-contract-v3`, есть `feature` и нет
    `deprecated`.
-3. Подключённые сейчас — `context/modules/*.yml`.
+3. Подключённые сейчас — `.oc3/modules/*.yml`.
 
 ## Шаг 2. Пресет
 
@@ -31,13 +31,13 @@ skill — протокол их выбора, подключения и откл
 тянет его по `raw`, сверь `sha256`; его `modules` становятся отметками
 чеклиста, а `answers` — дефолтами вопросов `asks`. Пресет — стартовая
 точка: пользователь правит отметки и ответы как обычно. Ключ пресета
-запиши в `context/project.yml` → `preset`.
+запиши в `.oc3/doc/project.yml` → `preset`.
 
 Роли и skills пресета — тоже install-time вход: `role_skills`
-инвертируй в `roles` записей `context/skills.yml`, `role_exceptions`
-запиши в `context/project.yml` → `roles.exceptions`, определения
+инвертируй в `roles` записей `.oc3/skills.yml`, `role_exceptions`
+запиши в `.oc3/doc/project.yml` → `roles.exceptions`, определения
 `roles` — в `.agents/agents/<name>.md`, `autonomy` — в
-`context/autonomy.yml`. Дальше runtime читает только `skills.yml` и файлы
+`.oc3/doc/autonomy.yml`. Дальше runtime читает только `skills.yml` и файлы
 ролей; пресет вторым источником не остаётся.
 <!-- /expect:preset-first -->
 
@@ -46,10 +46,10 @@ skill — протокол их выбора, подключения и откл
 executor'у, разведка researcher'у, judge on; «custom» — с полями
 (`routing`: operator|executor, `research`: self|researcher, `judge`:
 on|off, `ticket_mode`: stop|all). Запиши ответ:
-`oc3 briefing set ...` → `context/project.yml` → `briefing`; текущий
+`oc3 briefing set ...` → `.oc3/doc/project.yml` → `briefing`; текущий
 режим — `oc3 briefing`.
 
-На время установки держи маркер `.ops/locks/install` (пустой файл):
+На время установки держи маркер `.oc3/locks/install` (пустой файл):
 docs guard пропускает установщика; в конце установки сними его.
 
 ## Шаг 3. Чеклист
@@ -112,7 +112,7 @@ docs guard пропускает установщика; в конце устан
    - блок в конец `AGENTS.md` между `<!-- module:<key> -->` и
      `<!-- /module:<key> -->` — текст из модуля;
    - строки `gitignore` модуля — в `.gitignore`, если их там нет.
-4. Manifest `context/modules/<key>.yml`:
+4. Manifest `.oc3/modules/<key>.yml`:
 
    ```yaml
    key: <key>
@@ -126,12 +126,12 @@ docs guard пропускает установщика; в конце устан
      files: [<файлы>]
      skills: [<имена skills>]
      agents_md_block: true
-     harness_checks: [<ключи проверок в context/ai-core.yml>]
+     harness_checks: [<ключи проверок в .oc3/ai-core.yml>]
      changelog_tags: [<теги журнала решений модуля>]
      gitignore: [<строки, добавленные в .gitignore>]
      extends:                       # поля в слоях других модулей
        <модуль>: [<поля>]
-     index_layers:                  # слои для context/index.yml, если есть
+     index_layers:                  # слои для стартового бандла, если есть
        - section: <имя секции>
          dir: <каталог слоя>
    parts:
@@ -139,7 +139,7 @@ docs guard пропускает установщика; в конце устан
        <name>: <sha256 записи skill из индекса>
    ```
 
-5. `changelog_tags` модуля — допиши в `context/ai-core.yml` →
+5. `changelog_tags` модуля — допиши в `.oc3/ai-core.yml` →
    `checks.changelog.tags`, если подключён harness (список ядра плюс
    теги модулей).
 6. Адаптеры, индекс и проверки:
@@ -155,7 +155,7 @@ docs guard пропускает установщика; в конце устан
 
 1. Прочитай manifest, покажи всё из `provides`, что будет удалено:
    слои, файлы, skills, блок `AGENTS.md`, проверки и теги в
-   `context/ai-core.yml`, строки `gitignore` (если их не объявляет
+   `.oc3/ai-core.yml`, строки `gitignore` (если их не объявляет
    другой модуль), поля `extends` в чужих слоях (записи в
    CHANGELOG с тегами модуля остаются — журнал не переписывается).
 2. Слой с содержимым проекта (entities, manuals, цели) — отдельный

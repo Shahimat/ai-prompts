@@ -1,11 +1,18 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { parse } from 'yaml';
+import {
+  buildBundles,
+  checkBundles,
+  isRecord,
+  startIndexText,
+  writeGraph,
+  type Diagnostic,
+} from '@shahimat/ai-core';
 import type { Plugin } from '@opencode/plugin';
-import { isRecord } from '@shahimat/ai-core';
 import { describeBriefing, isBriefing } from '#briefing';
 
-const PROJECT_FILE = path.join('context', 'project.yml');
+const PROJECT_FILE = path.join('.oc3', 'doc', 'project.yml');
 const DEFAULT_LINE =
   'брифинг: режим не задан — дефолт cheap: тикеты сам, доку librarian, judge off; до старта спроси схему (дефолтная или кастомная; достаточно текстового ответа), затем вызови oc3.briefing_done';
 
@@ -47,7 +54,35 @@ export async function appendBriefing(
   if (seen.has(sessionID)) return;
   const line = await briefingLine(root);
   input.system.push({ type: 'text', text: line });
+  const memory = await memoryStart(root);
+  if (memory.text !== '') input.system.push({ type: 'text', text: memory.text });
+  for (const d of memory.diagnostics) console.error(`oc3 memory: ${d.file}: ${d.message}`);
   seen.add(sessionID);
+}
+
+export interface MemoryStart {
+  text: string;
+  diagnostics: Diagnostic[];
+}
+
+const injectText = async (root: string): Promise<string> => {
+  const text = await startIndexText(root);
+  return text === null ? '' : `Оперативная память проекта (стартовый граф):\n\n${text.trimEnd()}`;
+};
+
+export async function memoryStart(root: string): Promise<MemoryStart> {
+  const check = await checkBundles(root);
+  if (check.graph === null) return { text: '', diagnostics: check.diagnostics };
+  const collected = check.diagnostics.length > 0 || (await startIndexText(root)) === null;
+  if (!collected) return { text: await injectText(root), diagnostics: [] };
+  const build = await buildBundles(root);
+  if (build.graph === null || build.diagnostics.length > 0)
+    return {
+      text: '',
+      diagnostics: build.diagnostics.length > 0 ? build.diagnostics : check.diagnostics,
+    };
+  await writeGraph(root, build.graph);
+  return { text: await injectText(root), diagnostics: [] };
 }
 
 export async function registerSessionBrief(ctx: Plugin.Context): Promise<Plugin.Cleanup> {

@@ -55,7 +55,7 @@ feature:
 ```yaml
 provides:
   layers: []
-  files: [docs/behavior/safety-*.yml]   # только при app-behaviors: now
+  files: [.oc3/doc/data/behavior/safety-*.yml]   # только при app-behaviors: now
   skills: [safety-boundaries]
   agents_md_block: true
   harness_checks: []
@@ -101,14 +101,14 @@ provides:
 
 - раздел «Границы и безопасность» — в блок `AGENTS.md` и skill; свои
   уточнения проекта (например, контакты помощи) — в
-  `context/project.yml` → `external` или в протокол;
+  `.oc3/doc/project.yml` → `external` или в протокол;
 - `app/behavior/*.yml` про red-flag — остаются behavior слоя `domain`
   (путь — по миграции `domain` / `app-loop`); `verified` сохраняется;
 - `app-behaviors` отмечается `now`, если такие behavior уже есть.
 
 Выбрасывается:
 
-- `context/conventions/safety-boundaries.yml` — копия правила
+- `.oc3/doc/conventions/safety-boundaries.yml` — копия правила
   контракта, в v3 не заводится;
 - напоминание о безопасности в `AGENTS.md` — его заменяет блок;
 - hook и протокол `setup-safety-hooks` — по миграции ядра.
