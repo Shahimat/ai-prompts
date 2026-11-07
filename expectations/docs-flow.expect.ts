@@ -96,6 +96,14 @@ class Check {
     );
     const bad = rows.filter((r) => {
       const main = r.owner.split(';')[0]?.trim() ?? '';
+      if (r.what === '`.oc3/inbox/knowledge/` — приём, batch и exact-ID resolution')
+        return (
+          main !== 'runtime, не ручная правка роли' ||
+          !commands.includes('ai memory inbox enqueue') ||
+          !commands.includes('ai memory inbox batch')
+        );
+      if (r.what === '`.oc3/locks/delta-accepted.json` — временный exact-snapshot cache')
+        return main !== 'runtime' || !commands.includes('ai delta close');
       return main !== 'librarian' && !commands.includes(main.replace(/`/g, ''));
     });
     expect(bad).toEqual([]);

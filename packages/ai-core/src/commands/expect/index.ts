@@ -2,11 +2,18 @@
 // expect:verdict-prune
 // expect:verdict-by-code
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import {
+  expectHelperDir,
+  expectHelperPath,
+  normalizedProjectPath,
+  confinedProjectPath,
+  ARTIFACT_IGNORE_LINES,
+} from '#lib/artifacts';
 import { UsageError } from '#shared/diagnostics';
 import {
   applyAnswers,
@@ -58,14 +65,13 @@ const BUILTIN_CONFIG = path.join(
     : 'vitest.config.ts',
 );
 
-const posix = (p: string): string => p.split(path.sep).join('/');
-
-const judgeDir = (entry: string): string => path.posix.join(path.posix.dirname(entry), '.judge');
+const judgeDir = expectHelperDir;
 
 function entryOf(args: CommandArgs): string {
   const file = args.params?.['file'];
   if (file === undefined) throw new UsageError('нужен путь к файлу ожиданий: <file>');
-  const rel = posix(path.relative(args.root, path.resolve(args.root, file)));
+  const rel = normalizedProjectPath(file);
+  confinedProjectPath(args.root, rel);
   if (rel.startsWith('../') || !existsSync(path.join(args.root, rel)))
     throw new UsageError(`нет файла ожиданий ${file} в ${args.root}`);
   if (!rel.endsWith('.expect.ts')) throw new UsageError(`файл ожиданий — *.expect.ts: ${file}`);
@@ -94,30 +100,34 @@ function runVitest(
   env: Record<string, string> = {},
   extra: string[] = [],
 ): TestResult[] {
-  const out = path.join(tmpdir(), `harness-expect-${process.pid}-${Date.now()}.json`);
-  spawnSync(
-    process.execPath,
-    [
-      vitestBin(root),
-      'run',
-      '--root',
-      root,
-      '--config',
-      BUILTIN_CONFIG,
-      '--reporter=json',
-      `--outputFile=${out}`,
-      ...extra,
-    ],
-    {
-      cwd: root,
-      env: { ...process.env, ...env, HARNESS_EXPECT_ROOT: root, [ENTRY_ENV]: entry },
-      stdio: ['ignore', 'ignore', 'inherit'],
-    },
-  );
-  if (!existsSync(out)) throw new Error('vitest не записал отчёт');
-  const data: unknown = JSON.parse(readFileSync(out, 'utf8'));
-  rmSync(out, { force: true });
-  return parseVitestReport(data, root);
+  const scratch = mkdtempSync(path.join(tmpdir(), 'harness-expect-'));
+  const out = path.join(scratch, 'report.json');
+  try {
+    spawnSync(
+      process.execPath,
+      [
+        vitestBin(root),
+        'run',
+        '--root',
+        root,
+        '--config',
+        BUILTIN_CONFIG,
+        '--reporter=json',
+        `--outputFile=${out}`,
+        ...extra,
+      ],
+      {
+        cwd: root,
+        env: { ...process.env, ...env, HARNESS_EXPECT_ROOT: root, [ENTRY_ENV]: entry },
+        stdio: ['ignore', 'ignore', 'inherit'],
+      },
+    );
+    if (!existsSync(out)) throw new Error('vitest не записал отчёт');
+    const data: unknown = JSON.parse(readFileSync(out, 'utf8'));
+    return parseVitestReport(data, root);
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
 }
 
 const NOTHING = '(?!)';
@@ -359,9 +369,10 @@ async function report(args: CommandArgs): Promise<number> {
     console.log(line);
   });
   if (args.html !== undefined) {
-    const out = path.resolve(args.root, args.html);
+    const out = expectHelperPath(args.root, entryOf(args), args.html);
     await mkdir(path.dirname(out), { recursive: true });
-    await writeFile(out, await pageHtml(args, reports), 'utf8');
+    const html = await pageHtml(args, reports);
+    await writeFile(expectHelperPath(args.root, entryOf(args), args.html), html, 'utf8');
     console.log(`html: ${out}`);
   }
   return blocked ? 1 : 0;
@@ -418,25 +429,45 @@ function isPlan(v: unknown): v is Plan {
   );
 }
 
+function checkPlanPaths(root: string, entry: string, plan: Plan): void {
+  for (const item of [...plan.batches, ...plan.lint])
+    for (const file of [item.task, item.answer]) expectHelperPath(root, entry, file);
+}
+
 async function judgePrepare(args: CommandArgs): Promise<number> {
   const entry = entryOf(args);
   const JUDGE_DIR = judgeDir(entry);
-  const dir = path.join(args.root, JUDGE_DIR);
+  const dir = path.dirname(expectHelperPath(args.root, entry, `${JUDGE_DIR}/plan.json`));
   await rm(dir, { recursive: true, force: true });
-  const pendingDir = path.join(dir, 'pending');
-  const seenDir = path.join(dir, 'seen');
+  const pendingDir = expectHelperPath(args.root, entry, `${JUDGE_DIR}/pending`);
+  const seenDir = expectHelperPath(args.root, entry, `${JUDGE_DIR}/seen`);
   const results = runVitest(args.root, entry, { [COLLECT_ENV]: pendingDir, [SEEN_ENV]: seenDir });
-  const seen = new Set(existsSync(seenDir) ? await readdir(seenDir) : []);
-  await rm(seenDir, { recursive: true, force: true });
+  const seen = new Set(
+    existsSync(expectHelperPath(args.root, entry, `${JUDGE_DIR}/seen`))
+      ? await readdir(expectHelperPath(args.root, entry, `${JUDGE_DIR}/seen`))
+      : [],
+  );
+  for (const id of seen) expectHelperPath(args.root, entry, `${JUDGE_DIR}/seen/${id}`);
+  await rm(expectHelperPath(args.root, entry, `${JUDGE_DIR}/seen`), {
+    recursive: true,
+    force: true,
+  });
   const items: PendingItem[] = [];
-  if (existsSync(pendingDir)) {
-    for (const f of (await readdir(pendingDir)).sort()) {
-      const item: unknown = JSON.parse(await readFile(path.join(pendingDir, f), 'utf8'));
+  if (existsSync(expectHelperPath(args.root, entry, `${JUDGE_DIR}/pending`))) {
+    for (const f of (
+      await readdir(expectHelperPath(args.root, entry, `${JUDGE_DIR}/pending`))
+    ).sort()) {
+      const item: unknown = JSON.parse(
+        await readFile(expectHelperPath(args.root, entry, `${JUDGE_DIR}/pending/${f}`), 'utf8'),
+      );
       if (!isPendingItem(item))
         throw new Error(`${JUDGE_DIR}/pending/${f}: неверная форма вопроса`);
       items.push(item);
     }
-    await rm(pendingDir, { recursive: true, force: true });
+    await rm(expectHelperPath(args.root, entry, `${JUDGE_DIR}/pending`), {
+      recursive: true,
+      force: true,
+    });
   }
   const plan: Plan = { batches: [], lint: [] };
   for (const [i, batch] of planBatches(items).entries()) {
@@ -446,7 +477,11 @@ async function judgePrepare(args: CommandArgs): Promise<number> {
     const texts = new Map<string, string>();
     for (const ref of batch.refs.filter((r) => r.startsWith('@')))
       texts.set(ref, await readEvidence(ref));
-    await writeFile(path.join(args.root, task), renderBatch(batch, answer, texts), 'utf8');
+    await writeFile(
+      expectHelperPath(args.root, entry, task),
+      renderBatch(batch, answer, texts),
+      'utf8',
+    );
     plan.batches.push({ task, answer, items: batch.items });
   }
   const store = await loadVerdicts();
@@ -464,14 +499,22 @@ async function judgePrepare(args: CommandArgs): Promise<number> {
     const answer = `${JUDGE_DIR}/lint-${n}.answer.json`;
     const titles = tests.map((t) => ({ id: idOf(fullName(t)), title: fullName(t) }));
     await mkdir(dir, { recursive: true });
-    await writeFile(path.join(args.root, task), renderLintBatch(file, titles, answer), 'utf8');
+    await writeFile(
+      expectHelperPath(args.root, entry, task),
+      renderLintBatch(file, titles, answer),
+      'utf8',
+    );
     plan.lint.push({ task, answer, file, titles: sha, ids: titles.map((t) => t.id) });
   }
   if (plan.batches.length === 0 && plan.lint.length === 0) {
     console.log('expect judge: всё свежее, судья не нужен');
     return 0;
   }
-  await writeFile(path.join(dir, 'plan.json'), JSON.stringify(plan, null, 2), 'utf8');
+  await writeFile(
+    expectHelperPath(args.root, entry, `${JUDGE_DIR}/plan.json`),
+    JSON.stringify(plan, null, 2),
+    'utf8',
+  );
   console.log(
     `expect judge: вопросов ${items.length} в пакетах ${plan.batches.length}, проверок заголовков ${plan.lint.length}`,
   );
@@ -488,9 +531,10 @@ async function judgeRun(args: CommandArgs): Promise<number> {
   if (prepared === 0) return 0;
   const JUDGE_DIR = judgeDir(entryOf(args));
   const plan: unknown = JSON.parse(
-    await readFile(path.join(args.root, JUDGE_DIR, 'plan.json'), 'utf8'),
+    await readFile(expectHelperPath(args.root, entryOf(args), `${JUDGE_DIR}/plan.json`), 'utf8'),
   );
   if (!isPlan(plan)) throw new Error(`${JUDGE_DIR}/plan.json: неверная форма`);
+  checkPlanPaths(args.root, entryOf(args), plan);
   const tasks = [
     ...plan.batches.map((t) => ({ ...t, kind: 'batch' as const })),
     ...plan.lint.map((t) => ({ ...t, kind: 'lint' as const })),
@@ -502,18 +546,30 @@ async function judgeRun(args: CommandArgs): Promise<number> {
       : path.posix.join(JUDGE_DIR, 'transcripts');
   const failed = await Promise.all(
     tasks.map(async (t) => {
-      const text = await readFile(path.join(args.root, t.task), 'utf8');
+      const text = await readFile(expectHelperPath(args.root, entryOf(args), t.task), 'utf8');
       const name = path.basename(t.task, '.md');
-      const transcript = path.resolve(args.root, path.posix.join(transcriptDir, `${name}.jsonl`));
+      const transcript = expectHelperPath(
+        args.root,
+        entryOf(args),
+        path.posix.join(transcriptDir, `${name}.jsonl`),
+      );
       try {
         const { data } = await askRole(
           args.root,
           'judge',
           `${text}\nФайл ответа не пиши: верни итог инструментом submit_result; инструмента нет — тем же JSON в код-блоке последним сообщением.`,
-          { transcript, modelContext: 'expect.judge' },
+          {
+            transcript,
+            modelContext: 'expect.judge',
+            context: { purpose: 'expect-helper', entry: entryOf(args) },
+          },
         );
         const answer = t.kind === 'batch' && isRecord(data) ? data['answers'] : data;
-        await writeFile(path.join(args.root, t.answer), JSON.stringify(answer, null, 2), 'utf8');
+        await writeFile(
+          expectHelperPath(args.root, entryOf(args), t.answer),
+          JSON.stringify(answer, null, 2),
+          'utf8',
+        );
         console.log(`  ${t.task}: ответ получен`);
         return 0;
       } catch (error) {
@@ -528,16 +584,18 @@ async function judgeRun(args: CommandArgs): Promise<number> {
 
 async function judgeApply(args: CommandArgs): Promise<number> {
   const JUDGE_DIR = judgeDir(entryOf(args));
-  const planFile = path.join(args.root, JUDGE_DIR, 'plan.json');
+  const planFile = expectHelperPath(args.root, entryOf(args), `${JUDGE_DIR}/plan.json`);
   if (!existsSync(planFile)) throw new UsageError('нет плана: сначала ai expect judge');
   const plan: unknown = JSON.parse(await readFile(planFile, 'utf8'));
   if (!isPlan(plan))
     throw new UsageError(`${JUDGE_DIR}/plan.json: неверная форма — заново ai expect judge`);
+  checkPlanPaths(args.root, entryOf(args), plan);
   const store = await loadVerdicts();
   const rejected: string[] = [];
   const readJson = async (rel: string): Promise<unknown> => {
+    const file = expectHelperPath(args.root, entryOf(args), rel);
     try {
-      return JSON.parse(await readFile(path.join(args.root, rel), 'utf8'));
+      return JSON.parse(await readFile(file, 'utf8'));
     } catch {
       return undefined;
     }
@@ -569,7 +627,10 @@ async function judgeApply(args: CommandArgs): Promise<number> {
     );
     return 1;
   }
-  await rm(path.join(args.root, JUDGE_DIR), { recursive: true, force: true });
+  await rm(path.dirname(expectHelperPath(args.root, entryOf(args), `${JUDGE_DIR}/plan.json`)), {
+    recursive: true,
+    force: true,
+  });
   console.log(`expect judge --apply: вердикты сохранены в ${verdictsPath()}`);
   return 0;
 }
@@ -602,17 +663,16 @@ async function init(args: CommandArgs): Promise<number> {
   const name = path.basename(args.root);
   await put(INDEX_ENTRY, initIndex(name));
   await put(`expectations/${name}.expect.ts`, initExample(name));
-  const JUDGE_DIR = judgeDir(INDEX_ENTRY);
-
   const gitignore = path.join(args.root, '.gitignore');
   const ignored = existsSync(gitignore) ? await readFile(gitignore, 'utf8') : '';
-  if (!ignored.split('\n').includes(`${JUDGE_DIR}/`)) {
+  const missing = ARTIFACT_IGNORE_LINES.filter((line) => !ignored.split('\n').includes(line));
+  if (missing.length > 0) {
     await writeFile(
       gitignore,
-      `${ignored}${ignored === '' || ignored.endsWith('\n') ? '' : '\n'}${JUDGE_DIR}/\n`,
+      `${ignored}${ignored === '' || ignored.endsWith('\n') ? '' : '\n'}${missing.join('\n')}\n`,
       'utf8',
     );
-    done.push(`.gitignore: ${JUDGE_DIR}/`);
+    done.push(`.gitignore: local artifact roots (${missing.length})`);
   }
 
   const pkgFile = path.join(args.root, 'package.json');

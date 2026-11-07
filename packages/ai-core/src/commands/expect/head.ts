@@ -33,8 +33,8 @@ export function headTitles(
   if (shown.status !== 0) return undefined;
   const dir = mkdtempSync(path.join(tmpdir(), 'harness-head-'));
   const source = path.join(dir, path.basename(abs));
-  writeFileSync(source, shown.stdout, 'utf8');
   try {
+    writeFileSync(source, shown.stdout, 'utf8');
     return collect({ [HEAD_SOURCE_ENV]: source });
   } finally {
     rmSync(dir, { recursive: true, force: true });

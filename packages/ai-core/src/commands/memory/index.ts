@@ -27,3 +27,4 @@ export async function runMemory(command: string | undefined, args: CommandArgs):
 }
 
 export { checkMemory, checkBundles, buildBundles };
+export { runInbox } from './inbox.ts';

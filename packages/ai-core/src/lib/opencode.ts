@@ -5,8 +5,10 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { isRecord } from '#shared/guards';
 import { compileSchema } from '#shared/schema';
+import { launchPreflight, type LaunchContext } from './task-gates.ts';
 
 export interface HeadlessRun {
+  context?: LaunchContext;
   cwd: string;
   model: string;
   addDirs: string[];
@@ -117,6 +119,8 @@ export function openCodeStepOf(line: string): string | undefined {
 }
 
 export interface OpenCodeRunSpec {
+  execution?: string;
+  context?: import('./task-gates.ts').LaunchContext;
   cwd: string;
   agent: string;
   model: string;
@@ -142,15 +146,31 @@ export async function spawnOpenCode(
   spec: OpenCodeRunSpec,
   options: OpenCodeSpawnOptions = {},
 ): Promise<OpenCodeOutcome> {
+  if (spec.out !== '') validateArtifactOutput(spec.cwd, path.relative(spec.cwd, spec.out));
+  if (options.transcript !== undefined)
+    validateArtifactOutput(spec.cwd, path.relative(spec.cwd, options.transcript));
+  const launch = await launchPreflight(spec.cwd, spec.context);
   const [bin = 'opencode', ...pre] = opencodeBin();
   const dir = await mkdtemp(path.join(tmpdir(), 'opencode-run-'));
   try {
     const configDir = path.join(dir, 'config');
     mkdirSync(configDir, { recursive: true });
     const instructions = path.join(configDir, 'instructions.md');
-    writeFileSync(instructions, spec.prompt, 'utf8');
+    writeFileSync(
+      instructions,
+      `${spec.prompt}\n\nRuntime launch context (не утверждение producer):\n${JSON.stringify(launch)}`,
+      'utf8',
+    );
     const env: NodeJS.ProcessEnv = { ...process.env };
     env['HARNESS_SUBMIT_OUT'] = spec.out;
+    if (spec.execution !== undefined) env['HARNESS_EXECUTION_ID'] = spec.execution;
+    if (spec.context?.packet !== undefined) {
+      env['HARNESS_TASK_PACKET'] = spec.context.packet;
+      env['HARNESS_TASK_PURPOSE'] = spec.context.purpose;
+    } else {
+      delete env['HARNESS_TASK_PACKET'];
+      delete env['HARNESS_TASK_PURPOSE'];
+    }
     env['OPENCODE_CONFIG_DIR'] = configDir;
     env['OPENCODE_CONFIG_CONTENT'] = JSON.stringify({
       $schema: 'https://opencode.ai/config.json',
@@ -161,7 +181,10 @@ export async function spawnOpenCode(
     const journal =
       options.transcript === undefined
         ? undefined
-        : createWriteStream(options.transcript, { flags: 'w' });
+        : createWriteStream(
+            validateArtifactOutput(spec.cwd, path.relative(spec.cwd, options.transcript)),
+            { flags: 'w' },
+          );
     const session = spec.session === undefined ? [] : ['--session', spec.session];
     const attachments = (spec.attachments ?? []).flatMap((f) => ['-f', f]);
     return await new Promise<OpenCodeOutcome>((resolve, reject) => {
@@ -223,6 +246,7 @@ export async function spawnOpenCode(
     await rm(dir, { recursive: true, force: true });
   }
 }
+import { validateArtifactOutput } from './artifacts.ts';
 
 export async function submitFileOf(out: string): Promise<string | undefined> {
   const raw = await readFile(out, 'utf8').catch(() => undefined);
@@ -251,6 +275,7 @@ export function structuredFromText(text: string): unknown {
 
 export class OpenCodeRunner implements ModelRunner {
   async headless(run: HeadlessRun): Promise<HeadlessResult> {
+    await launchPreflight(run.cwd, run.context ?? { purpose: 'expect-helper' });
     const spec: OpenCodeRunSpec = {
       cwd: run.cwd,
       agent: run.agent ?? 'judge',
@@ -258,6 +283,7 @@ export class OpenCodeRunner implements ModelRunner {
       prompt: run.systemPrompt,
       task: run.prompt,
       out: '',
+      context: run.context ?? { purpose: 'expect-helper' },
     };
     if (run.sessionId !== undefined) spec.session = run.sessionId;
     const result = await spawnOpenCode(spec, { timeoutMs: 30 * 60_000 });

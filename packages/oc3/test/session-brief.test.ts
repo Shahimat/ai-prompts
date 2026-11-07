@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { appendBriefing, briefingLine, memoryStart, type BriefingSystem } from '#session-brief';
+import { enqueueKnowledge } from '@shahimat/ai-core';
 
 let root: string;
 
@@ -114,6 +115,47 @@ describe('briefingLine', () => {
 });
 
 describe('appendBriefing', () => {
+  it('reused native context replaces rather than accumulates the pending overlay', async () => {
+    const seen = new Set<string>();
+    const input: BriefingSystem = { system: [] };
+    await appendBriefing(input, root, seen, 'session');
+    for (const execution of ['first', 'second']) {
+      await enqueueKnowledge({ root, actor: 'executor', channel: 'test', execution }, [
+        {
+          subject: 'current',
+          property: 'pending',
+          value: execution,
+          kind: 'candidate',
+          evidence: ['fixture'],
+        },
+      ]);
+      await appendBriefing(input, root, seen, 'session');
+    }
+    const overlays = input.system.filter((part) => part.text.startsWith('Pending knowledge —'));
+    expect(overlays).toHaveLength(1);
+    expect(overlays[0]?.text).toContain('items=2');
+    expect(input.system).toHaveLength(2);
+  });
+  it('an existing native session receives current ring-1 arrivals without replaying canonical briefing', async () => {
+    const seen = new Set<string>();
+    const initial: BriefingSystem = { system: [] };
+    await appendBriefing(initial, root, seen, 'session');
+    await enqueueKnowledge({ root, actor: 'executor', channel: 'test', execution: 'arrival' }, [
+      {
+        subject: 'current',
+        property: 'pending',
+        value: 'RAW_SENTINEL',
+        kind: 'candidate',
+        evidence: ['RAW_EVIDENCE'],
+      },
+    ]);
+    const next: BriefingSystem = { system: [] };
+    await appendBriefing(next, root, seen, 'session');
+    expect(next.system).toHaveLength(1);
+    expect(next.system[0]?.text).toContain('items=1');
+    expect(next.system[0]?.text).not.toContain('RAW_SENTINEL');
+    expect(next.system[0]?.text).not.toContain('RAW_EVIDENCE');
+  });
   it('строка попадает в системный промпт сессии один раз', async () => {
     await putProject('briefing:\n  mode: roles\n');
     const seen = new Set<string>();
@@ -170,8 +212,11 @@ describe('memoryStart — вшивание стартового графа', () 
     expect(cold.diagnostics).toEqual([]);
     expect(cold.text).toContain('# Память проекта');
     const dirs = await readdir(path.join(root, '.oc3', 'bundles'));
-    expect(dirs).toHaveLength(2);
-    const dirsNoIndex = dirs.filter((d) => d !== 'index.md');
+    expect(dirs).toHaveLength(3);
+    expect(await readFile(path.join(root, '.oc3/bundles/pending/index.md'), 'utf8')).toContain(
+      'items=0',
+    );
+    const dirsNoIndex = dirs.filter((d) => d !== 'index.md' && d !== 'pending');
     expect(dirsNoIndex).toHaveLength(1);
     const nodeDir = path.join(root, '.oc3', 'bundles', dirsNoIndex[0] ?? '');
     expect(await readFile(path.join(nodeDir, 'index.md'), 'utf8')).toContain('manuals/how.md');

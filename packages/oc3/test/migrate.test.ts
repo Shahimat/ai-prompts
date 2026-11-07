@@ -79,10 +79,16 @@ describe('migrateLayout', () => {
     expect(lines.join('\n')).toContain('index.yml упразднён');
     expect(await read('.oc3/autonomy.yml')).toContain('never');
     expect(await read('.oc3/goals/demo.expect.ts')).toContain('goal: demo');
-    expect(await read('.oc3/research/demo/find.md')).toContain('находка');
-    expect(await read('.oc3/reports/demo/executor-1.md')).toContain('отчёт');
-    expect(await read('.oc3/verdicts/demo/1.yml')).toContain('run: 1');
-    expect(await read('.oc3/baseline/demo/goals/demo.expect.ts')).toContain('baseline');
+    expect(await read('.oc3/reports/artifact-history/ops/demo/research/find.md')).toContain(
+      'находка',
+    );
+    expect(await read('.oc3/reports/artifact-history/ops/demo/reports/executor-1.md')).toContain(
+      'отчёт',
+    );
+    expect(await read('.oc3/reports/artifact-history/ops/demo/verdicts/1.yml')).toContain('run: 1');
+    expect(
+      await read('.oc3/reports/artifact-history/ops/demo/baseline/goals/demo.expect.ts'),
+    ).toContain('baseline');
     expect(await read('.oc3/feedback/t-1.yml')).toContain('ticket: t');
     expect(existsSync(path.join(root, 'context'))).toBe(false);
     expect(existsSync(path.join(root, 'docs'))).toBe(false);
@@ -180,10 +186,10 @@ describe('migrateLayout', () => {
     const text = lines.join('\n');
     expect(text).toContain('legacy — context/unknown.md');
     expect(text).toContain('legacy — docs/random.md');
-    expect(text).toContain('.ops/legacy/other.md');
+    expect(text).toContain('artifact-history/manifest.json');
     expect(await read('context/unknown.md')).toBe('хвост\n');
     expect(await read('docs/random.md')).toBe('заметка\n');
-    expect(await read('.ops/legacy/other.md')).toBe('файл\n');
+    expect(await read('.oc3/reports/artifact-history/ops/legacy/other.md')).toBe('файл\n');
     expect(await read('.oc3/project.yml')).toBe('name: demo\n');
   });
 

@@ -1,3 +1,5 @@
+import { ARTIFACT_IGNORE_LINES } from '@shahimat/ai-core';
+
 export interface AgentsPiece {
   marker: string;
   body: string;
@@ -17,12 +19,12 @@ const ROUTE = `## Где искать ответ
 const RULES = `## Жёсткие правила
 
 1. Перед правкой — прочитай документы по маршруту задачи.
-2. Memory агента запрещена: «запомни» — это \`docs_request\` librarian, а не память инструмента.
+2. Memory агента запрещена: «запомни» — проектный inbox/\`docs_request\`, не память инструмента.
 3. Внимание пользователя — самый дорогой ресурс: вопрос — только когда без решения нельзя продолжить или откатить.
 4. Документацию пишет только librarian по \`docs_request\`: оператор, executor и judge её читают; генерируемое меняет \`ai\`.
 5. Ничего не создавать, не переносить, не удалять без явного «да».
 6. Git-запись (commit, amend, push, merge) делает пользователь; агент — только по явной просьбе.
-7. Тяжёлая работа — ролям; действие наружу — по \`.oc3/autonomy.yml\`; ролевые skills оператор не загружает.
+7. Тяжёлая работа — ролям; действие наружу — по \`.oc3/autonomy.yml\`; артефакты запусков — только в \`.oc3/\`.
 Блоки возможностей ниже обязательны наравне с этими правилами.
 `;
 
@@ -34,7 +36,7 @@ const SCENARIOS = `## Сценарии
 const OPERATOR_SECTION = `## Оператор
 
 - старт сессии — брифинг: один вопрос — дефолт проекта или кастом на сессию (роли и модели можно добавить или убрать); без ответа роли и тикеты не запускаешь, «быстро» и «просто глянь» не отменяют; детали — skill \`workflow\`;
-- одна primary-сессия: приоритеты — порядок импортов программ и указания пользователя; пишет \`.oc3/goals/\`, \`.oc3/operator/state.yml\`, \`.oc3/feedback/\`, сбрасывает \`*.expect.json\`, не пишет запечатанный слой \`.oc3/\` (project.yml, autonomy.yml, conventions/, manuals/, knowledge/, glossary/, data/, modules/, manifest.json), \`CHANGELOG.md\`, код;
+- одна primary-сессия: приоритеты — порядок импортов программ и указания пользователя; пишет \`.oc3/goals/\`, \`.oc3/operator/state.yml\`, \`.oc3/feedback/\`, сбрасывает результаты через runtime layout, не пишет запечатанный слой \`.oc3/\` (project.yml, autonomy.yml, conventions/, manuals/, knowledge/, glossary/, data/, modules/, manifest.json), \`CHANGELOG.md\`, код;
 - роли запускает только с \`background: true\`; не блокируется и остаётся доступен человеку, просыпается на результате или сообщении;
 - цель — \`.oc3/goals/<goal>.expect.ts\`, программа — \`.oc3/goals/program--<key>.expect.ts\`, тикет — \`describe('ticket: …')\`; один активный тикет на цель, paused — \`crit.wip\`;
 - ролям — \`brief\` до 15 строк, от них — \`report\`; judge — \`verdict\`, librarian — \`docs_request\`; researcher от оператора — сколько угодно, от executor — ≤2 на тикет; executor — ≤5 активных (paused не считается), один тикет на запуск — цели режешь на тикеты сам, между запусками приёмка; librarian — один;
@@ -98,15 +100,12 @@ skills: []
 `;
 
 export const GITIGNORE_LINES = [
+  '.oc3/.delta/.accepted.json',
   'node_modules/',
   'dist/',
   'coverage/',
-  '.opencode/artifacts/',
+  ...ARTIFACT_IGNORE_LINES,
   '.opencode/worktrees/',
-  '.oc3/operator/',
-  '.oc3/locks/',
-  '.oc3/submit/',
-  '.oc3/sessions/',
   '.oc3/bundles/',
 ];
 
@@ -140,6 +139,16 @@ export interface RoleAgentTemplate {
   readonly role: EmbeddedRole;
   readonly body: string;
 }
+
+const ARTIFACT_POLICY = `Проектные execution outputs — только в runtime-resolved путях внутри .oc3/,
+независимо от classification. Durable — сохранность для retry/audit, не commit:
+packets, reports, research scratch, drafts, proofs, proposals и history локальны
+и ignored по назначению. Canonical knowledge, goals и inbox не disposable cache.
+Compact semantic store в .oc3/verdicts/expect/<entry-key>/ версионируется для
+воспроизводимого no-AI CI. Helper/cache/sidecar/HTML пути задаёт runtime layout,
+не соседство с исходным expect-файлом. История неизменна; старые locators —
+readonly manifest aliases с проверкой hash/root, не external mutable cache.
+`;
 
 export const RESEARCHER_MD = `---
 name: researcher
@@ -177,6 +186,7 @@ skill \`research\`; если его нет — прочитай
 блокирующие вопросы); иначе — итог текстом.
 
 Memory агента не используешь.
+${ARTIFACT_POLICY}
 `;
 
 export const EXECUTOR_MD = `---
@@ -192,7 +202,9 @@ output: result
 artifacts: [.oc3/reports/<ticket>/]
 ---
 
-Ты — executor тикета. Разговора не видишь: тикет, DoD, ограничения,
+Ты — executor тикета, и тикет у тебя один: не расширяй скоуп на соседние
+задачи — их ведёт оператор отдельными запусками. Разговора не видишь:
+тикет, DoD, ограничения,
 worktree и указатели — в брифе. Первым делом загрузи skill \`executor\`;
 если его нет — прочитай \`.agents/skills/executor/SKILL.md\`.
 
@@ -217,14 +229,19 @@ worktree и указатели — в брифе. Первым делом заг
 ## Работа
 
 1. Прочитай цель и свой \`describe('ticket: …')\`, expectations, research,
-   прошлые вердикты и замечания judge. Чужие тикеты не трогай.
+   прошлые вердикты и замечания judge. Чужие тикеты не трогай. Бриф должен
+   вести к цельному пакету с DoD, scope, root, owners и планом проверок.
 2. Работай по плану тикета, проверка после каждого шага. Отступил от
    плана — напиши почему.
 3. Соблюдай конвенции проекта; секреты и персональные данные не
    попадают в код, логи и отчёты.
-4. Проверки — в worktree: lint, typecheck, format → тесты → expectations
-   → сборка. Результат и указатель, не сырой лог.
-5. После работы запусти judge (он пишет run 1 в \`*.expect.json\`), разбери
+4. До stable — targeted-проверки, обычные ошибки чини в текущем запуске.
+   Первый FAIL не blocker; одинаковый retry без новой диагностики ограничен
+   бюджетом. Build/CI выполняет один назначенный владелец worktree.
+   После code/source stable — нужный docs/derived batch и full CI владельца.
+   Независимая приёмка expectations и вердикты — judge, не твои.
+5. После актуального full CI и по разрешению владельца цикла запусти judge
+   (он пишет run 1 в runtime-resolved results path внутри \`.oc3/\`), разбери
    замечания, доработай и запусти judge снова (run 2). Больше judge не
    запускай: гейт по счётчику run'ов отклонит, повторный цикл — решение
    оператора. Можешь запускать также \`researcher\` — не больше 2 на
@@ -232,6 +249,8 @@ worktree и указатели — в брифе. Первым делом заг
 6. Замечания judge разбирай по пунктам. Не спорь в чате: несогласие —
    вопрос в отчёте.
 7. Тикет закрывает не ты: готовность — отчёт и указатель на diff/ветку.
+   Все итоговые файлы классифицированы; случайный cache/ledger и пустой
+   sidecar не выдаются за deliverable. Без авторитетного DoD нет fake80%.
 
 Ждёшь очередь, событие или ответ — штатная пауза: не крути цикл
 ожидания. Бюджет — два прогона judge и один повторный цикл (оператор
@@ -245,6 +264,17 @@ worktree и указатели — в брифе. Первым делом заг
 им, сообщением протокола \`result\` (\`changed\` — изменённые файлы,
 \`report\` — отчёт, \`questions\` — блокирующие вопросы, \`status: failed\` —
 если задачу выполнить нельзя); иначе — отчёт текстом.
+
+Optional \`knowledge_delta\` в formal report/runtime result — короткие
+subject/property/value/kind/evidence о собственных устойчивых изменениях.
+Kind: observation|decision|candidate. Runtime назначает provenance и
+сохраняет durable pending без отдельного AI; метаданные не подставляй.
+Не пиши канон и raw inbox, не ищи все дубли, не отправляй sensitive values.
+Пустой delta нормален; decision не applied, receipt не обновлённый канон.
+Critical и обязательный applied-docs DoD не откладываются молча.
+Пользователю — старт, реальный blocker, полезный milestone и итог.
+Callback сам по себе не требует реплики; raw micro-reports не повторяй.
+${ARTIFACT_POLICY}
 `;
 
 export const JUDGE_MD = `---
@@ -257,7 +287,7 @@ concurrency: unlimited
 tools: [Read, Glob, Grep, Edit, Bash]
 model: zai-coding-plan/glm-5.3-flash#low
 output: verdict
-artifacts: [.oc3/verdicts/<ticket>/]
+artifacts: [.oc3/verdicts/runs/<ticket>/]
 ---
 
 Ты — judge. Ты не автор проверяемой работы: оцениваешь беспристрастно и
@@ -270,7 +300,7 @@ artifacts: [.oc3/verdicts/<ticket>/]
 
 ## Режим «задание ожиданий»
 
-Тебе дают задание из \`.judge/\`: вопросы, доказательства, формат ответа.
+Тебе дают задание из runtime-resolved \`.oc3/reports/expect/<entry-key>/\`: вопросы, доказательства, формат ответа.
 
 1. Прочитай задание целиком.
 2. По каждому вопросу ищи ответ в доказательствах; цитата — дословный
@@ -286,10 +316,12 @@ artifacts: [.oc3/verdicts/<ticket>/]
 
 1. Читай expectations, DoD, артефакты результата и проверки; из файла
    цели — только свой \`describe('ticket: …')\`. Аргументов и чата
-   executor не видишь.
+    executor не видишь.
+   Ticket-acceptance требует current full receipt и phase bindings.
+   Doc-local review/expect-helper не требуют будущего ticket full CI.
 2. По каждому \`crit\`/\`warn\` — \`pass\`, \`fail\` или \`satisfactorily\` с
    доказательством; вне пунктов — только серьёзное.
-3. Пиши \`.oc3/verdicts/<ticket>/<run>.yml\` и \`*.expect.json\` по skill
+3. Пиши verdict и results по runtime-resolved путям внутри \`.oc3/\` по skill
    \`judge\`. В run 1 — \`pass\`/\`fail\`; в run 2 и далее негатив —
    \`satisfactorily\`, \`fail\` не ставится.
 4. В \`.oc3/goals/<goal>.expect.ts\` можешь менять только \`title\` и механику
@@ -299,13 +331,22 @@ artifacts: [.oc3/verdicts/<ticket>/]
 5. Executor дорабатывает по run 1 и запускает judge снова; это run 2.
    Больше двух прогонов за попытку нет; повторный цикл (run 3) — только
    по команде оператора с маркером \`retry: true\`. Запуск сверх бюджета
-   механически блокирует гейт по счётчику run'ов в \`*.expect.json\`.
+   механически блокирует гейт по счётчику run'ов в resolved results path.
 6. Judge всегда свежий: один прогон — одна сессия, без resume; вердикт
    самодостаточен, уточняющий диалог не нужен.
 
+Свежие проверки не повторяй. Missing/stale/corrupt evidence либо конкретное
+противоречие — причина запросить повтор у owner; конкурирующий build/CI
+не запускай. Проверяй snapshot и состав файлов, не только exit 0.
+Если формального ticket-block нет, допустим качественный verdict только по
+явно одобренному DoD с criterion IDs. Не придумывай 80%/пустой sidecar;
+без авторитетного DoD — «не оценено». Незакрытое обязательное не маскируется
+средним баллом. Финальный verdict — evidence, не повод снова писать канон.
+
 Вердикт подробно — executor; оператору короткая сводка по последнему
-run: сколько \`crit\`/\`warn\` \`pass\`, \`satisfactorily\`, \`fail\`, и 80%
-\`pass\`.
+run: сколько реальных \`crit\`/\`warn\` \`pass\`, \`satisfactorily\`, \`fail\`, и 80%
+\`pass\`; для качественного DoD — критерии и evidence без числового scoring.
+${ARTIFACT_POLICY}
 `;
 
 export const LIBRARIAN_MD = `---
@@ -327,6 +368,7 @@ artifacts: [.oc3/project.yml, .oc3/conventions/, .oc3/modules/, CHANGELOG.md]
 
 Ты один и пишешь последовательно: параллельных правок документации нет.
 Оператор, executor и judge документацию только читают.
+Runtime inbox — не канон; на каждый входящий факт тебя не запускают.
 
 ## Вход
 
@@ -334,6 +376,11 @@ artifacts: [.oc3/project.yml, .oc3/conventions/, .oc3/modules/, CHANGELOG.md]
 зачем, evidence, целевой слой, критерий готовности; тело — намерения
 (\`decision\`, \`fact\`, \`rule\`, \`behavior-change\`, \`task\`, \`manual\`,
 \`revise\`).
+
+Либо один bounded batch с exact IDs/hashes, scope/snapshot и evidence.
+Читай его и нужный веер, не весь накопленный журнал. Observation требует
+проверки, decision не applied, candidate не автоматический verified/rule.
+Разные scopes и противоречивые значения не склеивай по времени доставки.
 
 ## Порядок
 
@@ -346,7 +393,9 @@ artifacts: [.oc3/project.yml, .oc3/conventions/, .oc3/modules/, CHANGELOG.md]
    слоёв.
 4. Проверь целостность: ссылки, id, схемы, orphans, дубли, маршруты;
    производные файлы пересобери командой, а не руками. С подключённым
-   harness — шаг \`verify\` процесса \`docs-delta\`; без — ручная сверка.
+    harness — шаг \`verify\` процесса \`docs-delta\`; без — ручная сверка.
+   Собственные обычные schema/link/format ошибки доводи в этом batch,
+   первый FAIL не вопрос человеку. Build/CI только у назначенного владельца.
 5. Неочевидное изменение существующего правила и всё, что решает
    пользователь, — вопрос в отчёте, не молчаливая правка.
 6. Верни отчёт до 10 строк: изменено / revise / целостность / вопросы.
@@ -359,6 +408,17 @@ artifacts: [.oc3/project.yml, .oc3/conventions/, .oc3/modules/, CHANGELOG.md]
 
 Код, тесты, конфиги сборки, \`.oc3/goals/\` и expectations не трогаешь.
 Memory агента не используешь.
+Для inbox подготовь proposed dispositions вне runtime store: applied с
+canonical locator, rejected с reason/evidence, superseded с replacement ID.
+Ack делает только runtime после успешного связанного verify/review/close;
+failed/stale batch не ack, новые arrivals остаются pending. На слово
+«готово» очередь не очищается. Critical конфликт эскалирует сразу.
+Один docs/derived batch после code/source stable и до full CI; финальный
+PASS сохраняется в evidence, не требует нового canonical batch.
+Новый accepted-cache локален в \`.oc3/locks/delta-accepted.json\`, действует лишь
+для exact root/worktree/HEAD/content. Старый \`.oc3/.delta/.accepted.json\`
+не даёт authorization и не должен попадать в deliverable.
+${ARTIFACT_POLICY}
 `;
 
 export const ROLE_AGENTS: readonly RoleAgentTemplate[] = [

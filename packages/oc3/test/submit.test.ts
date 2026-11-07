@@ -1,8 +1,9 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { submitResult } from '#submit';
+import { intakeSuccessfulResult, pendingKnowledge } from '@shahimat/ai-core';
 
 const ENV_OUT = 'HARNESS_SUBMIT_OUT';
 
@@ -46,7 +47,7 @@ const call = (agent: string, input: unknown, sessionID = 'ses_test') => ({
 
 beforeEach(async () => {
   root = await mkdtemp(path.join(tmpdir(), 'oc3-submit-'));
-  out = path.join(root, 'job', 'submit.json');
+  out = path.join(root, '.oc3/submit', 'submit.json');
   process.env[ENV_OUT] = out;
 });
 
@@ -56,6 +57,66 @@ afterEach(async () => {
 });
 
 describe('submit_result', () => {
+  it('known secrets are rejected before output publication; store failure never claims durable acceptance', async () => {
+    await writeRole('executor', 'result');
+    const delta = [
+      {
+        subject: 'native',
+        property: 'pending',
+        value: `sk-${'x'.repeat(32)}`,
+        kind: 'candidate',
+        evidence: ['synthetic'],
+      },
+    ];
+    await expect(
+      submitResult(
+        call('executor', { message: 'result', data: { ...RESULT_DATA, knowledge_delta: delta } }),
+      ),
+    ).rejects.toThrow('SECRET_INPUT');
+    await expect(readFile(out)).rejects.toThrow();
+    await mkdir(path.join(root, '.oc3'), { recursive: true });
+    await symlink(tmpdir(), path.join(root, '.oc3/inbox'));
+    const data = { ...RESULT_DATA, knowledge_delta: [{ ...delta[0], value: 'safe synthetic' }] };
+    await expect(submitResult(call('executor', { message: 'result', data }))).rejects.toThrow(
+      'symlink',
+    );
+    expect(JSON.parse(await readFile(out, 'utf8'))).toEqual(data);
+    await rm(path.join(root, '.oc3/inbox'));
+    expect(await submitResult(call('executor', { message: 'result', data }))).toContain(
+      'durable pending',
+    );
+    expect(await pendingKnowledge(root)).toHaveLength(1);
+  });
+  it('native retry and managed parent readback share one durable receipt', async () => {
+    await writeRole('executor', 'result');
+    const data = {
+      ...RESULT_DATA,
+      knowledge_delta: [
+        {
+          subject: 'native',
+          property: 'pending',
+          value: { synthetic: true },
+          kind: 'decision',
+          evidence: ['fixture:native'],
+        },
+      ],
+    };
+    process.env['HARNESS_EXECUTION_ID'] = 'parent-run';
+    try {
+      const first = await submitResult(call('executor', { message: 'result', data }));
+      expect(first).toContain('durable pending');
+      expect(await submitResult(call('executor', { message: 'result', data }))).toBe(first);
+      const parent = await intakeSuccessfulResult(
+        { root, actor: 'executor', channel: 'managed-role', execution: 'parent-run' },
+        data,
+      );
+      expect(first).toContain(parent?.submission_id);
+      expect(await pendingKnowledge(root)).toHaveLength(1);
+      expect(JSON.parse(await readFile(out, 'utf8'))).toEqual(data);
+    } finally {
+      delete process.env['HARNESS_EXECUTION_ID'];
+    }
+  });
   it('валидный submit роли принят и записан в файл раннера', async () => {
     await writeRole('executor', 'result');
     const text = await submitResult(call('executor', { message: 'result', data: RESULT_DATA }));

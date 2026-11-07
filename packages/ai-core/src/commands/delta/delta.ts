@@ -19,6 +19,7 @@ import {
   SCHEMAS_DIR,
 } from '#shared/layout';
 import { compileSchema } from '#shared/schema';
+import { contentHash, digestOf, safePath, topologyOf } from '#lib/local-store';
 
 export const DELTA_SCHEMA = {
   $schema: 'https://json-schema.org/draft/2020-12/schema',
@@ -247,7 +248,8 @@ async function readDeltas(
   return deltas;
 }
 
-export const ACCEPTED_FILE = `${DELTA_DIR}/.accepted.json`;
+export const ACCEPTED_FILE = '.oc3/locks/delta-accepted.json';
+export const LEGACY_ACCEPTED_FILE = `${DELTA_DIR}/.accepted.json`;
 
 export function matchesTarget(target: string, file: string): boolean {
   const base = target.split('#')[0] ?? target;
@@ -258,6 +260,10 @@ const isDeltaTarget = (target: string): boolean =>
   (target.split('#')[0] ?? target).startsWith(`${DELTA_DIR}/`);
 
 export interface Accepted {
+  file: string;
+  before: string;
+  after: string | null;
+  delta_digest: string;
   delta: string;
   target: string;
   summary: string;
@@ -267,12 +273,15 @@ export interface Accepted {
 
 const isAccepted = (v: unknown): v is Accepted =>
   isRecord(v) &&
-  ['delta', 'target', 'summary', 'was', 'why'].every((k) => typeof v[k] === 'string');
+  ['delta', 'target', 'summary', 'was', 'why', 'file', 'before', 'delta_digest'].every(
+    (k) => typeof v[k] === 'string',
+  ) &&
+  (typeof v['after'] === 'string' || v['after'] === null);
 
 export async function readAccepted(root: string): Promise<Accepted[]> {
   let text: string;
   try {
-    text = await readFile(path.join(root, ACCEPTED_FILE), 'utf8');
+    text = await readFile(await safePath(root, ACCEPTED_FILE), 'utf8');
   } catch (error) {
     if (errorCode(error) === 'ENOENT') return [];
     throw error;
@@ -284,21 +293,57 @@ export async function readAccepted(root: string): Promise<Accepted[]> {
     return [];
   }
   const items = isRecord(data) ? data['items'] : undefined;
-  return Array.isArray(items) ? items.filter(isAccepted) : [];
+  const topology = await topologyOf(root);
+  if (
+    !isRecord(data) ||
+    data['version'] !== 2 ||
+    data['root'] !== topology.project ||
+    data['worktree'] !== topology.worktree ||
+    data['head'] !== topology.head ||
+    !Array.isArray(items) ||
+    !items.every(isAccepted)
+  )
+    return [];
+  const { digest, ...body } = data;
+  if (digest !== digestOf(body)) return [];
+  const current: Accepted[] = [];
+  for (const item of items) {
+    if (item.target !== item.file) continue;
+    if (
+      item.before === digestOf(git(root, ['show', `HEAD:${item.file}`]).out) &&
+      item.after === (await contentHash(root, item.file))
+    )
+      current.push(item);
+  }
+  return current;
 }
 
-export const acceptedOf = (deltas: readonly Delta[]): Accepted[] =>
-  deltas.flatMap((d) =>
-    d.items
-      .filter((i) => i.op === 'revise')
-      .map((i) => ({
-        delta: d.file,
-        target: i.target,
-        summary: i.summary,
-        was: i.was ?? '',
-        why: i.why ?? '',
-      })),
-  );
+export async function acceptedOf(
+  root: string,
+  deltas: readonly Delta[],
+  files: string[],
+): Promise<Accepted[]> {
+  const accepted: Accepted[] = [];
+  for (const delta of deltas)
+    for (const item of delta.items.filter((i) => i.op === 'revise')) {
+      const matching = files.filter((file) => matchesTarget(item.target, file));
+      if (matching.length > 1 && !item.target.includes('/'))
+        throw new UsageError('delta: неоднозначная цель revise');
+      for (const file of matching)
+        accepted.push({
+          file,
+          target: file,
+          delta: delta.file,
+          delta_digest: digestOf(delta),
+          summary: item.summary,
+          was: item.was ?? '',
+          why: item.why ?? '',
+          before: digestOf(git(root, ['show', `HEAD:${file}`]).out),
+          after: await contentHash(root, file),
+        });
+    }
+  return accepted;
+}
 
 export async function checkDelta(root: string): Promise<DeltaResult> {
   if (!git(root, ['rev-parse', '--verify', 'HEAD']).ok)
@@ -355,6 +400,16 @@ export async function checkDelta(root: string): Promise<DeltaResult> {
     file,
     message: `дельта попала в коммит — закрой её: ai delta close --name ${deltaName(file)}; пункты, выполненные в коммитах после её появления, засчитываются`,
   }));
+  if (existsSync(path.join(root, LEGACY_ACCEPTED_FILE)))
+    warnings.push({
+      file: LEGACY_ACCEPTED_FILE,
+      message: 'legacy target-only cache ignored; retire runtime artifact',
+    });
+  if (existsSync(path.join(root, ACCEPTED_FILE)) && accepted.length === 0)
+    warnings.push({
+      file: ACCEPTED_FILE,
+      message: 'expired/corrupt cache grants no authorization; close refreshes lifecycle',
+    });
   return { deltas, revisions, changed, diagnostics, warnings, accepted };
 }
 

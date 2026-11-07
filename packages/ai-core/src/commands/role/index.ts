@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs';
-import { readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { serveChannel } from '#lib/mcp';
 import { isProtocolMessage } from '#lib/protocol';
@@ -11,14 +11,30 @@ async function run(args: CommandArgs): Promise<number> {
   const name = args.params?.['name'];
   if (name === undefined) throw new UsageError('role run <name>: нет имени роли');
   if (args.file === undefined) throw new UsageError('role run: нужен --file <задание>');
-  const out = args.out === undefined ? undefined : path.resolve(args.root, args.out);
+  const out = args.out === undefined ? undefined : validateArtifactOutput(args.root, args.out);
   if (out !== undefined && existsSync(out))
     throw new UsageError(`${args.out} уже есть — укажи новый файл ответа`);
   const task = await readFile(path.resolve(args.root, args.file), 'utf8');
-  const { data, costUsd } = await askRole(args.root, name, task);
+  const { data, costUsd } = await askRole(
+    args.root,
+    name,
+    task,
+    args.ticket === undefined
+      ? {}
+      : {
+          context: {
+            packet: artifactRelative({ kind: 'run', key: args.ticket, name: 'task-packet.json' }),
+            ticket: args.ticket,
+            purpose: name === 'judge' ? 'ticket-acceptance' : 'implementation',
+          },
+        },
+  );
   const json = `${JSON.stringify(data, null, 2)}\n`;
   if (out === undefined) process.stdout.write(json);
-  else await writeFile(out, json, 'utf8');
+  else {
+    await mkdir(path.dirname(out), { recursive: true });
+    await writeFile(validateArtifactOutput(args.root, path.relative(args.root, out)), json, 'utf8');
+  }
   if (costUsd !== undefined) console.error(`role ${name}: $${costUsd.toFixed(4)}`);
   return 0;
 }
@@ -29,8 +45,9 @@ async function channel(args: CommandArgs): Promise<number> {
     throw new UsageError('role channel <message>: result, verdict или question');
   if (args.out === undefined) throw new UsageError('role channel: нужен --out <файл>');
   await serveChannel({
+    root: args.root,
     message,
-    out: path.resolve(args.root, args.out),
+    out: validateArtifactOutput(args.root, args.out),
     input: process.stdin,
     output: process.stdout,
   });
@@ -40,3 +57,4 @@ async function channel(args: CommandArgs): Promise<number> {
 export function runRoleCommand(mode: 'run' | 'channel', args: CommandArgs): Promise<number> {
   return mode === 'run' ? run(args) : channel(args);
 }
+import { artifactRelative, validateArtifactOutput } from '#lib/artifacts';

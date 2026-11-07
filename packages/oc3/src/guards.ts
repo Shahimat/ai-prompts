@@ -121,9 +121,45 @@ export async function docsGuard(
   paths: readonly string[],
   root: string,
 ): Promise<string | undefined> {
+  for (const p of paths) {
+    try {
+      if (p.replaceAll('\\', '/').split('/').includes('..'))
+        throw new Error('ARTIFACT_PATH_INVALID');
+      assertArtifactNamespace(
+        root,
+        path.relative(root, path.resolve(root, p)).replaceAll('\\', '/'),
+      );
+    } catch {
+      return 'artifact namespace: project execution outputs belong inside .oc3; no classification bypass';
+    }
+    const projectRelative = path.relative(root, path.resolve(root, p)).split(path.sep).join('/');
+    if (projectRelative.startsWith('.oc3/reports/artifact-history/'))
+      return 'runtime-owned immutable history: используй readonly migration manifest aliases';
+    if (
+      /^\.oc3\/reports\/[^/]+\/checks(?:\/|$)/.test(projectRelative) ||
+      /^\.oc3\/reports\/(?:knowledge-batches|docs-batches)(?:\/|$)/.test(projectRelative)
+    )
+      return 'runtime-owned verification evidence: используй operator/runtime API';
+    const rel = oc3Rel(root, p);
+    if (
+      rel !== undefined &&
+      (/^\.oc3\/locks\/(?:delta-accepted|delta-close|verification|knowledge-view|knowledge-consolidation|knowledge-batch-run|docs-review|docs-review-run)\.json$/.test(
+        rel,
+      ) ||
+        /^\.oc3\/locks\/(?:atomic-tmp|knowledge-tmp)(?:\/|$)/.test(rel))
+    )
+      return 'runtime-owned state: используй runtime API';
+    if (
+      rel === '.oc3/inbox/knowledge' ||
+      rel?.startsWith('.oc3/inbox/knowledge/') === true ||
+      rel === '.oc3/bundles/pending' ||
+      rel?.startsWith('.oc3/bundles/pending/') === true
+    )
+      return 'runtime-owned knowledge: используй memory inbox API';
+  }
   if (existsSync(path.join(root, `${LOCKS_DIR}/install`))) return undefined;
   for (const p of paths) {
-    const rel = p.replace(/^\.\//, '');
+    const rel = path.relative(root, path.resolve(root, p)).replaceAll('\\', '/');
     const hit =
       SEALED_FILES.includes(rel) ||
       SEALED_DIRS.some((a) => rel.startsWith(`${a}/`)) ||
@@ -251,3 +287,4 @@ export async function registerGuards(ctx: Plugin.Context): Promise<void> {
     }
   });
 }
+import { assertArtifactNamespace } from '@shahimat/ai-core';

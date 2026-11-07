@@ -26,7 +26,7 @@ if (turn.files !== undefined)
     writeFileSync(rel, text);
   }
 if (turn.events !== undefined) {
-  const bridge = JSON.parse(readFileSync('.opencode/artifacts/plan-review/bridge.json', 'utf8'));
+  const bridge = JSON.parse(readFileSync('.oc3/sessions/plan-review/bridge.json', 'utf8'));
   for (const e of turn.events) appendFileSync(bridge.events, JSON.stringify(e) + '\\n');
 }
 if (turn.exit !== undefined) {

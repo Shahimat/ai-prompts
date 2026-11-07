@@ -1,5 +1,6 @@
 import { appendFile, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { randomUUID } from 'node:crypto';
 import { parse, stringify } from 'yaml';
 import { errorCode, errorMessage, UsageError } from '@shahimat/ai-core';
 
@@ -34,9 +35,13 @@ export async function readJson(file: string, where: string): Promise<unknown> {
 
 export async function writeAtomic(file: string, content: string): Promise<void> {
   await mkdir(path.dirname(file), { recursive: true });
-  const tmp = `${file}.${process.pid}.tmp`;
-  await writeFile(tmp, content, 'utf8');
-  await rename(tmp, file);
+  const tmp = `${file}.${randomUUID()}.tmp`;
+  await writeFile(tmp, content, { encoding: 'utf8', flag: 'wx' });
+  try {
+    await rename(tmp, file);
+  } finally {
+    await rm(tmp, { force: true });
+  }
 }
 
 export const writeJson = (file: string, data: unknown): Promise<void> =>

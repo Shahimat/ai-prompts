@@ -4,7 +4,7 @@ import { runContext } from '#commands/context/index';
 import { runDelta } from '#commands/delta/index';
 import { runExpect } from '#commands/expect/index';
 import { runGoals } from '#commands/goals/index';
-import { runMemory } from '#commands/memory/index';
+import { runInbox, runMemory } from '#commands/memory/index';
 import { runModels } from '#commands/models/index';
 import { runOperator } from '#commands/operator/index';
 import { runOutdated } from '#commands/outdated/index';
@@ -16,6 +16,20 @@ import { runTree } from '#commands/tree/index';
 import type { CommandNode } from '#shared/node';
 
 export const COMMAND_NODES: readonly CommandNode[] = [
+  ...(['enqueue', 'pending', 'batch'] as const).map((command): CommandNode => ({
+    path: ['memory', 'inbox', command],
+    kind: 'command',
+    effect: command === 'pending' ? 'query' : 'mutation',
+    options: '[--file <json|->]',
+    run: (args) => runInbox(command, args),
+  })),
+  ...(['preflight', 'verify', 'ready'] as const).map((command): CommandNode => ({
+    path: command === 'verify' ? ['operator', command, '<name>'] : ['operator', command],
+    kind: 'command',
+    effect: command === 'ready' ? 'query' : 'mutation',
+    options: '--file <task-packet> | --ticket <key>',
+    run: (args) => runOperator(command, args),
+  })),
   {
     path: ['models', 'check'],
     kind: 'command',

@@ -1,7 +1,7 @@
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { homedir, userInfo } from 'node:os';
 import path from 'node:path';
-import { isRecord, UsageError } from '@shahimat/ai-core';
+import { artifactKey, isRecord, machineArtifactPath, UsageError } from '@shahimat/ai-core';
 import type { ExecResult, ProviderContext, ScheduleUnit, TaskCard } from './providers.ts';
 import { machineFile, projectKey } from './paths.ts';
 
@@ -134,7 +134,7 @@ function unitOf(value: unknown): ScheduleUnit {
   )
     throw new UsageError('schedule: install({ name, command, every, log })');
   return {
-    name: value['name'],
+    name: artifactKey(value['name']),
     command: value['command'].filter((c): c is string => typeof c === 'string'),
     every: value['every'],
     log: value['log'],
@@ -169,7 +169,10 @@ export function launchdPlist(unit: ScheduleUnit): string {
 }
 
 const plistPath = (name: string): string =>
-  path.join(homedir(), 'Library', 'LaunchAgents', `${name}.plist`);
+  machineArtifactPath(
+    { kind: 'machine', home: homedir() },
+    `Library/LaunchAgents/${artifactKey(name)}.plist`,
+  );
 const domain = (): string => `gui/${userInfo().uid}`;
 
 const scheduleLaunchd = {
@@ -186,12 +189,14 @@ const scheduleLaunchd = {
   remove: async (name: unknown, ctxRaw: unknown): Promise<void> => {
     const ctx = contextOf(ctxRaw);
     if (typeof name !== 'string') throw new UsageError('schedule/launchd: remove(имя)');
+    artifactKey(name);
     ctx.exec('launchctl', ['bootout', `${domain()}/${name}`]);
     await rm(plistPath(name), { force: true });
   },
   status: async (name: unknown, ctxRaw: unknown): Promise<string> => {
     const ctx = contextOf(ctxRaw);
     if (typeof name !== 'string') throw new UsageError('schedule/launchd: status(имя)');
+    artifactKey(name);
     return ctx.exec('launchctl', ['print', `${domain()}/${name}`]).code === 0 ? 'active' : 'absent';
   },
 };
@@ -226,7 +231,10 @@ export function systemdUnits(unit: ScheduleUnit): { service: string; timer: stri
   };
 }
 
-const systemdDir = (): string => path.join(homedir(), '.config', 'systemd', 'user');
+const systemdDir = (): string =>
+  machineArtifactPath({ kind: 'machine', home: homedir() }, '.config/systemd/user');
+const systemdFile = (name: string, suffix: string): string =>
+  machineArtifactPath({ kind: 'machine', home: systemdDir() }, `${artifactKey(name)}.${suffix}`);
 
 const scheduleSystemd = {
   interface: 'schedule',
@@ -236,8 +244,8 @@ const scheduleSystemd = {
     const unit = unitOf(raw);
     const { service, timer } = systemdUnits(unit);
     await mkdir(systemdDir(), { recursive: true });
-    await writeFile(path.join(systemdDir(), `${unit.name}.service`), service, 'utf8');
-    await writeFile(path.join(systemdDir(), `${unit.name}.timer`), timer, 'utf8');
+    await writeFile(systemdFile(unit.name, 'service'), service, 'utf8');
+    await writeFile(systemdFile(unit.name, 'timer'), timer, 'utf8');
     must(ctx.exec('systemctl', ['--user', 'daemon-reload']), 'systemctl daemon-reload');
     must(
       ctx.exec('systemctl', ['--user', 'enable', '--now', `${unit.name}.timer`]),
@@ -247,14 +255,16 @@ const scheduleSystemd = {
   remove: async (name: unknown, ctxRaw: unknown): Promise<void> => {
     const ctx = contextOf(ctxRaw);
     if (typeof name !== 'string') throw new UsageError('schedule/systemd: remove(имя)');
+    artifactKey(name);
     ctx.exec('systemctl', ['--user', 'disable', '--now', `${name}.timer`]);
-    await rm(path.join(systemdDir(), `${name}.service`), { force: true });
-    await rm(path.join(systemdDir(), `${name}.timer`), { force: true });
+    await rm(systemdFile(name, 'service'), { force: true });
+    await rm(systemdFile(name, 'timer'), { force: true });
     ctx.exec('systemctl', ['--user', 'daemon-reload']);
   },
   status: async (name: unknown, ctxRaw: unknown): Promise<string> => {
     const ctx = contextOf(ctxRaw);
     if (typeof name !== 'string') throw new UsageError('schedule/systemd: status(имя)');
+    artifactKey(name);
     return ctx.exec('systemctl', ['--user', 'is-active', `${name}.timer`]).stdout.trim() ===
       'active'
       ? 'active'

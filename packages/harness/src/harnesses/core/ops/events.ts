@@ -1,6 +1,6 @@
 import { open, stat } from 'node:fs/promises';
 import path from 'node:path';
-import { errorCode, isRecord } from '@shahimat/ai-core';
+import { artifactKey, errorCode, isRecord } from '@shahimat/ai-core';
 import { appendLine, readJson, writeJson } from './files.ts';
 import { machineFile, OPS_VERSION, projectKey } from './paths.ts';
 
@@ -45,7 +45,7 @@ export interface OpsEvent {
 
 const eventsFile = (home: string): string => machineFile(home, 'events.jsonl');
 const cursorFile = (home: string, key: string): string =>
-  machineFile(home, 'cursors', `${key}.json`);
+  machineFile(home, 'cursors', `${artifactKey(key)}.json`);
 
 export async function emit(
   home: string,

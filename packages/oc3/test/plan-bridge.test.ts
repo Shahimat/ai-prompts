@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -15,26 +15,71 @@ afterEach(async () => {
   await rm(root, { recursive: true, force: true });
 });
 
-const bridgeOf = async (): Promise<{ events: string; plan: string; report: string }> => {
-  const events = path.join(root, 'sessions', 's1', 'planner-events.jsonl');
+const bridgeOf = async (): Promise<{
+  root: string;
+  events: string;
+  plan: string;
+  report: string;
+}> => {
+  const events = path.join(root, '.oc3/sessions/plan-review', 's1', 'planner-events.jsonl');
   const plan = 'plans/демо.expect.ts';
   const report = 'ai expect report plans/демо.expect.ts --root .';
-  await mkdir(path.join(root, '.opencode/artifacts/plan-review'), { recursive: true });
+  await mkdir(path.join(root, '.oc3/sessions/plan-review'), { recursive: true });
   await writeFile(
-    path.join(root, '.opencode/artifacts/plan-review/bridge.json'),
-    `${JSON.stringify({ events, plan, report }, null, 2)}\n`,
+    path.join(root, '.oc3/sessions/plan-review/bridge.json'),
+    `${JSON.stringify({ root, events, plan, report }, null, 2)}\n`,
     'utf8',
   );
-  return { events, plan, report };
+  return { root, events, plan, report };
 };
 
 describe('readBridge', () => {
+  it('foreign record.root is rejected by the reader and guard without appending events', async () => {
+    const bridge = await bridgeOf();
+    await mkdir(path.dirname(bridge.events), { recursive: true });
+    await writeFile(bridge.events, 'unchanged sentinel\n');
+    const foreign = { ...bridge, root: path.join(root, 'foreign-root') };
+    await writeFile(
+      path.join(root, '.oc3/sessions/plan-review/bridge.json'),
+      JSON.stringify(foreign),
+    );
+    expect(await readBridge(root)).toBeUndefined();
+    await expect(plannerGuard('edit', [bridge.plan], foreign, root)).rejects.toThrow(
+      'ARTIFACT_SCOPE_MISMATCH',
+    );
+    await expect(plannerGuard('bash', [bridge.report], foreign, root)).rejects.toThrow(
+      'ARTIFACT_SCOPE_MISMATCH',
+    );
+    expect(await readFile(bridge.events, 'utf8')).toBe('unchanged sentinel\n');
+  });
+  it.each(['final', 'ancestor'])(
+    'symlink events %s is rejected by the reader and guard with target bytes unchanged',
+    async (kind) => {
+      const bridge = await bridgeOf();
+      const targetDir = path.join(root, 'sentinel-events');
+      await mkdir(targetDir);
+      const target = path.join(targetDir, 'planner-events.jsonl');
+      await writeFile(target, 'unchanged symlink sentinel\n');
+      if (kind === 'final') {
+        await mkdir(path.dirname(bridge.events), { recursive: true });
+        await symlink(target, bridge.events);
+      } else await symlink(targetDir, path.dirname(bridge.events));
+      await expect(readBridge(root)).rejects.toThrow('ARTIFACT_SYMLINK');
+      await expect(plannerGuard('edit', [bridge.plan], bridge, root)).rejects.toThrow(
+        'ARTIFACT_SYMLINK',
+      );
+      await expect(plannerGuard('bash', [bridge.report], bridge, root)).rejects.toThrow(
+        'ARTIFACT_SYMLINK',
+      );
+      expect(await readFile(target, 'utf8')).toBe('unchanged symlink sentinel\n');
+    },
+  );
   it('мост без файла или с неполными полями не поднимается', async () => {
     expect(await readBridge(root)).toBeUndefined();
-    await mkdir(path.dirname(path.join(root, '.opencode/artifacts/plan-review/bridge.json')), {
+    await mkdir(path.dirname(path.join(root, '.oc3/sessions/plan-review/bridge.json')), {
       recursive: true,
     });
-    await writeFile(path.join(root, '.opencode/artifacts/plan-review/bridge.json'), '{}');
+    await writeFile(path.join(root, '.oc3/sessions/plan-review/bridge.json'), '{}');
     expect(await readBridge(root)).toBeUndefined();
     const bridge = await bridgeOf();
     expect(await readBridge(root)).toEqual(bridge);

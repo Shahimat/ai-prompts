@@ -1,4 +1,6 @@
-import { writeFile } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+import { validateArtifactOutput } from './artifacts.ts';
 import { createInterface } from 'node:readline';
 import type { Readable, Writable } from 'node:stream';
 import { isRecord } from '#shared/guards';
@@ -6,6 +8,7 @@ import { compileSchema, issueText } from '#shared/schema';
 import { CHANNEL_SERVER, PROTOCOL, SUBMIT_TOOL, type ProtocolMessage } from './protocol.ts';
 
 export interface Channel {
+  root: string;
   message: ProtocolMessage;
   out: string;
   input: Readable;
@@ -24,6 +27,7 @@ const text = (t: string, isError = false): Record<string, unknown> => ({
 });
 
 export function serveChannel(ch: Channel): Promise<void> {
+  const out = validateArtifactOutput(ch.root, path.relative(ch.root, ch.out));
   const schema = PROTOCOL[ch.message];
   const validate = compileSchema(schema);
   const tool = {
@@ -48,7 +52,12 @@ export function serveChannel(ch: Channel): Promise<void> {
       reply(id, text(issues.map((i) => `${i.path || '/'} ${issueText(i)}`).join('\n'), true));
       return;
     }
-    await writeFile(ch.out, `${JSON.stringify(args, null, 2)}\n`, 'utf8');
+    await mkdir(path.dirname(out), { recursive: true });
+    await writeFile(
+      validateArtifactOutput(ch.root, path.relative(ch.root, out)),
+      `${JSON.stringify(args, null, 2)}\n`,
+      'utf8',
+    );
     reply(id, text('принято'));
   };
 

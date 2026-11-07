@@ -2,6 +2,7 @@ export interface CommandArgs {
   root: string;
   out?: string;
   file?: string;
+  batch?: string;
   ticket?: string;
   baseline?: string;
   html?: string;

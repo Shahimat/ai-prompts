@@ -7,6 +7,7 @@ import {
   BUNDLES_DIR,
   OPS_PATH,
   SKILLS_PATH,
+  migrateArtifacts,
 } from '@shahimat/ai-core';
 import type { CommandArgs } from '@shahimat/ai-core';
 import { ensureMemorySkeleton } from '#install';
@@ -183,6 +184,8 @@ const dropAbolishedIndex = async (root: string, report: Report): Promise<void> =
 };
 
 const migrateTicketDirs = async (root: string, report: Report): Promise<void> => {
+  const result = await migrateArtifacts(root);
+  report.moved.push(`execution artifacts: ${result.moved}; manifest ${result.manifest}`);
   const ops = path.join(root, '.ops');
   if (!existsSync(ops)) return;
   const names = (await readdir(ops, { withFileTypes: true })).filter((e) => e.isDirectory());
@@ -259,6 +262,8 @@ export async function migrateLayout(root: string): Promise<string[]> {
 }
 
 export async function runMigrate(args: CommandArgs): Promise<number> {
+  const artifacts = await migrateArtifacts(args.root);
+  console.log(`execution artifacts: ${artifacts.moved}; manifest ${artifacts.manifest}`);
   if (!detectOldLayout(args.root)) {
     console.log(
       'oc3 migrate: старая раскладка (.oc3/doc/, context/, docs/, goals/, .ops/) не обнаружена',

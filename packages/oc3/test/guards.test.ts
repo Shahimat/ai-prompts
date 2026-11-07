@@ -6,6 +6,24 @@ import { docsGuard, generatedGuard, memoryGuard, memorySeal, OC3_READABLE, runGa
 
 let root: string;
 
+it('runtime inbox, projection, receipts, leases and accepted cache cannot be edited even by librarian; evidence stays readable', async () => {
+  for (const file of [
+    '.oc3/inbox/knowledge/project.json',
+    '.oc3/bundles/pending/index.md',
+    '.oc3/reports/ticket/checks/full.json',
+    '.oc3/reports/knowledge-batches/id/proof.json',
+    '.oc3/locks/verification.json',
+    '.oc3/locks/delta-accepted.json',
+  ]) {
+    expect(await docsGuard('librarian', [file], root)).toContain('runtime-owned');
+    expect(await docsGuard('executor', [path.join(root, file)], root)).toContain('runtime-owned');
+  }
+  expect(memorySeal('judge', ['.oc3/reports/ticket/checks/full.json'], root)).toBeUndefined();
+  expect(memorySeal('executor', ['.oc3/inbox/knowledge/project.json'], root)).toContain(
+    'memory seal',
+  );
+});
+
 beforeEach(async () => {
   root = await mkdtemp(path.join(tmpdir(), 'oc3-guards-'));
 });

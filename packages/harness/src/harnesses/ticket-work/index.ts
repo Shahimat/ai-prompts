@@ -4,9 +4,14 @@ import { readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import {
   errorMessage,
+  enqueueKnowledge,
+  readIntents,
+  pendingKnowledge,
+  loadTaskPacket,
+  verifyTask,
+  currentCheck,
   isRecord,
   isStringArray,
-  runtime,
   UsageError,
   type CommandArgs,
   type CommandNode,
@@ -116,7 +121,7 @@ async function roleStep(
   await jobLog(s, `роль ${role}: прогон ${n}`);
   let data: unknown;
   try {
-    ({ data } = await opsRole({
+    const outcome = await opsRole({
       root: s.data.project,
       home: ctx.home,
       role,
@@ -126,10 +131,26 @@ async function roleStep(
       job: s.short,
       options: {
         transcript: jobFile(s, `runs/${s.data.state}-${n}.jsonl`),
-        onProgress: progressTo(jobFile(s, 'progress.log')),
+        onProgress: progressTo(() => jobFile(s, 'progress.log')),
+        context: {
+          purpose:
+            role === 'judge'
+              ? 'ticket-acceptance'
+              : role === 'researcher'
+                ? 'research'
+                : 'implementation',
+          execution: `${s.short}:${s.data.state}:${n}`,
+          ...(s.data.taskPacket === undefined ? {} : { packet: s.data.taskPacket }),
+        },
         ...(s.data.state === 'implement' ? { timeoutMs: IMPLEMENT_TIMEOUT_MS } : {}),
       },
-    }));
+    });
+    data = outcome.data;
+    if (outcome.knowledgeReceipt !== undefined)
+      await writeFile(
+        jobFile(s, 'knowledge-receipt.json'),
+        `${JSON.stringify(outcome.knowledgeReceipt)}\n`,
+      );
   } catch (error) {
     await jobLog(s, `роль ${role}: ошибка — ${errorMessage(error)}`);
     await ask(s, [
@@ -344,6 +365,17 @@ const verify: ActionDef<ProcessContext> = {
     const s = ctx.session;
     const config = await loadOpsConfig(s.data.project);
     const dir = (await jobMeta(s)).workdir ?? s.data.project;
+    if (s.data.taskPacket !== undefined) {
+      const packet = await loadTaskPacket(s.data.project, s.data.taskPacket);
+      const receipt = await verifyTask(
+        dir,
+        packet,
+        'full',
+        packet.owners['verification'] ?? '',
+        `managed-harness:${s.short}`,
+      );
+      return { event: receipt['status'] === 'pass' ? 'ok' : 'fail' };
+    }
     const lines: string[] = [];
     await rm(jobFile(s, VERIFIED), { force: true });
     const attributed = await attributionIn(s);
@@ -528,12 +560,25 @@ const publish: ActionDef<ProcessContext> = {
   events: ['published', 'manual', 'stale'],
   run: async (ctx) => {
     const s = ctx.session;
+    await legacyKnowledge(s);
+    if ((await pendingKnowledge(s.data.project)).some((entry) => entry.critical))
+      return {
+        pause:
+          'critical knowledge pending: публикация и ordinary completion заблокированы до решения оператора',
+      };
     const { config, provider: vcs, pctx } = await provider(ctx, 'vcs');
     if (!vcs.methods.has('publish')) return { event: 'manual' };
     const meta = await jobMeta(s);
     const dir = meta.workdir ?? s.data.project;
+    if (s.data.taskPacket !== undefined) {
+      try {
+        await currentCheck(dir, await loadTaskPacket(s.data.project, s.data.taskPacket), 'full');
+      } catch {
+        return { event: 'stale' };
+      }
+    }
     const verified = (await readText(jobFile(s, VERIFIED)))?.trim();
-    if (verified !== (await diffHash(ctx, dir))) {
+    if (s.data.taskPacket === undefined && verified !== (await diffHash(ctx, dir))) {
       await jobLog(s, 'публикация: локальные проверки не на текущем diff — сначала verify');
       return { event: 'stale' };
     }
@@ -644,39 +689,56 @@ const awaiting: ActionDef<ProcessContext> = {
   },
 };
 
+async function legacyKnowledge(s: Session): Promise<void> {
+  const intents = jobFile(s, 'intents.json');
+  if (!existsSync(intents)) return;
+  const input: unknown = JSON.parse(await readIntents(s.data.project, intents));
+  if (!isRecord(input) || !Array.isArray(input['intents'])) throw new Error('INVALID_INTENTS');
+  const delta = input['intents'].map((item: unknown) => {
+    if (!isRecord(item) || typeof item['summary'] !== 'string' || typeof item['kind'] !== 'string')
+      throw new Error('INVALID_INTENTS');
+    return {
+      subject: typeof item['target'] === 'string' ? item['target'] : 'legacy intents',
+      property: item['kind'],
+      value: item['summary'],
+      kind: item['kind'] === 'decision' ? 'decision' : 'candidate',
+      evidence: [
+        typeof item['evidence'] === 'string' && item['evidence'] !== ''
+          ? item['evidence']
+          : `unresolved:${rel(s, 'intents.json')}`,
+      ],
+    };
+  });
+  for (let offset = 0; offset < delta.length; offset += 32) {
+    const receipt = await enqueueKnowledge(
+      {
+        root: s.data.project,
+        actor: 'executor/legacy-job',
+        channel: 'legacy-intents',
+        execution: `${s.short}:legacy:${offset}`,
+      },
+      delta.slice(offset, offset + 32),
+    );
+    await jobLog(
+      s,
+      `документация: durable knowledge pending ${receipt?.submission_id ?? '(empty)'}; canonical consolidation — explicit docs-delta`,
+    );
+  }
+}
+
 const docs: ActionDef<ProcessContext> = {
   events: ['ok'],
   run: async (ctx) => {
     const s = ctx.session;
-    const intents = jobFile(s, 'intents.json');
-    if (!existsSync(intents)) return { event: 'ok' };
-    const [bin = process.execPath, ...pre] = runtime().self;
-    const r = spawnSync(
-      bin,
-      [
-        ...pre,
-        'docs-delta',
-        'start',
-        '--name',
-        `job-${s.short}`,
-        '--file',
-        intents,
-        '--root',
-        s.data.project,
-        '--home',
-        ctx.home,
-      ],
-      { cwd: s.data.project, encoding: 'utf8' },
+    await legacyKnowledge(s);
+    const currentReceipt = await readJson(
+      jobFile(s, 'knowledge-receipt.json'),
+      'job knowledge receipt',
     );
-    await jobLog(s, `документация: docs-delta — код ${r.status ?? 'null'}`);
-    if (r.status !== 0)
-      await emit(
-        ctx.home,
-        s.data.project,
-        'warn',
-        `docs-delta для job не прошла — намерения в ${rel(s, 'intents.json')}`,
-        s.short,
-      );
+    if (isRecord(currentReceipt))
+      await jobLog(s, `knowledge pending: ${String(currentReceipt['submission_id'])}`);
+    if ((await pendingKnowledge(s.data.project)).some((entry) => entry.critical))
+      return { pause: 'critical knowledge pending: требуется немедленное решение оператора' };
     return { event: 'ok' };
   },
 };

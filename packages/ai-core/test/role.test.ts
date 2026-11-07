@@ -12,6 +12,7 @@ import { askRole, findRole, memoryPromptOf, roleSystemPrompt, roleTimeoutMs } fr
 import { buildBundles, writeGraph } from '#lib/memory-graph';
 import { openCodeStepOf, opencodeArgs } from '#lib/opencode';
 import { setRuntime } from '#lib/runtime';
+import { pendingKnowledge } from '#lib/knowledge';
 import { isRecord } from '#shared/guards';
 import { FAKE_OPENCODE } from './fake-opencode.ts';
 
@@ -99,6 +100,78 @@ describe('роль: формат', () => {
 });
 
 describe('роль: запуск', () => {
+  it.each(['submit', 'session', 'text'])(
+    '%s result ingress is durable before return and retry keeps exact IDs without extra AI',
+    async (source) => {
+      await put('agents/executor.md', roleFile('executor', 'result'));
+      const data = {
+        status: 'done',
+        changed: [],
+        failed: [],
+        questions: [],
+        report: 'synthetic',
+        knowledge_delta: [
+          {
+            subject: 'runtime',
+            property: 'pending',
+            value: [true, 1],
+            kind: 'decision',
+            evidence: ['fixture:synthetic'],
+          },
+        ],
+      };
+      if (source === 'submit') process.env['FAKE_SUBMIT'] = JSON.stringify({ executor: data });
+      if (source === 'session')
+        process.env['FAKE_FILES'] = JSON.stringify({ '.oc3/submit/s.json': JSON.stringify(data) });
+      if (source === 'text') process.env['FAKE_TEXT'] = JSON.stringify({ message: 'result', data });
+      process.env['FAKE_ARGS'] = path.join(home, 'intake-args.jsonl');
+      const first = await askRole(root, 'executor', 'synthetic task', {
+        context: { purpose: 'implementation', execution: 'stable-run' },
+      });
+      expect(first.knowledgeReceipt?.entry_ids).toHaveLength(1);
+      expect(first.knowledgeReceipt?.critical).toBe(false);
+      expect(await pendingKnowledge(root)).toHaveLength(1);
+      expect(
+        (
+          await askRole(root, 'executor', 'synthetic task', {
+            context: { purpose: 'implementation', execution: 'stable-run' },
+          })
+        ).knowledgeReceipt,
+      ).toEqual(first.knowledgeReceipt);
+      const calls = (await readFile(path.join(home, 'intake-args.jsonl'), 'utf8'))
+        .trim()
+        .split('\n')
+        .map((line): unknown => JSON.parse(line));
+      expect(calls).toHaveLength(2);
+      expect(calls.every((call: unknown) => isRecord(call) && call['agent'] === 'executor')).toBe(
+        true,
+      );
+    },
+  );
+  it('nonzero result does not enqueue, and failed normal output remains non-success', async () => {
+    await put('agents/executor.md', roleFile('executor', 'result'));
+    const data = {
+      status: 'failed',
+      changed: [],
+      failed: ['targeted'],
+      questions: [],
+      report: 'synthetic',
+      knowledge_delta: [
+        {
+          subject: 'runtime',
+          property: 'pending',
+          value: false,
+          kind: 'observation',
+          evidence: ['fixture'],
+        },
+      ],
+    };
+    process.env['FAKE_SUBMIT'] = JSON.stringify({ executor: data });
+    expect((await askRole(root, 'executor', 'task')).knowledgeReceipt).toBeUndefined();
+    process.env['FAKE_EXIT'] = '1';
+    await expect(askRole(root, 'executor', 'task')).rejects.toThrow('код 1');
+    expect(await pendingKnowledge(root)).toEqual([]);
+  });
   it('manifest resolves before actual spawn including helper, invalid manifest never spawns', async () => {
     await put('agents/judge.md', roleFile('judge', 'verdict', 'model: legacy/model\n'));
     await put(
@@ -177,11 +250,23 @@ describe('роль: запуск', () => {
     process.env['FAKE_ARGS'] = path.join(home, 'args.jsonl');
     expect(
       await main(
-        ['role', 'run', 'judge', '--file', 'task.md', '--out', 'a.json', '--root', root],
+        [
+          'role',
+          'run',
+          'judge',
+          '--file',
+          'task.md',
+          '--out',
+          '.oc3/reports/a.json',
+          '--root',
+          root,
+        ],
         NOW,
       ),
     ).toBe(0);
-    expect(JSON.parse(await readFile(path.join(root, 'a.json'), 'utf8'))).toEqual({ answers: [] });
+    expect(JSON.parse(await readFile(path.join(root, '.oc3/reports/a.json'), 'utf8'))).toEqual({
+      answers: [],
+    });
     const seen: unknown = JSON.parse(await readFile(path.join(home, 'args.jsonl'), 'utf8'));
     const env = isRecord(seen) && isRecord(seen['env']) ? seen['env'] : {};
     expect(typeof env['submit']).toBe('string');
@@ -193,7 +278,7 @@ describe('роль: запуск', () => {
     process.env['FAKE_SUBMIT'] = JSON.stringify({ judge: { answers: [] } });
     process.env['FAKE_STEPS'] = '1';
     setRuntime({ self: selfCommand(), runScript: async () => 0 });
-    const transcript = path.join(home, 'runs', 'judge-oc.jsonl');
+    const transcript = path.join(root, '.oc3/reports/roles', 'judge-oc.jsonl');
     const seen: string[] = [];
     const { data } = await askRole(root, 'judge', 'Задание', {
       transcript,
@@ -296,7 +381,7 @@ describe('роль: запуск', () => {
 
   it('отказ роли называет причину и путь транскрипта', async () => {
     await put('agents/judge.md', roleFile('judge', 'verdict'));
-    const transcript = path.join(home, 'runs', 'judge-t.jsonl');
+    const transcript = path.join(root, '.oc3/reports/roles', 'judge-t.jsonl');
     await expect(askRole(root, 'judge', 'т', { transcript })).rejects.toThrow(String(transcript));
     await expect(askRole(root, 'judge', 'т', { transcript })).rejects.toThrow(
       'текст ответа без JSON',
@@ -336,12 +421,13 @@ describe('роль: канал', () => {
   async function talk(lines: object[]): Promise<{ replies: unknown[]; out: string }> {
     const input = new PassThrough();
     const output = new PassThrough();
-    const out = path.join(root, 'out.json');
+    const out = path.join(root, '.oc3/submit/out.json');
+    await mkdir(path.dirname(out), { recursive: true });
     const replies: unknown[] = [];
     output.on('data', (d: Buffer) => {
       for (const l of d.toString('utf8').split('\n')) if (l !== '') replies.push(JSON.parse(l));
     });
-    const served = serveChannel({ message: 'verdict', out, input, output });
+    const served = serveChannel({ root, message: 'verdict', out, input, output });
     for (const l of lines) input.write(`${JSON.stringify(l)}\n`);
     input.end();
     await served;

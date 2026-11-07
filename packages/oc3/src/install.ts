@@ -17,6 +17,7 @@ import {
   OC3_MANIFEST,
   PROJECT_PATH,
   SCHEMAS_DIR,
+  artifactPath,
   isRecord,
   InputError,
 } from '@shahimat/ai-core';
@@ -157,7 +158,7 @@ export async function detectState(root: string): Promise<Detection> {
       details.push('package.json: невалидный JSON');
     }
   }
-  const lock = existsSync(path.join(root, '.oc3', 'locks', 'install'));
+  const lock = existsSync(artifactPath(root, { kind: 'lock', key: 'install' }));
   const points = [projectV3, agentsV3, pluginWired, depsOk].filter((item) => item).length;
   let state: ContractState;
   if (v2 && !projectV3) state = 'v2';
@@ -737,7 +738,7 @@ export async function ensureGitFiles(root: string): Promise<string[]> {
 }
 
 export async function ensureLock(root: string): Promise<string> {
-  const abs = path.join(root, '.oc3', 'locks', 'install');
+  const abs = artifactPath(root, { kind: 'lock', key: 'install' });
   await mkdir(path.dirname(abs), { recursive: true });
   await writeFile(abs, `oc3 init ${new Date().toISOString()}\n`, 'utf8');
   return 'маркер установки .oc3/locks/install создан — сними его (rm .oc3/locks/install) после ответов на вопросы';

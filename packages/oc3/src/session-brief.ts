@@ -3,6 +3,8 @@ import path from 'node:path';
 import { parse } from 'yaml';
 import {
   buildBundles,
+  pendingViewOf,
+  PENDING_KNOWLEDGE_MARKER,
   checkBundles,
   isRecord,
   PROJECT_PATH,
@@ -51,6 +53,11 @@ export async function appendBriefing(
   seen: Set<string>,
   sessionID: string,
 ): Promise<void> {
+  const pending = await pendingViewOf(root);
+  for (let index = input.system.length - 1; index >= 0; index--)
+    if (input.system[index]?.text.startsWith(PENDING_KNOWLEDGE_MARKER) === true)
+      input.system.splice(index, 1);
+  if (pending !== '') input.system.push({ type: 'text', text: pending });
   if (seen.has(sessionID)) return;
   const line = await briefingLine(root);
   input.system.push({ type: 'text', text: line });

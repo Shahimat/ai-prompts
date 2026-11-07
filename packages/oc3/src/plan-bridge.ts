@@ -1,11 +1,17 @@
 import { appendFile, mkdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { Plugin } from '@opencode/plugin';
-import { isRecord } from '@shahimat/ai-core';
+import {
+  isRecord,
+  artifactPath,
+  validateArtifactOutput,
+  confinedProjectPath,
+} from '@shahimat/ai-core';
 
-export const BRIDGE_FILE = path.join('.opencode', 'artifacts', 'plan-review', 'bridge.json');
+export const BRIDGE_FILE = '.oc3/sessions/plan-review/bridge.json';
 
 export interface PlanBridge {
+  root?: string;
   events: string;
   plan: string;
   report: string;
@@ -14,7 +20,9 @@ export interface PlanBridge {
 export async function readBridge(root: string): Promise<PlanBridge | undefined> {
   let data: unknown;
   try {
-    data = JSON.parse(await readFile(path.join(root, BRIDGE_FILE), 'utf8'));
+    data = JSON.parse(
+      await readFile(artifactPath(root, { kind: 'bridge', key: 'bridge.json' }), 'utf8'),
+    );
   } catch {
     return undefined;
   }
@@ -27,7 +35,10 @@ export async function readBridge(root: string): Promise<PlanBridge | undefined> 
   const plan = str('plan');
   const report = str('report');
   if (events === undefined || plan === undefined || report === undefined) return undefined;
-  return { events, plan, report };
+  if (data['root'] !== path.resolve(root)) return undefined;
+  validateArtifactOutput(root, path.relative(root, events), 'bridge');
+  confinedProjectPath(root, plan);
+  return { root: path.resolve(root), events, plan, report };
 }
 
 export interface BridgeEvent {
@@ -36,6 +47,8 @@ export interface BridgeEvent {
 }
 
 export async function appendBridgeEvent(bridge: PlanBridge, event: BridgeEvent): Promise<void> {
+  if (bridge.root === undefined) throw new Error('ARTIFACT_SCOPE_REQUIRED');
+  validateArtifactOutput(bridge.root, path.relative(bridge.root, bridge.events), 'bridge');
   await mkdir(path.dirname(bridge.events), { recursive: true });
   const line = `${JSON.stringify({ ...event, at: new Date().toISOString() })}\n`;
   await appendFile(bridge.events, line, 'utf8');
@@ -55,18 +68,20 @@ export async function plannerGuard(
   bridge: PlanBridge,
   root: string,
 ): Promise<string | undefined> {
+  if (bridge.root !== undefined && path.resolve(bridge.root) !== path.resolve(root))
+    throw new Error('ARTIFACT_SCOPE_MISMATCH');
   if ((EDIT_ACTIONS as readonly string[]).includes(action)) {
-    const planAbs = path.resolve(root, bridge.plan);
+    const planAbs = confinedProjectPath(root, bridge.plan);
     for (const resource of resources) {
       if (path.resolve(root, resource) !== planAbs) return editDenied(bridge.plan);
     }
-    await appendBridgeEvent(bridge, { kind: 'edit', path: bridge.plan });
+    await appendBridgeEvent({ ...bridge, root }, { kind: 'edit', path: bridge.plan });
     return undefined;
   }
   if ((BASH_ACTIONS as readonly string[]).includes(action)) {
     const command = resources.join(' ').trim();
     const allowed = command === bridge.report.trim();
-    await appendBridgeEvent(bridge, { kind: 'bash', command, allowed });
+    await appendBridgeEvent({ ...bridge, root }, { kind: 'bash', command, allowed });
     return allowed ? undefined : bashDenied(bridge.report);
   }
   return undefined;

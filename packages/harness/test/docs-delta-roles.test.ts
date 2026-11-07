@@ -5,9 +5,16 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { main, run } from '@shahimat/cli';
+import { main, prepare, run } from '@shahimat/cli';
 import { openSession } from '#harnesses/core/store/session';
-import { isRecord } from '@shahimat/ai-core';
+import {
+  contentHash,
+  enqueueKnowledge,
+  isRecord,
+  pendingKnowledge,
+  prepareKnowledgeBatch,
+} from '@shahimat/ai-core';
+import { DOCS_DELTA } from '#harnesses/docs-delta/index';
 import { FAKE_OPENCODE_ROLES } from './fake-opencode-roles.ts';
 
 const NOW = new Date('2026-10-28T12:00:00Z');
@@ -111,6 +118,68 @@ describe('docs-delta: роли librarian и judge', () => {
     process.env['FAKE_FILES'] = JSON.stringify(KEEPER_FILES);
   });
 
+  it('explicit frozen batch uses one librarian/review/close and acknowledges exact IDs, not later arrivals', async () => {
+    await project();
+    await put('.oc3/reports/fixture/expected.yml', KEEPER_FILES['.oc3/conventions/other.yml']);
+    const canonicalHash = await contentHash(root, '.oc3/reports/fixture/expected.yml');
+    await enqueueKnowledge(
+      { root, actor: 'executor', channel: 'fixture', execution: 'initial' },
+      ['A', 'B'].map((value) => ({
+        subject: 'topic',
+        property: 'pending',
+        value,
+        kind: 'candidate',
+        evidence: ['fixture:initial'],
+      })),
+    );
+    const first = (await pendingKnowledge(root))[0];
+    if (first === undefined) throw new Error('entry missing');
+    const batch = await prepareKnowledgeBatch(root, {
+      subject: 'topic',
+      scope: first.scope,
+      limit: 32,
+    });
+    await prepare(['--root', root]);
+    const s = await DOCS_DELTA.start({ root, home, name: 'naming', batch: batch.id, now: NOW });
+    const dispositions = batch.entries.map((entry) => ({
+      id: entry.id,
+      hash: entry.hash,
+      status: 'applied',
+      target: '.oc3/conventions/other.yml',
+      content_hash: canonicalHash,
+      reason: 'synthetic verified consolidation',
+      evidence: ['.oc3/conventions/other.yml'],
+    }));
+    process.env['FAKE_FILES'] = JSON.stringify({
+      ...KEEPER_FILES,
+      [path.join('.oc3/reports/docs-proposals', s.short, 'dispositions.json')]:
+        JSON.stringify(dispositions),
+    });
+    process.env['FAKE_SUBMIT'] = JSON.stringify({
+      librarian: {
+        ...RESULT,
+        knowledge_delta: [
+          {
+            subject: 'topic',
+            property: 'pending',
+            value: 'C',
+            kind: 'candidate',
+            evidence: ['fixture:later'],
+          },
+        ],
+      },
+      judge: { conflicts: [] },
+    });
+    await DOCS_DELTA.drive(s, home);
+    expect(s.data.state).toBe('done');
+    expect((await pendingKnowledge(root)).map((entry) => entry.item.value)).toEqual(['C']);
+    expect((await calls()).map((call) => call.role)).toEqual(['librarian', 'judge']);
+    expect(
+      existsSync(path.join(root, '.oc3/inbox/knowledge/resolutions', `${batch.id}.json`)),
+    ).toBe(true);
+    expect(existsSync(path.join(root, '.oc3/.delta/naming.yml'))).toBe(false);
+  });
+
   it('start --file: намерения по схеме хранятся в сессии; apply — librarian, review — judge по изменённым файлам', async () => {
     await project();
     process.env['FAKE_SUBMIT'] = JSON.stringify({ librarian: RESULT, judge: { conflicts: [] } });
@@ -121,7 +190,8 @@ describe('docs-delta: роли librarian и judge', () => {
     expect(await start('--file', 'intents.yml')).toBe(0);
     const s = await session();
     expect(s.data.state).toBe('done');
-    expect(lines).toContain(RESULT.report);
+    expect(lines).not.toContain(RESULT.report);
+    expect(await readFile((await session()).file('log.jsonl'), 'utf8')).toContain(RESULT.report);
     expect(JSON.parse(s.data.request)).toEqual({
       intents: [{ kind: 'rule', summary: 'новое', evidence: 'e' }],
     });
@@ -129,8 +199,9 @@ describe('docs-delta: роли librarian и judge', () => {
     expect(keeper?.role).toBe('librarian');
     expect(keeper?.prompt).toContain('"summary":"новое"');
     expect(judge?.role).toBe('judge');
-    expect((await readdir(s.file('runs'))).sort()).toEqual(['judge-1.jsonl', 'librarian-1.jsonl']);
-    expect(await readFile(s.file('runs/librarian-1.jsonl'), 'utf8')).toContain(
+    const runs = path.join(root, '.oc3/reports', s.short, 'roles');
+    expect((await readdir(runs)).sort()).toEqual(['judge-1.jsonl', 'librarian-1.jsonl']);
+    expect(await readFile(path.join(runs, 'librarian-1.jsonl'), 'utf8')).toContain(
       '"type":"step_finish"',
     );
     expect(await readFile(s.file('progress.log'), 'utf8')).toContain('роль librarian: запущена');

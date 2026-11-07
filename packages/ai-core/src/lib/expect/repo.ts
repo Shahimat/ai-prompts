@@ -4,13 +4,18 @@ import { parse } from 'yaml';
 import { normalizeEol, parseFrontmatter, type Frontmatter } from '#shared/frontmatter';
 import { isRecord } from '#shared/guards';
 import { collectEntries, type IndexEntry } from '#lib/prompt-index';
+import { externalArtifactPath, confinedProjectPath } from '#lib/artifacts';
+import { historicalArtifactPath } from '#lib/artifact-migration';
 
 export function repoRoot(): string {
   return path.resolve(process.env['HARNESS_EXPECT_ROOT'] ?? process.cwd());
 }
 
 export async function readRepo(rel: string): Promise<string> {
-  return normalizeEol(await readFile(path.join(repoRoot(), rel), 'utf8'));
+  const file = externalArtifactPath(rel)
+    ? await historicalArtifactPath(repoRoot(), rel)
+    : confinedProjectPath(repoRoot(), rel);
+  return normalizeEol(await readFile(file, 'utf8'));
 }
 
 export interface Doc {

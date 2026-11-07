@@ -1,4 +1,5 @@
 import { readdir, readFile } from 'node:fs/promises';
+import { legacyArtifactInventory } from '#lib/artifact-migration';
 import path from 'node:path';
 import type { CommandArgs } from '#shared/args';
 import type { Diagnostic } from '#shared/diagnostics';
@@ -69,7 +70,11 @@ const coreSchema = (): object[] => [
   { pattern: '^data/behavior/[^/]+\\.yml$' },
   { pattern: '^data/__schemas/[^/]+\\.schema\\.json$' },
   { pattern: '^goals/[^/]+$' },
-  { pattern: '^bundles/(index\\.md|[0-9a-f]{12}/index\\.md)$' },
+  { pattern: '^bundles/(index\\.md|[0-9a-f]{12}/index\\.md|pending/index\\.md)$' },
+  {
+    pattern:
+      '^inbox/knowledge/(project\\.json|(submissions|batches|resolutions)/[a-f0-9]{64}\\.json)$',
+  },
   { pattern: '^modules/[^/]+\\.yml$' },
   { pattern: `^(${WORK_DIRS.join('|')})/.+` },
   { pattern: '^\\.delta/.+' },
@@ -230,6 +235,8 @@ export interface TreeReport {
 
 export const checkOc3Tree = async (root: string): Promise<TreeReport> => {
   const diagnostics: Diagnostic[] = [];
+  for (const [file] of await legacyArtifactInventory(root))
+    diagnostics.push({ file, message: 'ARTIFACT_NAMESPACE: execution output outside .oc3' });
   const warnings: Diagnostic[] = [];
   const paths = await collectTree(root);
   if (paths.length === 0) {

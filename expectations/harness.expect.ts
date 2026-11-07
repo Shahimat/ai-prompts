@@ -9,6 +9,11 @@ import * as cliPkg from '@shahimat/cli';
 import { BUILTIN_TREE, splitWords } from '@shahimat/cli';
 import {
   collectContext,
+  artifactPath,
+  artifactRetention,
+  expectHelperDir,
+  expectCacheFile,
+  expectStateFile,
   computeSync,
   DELTA_SCHEMA,
   DEFAULT_CHANGELOG,
@@ -422,7 +427,7 @@ describe('[harness] expect', () => {
     () => Entry.perModule(),
   );
   crit(
-    'вердикты и задания судьи лежат рядом с точкой входа: <каталог>/.verdicts.json и <каталог>/.judge/',
+    'вердикты и задания судьи лежат внутри .oc3/ и изолированы по нормализованному пути точки входа',
     () => Entry.besideEntry(),
   );
   crit(
@@ -741,6 +746,9 @@ const DECLARED_COMMANDS = [
   'roles check',
   'skills check',
   'operator state check',
+  'operator preflight',
+  'operator verify <name>',
+  'operator ready',
   'models',
   'models set <role> <model>',
   'models apply',
@@ -752,6 +760,9 @@ const DECLARED_COMMANDS = [
   'index check',
   'memory build',
   'memory check',
+  'memory inbox enqueue',
+  'memory inbox pending',
+  'memory inbox batch',
   'secrets scan',
   'role run <name>',
   'role channel <message>',
@@ -1641,17 +1652,18 @@ class Layers {
       expect(bashAllowed('ls')).toBe(false);
       expect(bashAllowed('npm run build')).toBe(false);
       const planRel = session.data.planFile;
-      expect(
-        await plannerGuard(
-          'edit',
-          [planRel],
-          { events: '/tmp/e.jsonl', plan: planRel, report },
-          home,
-        ),
-      ).toBeUndefined();
-      expect(
-        await plannerGuard('bash', ['ls'], { events: '/tmp/e.jsonl', plan: planRel, report }, home),
-      ).toContain('только команда отчёта');
+      const bridge = {
+        root: home,
+        events: artifactPath(home, {
+          kind: 'bridge',
+          key: session.short,
+          name: 'planner-events.jsonl',
+        }),
+        plan: planRel,
+        report,
+      };
+      expect(await plannerGuard('edit', [planRel], bridge, home)).toBeUndefined();
+      expect(await plannerGuard('bash', ['ls'], bridge, home)).toContain('только команда отчёта');
       const args = opencodeArgs('judge', harness.def.models.judge);
       expect(args).toContain('--agent');
       expect(args).toContain('json');
@@ -1975,7 +1987,7 @@ async function withPlanFixture(
     await put('package.json', '{"name":"fixture","private":true,"type":"module"}');
     for (const [rel, text] of Object.entries(files)) await put(rel, text);
     cliOut(['expect', 'judge', entry, '--root', dir]);
-    const judgePlan = path.join(dir, path.dirname(entry), '.judge/plan.json');
+    const judgePlan = path.join(dir, expectHelperDir(entry), 'plan.json');
     if (existsSync(judgePlan)) {
       for (const item of unknownList(
         at(parseJson(await readFile(judgePlan, 'utf8')), 'lint'),
@@ -1984,10 +1996,11 @@ async function withPlanFixture(
         await put(stringAt(item, 'answer'), '{"contradictions": [], "unmeasurable": []}');
       cliOut(['expect', 'judge', entry, '--apply', '--root', dir]);
     }
-    const html = path.join(dir, 'report.html');
+    const htmlRel = `${expectHelperDir(entry)}/report.html`;
+    const html = path.join(dir, htmlRel);
     await fn(dir, async (extra = []) => {
       await rm(html, { force: true });
-      const r = cliOut(['expect', 'report', entry, '--root', dir, '--html', html, ...extra]);
+      const r = cliOut(['expect', 'report', entry, '--root', dir, '--html', htmlRel, ...extra]);
       return {
         status: r.status,
         out: `${r.stdout}\n${r.stderr}`,
@@ -2546,7 +2559,7 @@ async function page(url: string): Promise<{ status: number; type: string; body: 
 const SERVE_BODY = `describe('страница', () => {\n  crit('первый заголовок', () => {});\n});\n`;
 
 const skipRuntime = (rel: string): boolean =>
-  rel === 'report.html' || rel.startsWith('node_modules/');
+  artifactRetention(rel) === 'local' || rel.startsWith('node_modules/');
 
 class Serve {
   static async readOnly(): Promise<void> {
@@ -2688,7 +2701,7 @@ function summaryAfter(out: string, module: string): string {
 
 async function judgeFiles(dir: string, entry: string): Promise<string[]> {
   cliOut(['expect', 'judge', entry, '--root', dir]);
-  const file = path.join(dir, path.dirname(entry), '.judge/plan.json');
+  const file = path.join(dir, expectHelperDir(entry), 'plan.json');
   if (!existsSync(file)) return [];
   return unknownList(at(parseJson(await readFile(file, 'utf8')), 'lint'), 'lint').map((l) =>
     stringAt(l, 'file'),
@@ -2765,12 +2778,23 @@ class Entry {
       },
       async (dir) => {
         const near = path.join(dir, path.dirname(ARTIFACT_ENTRY));
-        expect(existsSync(path.join(near, '.verdicts.json'))).toBe(true);
+        expect(existsSync(path.join(dir, expectCacheFile(ARTIFACT_ENTRY)))).toBe(true);
+        expect(existsSync(path.join(near, '.verdicts.json'))).toBe(false);
         expect(existsSync(path.join(dir, 'expectations/.verdicts.json'))).toBe(false);
+        expect(expectHelperDir(`./${ARTIFACT_ENTRY}`)).toBe(expectHelperDir(ARTIFACT_ENTRY));
+        expect(expectCacheFile(ARTIFACT_ENTRY.replaceAll('/', '\\'))).toBe(
+          expectCacheFile(ARTIFACT_ENTRY),
+        );
+        expect(expectHelperDir(ARTIFACT_ENTRY)).not.toBe(expectHelperDir(INDEX_ENTRY));
+        expect(expectCacheFile(ARTIFACT_ENTRY)).not.toBe(expectCacheFile(INDEX_ENTRY));
+        expect(expectStateFile(ARTIFACT_ENTRY)).not.toBe(expectStateFile(INDEX_ENTRY));
+        expect(existsSync(path.join(dir, expectCacheFile(INDEX_ENTRY)))).toBe(false);
         const file = path.join(dir, ARTIFACT_ENTRY);
         await writeFile(file, (await readFile(file, 'utf8')).replace('рядом с входом', 'рядом'));
         expect(await judgeFiles(dir, ARTIFACT_ENTRY)).toEqual([ARTIFACT_ENTRY]);
-        expect(existsSync(path.join(near, '.judge/plan.json'))).toBe(true);
+        expect(existsSync(path.join(dir, expectHelperDir(ARTIFACT_ENTRY), 'plan.json'))).toBe(true);
+        expect(existsSync(path.join(near, '.judge'))).toBe(false);
+        expect(existsSync(path.join(dir, expectHelperDir(INDEX_ENTRY)))).toBe(false);
         expect(existsSync(path.join(dir, 'expectations/.judge'))).toBe(false);
       },
       ARTIFACT_ENTRY,
@@ -3280,8 +3304,18 @@ class Ops {
 
   static async docsViaDelta(): Promise<void> {
     const code = await readRepo(`${HARNESSES}/ticket-work/index.ts`);
-    expect(code).toMatch(/'docs-delta',\s*'start'/);
+    expect(code).toContain('await enqueueKnowledge(');
+    expect(code).toContain('canonical consolidation — explicit docs-delta');
+    expect(code).not.toMatch(/'docs-delta',\s*'start'/);
     expect(code).not.toMatch(/['`](?:context|docs)\//);
+    const consolidation = await readRepo(`${HARNESSES}/docs-delta/index.ts`);
+    expect(consolidation).toContain('runKnowledgeBatchStage');
+    const tests = await readRepo(`${HARNESS_PKG}/test/ops.test.ts`);
+    expect(tests).toContain(
+      'ordinary completion defers native/legacy knowledge without extra roles',
+    );
+    expect(tests).toContain('expect(pending).toHaveLength(2)');
+    expect(tests).toContain('critical knowledge pending');
   }
 
   static async defaultLimits(): Promise<void> {

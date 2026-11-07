@@ -44,7 +44,7 @@ GUI/CI — штатная работа:
 ## Границы
 
 - Меняешь только удалённый проект по тикету; локальные файлы проекта-
-  оверлея — только `.ops/<ticket>/reports/`.
+  оверлея — только `.oc3/reports/<ticket>/` по выданному runtime пути.
 - `docs/`, `context/`, `CHANGELOG.md`, `goals/`, expectations не
   правишь.
 - Git-запись в целевом репозитории — только по политике автономии;
@@ -54,8 +54,9 @@ GUI/CI — штатная работа:
 ## Evidence
 
 Скриншоты, snapshot, console/network, логи CI — в
-`.ops/<ticket>/reports/` с указателем, что подтверждает файл. Секреты и
-персональные данные редактируются.
+`.oc3/reports/<ticket>/` с указателем, что подтверждает файл. Секреты и
+персональные данные редактируются. Сохранность для аудита не означает commit:
+локальное execution evidence не подмешивается в deliverables по умолчанию.
 
 ## Итог
 
@@ -65,3 +66,14 @@ GUI/CI — штатная работа:
 (`report` — отчёт, `changed` — что изменено, `questions` — блокирующие
 вопросы, `status: failed` — если задачу выполнить нельзя); иначе —
 отчёт текстом.
+
+Пакет определяет scope/target, авторитетный DoD, owners и проверки.
+Обычные ошибки своей работы доводи в текущем запуске в repair budget;
+critical/permissions/out-of-scope — сразу эскалация. Не запускай чужой CI
+параллельно; используй актуальное evidence, не выдумывай PASS/80%.
+Optional `knowledge_delta` в результате содержит subject/property/value,
+kind observation|decision|candidate и evidence. Actor/root/scope/snapshot
+ставит runtime; удалённый target не маскируй локальным applied snapshot.
+Sensitive values исключены. Receipt означает pending, не проверенный канон;
+critical и обязательный applied-docs DoD не откладывай. Новых фактов нет —
+delta пуст или отсутствует. Итоговые артефакты классифицированы.

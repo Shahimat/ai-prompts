@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { parse } from 'yaml';
 import { InputError } from '#shared/diagnostics';
@@ -36,7 +36,7 @@ export function stdinTimeoutMs(): number {
   return (Number.isFinite(n) && n > 0 ? n : DEFAULT_STDIN_TIMEOUT_S) * 1000;
 }
 
-async function stdinText(): Promise<string> {
+async function stdinText(maxBytes?: number): Promise<string> {
   if (process.stdin.isTTY === true)
     throw new InputError(
       `stdin — терминал: подай намерения файлом (--file <путь>) или перенаправлением (--file - < intents.yml)`,
@@ -44,6 +44,7 @@ async function stdinText(): Promise<string> {
   const limit = stdinTimeoutMs();
   const iterator = process.stdin[Symbol.asyncIterator]();
   const chunks: Buffer[] = [];
+  let bytes = 0;
   let timer: NodeJS.Timeout | undefined;
   try {
     for (;;) {
@@ -66,6 +67,8 @@ async function stdinText(): Promise<string> {
       }
       if (next.done === true) break;
       const chunk = next.value;
+      bytes += Buffer.byteLength(chunk);
+      if (maxBytes !== undefined && bytes > maxBytes) throw new InputError('PAYLOAD_LIMIT');
       chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk)));
     }
   } catch (error) {
@@ -73,6 +76,19 @@ async function stdinText(): Promise<string> {
     throw error;
   }
   return Buffer.concat(chunks).toString('utf8');
+}
+
+export async function readBoundedInput(
+  root: string,
+  file: string,
+  maxBytes: number,
+): Promise<string> {
+  if (file === '-') return stdinText(maxBytes);
+  const absolute = path.resolve(root, file);
+  if ((await stat(absolute)).size > maxBytes) throw new InputError('PAYLOAD_LIMIT');
+  const text = await readFile(absolute, 'utf8');
+  if (Buffer.byteLength(text) > maxBytes) throw new InputError('PAYLOAD_LIMIT');
+  return text;
 }
 
 async function fileText(root: string, file: string): Promise<string> {

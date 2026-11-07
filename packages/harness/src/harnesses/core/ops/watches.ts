@@ -2,14 +2,21 @@ import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { readdir } from 'node:fs/promises';
 import path from 'node:path';
-import { errorCode, errorMessage, isRecord, runtime, UsageError } from '@shahimat/ai-core';
+import {
+  artifactKey,
+  errorCode,
+  errorMessage,
+  isRecord,
+  runtime,
+  UsageError,
+} from '@shahimat/ai-core';
 import { listSessions } from '#harnesses/core/store/session';
 import { loadAutonomy, loadOpsConfig } from './config.ts';
 import { emit } from './events.ts';
 import { readYaml, remove, writeAtomic, writeYaml } from './files.ts';
 import { addFeedback, JOB_HARNESS, markExternal } from './jobs.ts';
 import { cached, loadRegistry } from './machine.ts';
-import { hashOf, OPS_VERSION, posixRelative, projectFile, watchesDir } from './paths.ts';
+import { hashOf, OPS_VERSION, posixRelative, projectFile, watchesDir, watchFile } from './paths.ts';
 import {
   asSnapshot,
   callRead,
@@ -42,8 +49,6 @@ export interface Watch {
   items?: WatchItem[];
 }
 
-const watchFile = (root: string, id: string): string => path.join(watchesDir(root), `${id}.yml`);
-
 const isItem = (v: unknown): v is WatchItem =>
   isRecord(v) &&
   typeof v['id'] === 'string' &&
@@ -63,7 +68,7 @@ function asWatch(data: unknown, where: string): Watch {
   const iface = WATCH_INTERFACES.find((i) => i === data['interface']) ?? 'review';
   const w: Watch = {
     v: OPS_VERSION,
-    id: data['id'],
+    id: artifactKey(data['id']),
     interface: iface,
     query: data['query'],
     every: data['every'],
@@ -71,7 +76,10 @@ function asWatch(data: unknown, where: string): Watch {
   };
   const until = UNTIL.find((u) => u === data['until']);
   if (until !== undefined) w.until = until;
-  if (typeof data['job'] === 'string') w.job = data['job'];
+  if (data['job'] !== undefined) {
+    if (typeof data['job'] !== 'string') throw new Error('ARTIFACT_ID_INVALID');
+    w.job = artifactKey(data['job']);
+  }
   if (typeof data['fingerprint'] === 'string') w.fingerprint = data['fingerprint'];
   if (Array.isArray(data['items'])) w.items = data['items'].filter(isItem);
   return w;
@@ -86,13 +94,15 @@ export async function listWatches(root: string): Promise<Watch[]> {
     throw error;
   }
   const out: Watch[] = [];
-  for (const n of names)
-    out.push(
-      asWatch(
-        await readYaml(path.join(watchesDir(root), n), `.oc3/watches/${n}`),
-        `.oc3/watches/${n}`,
-      ),
+  for (const n of names) {
+    const id = artifactKey(n.slice(0, -4));
+    const w = asWatch(
+      await readYaml(watchFile(root, id), `.oc3/watches/${n}`),
+      `.oc3/watches/${n}`,
     );
+    if (w.id !== id) throw new Error('WATCH_ID_MISMATCH');
+    out.push(w);
+  }
   return out;
 }
 
@@ -115,6 +125,7 @@ export async function addWatch(
   spec: { iface: string; query: string; every: number; until?: Until; job?: string },
   now: Date,
 ): Promise<Watch> {
+  if (spec.job !== undefined) artifactKey(spec.job);
   const iface = WATCH_INTERFACES.find((i) => i === spec.iface);
   if (iface === undefined)
     throw new UsageError(
@@ -143,6 +154,7 @@ export async function stopWatch(root: string, id: string): Promise<boolean> {
 }
 
 export async function stopJobWatches(home: string, root: string, job: string): Promise<number> {
+  artifactKey(job);
   let n = 0;
   for (const w of await listWatches(root))
     if (w.job === job && (await stopWatch(root, w.id))) {

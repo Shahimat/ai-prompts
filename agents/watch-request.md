@@ -5,7 +5,7 @@ kind: custom
 lifecycle: fresh
 permissions: [read]
 concurrency: unlimited
-artifacts: [.ops/watches/]
+artifacts: [.oc3/watches/]
 tools: [Read, Glob, Grep]
 model: zai-coding-plan/glm-5.3-flash#max
 output: result

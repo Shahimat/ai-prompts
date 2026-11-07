@@ -12,7 +12,14 @@ expectations/.judge/
 packages/harness/test/.tmp/
 .oc3/operator/
 .oc3/locks/
+.oc3/.delta/.accepted.json
 .oc3/submit/
 .oc3/sessions/
 
 .oc3/bundles/
+.oc3/reports/
+.oc3/research/
+.oc3/verdicts/runs/
+.oc3/jobs/
+.oc3/watches/
+.oc3/baseline/

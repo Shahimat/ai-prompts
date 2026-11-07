@@ -5,6 +5,7 @@
   "required": ["done", "checks"],
   "additionalProperties": false,
   "properties": {
+    "knowledge_delta": { "$ref": "knowledge-delta.schema.json" },
     "done": {
       "type": "array",
       "items": { "type": "string", "minLength": 1, "maxLength": 300 }

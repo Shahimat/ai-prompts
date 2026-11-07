@@ -1,4 +1,4 @@
-import { COMMAND_NODES, runtime } from '@shahimat/ai-core';
+import { COMMAND_NODES, runtime, launchPreflight } from '@shahimat/ai-core';
 import type { CommandArgs } from '@shahimat/ai-core';
 import { UsageError } from '@shahimat/ai-core';
 import { errorMessage, isRecord, WARNING_PREFIX } from '@shahimat/ai-core';
@@ -86,10 +86,10 @@ export function handoff<C extends ProcessContext>(task: (ctx: C) => string): Act
   };
 }
 
-export function progressTo(file: string): (text: string) => void {
+export function progressTo(file: () => string): (text: string) => void {
   return (text) => {
-    mkdirSync(path.dirname(file), { recursive: true });
-    appendFileSync(file, `${new Date().toISOString().slice(11, 19)} ${text}\n`, 'utf8');
+    mkdirSync(path.dirname(file()), { recursive: true });
+    appendFileSync(file(), `${new Date().toISOString().slice(11, 19)} ${text}\n`, 'utf8');
   };
 }
 
@@ -99,11 +99,15 @@ export async function sessionRole(
   task: string,
 ): Promise<RoleOutcome> {
   const s = ctx.session;
-  const dir = s.file('runs');
+  const dir = artifactPath(s.data.project, { kind: 'run', key: s.short, name: 'roles' });
   const n = existsSync(dir)
     ? (await readdir(dir)).filter((f) => f.startsWith(`${role}-`)).length + 1
     : 1;
-  const transcript = s.file(`runs/${role}-${n}.jsonl`);
+  const transcript = artifactPath(s.data.project, {
+    kind: 'run',
+    key: s.short,
+    name: `roles/${role}-${n}.jsonl`,
+  });
   console.error(`роль ${role}: запущена; журнал — ${transcript}`);
   const outcome = await opsRole({
     root: s.data.project,
@@ -114,7 +118,20 @@ export async function sessionRole(
     priority: PRIORITY.answered,
     job: s.short,
     waitMin: stepWaitMin(),
-    options: { transcript, onProgress: progressTo(s.file('progress.log')) },
+    options: {
+      transcript,
+      onProgress: progressTo(() => s.file('progress.log')),
+      context: {
+        purpose:
+          s.data.harness === 'docs-delta'
+            ? 'docs-review'
+            : role === 'judge' && s.data.taskPacket !== undefined
+              ? 'ticket-acceptance'
+              : 'implementation',
+        execution: `${s.short}:${role}:${n}`,
+        ...(s.data.taskPacket === undefined ? {} : { packet: s.data.taskPacket }),
+      },
+    },
   });
   console.error(`роль ${role}: готово`);
   return outcome;
@@ -137,7 +154,15 @@ export function roleOrHandoff<C extends ProcessContext>(
           `${task(ctx)}.\n\nНамерения (JSON по схеме intents):\n\n${s.data.request}`,
         );
         await s.log({ role, result: data });
-        if (isRecord(data) && typeof data['report'] === 'string') console.log(data['report']);
+        if (
+          isRecord(data) &&
+          (data['status'] === 'failed' ||
+            (Array.isArray(data['failed']) && data['failed'].length > 0) ||
+            (Array.isArray(data['questions']) && data['questions'].length > 0))
+        )
+          return {
+            pause: `роль ${role}: normal success не подтверждён; итог сохранён в журнале сессии; доработай в пределах approved repair budget`,
+          };
         return { event: 'done' };
       } catch (error) {
         await s.log({ role, error: errorMessage(error) });
@@ -245,9 +270,15 @@ export function processModule(
     drive,
     start: async (args) => {
       requireProject(args.root);
+      const packet =
+        args.ticket === undefined
+          ? undefined
+          : artifactRelative({ kind: 'run', key: args.ticket, name: 'task-packet.json' });
+      if (packet !== undefined)
+        await launchPreflight(args.root, { packet, purpose: 'implementation' });
       const home = homeOf(args);
       const machine = await load(home);
-      return createSession(home, {
+      const session = await createSession(home, {
         harness: name,
         title: start.title(args),
         request: (await start.request?.(args)) ?? '',
@@ -255,6 +286,11 @@ export function processModule(
         initial: machine.def.initial,
         now: args.now,
       });
+      if (packet !== undefined) {
+        session.data.taskPacket = packet;
+        await session.save();
+      }
+      return session;
     },
   };
   if (start.options !== undefined) module.startOptions = start.options;
@@ -268,3 +304,4 @@ export function projectHarnessModule(dir: string): HarnessModule {
     loadMachineAt(dir, name, registry()),
   );
 }
+import { artifactRelative, artifactPath } from '@shahimat/ai-core';

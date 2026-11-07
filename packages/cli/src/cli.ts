@@ -33,6 +33,7 @@ export async function cliMain(
       root: { type: 'string' },
       out: { type: 'string' },
       file: { type: 'string' },
+      batch: { type: 'string' },
       ticket: { type: 'string' },
       baseline: { type: 'string' },
       html: { type: 'string' },
@@ -68,6 +69,7 @@ export async function cliMain(
   const args: CommandArgs = { root, now };
   if (values.out !== undefined) args.out = values.out;
   if (values.file !== undefined) args.file = values.file;
+  if (values.batch !== undefined) args.batch = values.batch;
   if (values.ticket !== undefined) args.ticket = values.ticket;
   if (values.baseline !== undefined) args.baseline = values.baseline;
   if (values.html !== undefined) args.html = values.html;

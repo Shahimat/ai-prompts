@@ -1,6 +1,7 @@
 // expect:verdict-prune
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { expectCacheFile, validateArtifactOutput } from '#lib/artifacts';
 import { errorCode, isRecord } from '#shared/guards';
 import { repoRoot } from './repo.ts';
 
@@ -10,8 +11,7 @@ const DEFAULT_ENTRY = 'expectations/index.expect.ts';
 
 export const entryOf = (): string => process.env[ENTRY_ENV] ?? DEFAULT_ENTRY;
 
-export const verdictsPath = (entry: string = entryOf()): string =>
-  path.posix.join(path.posix.dirname(entry.split(path.sep).join('/')), '.verdicts.json');
+export const verdictsPath = (entry: string = entryOf()): string => expectCacheFile(entry);
 
 export interface Verdict {
   question: string;
@@ -95,7 +95,9 @@ function section<T>(value: unknown, name: string, is: (v: unknown) => v is T): R
 export async function loadVerdicts(): Promise<VerdictStore> {
   let data: unknown;
   try {
-    data = JSON.parse(await readFile(path.join(repoRoot(), verdictsPath()), 'utf8'));
+    data = JSON.parse(
+      await readFile(validateArtifactOutput(repoRoot(), verdictsPath(), 'expect-cache'), 'utf8'),
+    );
   } catch (error) {
     if (errorCode(error) === 'ENOENT') return { verdicts: {}, lint: {} };
     throw error;
@@ -132,7 +134,7 @@ const sortKeys = <T>(obj: Record<string, T>): Record<string, T> =>
   Object.fromEntries(Object.entries(obj).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)));
 
 export async function saveVerdicts(store: VerdictStore): Promise<void> {
-  const file = path.join(repoRoot(), verdictsPath());
+  const file = validateArtifactOutput(repoRoot(), verdictsPath(), 'expect-cache');
   await mkdir(path.dirname(file), { recursive: true });
   const data = { verdicts: sortKeys(store.verdicts), lint: sortKeys(store.lint) };
   await writeFile(file, `${JSON.stringify(data, null, 2)}\n`, 'utf8');

@@ -5,6 +5,7 @@ import type { CommandArgs } from '#shared/args';
 import { UsageError, type Diagnostic } from '#shared/diagnostics';
 import { errorCode, isRecord } from '#shared/guards';
 import { report, warn } from '#shared/report';
+import { loadTaskPacket, taskPreflight, taskReady, verifyTask } from '#lib/task-gates';
 
 const STATE = '.oc3/operator/state.yml';
 const LINES = 200;
@@ -90,5 +91,32 @@ async function check(args: CommandArgs): Promise<number> {
 
 export async function runOperator(command: string | undefined, args: CommandArgs): Promise<number> {
   if (command === 'check') return check(args);
+  if (command === 'preflight' || command === 'verify' || command === 'ready') {
+    const file =
+      args.file ??
+      (args.ticket === undefined
+        ? undefined
+        : artifactRelative({ kind: 'run', key: args.ticket, name: 'task-packet.json' }));
+    if (file === undefined) throw new UsageError('--file или --ticket обязателен');
+    const packet = await loadTaskPacket(args.root, file);
+    if (command === 'preflight')
+      console.log(JSON.stringify(await taskPreflight(args.root, packet)));
+    if (command === 'ready') console.log(JSON.stringify(await taskReady(args.root, packet)));
+    if (command === 'verify') {
+      const name = args.params?.['name'];
+      if (name === undefined) throw new UsageError('имя проверки обязательно');
+      const result = await verifyTask(
+        args.root,
+        packet,
+        name,
+        (name === 'docs-derived' ? packet.owners['docs'] : packet.owners['verification']) ?? '',
+        'operator/manual-cli',
+      );
+      console.log(JSON.stringify({ ...result, caller: 'operator/manual-cli' }));
+      return result['status'] === 'pass' || result['kind'] === name ? 0 : 1;
+    }
+    return 0;
+  }
   throw new UsageError(`неизвестная команда: operator ${command ?? ''}`.trimEnd());
 }
+import { artifactRelative } from '#lib/artifacts';

@@ -2,6 +2,9 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import {
   compileSchema,
+  intakeSuccessfulResult,
+  knowledgeDeltaOf,
+  acceptTaskVerdict,
   errorMessage,
   findRole,
   isProtocolMessage,
@@ -11,6 +14,8 @@ import {
   SUBMIT_TOOL,
   type ProtocolMessage,
   type SchemaIssue,
+  artifactPath,
+  validateArtifactOutput,
 } from '@shahimat/ai-core';
 
 const ENV_OUT = 'HARNESS_SUBMIT_OUT';
@@ -58,9 +63,10 @@ export interface SubmitCall {
 
 const outOf = (root: string, sessionID: string): string => {
   const env = process.env[ENV_OUT];
-  if (env !== undefined && env.trim() !== '') return path.resolve(env);
+  if (env !== undefined && env.trim() !== '')
+    return validateArtifactOutput(root, path.relative(root, path.resolve(env)), 'submit');
   if (!SESSION_PATTERN.test(sessionID)) throw fail(`sessionID некорректен: ${sessionID}`);
-  return path.join(root, '.oc3', 'submit', `${sessionID}.json`);
+  return artifactPath(root, { kind: 'submit', key: `${sessionID}.json` });
 };
 
 export async function submitResult(call: SubmitCall): Promise<string> {
@@ -82,8 +88,27 @@ export async function submitResult(call: SubmitCall): Promise<string> {
   const inner = compileSchema(PROTOCOL[message])(data);
   if (inner.length > 0) throw fail(`data не по схеме ${message}: ${inner.map(text).join('; ')}`);
   if (!isRecord(data)) throw fail(`data — объект схемы ${message}`);
+  if (data['knowledge_delta'] !== undefined) knowledgeDeltaOf(data['knowledge_delta']);
   const out = outOf(call.root, call.sessionID);
   await mkdir(path.dirname(out), { recursive: true });
   await writeFile(out, `${JSON.stringify(data, null, 2)}\n`, 'utf8');
-  return `принято (${message}) — итог в ${out}`;
+  const packet = process.env['HARNESS_TASK_PACKET'];
+  if (packet !== undefined && process.env['HARNESS_TASK_PURPOSE'] === 'ticket-acceptance')
+    await acceptTaskVerdict(
+      call.root,
+      packet,
+      role.name,
+      process.env['HARNESS_EXECUTION_ID'] ?? call.sessionID,
+      data,
+    );
+  const receipt = await intakeSuccessfulResult(
+    {
+      root: call.root,
+      actor: role.name,
+      channel: 'native-submit',
+      execution: process.env['HARNESS_EXECUTION_ID'] ?? call.sessionID,
+    },
+    data,
+  );
+  return `принято (${message}) — итог в ${out}${receipt === undefined ? '' : `; durable pending ${receipt.submission_id}; critical=${receipt.critical}${receipt.view_stale === true ? '; receipt durable, view stale' : ''}${receipt.critical ? '; escalation required' : ''}`}`;
 }

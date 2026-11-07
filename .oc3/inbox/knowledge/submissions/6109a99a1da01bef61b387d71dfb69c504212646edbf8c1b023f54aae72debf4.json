@@ -1,0 +1,70 @@
+{
+  "version": 1,
+  "project_id": "8af57293-040d-4245-bc31-5d8966070ee5",
+  "key": "6109a99a1da01bef61b387d71dfb69c504212646edbf8c1b023f54aae72debf4",
+  "context": {
+    "actor": "operator/manual-cli",
+    "channel": "manual-cli",
+    "execution": "5cc1c03fcd65302ed606ad0e270420d30f3266db1550483aa268157b7fc4e363",
+    "task": null,
+    "ticket": null,
+    "start": {
+      "project": "/Users/shahimat/prj/ai-prompts",
+      "worktree": "/Users/shahimat/prj/ai-prompts",
+      "head": "f1e681ca8e4b9956dd997689c195d4ccaf2dca57",
+      "branch": "main",
+      "dirty": "2d2a4bef0d0c46686fb3f4e5189281d7795037eb1ff0a446f51e7b89b5cf79dd",
+      "scope": "5cc1c03fcd65302ed606ad0e270420d30f3266db1550483aa268157b7fc4e363"
+    },
+    "finish": {
+      "project": "/Users/shahimat/prj/ai-prompts",
+      "worktree": "/Users/shahimat/prj/ai-prompts",
+      "head": "f1e681ca8e4b9956dd997689c195d4ccaf2dca57",
+      "branch": "main",
+      "dirty": "2d2a4bef0d0c46686fb3f4e5189281d7795037eb1ff0a446f51e7b89b5cf79dd",
+      "scope": "5cc1c03fcd65302ed606ad0e270420d30f3266db1550483aa268157b7fc4e363"
+    },
+    "evidence": [
+      {
+        "locator": ".ops/knowledge-inbox/checks/51fd77df-8b06-4d1b-adc9-569c9677b348.json",
+        "hash": "f8c109cf8a8b6569e0f9408c2163202dbd5240542cafd65b42c94d510a9779e6",
+        "status": "local-content"
+      },
+      {
+        "locator": ".ops/knowledge-inbox/verdicts/8f62b514065e59771f5648feb0ed58a75cea62abe48d0a70599a6a501c831a7b.json",
+        "hash": "596d21aee07e1e48a7f568c2775cf47668aba4df844996d34b76823569c23e80",
+        "status": "local-content"
+      }
+    ]
+  },
+  "entries": [
+    {
+      "id": "6519a2b08943c22b990195e03ab92c72c0e5290a13ed762ab84ee33f44d5a793",
+      "hash": "f77384322a885d942c9c4c474440f6862b9c93fdd59d826da8eaa76471b7d2dd",
+      "item": {
+        "subject": "knowledge-inbox",
+        "property": "validated_test_count",
+        "value": 581,
+        "kind": "observation",
+        "evidence": [
+          ".ops/knowledge-inbox/checks/51fd77df-8b06-4d1b-adc9-569c9677b348.json",
+          ".ops/knowledge-inbox/verdicts/8f62b514065e59771f5648feb0ed58a75cea62abe48d0a70599a6a501c831a7b.json"
+        ]
+      },
+      "scope": "5cc1c03fcd65302ed606ad0e270420d30f3266db1550483aa268157b7fc4e363",
+      "critical": false
+    }
+  ],
+  "receipt": {
+    "version": 1,
+    "project_id": "8af57293-040d-4245-bc31-5d8966070ee5",
+    "submission_id": "6109a99a1da01bef61b387d71dfb69c504212646edbf8c1b023f54aae72debf4",
+    "entry_ids": [
+      "6519a2b08943c22b990195e03ab92c72c0e5290a13ed762ab84ee33f44d5a793"
+    ],
+    "digest": "8a0c846195727c38660b6f651b6bc99deafb30d628555f0a0631d1837461e920",
+    "locator": ".oc3/inbox/knowledge/submissions/6109a99a1da01bef61b387d71dfb69c504212646edbf8c1b023f54aae72debf4.json",
+    "critical": false
+  },
+  "digest": "c9976dfefa2ba66f8f73077620aaa8dc97df416c545fae4d0e8b3266c4bc80d6"
+}

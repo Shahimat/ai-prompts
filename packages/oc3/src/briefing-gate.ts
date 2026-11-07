@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { Plugin } from '@opencode/plugin';
-import { isOneOf } from '@shahimat/ai-core';
+import { artifactKey, artifactPath, isOneOf } from '@shahimat/ai-core';
 
 const SESSION_PATTERN = /^[A-Za-z0-9._-]+$/;
 const ACK_SUFFIX = '.briefing';
@@ -17,11 +17,11 @@ export function briefingGate(action: string, acked: boolean): string | undefined
 }
 
 export function ackPath(root: string, sessionID: string): string {
-  return path.join(root, '.oc3', 'sessions', `${sessionID}${ACK_SUFFIX}`);
+  return artifactPath(root, { kind: 'session', key: `${artifactKey(sessionID)}${ACK_SUFFIX}` });
 }
 
 export function isBriefingAcked(root: string, sessionID: string): boolean {
-  if (!SESSION_PATTERN.test(sessionID)) return false;
+  if (typeof sessionID !== 'string' || !SESSION_PATTERN.test(sessionID)) return false;
   return existsSync(ackPath(root, sessionID));
 }
 
@@ -30,7 +30,7 @@ export async function markBriefingAcked(
   sessionID: string,
   now: Date,
 ): Promise<string> {
-  if (!SESSION_PATTERN.test(sessionID))
+  if (typeof sessionID !== 'string' || !SESSION_PATTERN.test(sessionID))
     throw new Error(`briefing_done: sessionID некорректен: ${sessionID}`);
   const file = ackPath(root, sessionID);
   await mkdir(path.dirname(file), { recursive: true });

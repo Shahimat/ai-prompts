@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { refreshPending } from './knowledge.ts';
 import path from 'node:path';
 import * as ts from 'typescript';
 import { parse } from 'yaml';
@@ -443,6 +444,7 @@ export const renderGraph = async (
     '# Память проекта',
     '',
     'Стартовые факты инлайном; глубже — по вееру узлов.',
+    'Pending knowledge (не канон, кольцо 1): [pending](pending/index.md); memory inbox pending.',
     '',
   ];
   const inline = facts.filter((f) => f.weight === 0).sort((a, b) => a.rel.localeCompare(b.rel));
@@ -498,7 +500,7 @@ const listBundleDirs = async (root: string): Promise<string[]> => {
     throw error;
   }
   return entries
-    .filter((e) => e.isDirectory())
+    .filter((e) => e.isDirectory() && e.name !== 'pending')
     .map((e) => e.name)
     .sort();
 };
@@ -585,6 +587,7 @@ export const writeGraph = async (root: string, graph: MemoryGraph): Promise<numb
       await rm(path.join(base, dir), { recursive: true, force: true });
       removed++;
     }
+  await refreshPending(root);
   return removed;
 };
 

@@ -1,5 +1,6 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { expectHelperDir } from '#lib/artifacts';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { main } from '@shahimat/cli';
 import { isRecord } from '#shared/guards';
@@ -40,6 +41,33 @@ afterAll(async () => {
 });
 
 describe('ai expect report | lint | judge', () => {
+  it('HTML and helper reset are confined to the normalized entry, never an arbitrary export path', async () => {
+    const html = `${expectHelperDir(ENTRY)}/page.html`;
+    await main(['expect', 'report', ENTRY, '--html', html, '--root', ROOT], NOW);
+    expect(await readFile(path.join(ROOT, html), 'utf8')).toContain('два плюс два — четыре');
+    await expect(
+      main(['expect', 'report', ENTRY, '--html', 'outside.html', '--root', ROOT], NOW),
+    ).rejects.toThrow('ARTIFACT_ENTRY_MISMATCH');
+    await expect(
+      main(
+        [
+          'expect',
+          'report',
+          ENTRY,
+          '--html',
+          `${expectHelperDir('peer/index.expect.ts')}/page.html`,
+          '--root',
+          ROOT,
+        ],
+        NOW,
+      ),
+    ).rejects.toThrow('ARTIFACT_ENTRY_MISMATCH');
+    const peer = `${expectHelperDir('peer/index.expect.ts')}/sentinel.json`;
+    await put(peer, '{"synthetic":"peer"}');
+    await main(['expect', 'judge', ENTRY, '--root', ROOT], NOW);
+    expect(await readFile(path.join(ROOT, peer), 'utf8')).toBe('{"synthetic":"peer"}');
+    await expect(readFile(path.join(ROOT, 'outside.html'))).rejects.toThrow();
+  }, 60000);
   it('lint: 0 — заголовки в порядке', async () => {
     expect(await main(['expect', 'lint', ENTRY, '--root', ROOT], NOW)).toBe(0);
   }, 60_000);
@@ -73,7 +101,7 @@ describe('ai expect report | lint | judge', () => {
   it('judge: готовит проверку заголовков; --apply с ответом — report проходит', async () => {
     expect(await main(['expect', 'judge', ENTRY, '--root', ROOT], NOW)).toBe(1);
     const plan: unknown = JSON.parse(
-      await readFile(path.join(ROOT, 'expectations/.judge/plan.json'), 'utf8'),
+      await readFile(path.join(ROOT, expectHelperDir(ENTRY), 'plan.json'), 'utf8'),
     );
     const lint = isRecord(plan) && Array.isArray(plan['lint']) ? plan['lint'] : [];
     expect(lint).toHaveLength(1);
@@ -142,7 +170,14 @@ describe('ai expect report | lint | judge', () => {
         ),
       ).toBe(1);
       expect(
-        await readFile(path.join(ROOT, 'expectations/.judge/transcripts/lint-1.jsonl'), 'utf8'),
+        await readFile(
+          path.join(
+            ROOT,
+            expectHelperDir('expectations/broken.expect.ts'),
+            'transcripts/lint-1.jsonl',
+          ),
+          'utf8',
+        ),
       ).toContain('"type":"text"');
       const errors = out.join('\n');
       expect(errors).toContain('lint-1.md: роль judge не вернула итог');

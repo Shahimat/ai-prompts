@@ -1,4 +1,19 @@
 export { normalizeEol, parseFrontmatter, type Frontmatter } from './shared/frontmatter.ts';
+export * from './lib/knowledge.ts';
+export * from './lib/task-gates.ts';
+export {
+  digestOf,
+  contentHash,
+  localSnapshot,
+  topologyOf,
+  acquireLease,
+  recoverLease,
+  publishJson,
+  publishProjectJson,
+  readJson,
+  safePath,
+  runDocsReviewStage,
+} from './lib/local-store.ts';
 export {
   collectEntries,
   diffIndex,
@@ -175,3 +190,5 @@ export {
   runExpect,
   type ExpectSummary,
 } from './commands/expect/index.ts';
+export * from './lib/artifacts.ts';
+export * from './lib/artifact-migration.ts';

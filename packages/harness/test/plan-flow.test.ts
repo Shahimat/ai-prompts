@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promis
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { main } from '@shahimat/cli';
-import { cliCommand, isRecord } from '@shahimat/ai-core';
+import { artifactPath, cliCommand, isRecord } from '@shahimat/ai-core';
 import { io } from '#harnesses/plan-review/cli';
 import { openerFor, servePage } from '#harnesses/plan-review/page';
 import { bashDecision, hookEvent } from '#harnesses/plan-review/hook';
@@ -262,7 +262,8 @@ describe('plan-review: события из моста', () => {
 
   it('мост: edit-события читаются из файла моста, bash-события игнорируются', async () => {
     const { readPlannerEvents } = await import('#harnesses/plan-review/actions');
-    const file = path.join(fakeDir, 'events.jsonl');
+    const file = artifactPath(project, { kind: 'bridge', key: 'synthetic-events.jsonl' });
+    await mkdir(path.dirname(file), { recursive: true });
     await writeFile(
       file,
       [

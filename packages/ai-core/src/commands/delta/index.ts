@@ -1,20 +1,47 @@
 import { existsSync } from 'node:fs';
-import { mkdir, rm, writeFile } from 'node:fs/promises';
+import { rm } from 'node:fs/promises';
 import path from 'node:path';
 import {
   ACCEPTED_FILE,
+  LEGACY_ACCEPTED_FILE,
   acceptedOf,
   checkDelta,
   matchesTarget,
   revisionLines,
   unfinishedItems,
+  type Accepted,
 } from './delta.ts';
 import { DELTA_DIR } from '#shared/layout';
 import { UsageError, type Diagnostic } from '#shared/diagnostics';
 import { report, warn } from '#shared/report';
 import type { CommandArgs } from '#shared/args';
+import {
+  acquireLease,
+  contentHash,
+  digestOf,
+  publishProjectJson,
+  topologyOf,
+} from '#lib/local-store';
+
+const currentAccepted = (items: Accepted[], still: string[]): Accepted[] => [
+  ...new Map(
+    items.filter((item) => still.includes(item.file)).map((item) => [digestOf(item), item]),
+  ).values(),
+];
 
 export async function runDelta(command: string | undefined, args: CommandArgs): Promise<number> {
+  if (command === 'close') {
+    const lease = await acquireLease(args.root, 'delta-close', 'runtime');
+    try {
+      return await deltaOperation(command, args);
+    } finally {
+      await lease.release();
+    }
+  }
+  return deltaOperation(command, args);
+}
+
+async function deltaOperation(command: string | undefined, args: CommandArgs): Promise<number> {
   if (command !== 'check' && command !== 'close')
     throw new UsageError(`неизвестная команда: delta ${command ?? ''}`.trimEnd());
   const result = await checkDelta(args.root);
@@ -49,21 +76,63 @@ export async function runDelta(command: string | undefined, args: CommandArgs): 
   for (const line of revisionLines(own)) console.log(line);
   if (command === 'check') return report('delta check', errors);
 
+  if (
+    ownFile !== undefined &&
+    own.length === 0 &&
+    result.accepted.some((accepted) => accepted.delta === ownFile)
+  )
+    return report('delta close', []);
   if (ownFile !== undefined && own.length === 0 && !existsSync(path.join(args.root, ownFile)))
     return report('delta close', [{ file: ownFile, message: 'дельты нет — закрывать нечего' }]);
   const diagnostics = [...errors, ...unfinishedItems(args.root, result, own)];
   if (diagnostics.length > 0) return report('delta close', diagnostics);
   const still = result.revisions.map((r) => r.file);
-  const accepted = [...result.accepted, ...acceptedOf(own)].filter((a) =>
-    still.some((f) => matchesTarget(a.target, f)),
+  const newAccepted = await acceptedOf(args.root, own, still);
+  const accepted = currentAccepted([...result.accepted, ...newAccepted], still);
+  const before = digestOf({ result, accepted });
+  const hashes = await Promise.all(
+    own.map(async (d) => [d.file, await contentHash(args.root, d.file)]),
   );
+  const checked = await checkDelta(args.root);
+  const acceptedAgain = currentAccepted(
+    [
+      ...checked.accepted,
+      ...(await acceptedOf(
+        args.root,
+        own,
+        checked.revisions.map((r) => r.file),
+      )),
+    ],
+    checked.revisions.map((revision) => revision.file),
+  );
+  if (
+    before !== digestOf({ result: checked, accepted: acceptedAgain }) ||
+    digestOf(hashes) !==
+      digestOf(
+        await Promise.all(own.map(async (d) => [d.file, await contentHash(args.root, d.file)])),
+      )
+  )
+    throw new UsageError('delta close: STALE');
   const ledger = path.join(args.root, ACCEPTED_FILE);
   if (accepted.length === 0) await rm(ledger, { force: true });
   else {
-    await mkdir(path.dirname(ledger), { recursive: true });
-    await writeFile(ledger, `${JSON.stringify({ v: 1, items: accepted }, null, 2)}\n`, 'utf8');
+    const topology = await topologyOf(args.root);
+    const body = {
+      version: 2,
+      root: topology.project,
+      worktree: topology.worktree,
+      head: topology.head,
+      items: accepted,
+    };
+    await publishProjectJson(args.root, ACCEPTED_FILE, { ...body, digest: digestOf(body) }, false);
   }
+  await rm(path.join(args.root, LEGACY_ACCEPTED_FILE), { force: true });
   for (const d of own) {
+    if (
+      digestOf(await acceptedOf(args.root, own, still)) !== digestOf(newAccepted) ||
+      (await contentHash(args.root, d.file)) !== hashes.find((entry) => entry[0] === d.file)?.[1]
+    )
+      throw new UsageError('delta close: STALE');
     await rm(path.join(args.root, d.file), { force: true });
     console.error(`removed ${d.file}`);
   }

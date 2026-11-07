@@ -1,11 +1,18 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
-import { readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { parse } from 'yaml';
-import { matchesTarget, readIntents } from '@shahimat/ai-core';
+import {
+  matchesTarget,
+  readIntents,
+  knowledgeBatchOf,
+  runKnowledgeBatchStage,
+  resolveKnowledgeBatch,
+  runDocsReviewStage,
+} from '@shahimat/ai-core';
 import type { CommandArgs } from '@shahimat/ai-core';
-import { errorMessage, isRecord } from '@shahimat/ai-core';
+import { errorMessage, isRecord, readJson, safePath, UsageError } from '@shahimat/ai-core';
 import { DELTA_DIR } from '@shahimat/ai-core';
 import {
   commandAction,
@@ -177,35 +184,137 @@ const FAILURE_HINT =
   'не закрывай дельту вручную (delta close, удаление файла дельты) в обход судьи — сначала спроси пользователя';
 
 function registry(): Registry<ProcessContext> {
+  const apply = roleOrHandoff<ProcessContext>(
+    'librarian',
+    (ctx) =>
+      `${applyTask(ctx)}${batchId(ctx) === undefined ? '' : `; после применения подготовь ${proposalFile(ctx)}: exact id/hash/status/reason/evidence; applied требует target и content_hash, superseded — replacement; не пиши runtime inbox`}`,
+  );
+  const verify = scriptAction<ProcessContext>(
+    ['docs', 'verify'],
+    (ctx) => ({ name: ctx.session.data.title }),
+    { record: true },
+  );
+  const close = commandAction<ProcessContext>(
+    ['delta', 'close'],
+    (ctx) => ({ name: ctx.session.data.title }),
+    { record: true },
+  );
   return {
     actions: new Map([
-      ['delta-apply', roleOrHandoff<ProcessContext>('librarian', applyTask)],
-      [
-        'docs-verify',
-        scriptAction<ProcessContext>(
-          ['docs', 'verify'],
-          (ctx) => ({ name: ctx.session.data.title }),
-          { record: true },
-        ),
-      ],
-      ['docs-review', reviewAction()],
-      [
-        'delta-close',
-        commandAction<ProcessContext>(
-          ['delta', 'close'],
-          (ctx) => ({ name: ctx.session.data.title }),
-          { record: true },
-        ),
-      ],
+      ['delta-apply', batchAction('apply', apply)],
+      ['docs-verify', batchAction('verify', verify)],
+      ['docs-review', batchAction('review', reviewAction())],
+      ['delta-close', batchAction('close', close)],
       ['report-failure', failureAction<ProcessContext>(FAILURE_HINT)],
     ]),
     guards: new Map(),
   };
 }
 
+function batchId(ctx: ProcessContext): string | undefined {
+  try {
+    const value: unknown = JSON.parse(ctx.session.data.request);
+    return isRecord(value) && typeof value['knowledge_batch'] === 'string'
+      ? value['knowledge_batch']
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function proposalFile(ctx: ProcessContext): string {
+  return artifactPath(ctx.session.data.project, {
+    kind: 'proposal',
+    key: ctx.session.short,
+    name: 'dispositions.json',
+  });
+}
+
+function batchAction(
+  stage: 'apply' | 'verify' | 'review' | 'close',
+  action: ActionDef<ProcessContext>,
+): ActionDef<ProcessContext> {
+  return {
+    events: action.events,
+    run: async (ctx) => {
+      const batch = batchId(ctx);
+      let outcome: Awaited<ReturnType<typeof action.run>> | undefined;
+      try {
+        if (batch === undefined) {
+          const ok = await runDocsReviewStage(
+            ctx.session.data.project,
+            ctx.session.short,
+            stage,
+            async () => {
+              outcome = await action.run(ctx);
+              return 'event' in outcome && (outcome.event === 'ok' || outcome.event === 'done');
+            },
+          );
+          return outcome ?? (ok ? { event: 'ok' } : { pause: 'docs batch failed' });
+        }
+        if (stage === 'apply') await mkdir(path.dirname(proposalFile(ctx)), { recursive: true });
+        let targets: string[] = [];
+        if (stage === 'verify') {
+          const dispositions = await readJson(
+            await safePath(
+              ctx.session.data.project,
+              path.relative(ctx.session.data.project, proposalFile(ctx)),
+            ),
+            65536,
+          );
+          if (!Array.isArray(dispositions)) throw new Error('INVALID_DISPOSITIONS');
+          targets = dispositions.flatMap((entry: unknown) =>
+            isRecord(entry) && entry['status'] === 'applied' && typeof entry['target'] === 'string'
+              ? [entry['target']]
+              : [],
+          );
+        }
+        const ok = await runKnowledgeBatchStage(
+          ctx.session.data.project,
+          batch,
+          ctx.session.short,
+          stage,
+          async () => {
+            outcome = await action.run(ctx);
+            return 'event' in outcome && (outcome.event === 'ok' || outcome.event === 'done');
+          },
+          {
+            targets,
+            ...(stage === 'close' ? { delta: `${DELTA_DIR}/${ctx.session.data.title}.yml` } : {}),
+          },
+        );
+        if (!ok) return outcome ?? { pause: 'batch failed; exact IDs остаются pending' };
+        if (stage === 'close') {
+          const proposed = await readJson(
+            await safePath(
+              ctx.session.data.project,
+              path.relative(ctx.session.data.project, proposalFile(ctx)),
+            ),
+            65536,
+          );
+          await resolveKnowledgeBatch(ctx.session.data.project, batch, ctx.session.short, proposed);
+        }
+        return outcome ?? { event: 'ok' };
+      } catch (error) {
+        return {
+          pause: `knowledge batch: ${errorMessage(error)}; pending сохранён; исправь и продолжи эту сессию`,
+        };
+      }
+    },
+  };
+}
+
 export const DOCS_DELTA = processModule('docs-delta', registry, {
-  options: '[--name <дельта>] [--file <намерения | ->]',
+  options: '[--name <дельта>] [--file <намерения | ->> | --batch <id>]',
   title: (args: CommandArgs) => args.name ?? 'delta',
-  request: async (args: CommandArgs) =>
-    args.file === undefined ? '' : readIntents(args.root, args.file),
+  request: async (args: CommandArgs) => {
+    if (args.batch !== undefined) {
+      if (args.file !== undefined) throw new UsageError('--batch и --file взаимоисключающи');
+      if (!/^[a-f0-9]{64}$/.test(args.batch)) throw new UsageError('INVALID_BATCH');
+      const batch = await knowledgeBatchOf(args.root, args.batch);
+      return JSON.stringify({ knowledge_batch: args.batch, snapshot: batch.value });
+    }
+    return args.file === undefined ? '' : readIntents(args.root, args.file);
+  },
 });
+import { artifactPath } from '@shahimat/ai-core';

@@ -1,3 +1,5 @@
+import { KNOWLEDGE_DELTA_SCHEMA } from './knowledge.ts';
+
 export const PROTOCOL_MESSAGES = ['result', 'verdict', 'question'] as const;
 export type ProtocolMessage = (typeof PROTOCOL_MESSAGES)[number];
 
@@ -22,6 +24,7 @@ const RESULT = {
     failed: strings,
     questions: strings,
     report: { type: 'string', maxLength: 1500 },
+    knowledge_delta: KNOWLEDGE_DELTA_SCHEMA,
   },
 };
 

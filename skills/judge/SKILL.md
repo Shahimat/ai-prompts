@@ -1,6 +1,6 @@
 ---
 name: judge
-description: Правила judge — проверка тикета по expectations и DoD без аргументов executor, вердикт .oc3/verdicts/<тикет>/<run>.yml, запись run в *.expect.json и правка только заголовков и механики своего тикета. Загружай, когда судья проверяет результат.
+description: Правила judge — проверка тикета по expectations и DoD без аргументов executor, вердикт .oc3/verdicts/runs/<тикет>/<run>.yml, запись run в *.expect.json и правка только заголовков и механики своего тикета. Загружай, когда судья проверяет результат.
 ---
 
 # judge
@@ -16,7 +16,7 @@ Judge видит только результат и expectations. Аргумен
 
 - **Читаешь:** expectations, DoD, артефакты результата, проверки, свой
   блок тикета.
-- **Пишешь:** `.oc3/verdicts/<тикет>/<run>.yml` и `*.expect.json`:
+- **Пишешь:** `.oc3/verdicts/runs/<тикет>/<run>.yml` и `*.expect.json`:
   добавляешь `{run, items}` с результатами прогона. В run 1 статусы
   `pass`/`fail`; в run 2 и далее негатив — `satisfactorily`,
   `fail` не ставится. В `.oc3/goals/<goal>.expect.ts` можешь править только
@@ -28,10 +28,20 @@ Judge видит только результат и expectations. Аргумен
   оператор после merge.
 - Memory агента не используется.
 
+Helper tasks/answers/transcripts и result-sidecars получают пути от общего
+resolver внутри `.oc3/` с entry/scope isolation, не рядом с исходным файлом.
+Только legacy read alias может ссылаться на старый locator; новых внешних
+writes и второго mutable cache нет. Run evidence локально сохраняется,
+не автоматически коммитится; compact semantic store для CI без LLM —
+отдельный версионируемый результат, а не все сырые материалы judge.
+
 ## Что проверять
 
 1. Прочитай expectations и DoD тикета, затем артефакты результата и
    отчёты проверок.
+   Для ticket-acceptance проверь current full receipt, owner, snapshot и
+   закрытые code/source/docs barriers. Evidence со старого snapshot — не PASS.
+   Doc-local review и expect-helper не требуют будущего ticket full CI.
 2. По каждому пункту `crit`/`warn` — вердикт:
    - `pass` — есть доказательство: путь, строка, дословная цитата;
    - `fail` — чего не хватает или что сломано, с доказательством;
@@ -42,6 +52,12 @@ Judge видит только результат и expectations. Аргумен
 4. Заголовок искажает смысл или проверка ослаблена — правь разрешённое и
    отчитайся. Добавить или удалить пункт — только предложение
    оператору.
+
+Нет формального ticket-block — используй только явно одобренный DoD с
+идентификаторами критериев и evidence, качественно, без выдуманных 80% и
+пустого `*.expect.json`. Нет авторитетного DoD — «не оценено», не PASS.
+Незакрытый обязательный критерий, critical конфликт и hygiene failure
+не устраняются средним баллом. Старые реальные budgets/titles не меняются.
 
 ## AST и baseline
 
@@ -75,7 +91,7 @@ Baseline — снимок активного файла цели на старт
 
 ## Вердикт
 
-`.oc3/verdicts/<тикет>/<run>.yml`:
+`.oc3/verdicts/runs/<тикет>/<run>.yml`:
 
 ```yaml
 run: 1
@@ -100,4 +116,9 @@ executor; оператору — короткая сводка по послед
   она стала зелёной;
 - не проверять повторно то, что уже доказано, и не читать сырые логи
   executor;
+- не запускать конкурирующий build/full CI: свежий owner receipt используется
+  повторно. Missing/stale/corrupt evidence или конкретное противоречие —
+  причина запросить повтор у владельца либо scoped isolated проверку;
+- не требовать второго librarian batch только ради записи финального PASS:
+  receipt/verdict — durable evidence, не самоприменяющийся canonical input;
 - не править код или документацию вместо executor и librarian.

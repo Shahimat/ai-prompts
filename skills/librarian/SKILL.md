@@ -15,6 +15,18 @@ description: Правила записи в проектную документ�
 Документацию пишет только librarian; оператор, executor и judge — никогда.
 Librarian один, правки последовательны: параллельных записей нет.
 
+Это правило про канон. Durable inbox пишет runtime, producer не получает
+право редактировать документацию. На каждый входящий факт librarian не
+запускается: рабочая проекция свежая, канон консолидируется bounded пакетами.
+
+Project execution artifacts принадлежат рабочим roots `.oc3/`, не канону.
+Durable означает сохранность, не обязательный commit. Не импортируй весь
+исследовательский task-run, checks/logs или transcripts как документацию:
+отбери устойчивые знания с evidence. Runtime игнорируется по назначению,
+не blanket `.oc3/`; canonical knowledge, goals и inbox не скрываются как cache.
+Исторические evidence bytes/hashes при миграции не переписываются; active
+маршруты используют новые locators, старые читаются через проверяемый manifest.
+
 ## Вход: docs_request
 
 Поля сообщения — по схеме `message`: `id`, `from`, `to`, `ticket`,
@@ -67,6 +79,8 @@ harness те же намерения проверяются схемой `intent
 | `CHANGELOG.md` | librarian |
 | `provides.layers` — слои модулей | librarian |
 | `.oc3/.delta/` — создание и правка | librarian |
+| `.oc3/inbox/knowledge/` — приём, batch и exact-ID resolution | runtime, не ручная правка роли |
+| `.oc3/locks/delta-accepted.json` — временный exact-snapshot cache | runtime |
 | `.oc3/.delta/` — удаление после приёмки | `ai delta close`; шаг `close` harness `docs-delta`, без harness — librarian |
 | `.oc3/bundles/` — build | `ai memory build`; шаг `verify` harness `docs-delta` |
 | адаптеры (`.opencode/`, `.codex/`) | `ai adapters sync`; шаг `verify` harness `docs-delta` |
@@ -131,17 +145,29 @@ items:
 6. После приёмки дельта удаляется; строки `revise` — в отчёт.
 <!-- /expect:docs-delta -->
 
-1. Собери дельту из намерений. Сверь каждый пункт с текущей
-   документацией: новое знание — `add`, совместимое уточнение —
-   `refine`, удаление или изменение существующего — `revise` с `was` и
-   `why`.
-2. `add` и `refine` вниманием пользователя не требуют — строка в отчёте.
-3. `revise` работу не блокирует: он объявлен в дельте, попадает в отчёт
-   и в тело сообщения коммита.
-4. Примени пункты по правилам слоёв.
-5. Приёмка: пункты выполнены, прежнее знание без `revise` не нарушено,
-   производные файлы пересобраны, проверки чисты, противоречий нет.
-6. После приёмки дельта удаляется; строки `revise` — в отчёт.
+## Пакетная консолидация inbox
+
+Входящий receipt означает pending, а не проверенный канон. Bounded batch
+содержит exact IDs/hashes, topic/scope, snapshot и evidence; читай только этот
+срез и нужный веер. Не принимай весь накопленный журнал одним контекстом.
+Observation проверяется по источнику; decision не свидетельствует о применении;
+candidate требует разбора, не автоматического создания поля/rule/verified.
+Сверь дубли, независимые свойства, вытесненные значения и конфликты. Время
+доставки/branch name не доказывают newer; разные scopes не объединяй молча.
+
+Для выбранных IDs подготовь предложенные dispositions по пути из request вне
+runtime inbox: applied с canonical locator, rejected с reason/evidence либо
+superseded с replacement ID и причиной. Это предложение, не самостоятельный ack.
+Runtime разрешает exact-ID ack только после успешных verify/review/close этого
+batch и проверки bindings/digests. Failed/paused/stale batch не ack; новые
+arrivals остаются pending. No-op applied тоже требует проверяемый locator/hash.
+Без поддерживаемого verified-close нельзя имитировать автоматический ack.
+
+Один docs batch после code/source stable, затем derived и owner full CI.
+Не запускай конкурирующую сборку. Собственные schema/link/format ошибки
+доводи в том же batch в repair budget; первый FAIL не вопрос пользователю.
+Critical конфликт эскалирует сразу. Финальный CI/PASS живёт в evidence/inbox,
+а не требует второго канонического batch и бесконечного нового snapshot.
 
 Неочевидное изменение существующего правила подтверждается оператором.
 Вопрос, который решает пользователь, в дельту не входит: он идёт в
@@ -250,8 +276,8 @@ revise: <цель>: было «…» → <стало>; почему: <…>
 вопросы: <что решает пользователь>
 ```
 
-Строки `revise` идут в тело сообщения коммита. Оператор показывает отчёт
-пользователю как есть.
+Строки `revise` идут в тело сообщения коммита. Оператор включает их, итог и
+открытые риски в один консолидированный отчёт; raw micro-reports не дублирует.
 <!-- /expect:librarian-report -->
 
 ## Язык

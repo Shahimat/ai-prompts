@@ -38,6 +38,26 @@ default для всех ролей — `openai/gpt-6.1-sol-fast` без variant.
 Это локальная настройка, не смена дефолтов потребителей и не обещание
 переключить явно выбранную модель уже открытой сессии.
 
+## Рабочий цикл контракта
+
+Оператор готовит task packet и preflight; роли доводят обычные ошибки.
+После code/source stable один librarian обновляет docs/производные,
+назначенный владелец выполняет full CI, затем judge и ready проверяют DoD
+и состав файлов. Новое знание можно оставить durable pending в inbox:
+receipt не означает обновление канона, critical не откладывается молча.
+Команды, обслуживание, ограничения и evidence —
+[knowledge inbox и гейты](design/knowledge-inbox.md).
+
+Все first-party проектные execution outputs OC3 — только внутри `.oc3/`,
+по typed kind и явному scope; исходники expectations и provider adapters
+не являются такими outputs. Durable означает сохранность, **не commit**:
+run packets/logs/reports/research и сырые вердикты локальны и ignored.
+Compact semantic store `.oc3/verdicts/expect/` для no-AI CI, canonical
+knowledge, goals и inbox не скрываются blanket-ignore. Ignore не снимает
+уже staged старые файлы: состав deliverables проверяется отдельно.
+Раскладка, entry isolation и `oc3 migrate` с read-only historical aliases —
+в [описании реализации](design/knowledge-inbox.md#раскладка-execution-artifacts).
+
 ## Структура
 
 ```

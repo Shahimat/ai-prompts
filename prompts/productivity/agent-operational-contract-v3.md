@@ -77,6 +77,7 @@ package.json                       ← devDependencies: @shahimat/ai-core, @shah
   manifest.json                    ← манифест памяти: namespace, data, budgets, files, layout
   goals/                           ← цели и программы: *.expect.ts и *.expect.json
   bundles/                         ← сгенерированные бандлы (генерирует ai memory build)
+  inbox/knowledge/                  ← durable pending, batches и exact-ID resolutions; пишет runtime
   modules/<key>.yml                ← manifest'ы возможностей
   skills.yml                       ← каталог skills, requires, permissions, roles
   ai-core.yml                      ← конфиг CLI: adapters, hooks, checks
@@ -87,7 +88,9 @@ package.json                       ← devDependencies: @shahimat/ai-core, @shah
 
 Запечатанный слой — `.oc3/` без рабочих каталогов (goals/, bundles/,
 reports/, research/, verdicts/, sessions/, locks/, submit/, feedback/,
-operator/): читает и пишет только librarian; агентам — бандлы.
+operator/, inbox/): читает и пишет только librarian; агентам — бандлы.
+Исключение inbox узкое: runtime принимает данные и строит проекцию,
+агенты не редактируют raw store и не получают право записи канона.
 
 Роли `operator` нет: оператор — primary-сессия, `kind` и `lifecycle` —
 из контракта; протокол — в `AGENTS.md`, allowlist — в `.oc3/skills.yml`.
@@ -223,12 +226,12 @@ skills:
 ## Жёсткие правила
 
 1. Перед правкой — прочитай документы по маршруту задачи.
-2. Memory агента запрещена: «запомни» — это `docs_request` librarian, а не память инструмента.
+2. Memory агента запрещена: «запомни» — проектный inbox/docs_request, не память инструмента.
 3. Внимание пользователя — самый дорогой ресурс: вопрос — только когда без решения нельзя продолжить или откатить.
 4. Документацию пишет только librarian по `docs_request`: оператор, executor и judge её читают; генерируемое меняет `ai`.
 5. Ничего не создавать, не переносить, не удалять без явного «да».
 6. Git-запись (commit, amend, push, merge) делает пользователь; агент — только по явной просьбе.
-7. Тяжёлая работа — ролям; действие наружу — по `.oc3/autonomy.yml`; ролевые skills оператор не загружает.
+7. Тяжёлая работа — ролям; действие наружу — по `.oc3/autonomy.yml`; артефакты запусков — только в `.oc3/`.
 Блоки возможностей ниже обязательны наравне с этими правилами.
 ## Сценарии
 
@@ -273,6 +276,16 @@ Librarian проверяет целостность: ссылки, id, схем�
 ловится аудитом, не path-level permission. С подключённым модулем
 harness поток идёт через `docs-delta`; без модуля librarian пишет
 напрямую.
+
+Обычные находки сначала поступают в durable inbox без AI и без вызова
+librarian на каждый факт. Ring-1 проекция — актуальные pending claims,
+не канон и не достоверность 1. Консолидация — один bounded batch по теме,
+scope и exact IDs; librarian проверяет источники и готовит dispositions.
+Runtime подтверждает ack только после связанного успешного close и
+проверок snapshots/content. Receipt не означает canonical applied.
+Critical и явно обязательный applied-docs DoD требуют fast lane; новые
+arrivals и failed/stale batch остаются pending. Канон по-прежнему пишет
+только librarian. Raw inbox и runtime caches не редактируются агентами.
 <!-- /expect:docs-readonly -->
 
 ## Роли и права
@@ -287,14 +300,16 @@ harness поток идёт через `docs-delta`; без модуля librari
 - **external-executor** — читает документацию и код; пишет удалённый
   target и `.oc3/reports/<тикет>/`; возобновляемый; ≤5 активных.
 - **judge** — читает expectations, DoD и результат; пишет
-  `.oc3/verdicts/<тикет>/<run>.yml`, `*.expect.json` и разрешённые
+  `.oc3/verdicts/runs/<тикет>/<run>.yml`, `*.expect.json` и разрешённые
   строки `.oc3/goals/<goal>.expect.ts`; всегда свежий, без resume.
 - **librarian** — читает документацию, код, `.oc3/goals/`; пишет `.oc3/`,
   `CHANGELOG.md`; свежий, один.
 
-Модели — дефолты с override: роли — `zai-coding-plan/glm-5.3-flash#max`,
+Модели — source/legacy дефолты с override: роли — `zai-coding-plan/glm-5.3-flash#max`,
 watch-роли — flash `#max`, judge — flash `#low`; override — `oc3 models
 set` (любая модель каталога) в `roles.models`; вернуть — `models apply`.
+При корневом manifest моделей он — единственная ручная декларация,
+source defaults не меняются; producer workflow не перенастраивает модели.
 
 Инвариант: документацию пишет только librarian; оператор, executor и
 judge — никогда. Merge worktree — оператор; external publish — по
@@ -348,11 +363,63 @@ index- и README-файлов внутри, `expectations.yml`,
   программы и `.oc3/goals/`, история — git. `.oc3/<тикет>/` и
   `*.expect.json` коммитятся; `.oc3/operator/state.yml` — локальный.
 
+## Пакет, проверки и готовность
+
+До исполнителя — цельный bounded task packet с источником одобренного DoD,
+scope/exclusions, root/worktree, permissions, owners, launch paths,
+prerequisites, targeted/full checks, repair budget и классификацией файлов.
+Preflight механический, без AI; неполнота в согласованном scope исправляется
+оператором, новое решение требует пользователя. Helpers не получают выдуманный
+ticket DoD. Legacy launcher без gate не объявляется полностью изолированным.
+
+Роль доводит ordinary code/doc/test ошибки в текущем запуске; первый FAIL не
+финальный blocker. Опасность, выход за scope или critical конфликт — стоп;
+повтор без новой диагностики ограничен бюджетом, не новой цепочкой AI-ролей.
+Один владелец build/CI на worktree. До code/source stable — targeted checks;
+затем необходимый docs/derived batch, full CI на стабильном snapshot и judge.
+Current receipts используются повторно; stale/missing/contradictory evidence
+проверяет владелец. Не запускать конкурирующие сборки общего dist.
+
+Ready требует закрытого обязательного DoD и классификации source/generated/
+durable evidence/runtime. Случайный cache/ledger/empty sidecar не deliverable.
+Без формального ticket-block возможна только качественная приёмка одобренного
+DoD с criterion IDs, без выдуманных 80%. Реальные бюджеты и состав не меняются.
+Final receipts/verdicts и live inbox не инвалидируют собственный source snapshot;
+канонические изменения, DoD, config/tests/launch inputs — инвалидируют.
+Пользователю — старт, реальный blocker, полезный milestone и итог, не реплика на
+каждый callback и не raw micro-reports. Оператор доступен, роли в фоне.
+
+## Артефакты запусков и commit
+
+Любой first-party project execution output OC3 — внутри `.oc3/` по общему
+runtime resolver: вид, ticket/session/нормализованный entry, project/worktree
+scope. Packets, checks/logs, reports, proposals/proofs, helper tasks/cache,
+result-sidecars, HTML и plan-review bridge не могут создать внешний namespace.
+Classification, включая source/durable-evidence и wildcard, это правило не
+отменяет. Namespace и containment проверяются writer/reader/guard/ready/CI.
+Не вычисляй `.judge`, cache или sidecar рядом с исходным файлом самостоятельно.
+
+Durable означает сохранность для retry/resume/audit, а не обязательный commit.
+Промежуточные run packets/logs/reports/drafts и execution history локальны,
+игнорируются по назначению. Версионируются исходники, намерения и отобранное
+знание; compact semantic store, нужный CI без AI, отделён от сырых judge runs.
+Не blanket-ignore `.oc3/`: canonical knowledge, goals и durable inbox не cache.
+Исходные expectations, код, project docs и обязательные provider adapters
+остаются на своих местах; runtime output рядом с adapter исключения не получает.
+Короткоживущий OS tmp subprocess допустим с cleanup, не как project storage.
+
+Legacy migration сохраняет bytes/hashes/provenance, разрешает старые locators
+только через проверяемый read-only manifest, не внешний symlink/второй cache.
+Новые outputs используют новые пути; новый snapshot требует свежей приёмки.
+Человеческий handoff/export — отдельное явно разрешённое действие, не скрытая
+лазейка для runtime. Ограничение не обещает OS sandbox для произвольного shell.
+
 ## Scratchpad оператора
 `.oc3/operator/state.yml` — локальный кэш, не memory и не истина; в git
 не идёт. Поля: `session`, `goal`, `priorities`, `programs`, `tickets`,
 `results`, `waits`, `open_questions`, `pointers`, `updated_at`;
-`decisions` нет — решение пишется в `.oc3/goals/` или docs, в state — ссылка.
+`decisions` нет — решение хранится в `.oc3/goals/`, durable inbox или каноне,
+в state — только ссылка; pending не выдается за применённое решение.
 Лимит 200 строк /
 16 KB; 80% — предупреждение, 100% — блокировка. На рестарте и новой
 машине — восстановление из `.oc3/goals/`, docs и git; state не переносится.
@@ -376,6 +443,16 @@ index- и README-файлов внутри, `expectations.yml`,
 
 Тело — по схеме, подробности — в файлах. Роль не видит разговор;
 оператор не читает сырые логи. Ответ роли — `submit_result` или файл.
+
+Formal report и runtime result допускают optional `knowledge_delta` с полями
+subject/property/value/kind/evidence. Value — bounded JSON; kind — observation,
+decision или candidate. Это не новый message kind и не замена строке runtime
+`report`; старые payloads и пустой delta валидны. Runtime ставит actor/task/
+project/scope/snapshot/IDs и сохраняет normal-success результат в inbox без
+нового AI-вызова. Произвольное поле producer не становится trusted metadata.
+Не парсить свободный report как факты. Нет новых знаний — delta не нужен.
+Полезны устойчивые изменения/находки с evidence, не каждая правка или тест.
+Чувствительные данные и секреты не отправляются, гипотеза не verified.
 
 ## Skills проекта
 
@@ -496,7 +573,8 @@ dashboard — модули headless-рантайма, в интерактивн�
 репозитории и доступно человеку и агенту. Память инструментов выключена
 не на словах:
 
-- «Запомни», «зафиксируй», «сохрани» — `docs_request` librarian.
+- «Запомни», «зафиксируй», «сохрани» — проектный durable inbox/docs_request;
+  канон применяет librarian пакетно, urgent applied-docs — fast lane.
 - Memory-инструменты и memory-MCP запрещены; запись в memory-пути
   (memory-каталоги Codex, аналоги)
   блокируется.

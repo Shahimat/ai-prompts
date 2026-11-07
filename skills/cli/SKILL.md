@@ -106,6 +106,24 @@ npx ai <автомат> start | open <id> | …
   (`npm i -g @shahimat/cli @shahimat/harness`), не агент из задачи.
 <!-- /expect:skill-runs -->
 
+## Расположение и сохранность артефактов
+
+Все project execution outputs OC3 назначает общий resolver внутри `.oc3/`
+по виду и ticket/session/нормализованному entry с явным scope. Отчёты,
+checks, proposals, helper tasks/cache/sidecars/HTML и plan-review bridge —
+не исключения. Classification и wildcard не разрешают внешний namespace.
+Исходные expectations, код, project docs и обязательные provider adapters
+не являются execution outputs; runtime внутри каталога adapter исключения
+не получает. Короткоживущий OS tmp subprocess очищается и не заменяет storage.
+
+Durable — сохранность для retry/resume/audit, не требование commit. Run packets,
+логи, промежуточные reports/proofs/drafts/history локальны и игнорируются по
+назначению. Не игнорируется вся `.oc3/`: canonical knowledge, goals и inbox
+не одноразовый cache. Компактный semantic verdict store для no-AI CI может
+версионироваться отдельно от сырых материалов запуска. Legacy locators читаются
+через проверяемый migration manifest; новых внешних writes/двойного cache нет.
+Миграция сохраняет historical bytes/hashes, но не делает старый PASS актуальным.
+
 ## Проектный манифест моделей
 
 Корневой `manifest.json` моделей — единственная ручная декларация,
@@ -151,6 +169,34 @@ manifest'ами модулей или `package.json`.
 manifest не поставляется другим проектам через source-sync.
 Явно выбранная человеком модель уже существующей OpenCode-сессии
 или внешний `--model` — не проектный дефолт и не меняются автоматически.
+<!-- /expect:skill-runs -->
+
+## Inbox и гейты процесса
+
+<!-- expect:skill-runs -->
+Это справка по явным действиям оператора/verification owner, не новые
+автоматические запуски skill; его `metadata.runs` остаётся `refresh`.
+
+- `ai memory inbox enqueue --file <json|->` — сохранить optional
+  knowledge_delta и durable receipt без AI и canonical writes.
+- `ai memory inbox pending` — компактный bounded срез pending, не весь журнал.
+- `ai memory inbox batch --file <selection.json>` — frozen topic/scope batch.
+- `ai docs-delta start --batch <id>` — явная консолидация существующим процессом;
+  успешный связанный close разрешает только exact-ID dispositions этого batch.
+- `ai operator preflight --file <packet.json>` — проверить готовность пакета.
+- `ai operator verify <name> --file <packet.json>` — назначенный owner запускает
+  объявленную проверку под worktree lease и получает snapshot-bound receipt.
+- `ai operator ready --file <packet.json>` — query DoD/freshness/hygiene,
+  без уборки, git write и самодельного scoring.
+
+Не запускай build параллельно чтению общего dist. Full CI — после code/source
+stable и необходимого docs/derived batch; judge не повторяет доказанный CI.
+Receipt inbox означает pending, не canonical applied. Secrets не сохраняются;
+decision/candidate не становятся фактами. Вес 1 — кольцо доступа, не confidence.
+Raw inbox runtime-owned; читать через bounded query/проекцию, не править руками.
+Новый accepted-cache локален в `.oc3/locks/delta-accepted.json`, действует лишь
+для exact root/worktree/HEAD/content. Старый `.oc3/.delta/.accepted.json`
+не даёт authorization и не должен попадать в deliverable.
 <!-- /expect:skill-runs -->
 
 ## Сгенерированное не правится руками

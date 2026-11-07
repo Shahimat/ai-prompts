@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { randomUUID } from 'node:crypto';
+import { mkdir, readFile, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { UsageError } from '#shared/diagnostics';
 import { errorCode, isRecord } from '#shared/guards';
@@ -18,6 +18,9 @@ import {
 import { runtime } from './runtime.ts';
 import { resolveProjectModel } from './project-models.ts';
 import { isProtocolMessage, PROTOCOL, SUBMIT_TOOL } from './protocol.ts';
+import { intakeSuccessfulResult, pendingViewOf, type KnowledgeReceipt } from './knowledge.ts';
+import { localSnapshot } from './local-store.ts';
+import { acceptTaskVerdict, launchPreflight, type LaunchContext } from './task-gates.ts';
 
 const MEMORY_MARKER = /память:\s*([0-9a-f]{12})/g;
 
@@ -43,6 +46,8 @@ export const memoryPromptOf = async (root: string, task: string): Promise<string
       }`,
     );
   const parts: string[] = [];
+  const pending = await pendingViewOf(root);
+  if (pending !== '') parts.push(pending);
   if (start !== null)
     parts.push(`Оперативная память проекта (стартовый граф):\n\n${start.trimEnd()}`);
   const loaded = await Promise.all(requested.map((sha) => nodeText(root, sha)));
@@ -79,6 +84,7 @@ export async function findRole(root: string, name: string): Promise<AgentDef> {
 }
 
 export interface RoleRun {
+  context?: LaunchContext;
   root: string;
   role: AgentDef;
   task: string;
@@ -114,12 +120,12 @@ export function roleTimeoutMs(): number {
 }
 
 export interface RoleOutcome {
+  knowledgeReceipt?: KnowledgeReceipt;
   data: unknown;
   costUsd: number | undefined;
 }
 
 const SESSION_FILE = /^[A-Za-z0-9._-]+$/;
-const SESSION_DIR = ['.oc3', 'submit'] as const;
 
 export interface RoleSources {
   readonly submit: string | undefined;
@@ -207,6 +213,9 @@ export function roleOutcomeOf(role: AgentDef, sources: RoleSources): RoleFinal {
 }
 
 export async function runRole(run: RoleRun): Promise<RoleOutcome> {
+  const launch = await launchPreflight(run.root, run.context);
+  const start = await localSnapshot(run.root);
+  const execution = run.context?.execution ?? randomUUID();
   const model = (
     await resolveProjectModel(
       run.root,
@@ -236,6 +245,8 @@ export async function runRole(run: RoleRun): Promise<RoleOutcome> {
       prompt: `${roleSystemPrompt(run.role)}${memory}`,
       task: run.task,
       out: run.out,
+      execution,
+      ...(run.context === undefined ? {} : { context: run.context }),
     },
     options,
   );
@@ -245,14 +256,38 @@ export async function runRole(run: RoleRun): Promise<RoleOutcome> {
   const session = result.sessionId;
   const sessionRaw =
     session !== undefined && SESSION_FILE.test(session)
-      ? await submitFileOf(path.join(run.root, ...SESSION_DIR, `${session}.json`))
+      ? await submitFileOf(artifactPath(run.root, { kind: 'submit', key: `${session}.json` }))
       : undefined;
   const final = roleOutcomeOf(run.role, {
-    submit: await submitFileOf(run.out),
+    submit: await submitFileOf(validateArtifactOutput(run.root, path.relative(run.root, run.out))),
     session: sessionRaw,
     text: result.lastText ?? '',
   });
-  if ('data' in final) return { data: final.data, costUsd: result.costUsd };
+  if ('data' in final) {
+    if (run.context?.purpose === 'ticket-acceptance' && run.context.packet !== undefined)
+      await acceptTaskVerdict(run.root, run.context.packet, run.role.name, execution, final.data);
+    const receipt = await intakeSuccessfulResult(
+      {
+        root: run.root,
+        actor: run.role.name,
+        channel: 'managed-role',
+        execution,
+        task: run.task,
+        start,
+        ...('ticket' in launch && typeof launch.ticket === 'string'
+          ? { ticket: launch.ticket }
+          : run.context?.ticket === undefined
+            ? {}
+            : { ticket: run.context.ticket }),
+      },
+      final.data,
+    );
+    return {
+      data: final.data,
+      costUsd: result.costUsd,
+      ...(receipt === undefined ? {} : { knowledgeReceipt: receipt }),
+    };
+  }
   const why = [
     final.reason,
     run.transcript === undefined ? undefined : `транскрипт: ${run.transcript}`,
@@ -265,6 +300,7 @@ export async function runRole(run: RoleRun): Promise<RoleOutcome> {
 }
 
 export interface AskOptions {
+  context?: LaunchContext;
   modelContext?: string;
   transcript?: string;
   timeoutMs?: number;
@@ -278,7 +314,9 @@ export async function askRole(
   options: AskOptions = {},
 ): Promise<RoleOutcome> {
   const role = await findRole(root, name);
-  const dir = await mkdtemp(path.join(tmpdir(), `harness-role-${name}-`));
+  const dir = artifactPath(root, { kind: 'submit', key: `${name}-${randomUUID()}` });
+  await mkdir(dir, { recursive: true });
+  let completed = false;
   try {
     const run: RoleRun = {
       root,
@@ -290,8 +328,12 @@ export async function askRole(
     if (options.timeoutMs !== undefined) run.timeoutMs = options.timeoutMs;
     if (options.onProgress !== undefined) run.onProgress = options.onProgress;
     if (options.modelContext !== undefined) run.modelContext = options.modelContext;
-    return await runRole(run);
+    if (options.context !== undefined) run.context = options.context;
+    const result = await runRole(run);
+    completed = true;
+    return result;
   } finally {
-    await rm(dir, { recursive: true, force: true });
+    if (completed) await rm(dir, { recursive: true, force: true });
   }
 }
+import { artifactPath, validateArtifactOutput } from './artifacts.ts';

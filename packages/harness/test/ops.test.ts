@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { main } from '@shahimat/cli';
-import { isRecord } from '@shahimat/ai-core';
+import { isRecord, pendingKnowledge } from '@shahimat/ai-core';
 import { openSession, listSessions } from '#harnesses/core/store/session';
 import {
   affirmation,
@@ -133,6 +133,59 @@ afterEach(async () => {
 });
 
 describe('ticket-work: путь задачи', () => {
+  it.each([false, true])(
+    'ordinary completion defers native/legacy knowledge without extra roles; critical=%s blocks publish',
+    async (critical) => {
+      byRole({ researcher: { submit: result('research') }, executor: { submit: result('plan') } });
+      await run(['ticket-work', 'start', 'tasks/t1.md']);
+      const { short } = await job();
+      const dir = path.join(root, '.oc3/jobs', short);
+      await put(
+        'intents.json',
+        JSON.stringify([{ kind: 'rule', summary: 'legacy pending', evidence: 'fixture:legacy' }]),
+        dir,
+      );
+      byRole({
+        executor: {
+          submit: {
+            ...result('implemented'),
+            knowledge_delta: [
+              {
+                subject: critical ? 'privacy policy' : 'runtime',
+                property: 'pending',
+                value: { synthetic: true },
+                kind: 'decision',
+                evidence: ['fixture:result'],
+              },
+            ],
+          },
+        },
+        judge: { submit: OK_REVIEW },
+      });
+      await main(['ticket-work', 'answer', short, 'да', '--home', home], NOW);
+      expect(await stateOf()).toBe(critical ? 'publish' : 'ready');
+      if (!critical) {
+        await main(['ticket-work', 'answer', short, 'готово', '--home', home], NOW);
+      }
+      expect(await stateOf()).toBe(critical ? 'publish' : 'done');
+      expect(out.join('\n').includes('critical knowledge pending')).toBe(critical);
+      const pending = await pendingKnowledge(root);
+      expect(pending).toHaveLength(2);
+      expect(pending.map((entry) => entry.item.kind).sort()).toEqual(['candidate', 'decision']);
+      const calls = (await read('args.jsonl', home))
+        .trim()
+        .split('\n')
+        .map((line): unknown => JSON.parse(line))
+        .filter(isRecord);
+      expect(calls.map((call) => call['role'])).toEqual([
+        'researcher',
+        'executor',
+        'executor',
+        'judge',
+      ]);
+      expect(await read('log.md', dir)).toContain('durable knowledge pending');
+    },
+  );
   it('manifest uses project not home for jobs and both watch roles before quota classification', async () => {
     await put(
       '.agents/agents/executor.md',
@@ -448,7 +501,9 @@ describe('ops: наблюдатели', () => {
     expect(await readFile(path.join(home, 'review.log'), 'utf8')).toBe('approve 123 lgtm\n');
     const all = await events();
     const suggest = all.find((e) => e.kind === 'suggest')?.text ?? '';
-    expect(suggest).toContain('ai ops act review comment 123 --file .oc3/suggest/');
+    expect(suggest).toContain(
+      'ai ops act review comment 123 --file .oc3/reports/watch-suggestions/',
+    );
     expect(all.find((e) => e.kind === 'request')?.text).toContain('Поправить тест');
     const file = /--file (\S+)/.exec(suggest)?.[1] ?? '';
     expect(await run(['ops', 'act', 'review', 'comment', '123', '--file', file])).toBe(0);

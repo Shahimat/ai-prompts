@@ -79,7 +79,7 @@ v3 ещё не менялись. Следующий шаг — **7.1, шаг 1: 
 - **Цель и тикеты.** Внутри файла цели — тикеты:
   `describe('ticket: …')` со своими `crit`/`warn`/`it.todo`. Один
   активный тикет на файл цели; параллель — между целями. Артефакты
-  тикета — `.ops/<ticket>/`.
+  тикета — `.oc3/reports/<ticket>/` (typed roots — §3).
 - **Этапы цели.** `it.todo` — план; `it.todo` нет — готовый план; нет
   `it.todo`/`crit.wip` и все тикеты приняты (≥80% `pass`) — цель
   достигнута, файл и импорт удаляются. Стадию показывает `ai goals
@@ -115,7 +115,7 @@ v3 ещё не менялись. Следующий шаг — **7.1, шаг 1: 
   цикл (run 3) — только по команде оператора.
 - **Права judge в `goals/`.** Judge правит только `title` и механику
   проверки внутри своего тикета. Baseline — снимок активного файла цели
-  в `.ops/<ticket>/baseline/`, коммитится до создания worktree;
+  в `.oc3/baseline/<ticket>/`, сохраняется локально до создания worktree;
   обновляет только оператор после merge. AST-валидатор не даёт менять
   состав и бюджет.
 
@@ -201,7 +201,7 @@ expect/plan-review helpers и ops runner используют общий resolve
   словах: memory-инструменты и memory-MCP запрещены, запись в
   memory-пути блокируется, настройки и hooks ставят адаптеры и проверяет
   `ai adapters check`.
-- **Scratchpad локальный.** `.ops/operator/state.yml` — явный временный
+- **Scratchpad локальный.** `.oc3/operator/state.yml` — явный временный
   журнал, не memory; в git не попадает.
 - **Формальное общение.** Оператор и роли общаются сообщениями по схеме,
   не свободным чатом.
@@ -214,7 +214,7 @@ expect/plan-review helpers и ops runner используют общий resolve
   или HTTP-fallback. Event log — JSONL.
 - **Context аддитивен.** `context/ai-core.yml`, `context/modules/`,
   `context/conventions/`, `context/index.yml` остаются.
-- **Locks.** Файловые, `.ops/locks/`, через CLI.
+- **Locks.** Файловые, `.oc3/locks/`, через CLI.
 - **Команды.** `ai goals check`, `ai goals status`, `ai roles check`,
   `ai skills check`, `ai models set`, `ai operator state check`,
   `ai adapters check`; AST — TypeScript compiler API; установка memory
@@ -224,7 +224,7 @@ expect/plan-review helpers и ops runner используют общий resolve
   librarian — протокол плюс аудит, не механический запрет рантайма.
   Исключение — счётчик прогонов judge: он механический (см. «Приёмка»).
 - **Docs guard.** `edit` deny для operator, executor и judge (у judge —
-  `goals/*.expect.ts`, `.ops/<ticket>/verdicts/`, `*.expect.json`);
+  `goals/*.expect.ts`, `.oc3/verdicts/runs/<ticket>/`, `*.expect.json`);
   запись в docs через shell — аудит, не hard-hook.
 - **External executor.** Для external-проекта нужен executor, который
   работает в удалённом проекте и меняет его; GUI/CI-работы — его
@@ -278,8 +278,8 @@ CI, релиз, миграция, headless jobs.
 программы), `*.expect.json`, артефакты ролей.
 
 **Пишет:** `goals/program--<key>.expect.ts`,
-`goals/<goal>.expect.ts`, `.ops/operator/state.yml`,
-`.ops/feedback/<ticket>.yml`, сброс `*.expect.json` перед циклом.
+`goals/<goal>.expect.ts`, `.oc3/operator/state.yml`,
+`.oc3/feedback/<ticket>.yml`, сброс `*.expect.json` перед циклом.
 
 **Не пишет:** `docs/`, `context/`, `CHANGELOG.md`, код.
 
@@ -333,7 +333,7 @@ CI, релиз, миграция, headless jobs.
 
 **Читает:** всё, что нужно по задаче.
 
-**Пишет:** только `.ops/<ticket>/research/<id>.md` (один артефакт на
+**Пишет:** только `.oc3/research/<ticket>/<id>.md` (один артефакт на
 задание).
 
 **Не пишет:** код, документацию, `goals/`, expectations.
@@ -359,7 +359,7 @@ judge/researcher); judge и researcher никого не запускают; з�
 **Читает:** цель и тикет, expectations, `*.expect.json`, research,
 вердикты judge, код, документацию.
 
-**Пишет:** код, тесты, конфиги, `.ops/<ticket>/reports/<id>.md` в своём
+**Пишет:** код, тесты, конфиги, `.oc3/reports/<ticket>/<id>.md` в своём
 worktree.
 
 **Не пишет:** `docs/`, `context/`, `CHANGELOG.md`, `goals/`,
@@ -406,7 +406,7 @@ judge executor ничего не делает, пока оператор не з
   зависший запуск, вытащить логи, снять страницу/скриншот, ввести
   данные. Для этого нужен `browser` (полный), а не `browser-read`.
 - Evidence: скриншоты, snapshot, console/network, логи CI — в
-  `.ops/<ticket>/reports/`.
+  `.oc3/reports/<ticket>/`.
 - Много web-приложений: active executor ≤5, остальные paused/в очереди;
   paused не считается.
 - Merge/publish — по политике автономии и target; локального worktree
@@ -425,7 +425,7 @@ executor не видит**.
 **Читает:** expectations, DoD, артефакты результата, проверки; из файла
 цели — только свой `describe('ticket: …')`.
 
-**Пишет:** `.ops/<ticket>/verdicts/<run>.yml` и `*.expect.json`:
+**Пишет:** `.oc3/verdicts/runs/<ticket>/<run>.yml` и `*.expect.json`:
 добавляет запись `{run, items}` с результатами прогона. В первом
 прогоне статусы `pass`/`fail`; во втором и последующих негатив
 помечается `satisfactorily`, `fail` не ставится.
@@ -465,6 +465,13 @@ baseline.
 Повторный цикл (run 3) — новый judge по команде оператора.
 
 ### 2.5 Librarian
+
+Реализованный bounded inbox, один docs/derived batch и гейты полного
+цикла описаны в [knowledge-inbox](knowledge-inbox.md). Этот маршрут
+уточняет очередь ниже: runtime принимает pending без запуска librarian
+на каждый факт; канон пишет только один librarian, exact-ID ack выполняет
+runtime лишь после связанного успешного verify/review/close. Исторический
+статус «только дизайн» в handoff выше не описывает эту реализацию.
 
 Один, всегда свежий контекст, последовательный писатель документации.
 Модель — по таблице §0.
@@ -530,7 +537,7 @@ watcher, замечания пользователя.
   `time_to_first_status`, `docs_corrections`, `check_failures`,
   `paused_time`, `scratchpad_churn`.
 
-**Выход:** `.ops/feedback/<ticket>.yml`:
+**Выход:** `.oc3/feedback/<ticket>.yml`:
 
 ```yaml
 ticket: <key>
@@ -776,7 +783,7 @@ lifecycle: resumable
 concurrency: 1
 permissions: [browser]           # capability; granular — в skills.yml
 output: result
-artifacts: [.ops/<ticket>/reports/]
+artifacts: [.oc3/reports/<ticket>/]
 ---
 <промпт роли>
 ```
@@ -801,7 +808,7 @@ artifacts: [.ops/<ticket>/reports/]
   действиям и доменам; `submit`/платёж/удаление — по умолчанию `ask`
   или `never`;
 - evidence: скриншоты, snapshot, console/network — в
-  `.ops/<ticket>/reports/` или `.ops/<ticket>/research/`;
+  `.oc3/reports/<ticket>/` или `.oc3/research/<ticket>/`;
 - judge проверяет через `browser-read` или evidence executor, без
   побочных действий;
 - оператор не управляет браузером как основной работой.
@@ -873,7 +880,7 @@ roles:
     concurrency: 5
     skills: [executor, domain, manuals, external-context, browser, data-access]
     output: result
-    artifacts: [.ops/<ticket>/reports/]
+    artifacts: [.oc3/reports/<ticket>/]
 role_skills:
   operator: [operator-feedback]
   researcher: [research, domain, manuals, external-context, browser-read]
@@ -912,11 +919,11 @@ skill.
 
 | Роль | Модель | Документация | Код | Артефакты | Сессия | Параллельность |
 | --- | --- | --- | --- | --- | --- | --- |
-| operator | zai-coding-plan/glm-5.3#max | read | read | goals/, .ops/operator/state.yml, .ops/feedback | постоянная | один |
-| researcher | zai-coding-plan/glm-5.3#max | read | read | .ops/<ticket>/research | свежая | много |
-| executor | zai-coding-plan/glm-5.3#max | read | write | .ops/<ticket>/reports, worktree | возобновляемая | ≤5 активных, paused не считается |
-| external-executor | zai-coding-plan/glm-5.3#max | read | write remote | .ops/<ticket>/reports, remote target | возобновляемая | ≤5 активных, paused не считается |
-| judge | zai-coding-plan/glm-5.3-flash#low | read | read | .ops/<ticket>/verdicts, goals expect, *.expect.json | всегда свежая; run 3 — по команде оператора | много, по файлу |
+| operator | zai-coding-plan/glm-5.3#max | read | read | goals/, .oc3/operator/state.yml, .oc3/feedback | постоянная | один |
+| researcher | zai-coding-plan/glm-5.3#max | read | read | .oc3/research/<ticket>/ | свежая | много |
+| executor | zai-coding-plan/glm-5.3#max | read | write | .oc3/reports/<ticket>/, worktree | возобновляемая | ≤5 активных, paused не считается |
+| external-executor | zai-coding-plan/glm-5.3#max | read | write remote | .oc3/reports/<ticket>/, remote target | возобновляемая | ≤5 активных, paused не считается |
+| judge | zai-coding-plan/glm-5.3-flash#low | read | read | .oc3/verdicts/runs/<ticket>/, goals expect, *.expect.json | всегда свежая; run 3 — по команде оператора | много, по файлу |
 | librarian | zai-coding-plan/glm-5.3#max | write | read | docs/, context/, CHANGELOG | свежая | один |
 
 Активных executor — не больше 5; paused не считается. Merge локального
@@ -941,22 +948,34 @@ executor — никогда. Память инструментов выключ�
 
 ## 3. Артефакты
 
+Актуальная реализация artifact-layout: [knowledge inbox](knowledge-inbox.md#раскладка-execution-artifacts).
+Все first-party project execution outputs — только `.oc3/`: typed resolver
+`artifacts.ts` назначает kind/key и explicit root/worktree scope, identity и
+namespace проверяются до classification/hash. Source expectations, обычные
+docs и обязательные provider definitions/adapters — не execution outputs;
+runtime bridge не наследует исключение adapter. Machine-level storage
+(`~/.config/harness`) — отдельный explicit scope, не project exception.
+Термины `goals/` и `*.expect.json` ниже обозначают слой целей и results;
+текущий project root целей — `.oc3/goals/`, фактический locator результатов
+определяет `expectStateFile`, а не безусловная запись рядом с entry.
+
 ```text
-goals/
+.oc3/goals/
   <goal>.expect.ts          # цель: describe('goal') → describe('ticket: …') → crit/warn
   <goal>.expect.json        # результаты прогонов judge рядом с файлом цели
   program--<key>.expect.ts  # программа: импорты своих целей в порядке приоритета
   ...
 
-.ops/
+.oc3/
   operator/state.yml       # локальный scratchpad, в git не идёт
   feedback/<ticket>.yml    # фидбек по работе
-  <ticket>/
-    baseline/              # снимок файла цели на старте ticket
-    research/              # researcher
-    reports/               # executor
-    verdicts/              # judge
-    checks/                # результаты проверок
+  baseline/<ticket>/       # локальный снимок файла цели на старте ticket
+  research/<ticket>/       # локальный researcher output
+  reports/<ticket>/        # локальные reports/checks/task packets
+  verdicts/runs/<ticket>/   # локальные сырые вердикты запусков
+  verdicts/expect/<entry-key>/ # compact versioned semantic store/state
+  reports/expect/<entry-key>/ # helper tasks/answers/drafts/HTML
+  sessions/plan-review/     # runtime bridge/events
 
 context/
   project.yml              # sync.contract.key/edition, external targets, roles.exceptions
@@ -966,6 +985,30 @@ context/
   skills/<name>/SKILL.md   # проектные и установленные core-skills
   agents/<name>.md         # роли: frontmatter + промпт
 ```
+
+`entry-key` — SHA-256 нормализованного project-relative entry: separators/`.`
+нормализуются, absolute/traversal и symlinks отвергаются. Helper tasks,
+answers/drafts и файловый HTML entry-isolated в `.oc3/reports/expect/`;
+compact semantic cache — `.oc3/verdicts/expect/<entry-key>/verdicts.json`.
+Bridge — `.oc3/sessions/plan-review/bridge.json`, events — scoped session.
+Proposals/proofs — `.oc3/reports/{docs-proposals,docs-batches,knowledge-batches}/`.
+Managed/native/manual paths используют общий resolver, без OS-shell sandbox
+или новой возможности произвольного external export.
+
+**Durable ≠ commit.** Reports/research/verdicts/runs, locks/submit/sessions,
+jobs/watches/baseline/operator сохраняются локально и ignored по назначению.
+Run packets, logs/transcripts и historical archives не становятся каноном
+целиком. Compact semantic store versioned для no-AI CI; canonical knowledge,
+intentional goal results и inbox не blanket-ignore. Ignore не отменяет уже
+staged файлы: проверяется состав deliverables, не переписывается user index.
+
+`oc3 migrate` сохраняет bytes/hashes и provenance в manifest
+`.oc3/reports/artifact-history/manifest.json`, проверяет collisions и retry.
+Старые locators доступны только через read-only `historicalArtifactPath`
+с проверкой scope/hash; historical refs внутри evidence не переписываются.
+Старый PASS не recertified для нового snapshot. Итоговая A1–A8 acceptance
+и full CI на stable срезе ещё pending, финальные receipts локальны и не
+требуют второго canonical batch.
 
 `goals/` — плоский набор `*.expect.ts` и `*.expect.json`. Никаких
 `goals/index.yml`, `goals/README.md`, `expectations.yml`,
@@ -995,13 +1038,13 @@ context/
   по запросу.
 - `goals/` коммитится. Завершённая цель удаляется из своего файла
   программы и из `goals/`; история — git.
-- `.ops/<ticket>/` коммитится как след работы; `.ops/operator/` —
-  локальный и не коммитится.
+- Execution outputs локальны по назначению, не коммитятся всем task-run;
+  compact semantic store, intentional goal results и канон отделены (§3 ниже).
 - `goals/` — не проектная документация; docs guard его не трогает.
 - Это не `expectations/*.expect.ts` репозитория: там долгосрочные
   ожидания к промптам и коду; здесь — цели конкретной работы. Механизм
-  `*.expect.json` одинаков для обоих: файл лежит рядом с любым
-  `*.expect.ts`.
+  `*.expect.json` одинаков по смыслу для обоих, но locator выбирает
+  `expectStateFile`: рядом только для `.oc3/goals/`, иначе в entry-scoped store.
 
 Пример цели:
 
@@ -1033,7 +1076,7 @@ import './judge.expect.ts';
 - judge не добавляет/удаляет `describe`/`crit`/`warn`/`it.todo`, не
   меняет `budget`, не трогает чужие тикеты и файлы программ;
 - baseline — снимок активного `goals/<goal>.expect.ts` на старте ticket
-  в `.ops/<ticket>/baseline/`, обновляет только оператор после merge;
+  в `.oc3/baseline/<ticket>/`, обновляет только оператор после merge;
 - `ai goals check` парсирует AST и сравнивает с baseline: число и порядок
   `describe`/`crit`/`warn`/`it.todo`, `budget` неизменны; разрешены
   только заголовки и тела проверок внутри активного тикета; команда:
@@ -1043,7 +1086,8 @@ import './judge.expect.ts';
 
 ### Результаты прогонов
 
-Рядом с каждым `*.expect.ts` лежит `*.expect.json`:
+`expectStateFile(entry)` выбирает `.oc3/goals/*.expect.json` для goal source,
+иначе `.oc3/verdicts/expect/<entry-key>/state.json`:
 
 ```json
 {
@@ -1080,10 +1124,9 @@ import './judge.expect.ts';
   файлу.
 - За попытку — два прогона; оператор может один раз запустить третий
   (повторный цикл), после него — к человеку.
-- `*.expect.json` коммитится рядом с `*.expect.ts`. Сброс коммитит
-  оператор до создания worktree; run пишет judge в worktree, оператор
-  мержит ветку и коммитит результат вместе с тикетом. В репозитории
-  источника — тот, кто запускает проверку.
+- Intentional goal results и compact semantic store версионируются отдельно
+  от local-only run evidence; сброс и обновление не меняют смысла freshness.
+  Произвольные adjacent outputs вне `.oc3/` больше не создаются.
 
 Это ответ на «как валидировать diff judge на всех runtime»: не через
 permissions рантайма (они path-level), а общим AST-валидатором,
@@ -1091,7 +1134,7 @@ permissions рантайма (они path-level), а общим AST-валида
 
 ### Scratchpad оператора
 
-`.ops/operator/state.yml` — локальное временное состояние оператора, не
+`.oc3/operator/state.yml` — локальное временное состояние оператора, не
 memory и не проектная документация. В git не попадает и не является
 частью репозиторного состояния.
 
@@ -1231,7 +1274,7 @@ docs. При смене машины или потере state оператор 
 4. Классифицирует пустые отвлечения и потери токенов; помечает оценки
    как estimate.
 5. Формулирует причины и рекомендации с evidence.
-6. Пишет `.ops/feedback/<ticket>.yml`; контракт сам не правит.
+6. Пишет `.oc3/feedback/<ticket>.yml`; контракт сам не правит.
 
 ### 4.8 Пауза исполнителя
 
@@ -1258,7 +1301,7 @@ docs. При смене машины или потере state оператор 
   `describe`/`crit`/`warn`/`it.todo` и `budget`; разрешены только
   заголовки и тела проверок внутри тикета из `--ticket`; baseline —
   снимок активного `goals/<goal>.expect.ts` в
-  `.ops/<ticket>/baseline/`, обновляет оператор после merge.
+  `.oc3/baseline/<ticket>/`, обновляет оператор после merge.
 - **Валидатор целей:** `goals/program--*.expect.ts` содержит только
   импорты; одна цель — ровно в одной программе; у цели один активный
   тикет.
@@ -1273,7 +1316,7 @@ docs. При смене машины или потере state оператор 
   operator state check.
 - **Locks:** docs (librarian), goal expectation (judge/operator),
   worktree (executor), файлы программ (operator); файловые, через CLI
-  (`.ops/locks/`).
+  (`.oc3/locks/`).
 - **Бюджеты:** два прогона judge за попытку, один повторный цикл
   executor→judge — механический гейт по счётчику run'ов в
   `*.expect.json`; researcher от executor — не больше 2 на тикет; время
@@ -1284,7 +1327,7 @@ docs. При смене машины или потере state оператор 
   сколько токенов/времени.
 - **Permissions:** docs write только librarian; operator, executor и
   judge — deny на `edit` вне разрешённых путей (у judge — только
-  `goals/*.expect.ts`, `.ops/<ticket>/verdicts/`, `*.expect.json`).
+  `goals/*.expect.ts`, `.oc3/verdicts/runs/<ticket>/`, `*.expect.json`).
   Запись через shell покрывается аудитом, не path-level permission.
 - **Memory guard:** memory-инструменты и memory-MCP запрещены; запись в
   memory-пути (memory-каталоги Codex,
@@ -1344,7 +1387,7 @@ bin `oc3` — те же команды для человека без токен
   `browser` — инструкция плюс аудит;
 - docs guard — `permission.hook("evaluate")` для `edit`: operator,
   executor и judge; judge — только `goals/*.expect.ts`,
-  `.ops/<ticket>/verdicts/`, `*.expect.json`. Запись в docs через shell
+  `.oc3/verdicts/runs/<ticket>/`, `*.expect.json`. Запись в docs через shell
   ловится аудитом;
 - memory guard — auto-memory нет; memory-MCP и инструменты с `*memory*`
   deny; `permission.hook("evaluate")` блокирует `edit`/`write` в
@@ -1427,13 +1470,13 @@ librarian — не нужен.
      `describe('ticket: …')`), `goals/program--*.expect.ts` (программа:
      импорты целей), `*.expect.json` (timestamp + results), `verdict.yml`,
      `report.yml`, `brief.yml`,
-     `.ops/feedback/<ticket>.yml`, `context/project.yml`
+     `.oc3/feedback/<ticket>.yml`, `context/project.yml`
      (`sync.contract.edition`, `roles.exceptions`),
      `context/autonomy.yml`, `context/skills.yml`,
      `expectations/schemas/role.schema.json` (role frontmatter, расширяет
      `agent-frontmatter.schema.json`), skill manifest, browser autonomy,
      preset schema, `state.yml`, watcher event, baseline
-     `.ops/<ticket>/baseline/`.
+     `.oc3/baseline/<ticket>/`.
    - Решить открытые вопросы из раздела 8, которые блокируют схемы.
 2. **Переписать контракт v3.** Роли и их границы, формальные сообщения,
    матрица прав — раздел 2; плоские `goals/` (цели и программы) вместо
@@ -1517,9 +1560,9 @@ librarian — не нужен.
 
 - `goals/*.expect.ts` (цели и `program--<key>.expect.ts`),
   `goals/*.expect.json` (результаты прогонов).
-- `.ops/<ticket>/{baseline,research,reports,verdicts,checks}/`,
-  `.ops/feedback/<ticket>.yml`; `.ops/operator/state.yml` — локально;
-  `.ops/locks/` — локальные локи.
+- `.oc3/{baseline,research,reports}/<ticket>/`,
+  `.oc3/verdicts/runs/<ticket>/` — local-only execution evidence;
+  `.oc3/feedback/<ticket>.yml`; `.oc3/operator/state.yml` и `.oc3/locks/` — локально.
 - `context/project.yml`, `context/autonomy.yml`, `context/skills.yml`.
 - `.agents/agents/*`, `.agents/skills/*`.
 - `AGENTS.md`.
@@ -1566,7 +1609,7 @@ librarian — не нужен.
   operator-centric`; старый v3 не затрагивается;
 - `goals/program--<key>.expect.ts` задаёт приоритет внутри программы;
   цель — плоский `goals/<goal>.expect.ts` с тикетами
-  `describe('ticket: …')`; baseline снят в `.ops/<ticket>/baseline/`;
+  `describe('ticket: …')`; baseline снят в `.oc3/baseline/<ticket>/`;
 - проверки запускаются в скоупе: одна цель или целая программа;
 - цель проходит этапы: `it.todo` — план, заглушек нет — готовый план,
   все тикеты приняты (≥80% `pass`) — цель удалена из `goals/` и файла
@@ -1602,7 +1645,7 @@ librarian — не нужен.
 ## 8. Открытые вопросы
 
 - Точные схемы `verdict.yml`, `report.yml`, `brief.yml`,
-  `.ops/feedback/<ticket>.yml`, `state.yml`, `context/project.yml`,
+  `.oc3/feedback/<ticket>.yml`, `state.yml`, `context/project.yml`,
   `context/autonomy.yml`.
 - Формулы метрик feedback: что считать «пустым отвлечением» и
   `tokens_wasted_estimate`; как не собирать секреты.

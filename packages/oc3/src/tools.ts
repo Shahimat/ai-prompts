@@ -1,6 +1,22 @@
 import type { Plugin } from '@opencode/plugin';
 import type { CommandArgs } from '@shahimat/ai-core';
-import { isRecord, SUBMIT_TOOL } from '@shahimat/ai-core';
+import {
+  isRecord,
+  SUBMIT_TOOL,
+  KNOWLEDGE_DELTA_SCHEMA,
+  KNOWLEDGE_SELECTION_SCHEMA,
+  knowledgeSelectionOf,
+  enqueueKnowledge,
+  pendingViewOf,
+  queryPendingKnowledge,
+  prepareKnowledgeBatch,
+  loadTaskPacket,
+  taskPreflight,
+  taskReady,
+  verifyTask,
+  localSnapshot,
+  digestOf,
+} from '@shahimat/ai-core';
 import path from 'node:path';
 import { markBriefingAcked } from '#briefing-gate';
 import { submitResult, SUBMIT_INPUT } from '#submit';
@@ -182,10 +198,108 @@ const TOOLS: readonly Oc3Tool[] = [
 
 const toRecord = (value: unknown): Record<string, unknown> => (isRecord(value) ? value : {});
 
-export async function registerTools(ctx: Plugin.Context): Promise<void> {
+export async function nativeKnowledgeEnqueue(
+  root: string,
+  input: unknown,
+  context: { agent: string; sessionID: string },
+): Promise<{ content: string }> {
+  if (!isRecord(input) || Object.keys(input).some((key) => key !== 'knowledge_delta'))
+    throw new Error('INVALID_DELTA');
+  const snapshot = await localSnapshot(root);
+  const receipt = await enqueueKnowledge(
+    {
+      root,
+      actor: `operator/native:${context.agent}`,
+      channel: 'manual-native',
+      execution: digestOf({ session: context.sessionID, snapshot: snapshot.scope }),
+      start: snapshot,
+    },
+    input['knowledge_delta'],
+  );
+  return { content: JSON.stringify(receipt ?? { pending: 0 }) };
+}
+
+export async function registerTools(ctx: {
+  location: { directory: string };
+  tool: Pick<Plugin.Context['tool'], 'transform'>;
+}): Promise<void> {
   const root = ctx.location.directory;
   await ctx.tool.transform((editor) => {
     editor.namespace({ name: 'oc3', description: 'Контракт v3: модели, цели, проверки' });
+    editor.add({
+      name: 'knowledge_enqueue',
+      description: 'Durable pending evidence, не канон; без AI',
+      input: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['knowledge_delta'],
+        properties: { knowledge_delta: KNOWLEDGE_DELTA_SCHEMA },
+      },
+      options: { namespace: 'oc3', codemode: true },
+      execute: (input: unknown, context: { agent: string; sessionID: string }) =>
+        nativeKnowledgeEnqueue(root, input, context),
+    });
+    for (const command of ['pending', 'batch'] as const)
+      editor.add({
+        name: `knowledge_${command}`,
+        description: 'Bounded pending knowledge; batch только explicit scope/topic',
+        input:
+          command === 'batch'
+            ? KNOWLEDGE_SELECTION_SCHEMA
+            : {
+                anyOf: [
+                  { type: 'object', properties: {}, additionalProperties: false },
+                  KNOWLEDGE_SELECTION_SCHEMA,
+                ],
+              },
+        options: { namespace: 'oc3', codemode: true },
+        execute: async (input: unknown) => {
+          if (!isRecord(input)) throw new Error('INVALID_SELECTION');
+          if (command === 'pending' && Object.keys(input).length === 0)
+            return { content: await pendingViewOf(root) };
+          const selection = knowledgeSelectionOf(input);
+          return {
+            content: JSON.stringify(
+              command === 'batch'
+                ? await prepareKnowledgeBatch(root, selection)
+                : await queryPendingKnowledge(root, selection),
+            ),
+          };
+        },
+      });
+    for (const command of ['preflight', 'verify', 'ready'] as const)
+      editor.add({
+        name: `operator_${command}`,
+        description: 'Task packet gate без AI; managed owner verification',
+        input: {
+          type: 'object',
+          additionalProperties: false,
+          required: command === 'verify' ? ['file', 'name'] : ['file'],
+          properties: { file: str('task packet'), name: str('declared check') },
+        },
+        options: { namespace: 'oc3', codemode: true },
+        execute: async (input: unknown, context: { agent: string; sessionID: string }) => {
+          if (!isRecord(input) || typeof input['file'] !== 'string')
+            throw new Error('INVALID_TASK_PACKET');
+          const packet = await loadTaskPacket(root, input['file']);
+          const result =
+            command === 'preflight'
+              ? await taskPreflight(root, packet)
+              : command === 'ready'
+                ? await taskReady(root, packet)
+                : typeof input['name'] === 'string'
+                  ? await verifyTask(
+                      root,
+                      packet,
+                      input['name'],
+                      context.agent,
+                      `native:${context.agent}:${context.sessionID}`,
+                    )
+                  : undefined;
+          if (result === undefined) throw new Error('UNKNOWN_CHECK');
+          return { content: JSON.stringify(result) };
+        },
+      });
     for (const tool of TOOLS)
       editor.add({
         name: tool.name,

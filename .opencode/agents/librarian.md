@@ -19,6 +19,9 @@ model: openai/gpt-6.1-sol-fast
 
 Ты один и пишешь последовательно: параллельных правок документации нет.
 Оператор, executor и judge документацию только читают.
+Runtime inbox — не канон; на каждый входящий факт тебя не запускают.
+Execution evidence хранится в рабочих каталогах `.oc3/`, но durable не
+означает commit. В канон переносится отобранное знание, не весь task-run.
 
 ## Вход
 
@@ -26,6 +29,11 @@ model: openai/gpt-6.1-sol-fast
 зачем, evidence, целевой слой, критерий готовности; тело — намерения
 (`decision`, `fact`, `rule`, `behavior-change`, `task`, `manual`,
 `revise`).
+
+Либо один bounded batch с exact IDs/hashes, scope/snapshot и evidence.
+Читай его и нужный веер, не весь накопленный журнал. Observation требует
+проверки, decision не applied, candidate не автоматический verified/rule.
+Разные scopes и противоречивые значения не склеивай по времени доставки.
 
 ## Порядок
 
@@ -38,7 +46,9 @@ model: openai/gpt-6.1-sol-fast
    слоёв.
 4. Проверь целостность: ссылки, id, схемы, orphans, дубли, маршруты;
    производные файлы пересобери командой, а не руками. С подключённым
-   harness — шаг `verify` процесса `docs-delta`; без — ручная сверка.
+    harness — шаг `verify` процесса `docs-delta`; без — ручная сверка.
+   Собственные обычные schema/link/format ошибки доводи в этом batch,
+   первый FAIL не вопрос человеку. Build/CI только у назначенного владельца.
 5. Неочевидное изменение существующего правила и всё, что решает
    пользователь, — вопрос в отчёте, не молчаливая правка.
 6. Верни отчёт до 10 строк: изменено / revise / целостность / вопросы.
@@ -51,3 +61,11 @@ model: openai/gpt-6.1-sol-fast
 
 Код, тесты, конфиги сборки, `goals/` и expectations не трогаешь.
 Memory агента не используешь.
+
+Для inbox подготовь proposed dispositions вне runtime store: applied с
+canonical locator, rejected с reason/evidence, superseded с replacement ID.
+Ack делает только runtime после успешного связанного verify/review/close;
+failed/stale batch не ack, новые arrivals остаются pending. На слово
+«готово» очередь не очищается. Critical конфликт эскалирует сразу.
+Один docs/derived batch после code/source stable и до full CI; финальный
+PASS сохраняется в evidence, не требует нового canonical batch.

@@ -5,7 +5,7 @@ import { homedir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { UsageError } from '@shahimat/ai-core';
-import { errorCode, isRecord } from '@shahimat/ai-core';
+import { artifactKey, errorCode, isRecord, machineArtifactPath } from '@shahimat/ai-core';
 
 export function harnessHome(option?: string): string {
   const fromEnv = process.env['HARNESS_HOME'];
@@ -41,6 +41,7 @@ export const harnessExists = (home: string, harness: string): boolean =>
   existsSync(path.join(home, 'harnesses', harness, 'harness.yaml'));
 
 export interface SessionData {
+  storage_scope?: 'machine';
   id: string;
   harness: string;
   project: string;
@@ -54,6 +55,7 @@ export interface SessionData {
   pendingQuestion?: string;
   handoff?: string;
   planFile?: string;
+  taskPacket?: string;
 }
 
 export function parseSession(text: string, where: string): SessionData {
@@ -84,16 +86,19 @@ export function parseSession(text: string, where: string): SessionData {
     session.pendingQuestion = data['pendingQuestion'];
   if (typeof data['handoff'] === 'string') session.handoff = data['handoff'];
   if (typeof data['planFile'] === 'string') session.planFile = data['planFile'];
+  if (typeof data['taskPacket'] === 'string') session.taskPacket = data['taskPacket'];
   return session;
 }
 
 export class Session {
   readonly dir: string;
+  private readonly home: string;
   data: SessionData;
 
-  constructor(dir: string, data: SessionData) {
+  constructor(dir: string, data: SessionData, home = dir) {
     this.dir = dir;
-    this.data = data;
+    this.home = home;
+    this.data = { ...data, storage_scope: 'machine' };
   }
 
   get id(): string {
@@ -105,7 +110,13 @@ export class Session {
   }
 
   file(rel: string): string {
-    return path.join(this.dir, rel);
+    const prefix = path.relative(this.home, this.dir).split(path.sep).join('/');
+    const file = machineArtifactPath({ kind: 'machine', home: this.dir }, rel);
+    machineArtifactPath(
+      { kind: 'machine', home: this.home },
+      prefix === '' ? rel : `${prefix}/${rel}`,
+    );
+    return file;
   }
 
   async save(): Promise<void> {
@@ -121,7 +132,10 @@ export class Session {
   }
 }
 
-export const sessionsDir = (home: string): string => path.join(home, 'sessions');
+export const sessionsDir = (home: string): string =>
+  machineArtifactPath({ kind: 'machine', home }, 'sessions');
+const sessionDir = (home: string, id: string): string =>
+  machineArtifactPath({ kind: 'machine', home }, `sessions/${artifactKey(id)}`);
 
 export const SHORT_ID = 7;
 const MIN_PREFIX = 4;
@@ -140,34 +154,43 @@ export async function createSession(home: string, opts: NewSession): Promise<Ses
   const id = createHash('sha256')
     .update(`${opts.harness}\n${opts.now.toISOString()}\n${salt}`)
     .digest('hex');
-  const dir = path.join(sessionsDir(home), id);
+  const dir = sessionDir(home, id);
   await mkdir(dir, { recursive: true });
-  const session = new Session(dir, {
-    id,
-    harness: opts.harness,
-    project: opts.project,
-    title: opts.title,
-    request: opts.request,
-    created: opts.now.toISOString(),
-    state: opts.initial,
-    counters: {},
-  });
+  const session = new Session(
+    dir,
+    {
+      id,
+      harness: opts.harness,
+      project: opts.project,
+      title: opts.title,
+      request: opts.request,
+      created: opts.now.toISOString(),
+      state: opts.initial,
+      counters: {},
+    },
+    home,
+  );
   await session.save();
   await session.log({ event: 'start', to: opts.initial });
   return session;
 }
 
 export async function openSession(home: string, id: string): Promise<Session> {
-  const dir = path.join(sessionsDir(home), id);
+  const dir = sessionDir(home, id);
   let text: string;
   try {
-    text = await readFile(path.join(dir, 'session.json'), 'utf8');
+    text = await readFile(
+      machineArtifactPath({ kind: 'machine', home: dir }, 'session.json'),
+      'utf8',
+    );
   } catch (error) {
     if (errorCode(error) === 'ENOENT')
       throw new UsageError(`нет сессии ${id} в ${sessionsDir(home)}`);
     throw error;
   }
-  return new Session(dir, parseSession(text, `${id}/session.json`));
+  const data = parseSession(text, `${id}/session.json`);
+  if (data.id !== id) throw new Error('SESSION_ID_MISMATCH');
+  return new Session(dir, data, home);
 }
 
 export async function resolveSession(
@@ -209,7 +232,11 @@ export async function listSessions(home: string): Promise<Session[]> {
   }
   const sessions: Session[] = [];
   for (const name of names) {
-    if (existsSync(path.join(sessionsDir(home), name, 'session.json')))
+    if (
+      existsSync(
+        machineArtifactPath({ kind: 'machine', home: sessionDir(home, name) }, 'session.json'),
+      )
+    )
       sessions.push(await openSession(home, name));
   }
   return sessions;

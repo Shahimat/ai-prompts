@@ -4,6 +4,7 @@ import path from 'node:path';
 import { createInterface } from 'node:readline/promises';
 import type { CommandArgs, ModelRunner } from '@shahimat/ai-core';
 import { OpenCodeRunner, UsageError, cliCommand, errorMessage, isOneOf } from '@shahimat/ai-core';
+import { confinedProjectPath, normalizedProjectPath } from '@shahimat/ai-core';
 import {
   createSession,
   driveSession,
@@ -200,8 +201,8 @@ const baseName = (file: string): string => path.basename(file).replace(/\.expect
 async function planFileArg(args: CommandArgs): Promise<string> {
   const file = args.params?.['file'];
   if (file === undefined) throw new UsageError('нужен путь к файлу плана: <file>');
-  const abs = path.resolve(args.root, file);
-  const rel = path.relative(args.root, abs).split(path.sep).join('/');
+  const rel = normalizedProjectPath(file);
+  const abs = confinedProjectPath(args.root, rel);
   if (rel.startsWith('../') || path.isAbsolute(rel))
     throw new UsageError(`файл плана вне проекта ${args.root}: ${file}`);
   if (!rel.endsWith('.expect.ts')) throw new UsageError(`файл плана — *.expect.ts: ${file}`);

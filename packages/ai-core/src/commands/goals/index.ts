@@ -276,16 +276,12 @@ async function status(args: CommandArgs): Promise<number> {
         printGoal(
           imported,
           parseGoal(imported, text),
-          await readOrNull(path.join(args.root, imported.replace(/\.expect\.ts$/, '.expect.json'))),
+          await readOrNull(confinedProjectPath(args.root, expectStateFile(imported))),
         );
       }
       continue;
     }
-    printGoal(
-      file,
-      goal,
-      await readOrNull(path.join(args.root, file.replace(/\.expect\.ts$/, '.expect.json'))),
-    );
+    printGoal(file, goal, await readOrNull(confinedProjectPath(args.root, expectStateFile(file))));
   }
   return 0;
 }
@@ -295,3 +291,4 @@ export async function runGoals(command: string | undefined, args: CommandArgs): 
   if (command === 'status') return status(args);
   throw new UsageError(`неизвестная команда: goals ${command ?? ''}`.trimEnd());
 }
+import { confinedProjectPath, expectStateFile } from '#lib/artifacts';

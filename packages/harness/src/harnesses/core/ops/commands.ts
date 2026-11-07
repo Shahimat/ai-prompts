@@ -20,7 +20,7 @@ import {
   readEvents,
   writeCursor,
 } from './events.ts';
-import { jobDir, posixRelative } from './paths.ts';
+import { jobDir, posixRelative, machineFile } from './paths.ts';
 import { pending, projectJobs } from './jobs.ts';
 import { loadRegistry, register, TICK_SECONDS, TICK_UNIT, unregister } from './machine.ts';
 import {
@@ -227,7 +227,7 @@ async function scheduleOn(args: CommandArgs): Promise<number> {
     name: TICK_UNIT,
     command: registry.dispatcher ?? dispatcher,
     every: TICK_SECONDS,
-    log: path.join(home, 'ops', 'tick.log'),
+    log: machineFile(home, 'tick.log'),
   };
   const outcome = await callWrite(provider, await loadAutonomy(args.root), 'install', true, [
     unit,

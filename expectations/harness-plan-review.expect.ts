@@ -26,7 +26,7 @@ import {
   type StageResult,
   type StageRunner,
 } from '@shahimat/harness';
-import { isRecord, opencodeArgs } from '@shahimat/ai-core';
+import { artifactRelative, expectHelperDir, isRecord, opencodeArgs } from '@shahimat/ai-core';
 import {
   budget,
   crit,
@@ -363,6 +363,7 @@ describe('[harness] plan-review', () => {
 
 const NOW = new Date('2026-10-14T12:00:00Z');
 const ARTIFACTS = '.opencode/artifacts/plan-review';
+const BRIDGE_FILE = artifactRelative({ kind: 'bridge', key: 'bridge.json' });
 const TMP = (): string => path.join(repoRoot(), 'packages/harness/test/.tmp');
 
 const GOOD = `import { describe } from 'vitest';
@@ -465,6 +466,7 @@ function blockReason(lines: string[]): string | undefined {
 
 interface FlowResult {
   id: string;
+  short: string;
   home: string;
   project: string;
   state: string;
@@ -479,7 +481,7 @@ interface FlowResult {
   artifacts: string[];
   files: Record<string, string>;
   pages: { file: string; stopped: boolean }[];
-  bridge: { events: string; plan: string; report: string } | undefined;
+  bridge: { root: string; events: string; plan: string; report: string } | undefined;
   plannerAgent: string;
   judgeAgent: string;
   logs: string[];
@@ -487,11 +489,12 @@ interface FlowResult {
 
 const planAbs = (project: string, file: string): string => path.join(project, file);
 
-const bridgeOf = (text: string): { events: string; plan: string; report: string } => {
+const bridgeOf = (text: string): { root: string; events: string; plan: string; report: string } => {
   const parsed = parseJson(text);
-  if (!isRecord(parsed)) return { events: '', plan: '', report: '' };
+  if (!isRecord(parsed)) return { root: '', events: '', plan: '', report: '' };
   const str = (value: unknown): string => (typeof value === 'string' ? value : '');
   return {
+    root: str(parsed['root']),
     events: str(parsed['events']),
     plan: str(parsed['plan']),
     report: str(parsed['report']),
@@ -553,7 +556,7 @@ async function runFlow(options: Options): Promise<FlowResult> {
       const turn = turns[stages.length - 1] ?? {};
       if (turn.write !== undefined) await writeFile(planAbs(project, planFile), turn.write);
       if (turn.events !== undefined) {
-        const bridgeText = await readFile(path.join(project, ARTIFACTS, 'bridge.json'), 'utf8');
+        const bridgeText = await readFile(path.join(project, BRIDGE_FILE), 'utf8');
         const eventsFile = bridgeOf(bridgeText).events;
         const linesOut = turn.events.map(
           (e) => `${JSON.stringify({ ...e, at: NOW.toISOString() })}\n`,
@@ -650,11 +653,12 @@ async function runFlow(options: Options): Promise<FlowResult> {
     const files: Record<string, string> = {};
     for (const rel of Object.keys(options.files ?? {}))
       files[rel] = await readFile(path.join(project, rel), 'utf8');
-    const bridgePath = path.join(project, ARTIFACTS, 'bridge.json');
+    const bridgePath = path.join(project, BRIDGE_FILE);
     const bridgeText = existsSync(bridgePath) ? await readFile(bridgePath, 'utf8') : undefined;
     const bridge = bridgeText === undefined ? undefined : bridgeOf(bridgeText);
     return {
       id,
+      short: s.short,
       home,
       project,
       state: s.data.state,
@@ -1225,8 +1229,14 @@ class Check {
 class Start {
   static async file(): Promise<void> {
     const f = await Flows.idle();
-    const artifacts = f.artifacts.filter((a) => a !== 'bridge.json');
-    expect(artifacts).toEqual(['демо.expect.ts']);
+    expect(f.artifacts).toEqual(['демо.expect.ts']);
+    expect(f.bridge?.root).toBe(path.resolve(f.project));
+    expect(f.bridge?.events).toBe(
+      path.join(
+        f.project,
+        artifactRelative({ kind: 'bridge', key: f.short, name: 'planner-events.jsonl' }),
+      ),
+    );
     expect(f.plan).toContain("plan({ name: 'демо' })");
     expect(f.planFile).toBe(`${ARTIFACTS}/демо.expect.ts`);
     const existing =
@@ -1271,7 +1281,8 @@ class Start {
         path.join(dir, file),
         "import { describe } from 'vitest';\nimport { budget, crit, fsm, plan } from '@shahimat/ai-core/expect';\nbudget({ crit: 0, warn: 0 });\nplan({ name: 'Демо-план' });\nfsm('demo-flow', { initial: 'a', states: { a: { actor: 'model', on: { go: 'b' } }, b: { final: true } } });\ndescribe('раздел', () => { crit('ожидание плана', () => {}); });\n",
       );
-      const out = path.join(dir, 'page.html');
+      const outRel = `${expectHelperDir(file)}/page.html`;
+      const out = path.join(dir, outRel);
       const run = spawnSync(
         process.execPath,
         [
@@ -1282,7 +1293,7 @@ class Start {
           '--root',
           dir,
           '--html',
-          out,
+          outRel,
         ],
         { cwd: dir, encoding: 'utf8' },
       );

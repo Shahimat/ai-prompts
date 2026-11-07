@@ -238,7 +238,15 @@ export async function opsRole(run: OpsRoleRun): Promise<RoleOutcome> {
         continue;
       }
       try {
-        const outcome = await askRole(run.root, run.role, run.task, run.options ?? {});
+        const outcome = await askRole(run.root, run.role, run.task, {
+          ...run.options,
+          context: {
+            purpose: 'implementation',
+            ...run.options?.context,
+            execution:
+              run.options?.context?.execution ?? `${run.job ?? token}:${run.role}:${token}`,
+          },
+        });
         await remove(machineFile(run.home, 'backoff.json'));
         return outcome;
       } catch (error) {

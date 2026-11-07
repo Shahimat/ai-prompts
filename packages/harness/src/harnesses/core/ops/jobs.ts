@@ -4,7 +4,7 @@ import path from 'node:path';
 import { errorCode, isRecord, isStringArray } from '@shahimat/ai-core';
 import { listSessions, type Session } from '#harnesses/core/store/session';
 import { appendLine, readJson, readText, remove, writeAtomic, writeJson } from './files.ts';
-import { jobDir, OPS_VERSION } from './paths.ts';
+import { jobFileAt, OPS_VERSION } from './paths.ts';
 import type { TaskCard } from './providers.ts';
 
 export const JOB_HARNESS = 'ticket-work';
@@ -18,8 +18,7 @@ export interface JobMeta {
   published?: string;
 }
 
-export const jobFile = (s: Session, rel: string): string =>
-  path.join(jobDir(s.data.project, s.short), rel);
+export const jobFile = (s: Session, rel: string): string => jobFileAt(s.data.project, s.short, rel);
 
 export async function jobMeta(s: Session): Promise<JobMeta> {
   const data = await readJson(jobFile(s, 'job.json'), `${s.short}/job.json`);
@@ -120,7 +119,7 @@ export async function takeGate(s: Session): Promise<string | undefined> {
 }
 
 export async function addFeedback(root: string, short: string, text: string): Promise<void> {
-  await appendLine(path.join(jobDir(root, short), 'feedback.md'), `${text.trim()}\n`);
+  await appendLine(jobFileAt(root, short, 'feedback.md'), `${text.trim()}\n`);
 }
 
 export async function takeFeedback(s: Session): Promise<string | undefined> {
@@ -170,5 +169,5 @@ export function affirmation(text: string): { yes: boolean; rest: string } {
 export const EXTERNAL_DONE = 'external.done';
 
 export async function markExternal(root: string, short: string, text: string): Promise<void> {
-  await appendLine(path.join(jobDir(root, short), EXTERNAL_DONE), `${text.trim()}\n`);
+  await appendLine(jobFileAt(root, short, EXTERNAL_DONE), `${text.trim()}\n`);
 }

@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { expectSummary, runExpect, type ExpectSummary } from '@shahimat/ai-core';
+import { expectHelperDir, expectHelperPath, confinedProjectPath } from '@shahimat/ai-core';
 import { errorCode, isRecord, isStringArray, resolveProjectModel } from '@shahimat/ai-core';
 import type { MachineDef, ModelRunner, Session } from '#harnesses/core/index';
 
@@ -185,12 +186,14 @@ export interface JudgeInput {
 async function answerTask(
   input: JudgeInput,
   root: string,
+  entry: string,
   t: JudgeTask,
 ): Promise<string | undefined> {
   const schema = t.kind === 'batch' ? BATCH_ANSWER_SCHEMA : LINT_ANSWER_SCHEMA;
-  const text = await readFile(path.join(root, t.task), 'utf8');
+  const text = await readFile(expectHelperPath(root, entry, t.task), 'utf8');
   const result = await input.runner.headless({
     cwd: root,
+    context: { purpose: 'expect-helper' },
     model: (await resolveProjectModel(root, 'judge', input.def.models.judge, 'plan-review.judge'))
       .model,
     addDirs: [],
@@ -207,7 +210,7 @@ async function answerTask(
       ? result.structured['answers']
       : result.structured;
   if (answer === undefined) return `${t.task}: судья не вернул ответ`;
-  await writeFile(path.join(root, t.answer), JSON.stringify(answer, null, 2), 'utf8');
+  await writeFile(expectHelperPath(root, entry, t.answer), JSON.stringify(answer, null, 2), 'utf8');
   return undefined;
 }
 
@@ -232,15 +235,15 @@ export function judge(input: JudgeInput, file: string): Promise<ReviewRecord> {
 async function judgeFile(input: JudgeInput, file: string): Promise<ReviewRecord> {
   const s = input.session;
   const root = s.data.project;
-  const abs = path.join(root, file);
+  const abs = confinedProjectPath(root, file);
   const before = await readFile(abs, 'utf8');
   const args = { root, now: new Date(), params: { file } };
   const rejected: string[] = [];
   if ((await quiet(() => runExpect('judge', args))) !== 0) {
     const plan: unknown = JSON.parse(
-      await readFile(path.join(root, path.dirname(file), '.judge', 'plan.json'), 'utf8'),
+      await readFile(expectHelperPath(root, file, `${expectHelperDir(file)}/plan.json`), 'utf8'),
     );
-    const errors = await Promise.all(tasksOf(plan).map((t) => answerTask(input, root, t)));
+    const errors = await Promise.all(tasksOf(plan).map((t) => answerTask(input, root, file, t)));
     rejected.push(...errors.filter((e) => e !== undefined));
     if ((await readFile(abs, 'utf8')) !== before) {
       await writeFile(abs, before, 'utf8');

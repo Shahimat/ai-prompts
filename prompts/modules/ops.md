@@ -150,9 +150,12 @@ name, …методы }`. Одно имя на двух уровнях — ош�
 
 ### Граница: рантайм — не знание
 
-`.oc3/` — состояние работ, а не документация и не memory. Устойчивое
-из job попадает в документацию только через `docs-delta`. Роли и
-оператор не опираются на старые журналы как на источник правды.
+`.oc3/jobs/` и остальные execution roots — локальное состояние работ,
+не канон; durable не означает commit. Вся `.oc3/` не является runtime:
+canonical knowledge, goals, inbox и compact semantic store не скрываются
+как cache. Устойчивые находки из job идут в inbox, затем bounded batch
+через `docs-delta` в канон; receipt не означает applied. Старые журналы
+сами по себе не источник правды.
 
 ## Вопросы при подключении
 
@@ -205,7 +208,7 @@ verify: []               # локальные проверки в копии: с
 
 - задача → `npx ai ticket-work start <ref>`; ответ — `npx ai ticket-work answer <id> <текст>`;
 - сводка — `npx ai ops brief`; события — фоном `npx ai ops wait`;
-- журнал — `.oc3/jobs/<id>/`, настройки — `.oc3/ops.yml`; `.oc3/` — рантайм, не знание;
+- журнал — `.oc3/jobs/<id>/` (локальный runtime), настройки — `.oc3/ops.yml`;
 - внешние системы — по mapping в `.oc3/ops.yml`; проверка — `npx ai ops providers check`.
 <!-- /module:ops -->
 ```
@@ -221,7 +224,7 @@ verify: []               # локальные проверки в копии: с
 3. `project-provider` или найденный аналог — помоги написать провайдер в
    `.agents/providers/<интерфейс>/<имя>.ts` по таблице (план → «да»).
 4. Добавь `ops-brief` и `ops-line` в `hooks` в `.oc3/ai-core.yml`,
-   блок — в `AGENTS.md`, строку игнорируемых частей `.oc3/` — в `.gitignore`.
+   блок — в `AGENTS.md`, строки `provides.gitignore` — в `.gitignore`, не всю `.oc3/`.
 5. `ai refresh` — hooks появляются в настройках инструмента;
    `ai ticket-work validate` — автомат пригоден;
    `npx ai ops providers check` — код 0.
@@ -229,8 +232,8 @@ verify: []               # локальные проверки в копии: с
 ## Отключение
 
 Удаляются блок, hooks `ops-brief` и `ops-line`, `.oc3/ops.yml` (вопрос
-пользователю) и строка `.gitignore`, если её не объявляет другой
-модуль. Незакрытые jobs — сначала список пользователю. Модули
+пользователю) и строки `provides.gitignore`, если они не нужны ядру или
+другому модулю. Незакрытые jobs — сначала список пользователю. Модули
 `watchers` и `dashboard` требуют `ops` — сначала они.
 
 ## Синхронизация

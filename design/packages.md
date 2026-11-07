@@ -96,6 +96,30 @@ skills:
 
 ## Guards документации
 
+Durable knowledge intake, managed verification gates и exact-snapshot
+accepted ledger: [реализация и обслуживание](knowledge-inbox.md).
+Общие primitives живут в ai-core lib, CLI/native adapters используют
+один API, harness добавляет lifecycle консолидации без обратного импорта.
+Runtime-owned inbox/receipts/проекция не являются canonical слоями.
+
+### Общий artifact resolver
+
+`ai-core/lib/artifacts.ts` — единый typed resolver kinds/scopes и validator
+для managed/native/manual writes; публичные `artifactRelative`, `artifactPath`,
+`validateArtifactOutput`, `expectHelperDir`, `expectCacheFile`, `expectStateFile`
+используют нормализованный entry и independent namespace gate перед
+classification/hash. First-party project outputs confined в `.oc3/`;
+source expectations и обязательные provider definitions/adapters — не outputs.
+Machine storage имеет отдельный explicit scope, а не project-path exception.
+
+`ai-core/lib/artifact-migration.ts` сохраняет historical bytes/provenance,
+проверяет collisions/retry и предоставляет read-only `historicalArtifactPath`.
+CLI и OC3 adapters вызывают общий API, harness — тот же resolver для helper,
+proof/proposal и bridge, без обратного импорта или отдельной раскладки.
+Durable runtime не равен versioned deliverable: compact semantic store для
+no-AI CI отделён от ignored run evidence. Полные locators, retention и
+границы гарантий — [artifact layout](knowledge-inbox.md#раскладка-execution-artifacts).
+
 Guards контракта — плагин `@shahimat/oc3` (подключается в
 `opencode.jsonc`): правка документации и генерируемых файлов основной
 сессией — отказ с подсказкой передать

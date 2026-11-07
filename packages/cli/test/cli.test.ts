@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { main, prepare, projectOf, run } from '#cli';
 import { promptOf, shellStep, splitWords } from '#shell';
 import { BUILTIN_TREE } from '#tree';
+import { ARTIFACT_IGNORE_LINES } from '@shahimat/ai-core';
 const { childrenOf, commands: COMMANDS, findCommand } = BUILTIN_TREE;
 
 const NOW = new Date('2026-10-13T12:00:00Z');
@@ -293,7 +294,7 @@ describe('ai expect init', () => {
     );
     expect(existsSync(path.join(root, 'expectations/vitest.config.ts'))).toBe(false);
     expect(await readFile(path.join(root, '.gitignore'), 'utf8')).toBe(
-      'node_modules/\nexpectations/.judge/\n',
+      `node_modules/\n${ARTIFACT_IGNORE_LINES.join('\n')}\n`,
     );
     const example = await readFile(
       path.join(root, `expectations/${path.basename(root)}.expect.ts`),
@@ -304,7 +305,7 @@ describe('ai expect init', () => {
     expect(await main(['expect', 'init', '--root', root], NOW)).toBe(0);
     expect(await readFile(path.join(root, 'package.json'), 'utf8')).toBe(before);
     expect(await readFile(path.join(root, '.gitignore'), 'utf8')).toBe(
-      'node_modules/\nexpectations/.judge/\n',
+      `node_modules/\n${ARTIFACT_IGNORE_LINES.join('\n')}\n`,
     );
   });
 });

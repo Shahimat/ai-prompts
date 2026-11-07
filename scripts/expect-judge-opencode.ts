@@ -1,11 +1,11 @@
 import { spawnSync } from 'node:child_process';
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { findRole, resolveProjectModel } from '@shahimat/ai-core';
+import { findRole, resolveProjectModel, launchPreflight, expectHelperDir, validateArtifactOutput } from '@shahimat/ai-core';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const ENTRY = 'expectations/index.expect.ts';
-const JUDGE_DIR = 'expectations/.judge';
+const JUDGE_DIR = expectHelperDir(ENTRY);
 
 interface Task {
   task: string;
@@ -29,7 +29,14 @@ const stringAt = (value: unknown, key: string): string => {
 
 const taskList = (value: unknown): Task[] => {
   if (!Array.isArray(value)) throw new Error('план: список задач — не массив');
-  return value.map((entry) => ({ task: stringAt(entry, 'task'), answer: stringAt(entry, 'answer') }));
+  return value.map((entry) => {
+    const task = stringAt(entry, 'task'), answer = stringAt(entry, 'answer');
+    for (const file of [task, answer]) {
+      if (!file.startsWith(`${JUDGE_DIR}/`)) throw new Error('ARTIFACT_ENTRY_MISMATCH');
+      validateArtifactOutput(ROOT, file, 'expect-helper');
+    }
+    return { task, answer };
+  });
 };
 
 const readPlan = async (): Promise<Plan> => {
@@ -84,8 +91,9 @@ const prepare = (): boolean => {
   return true;
 };
 
-const ask = (task: Task, kind: 'batch' | 'lint', model: string): unknown => {
+const ask = (task: Task, kind: 'batch' | 'lint', model: string, context: string): unknown => {
   const prompt = [
+    `Runtime launch context: ${context}`,
     `Прочитай задание из файла \`${task.task}\` целиком.`,
     'Ничего не создавай и не правь: у тебя только чтение.',
     kind === 'batch'
@@ -106,6 +114,7 @@ const ask = (task: Task, kind: 'batch' | 'lint', model: string): unknown => {
 };
 
 const main = async (): Promise<number> => {
+  const context = await launchPreflight(ROOT, { purpose: 'expect-helper', entry: ENTRY });
   const role = await findRole(ROOT, 'judge');
   if (role.model === undefined) throw new Error('judge: модель не задана');
   const { model } = await resolveProjectModel(ROOT, 'judge', role.model, 'expect.judge');
@@ -116,7 +125,7 @@ const main = async (): Promise<number> => {
     ...plan.lint.map((task) => ({ ...task, kind: 'lint' as const })),
   ];
   for (const task of tasks) {
-    const answer = ask(task, task.kind, model);
+    const answer = ask(task, task.kind, model, JSON.stringify(context));
     await writeFile(path.join(ROOT, task.answer), `${JSON.stringify(answer, null, 2)}\n`, 'utf8');
     console.log(`  ${task.task}: ответ получен`);
   }

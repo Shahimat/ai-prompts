@@ -22,6 +22,7 @@
 5. Ничего не создавать, не переносить, не удалять без явного «да».
 6. Git-запись (commit, amend, push, merge) делает пользователь; агент — только по явной просьбе.
 7. Тяжёлая работа — ролям; действие наружу — по `.oc3/autonomy.yml`; ролевые skills оператор не загружает.
+8. Все first-party project execution artifacts — только в `.oc3/` по typed kind/scope; durable ≠ commit, source/adapters — не outputs.
 Блоки возможностей ниже обязательны наравне с этими правилами.
 
 <!-- expect:attention:repo -->

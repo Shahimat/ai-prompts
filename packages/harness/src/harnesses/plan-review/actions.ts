@@ -10,6 +10,9 @@ import {
   openCodeTextOf,
   spawnOpenCode,
   resolveProjectModel,
+  artifactPath,
+  confinedProjectPath,
+  validateArtifactOutput,
 } from '@shahimat/ai-core';
 import type { ActionDef, MachineDef, Registry, Session } from '#harnesses/core/index';
 import { harnessFile } from '#harnesses/core/index';
@@ -39,13 +42,14 @@ export const PLANNER_AGENT = 'planner';
 export const plannerAgentPath = (root: string): string =>
   path.join(root, '.opencode', 'agents', `${PLANNER_AGENT}.md`);
 
-export const BRIDGE_DIR = path.join('.opencode', 'artifacts', 'plan-review');
+export const BRIDGE_DIR = '.oc3/sessions/plan-review';
 
 export const BRIDGE_FILE = path.join(BRIDGE_DIR, 'bridge.json');
 
 export const EVENTS_FILE = 'planner-events.jsonl';
 
 export interface StageSpec {
+  entry?: string;
   cwd: string;
   model: string;
   sessionId: string;
@@ -65,7 +69,8 @@ export interface StageRunner {
   run: (spec: StageSpec) => Promise<StageResult>;
 }
 
-export const eventsFileOf = (s: Session): string => s.file(EVENTS_FILE);
+export const eventsFileOf = (s: Session): string =>
+  artifactPath(s.data.project, { kind: 'bridge', key: s.short, name: EVENTS_FILE });
 
 const quote = (s: string): string =>
   /^[\w./:@-]+$/.test(s) ? s : `"${s.replace(/(["\\$`])/g, '\\$1')}"`;
@@ -74,7 +79,8 @@ const shell = (words: string[]): string => words.map(quote).join(' ');
 
 export const planFileOf = (s: Session): string => s.data.planFile ?? '';
 
-export const planPathOf = (s: Session): string => path.join(s.data.project, planFileOf(s));
+export const planPathOf = (s: Session): string =>
+  confinedProjectPath(s.data.project, planFileOf(s));
 
 export function reportCommand(ctx: PlanContext): string {
   return shell([
@@ -88,20 +94,24 @@ export function reportCommand(ctx: PlanContext): string {
 }
 
 export interface BridgeSpec {
+  root: string;
   events: string;
   plan: string;
   report: string;
 }
 
 export async function writeBridge(ctx: PlanContext): Promise<BridgeSpec> {
+  planPathOf(ctx.session);
   const bridge: BridgeSpec = {
+    root: path.resolve(ctx.session.data.project),
     events: eventsFileOf(ctx.session),
     plan: planFileOf(ctx.session),
     report: reportCommand(ctx),
   };
   await mkdir(path.join(ctx.session.data.project, BRIDGE_DIR), { recursive: true });
+  await mkdir(path.dirname(bridge.events), { recursive: true });
   await writeFile(
-    path.join(ctx.session.data.project, BRIDGE_FILE),
+    artifactPath(ctx.session.data.project, { kind: 'bridge', key: 'bridge.json' }),
     `${JSON.stringify(bridge, null, 2)}\n`,
     'utf8',
   );
@@ -113,6 +123,10 @@ export const opencodeStage: StageRunner = {
     const result = await spawnOpenCode(
       {
         cwd: spec.cwd,
+        context: {
+          purpose: 'planning',
+          ...(spec.entry === undefined ? {} : { entry: spec.entry }),
+        },
         agent: PLANNER_AGENT,
         model: spec.model,
         prompt: spec.systemPrompt,
@@ -151,9 +165,10 @@ export async function readPlannerEvents(
   from: number,
   root: string,
 ): Promise<{ input: HookInput[]; next: number }> {
+  const source = validateArtifactOutput(root, path.relative(root, file), 'bridge');
   let text: string;
   try {
-    text = await readFile(file, 'utf8');
+    text = await readFile(source, 'utf8');
   } catch {
     return { input: [], next: from };
   }
@@ -232,6 +247,7 @@ async function stageTurn(
     await s.save();
   }
   const spec: StageSpec = {
+    entry: planFileOf(s),
     cwd: s.data.project,
     model: (
       await resolveProjectModel(
