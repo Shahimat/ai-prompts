@@ -161,7 +161,16 @@ v3 ещё не менялись. Следующий шаг — **7.1, шаг 1: 
 | librarian | `zai-coding-plan/glm-5.3#max` |
 | judge | `zai-coding-plan/glm-5.3-flash#low` |
 
-Override в проекте: оператор правит `model` в frontmatter роли
+В ai-prompts локальные модели задаёт root `manifest.json`, а не source
+frontmatter: `npm run models:apply` / `npm run models:check` и совместимые
+`ai models list/set/apply/check`. Приоритет helper → базовая роль →
+default; производные сохраняют роли и инструкции. Пути harness,
+expect/plan-review helpers и ops runner используют общий resolver;
+см. `design/project-models.md`. Таблица выше и обязательное поле `model`
+описывают source defaults, а не эффективные модели manifest-mode.
+
+Без manifest сохраняется legacy-режим. Override в таком проекте:
+оператор правит `model` в frontmatter роли
 `.agents/agents/<role>.md` по явной просьбе пользователя, либо то же
 делает скрипт `ai models set <role> <model>` с валидацией схемы; правка
 фиксируется в git, дефолты возвращаются при переустановке контракта. У
@@ -551,6 +560,12 @@ session stats; в отчёте указывается метод и погреш
 - исключения ролей (`role_exceptions`) — `context/project.yml`;
 - адаптеры генерируют `.opencode/agents`,
   `.codex/agents`.
+
+В manifest-mode описание роли и набор ролей по-прежнему берутся из
+источников, но эффективная модель разрешается из root manifest;
+`roles` overrides не служат whitelist. Снятие override не удаляет роль.
+Это не обещание mapping моделей для Codex; текущий поддержанный путь
+моделей и ограничения — `design/project-models.md`.
 
 Frontmatter роли:
 

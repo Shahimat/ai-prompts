@@ -744,6 +744,7 @@ const DECLARED_COMMANDS = [
   'models',
   'models set <role> <model>',
   'models apply',
+  'models check',
   'delta check',
   'delta close',
   'outdated',
@@ -979,7 +980,9 @@ class Check {
         .split(' ')
         .map((seg) => (seg.startsWith('<') ? '[^,()]+' : `'${seg.replace(/[*]/g, '\\*')}'`))
         .join(',\\s*');
-      return !new RegExp(call).test(tests);
+      const runner = `run${group[0]?.toUpperCase()}${group.slice(1)}`;
+      const directCall = `${runner}\\(\\s*'${sub}',`;
+      return !new RegExp(call).test(tests) && !new RegExp(directCall).test(tests);
     });
     expect(commands.length).toBeGreaterThan(5);
     expect(untested).toEqual([]);

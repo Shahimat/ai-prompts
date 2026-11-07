@@ -6,11 +6,6 @@ namespaces:
   contract: Контракт agent-operational-contract-v3 и его пилот в этом репозитории
 roles:
   exceptions: []
-  models:
-    researcher: zai-coding-plan/glm-5.3-flash#max
-    librarian: zai-coding-plan/glm-5.3-flash#max
-    external-executor: zai-coding-plan/glm-5.3-flash#max
-    executor: zai-coding-plan/glm-5.3-flash#max
 briefing:
   mode: cheap
 sync:

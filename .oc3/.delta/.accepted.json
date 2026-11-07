@@ -1,0 +1,19 @@
+{
+  "v": 1,
+  "items": [
+    {
+      "delta": ".oc3/.delta/project-models-migration.yml",
+      "target": ".oc3/project.yml",
+      "summary": "Удалена только subsection roles.models с четырьмя GLM overrides",
+      "was": "Локальные проектные overrides researcher, librarian, external-executor и executor в roles.models",
+      "why": "Одна ручная точка в root manifest.json без конфликтующих старых настроек"
+    },
+    {
+      "delta": ".oc3/.delta/project-models-implemented.yml",
+      "target": ".oc3/project.yml",
+      "summary": "Локальные модели перенесены из roles.models в root manifest.json",
+      "was": "Четыре локальных GLM overrides в roles.models",
+      "why": "Одна одобренная ручная точка моделей без конфликтующих настроек"
+    }
+  ]
+}

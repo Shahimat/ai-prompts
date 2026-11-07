@@ -17,6 +17,12 @@ import type { CommandNode } from '#shared/node';
 
 export const COMMAND_NODES: readonly CommandNode[] = [
   {
+    path: ['models', 'check'],
+    kind: 'command',
+    effect: 'query',
+    run: (args) => runModels('check', args),
+  },
+  {
     path: ['adapters', 'sync'],
     kind: 'command',
     effect: 'mutation',

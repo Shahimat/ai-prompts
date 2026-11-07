@@ -1,0 +1,146 @@
+run: 2
+status: pass
+summary: Качественная финальная приёмка project-role-models по одобренному DoD — PASS; серийный pipeline зелёный, прежний paused superseded этим run.
+items: []
+scope:
+  ticket: project-role-models
+  mode: qualitative-user-dod
+  formal_expectations: >-
+    В .oc3/goals/*.expect.ts отсутствует describe('ticket: project-role-models').
+    Формальные crit/warn, их pass-count и 80% scoring не создавались.
+    Нижеследующие dod_checks — проверка явно одобренного пользовательского DoD, не новые пункты цели.
+  supersedes: .ops/project-role-models/verdicts/1.yml
+  final: true
+pipeline:
+  evidence: /Users/shahimat/.local/share/opencode/shell/7a5a2e292dbd84f1990d5127deeb51deedd2ce29/sh_1b3560e54001uBf9Cr5iTNGl60.out
+  sequence: refresh → npm run models:check → npm run ci → git diff --check
+  status: pass
+  quotes:
+    - 'Строка 8: «refresh (adapters sync, changelog lint, tree check, context check, adapters check, secrets scan): ok».'
+    - 'Строки 11, 28: «models check: ok».'
+    - 'Строки 52, 63, 74, 85: «Tests  250 passed (250)», «Tests  79 passed (79)», «Tests  38 passed (38)», «Tests  139 passed (139)» — всего 506.'
+    - 'Строки 17–44: format, четыре build, typechecks и lint пройдены; pipeline продолжился к тестам.'
+    - 'Строки 93, 98, 101: «пакетов 4: критичных 0 · предупреждений 0», «prompts/index.yml is up to date», «memory check: ok».'
+    - 'Строка 530: «ожиданий 330: crit 0 · warn 1 · info 3 · ? 0 — в бюджете».'
+    - 'Строки 111–112: «analytical: байт в AGENTS.md: 8108 из 8192», «private: байт в AGENTS.md: 8053 из 8192».'
+  independent_final_actions: >-
+    Лог прочитан целиком, финальные исходники/дифф и память сверены read-only.
+    git diff --check повторно выполнен без замечаний. Build/CI, refresh и LLM-вызовы повторно не запускались.
+dod_checks:
+  - key: single-manual-manifest
+    status: pass
+    evidence: >-
+      manifest.json:1–5 — «"version": 1», «"default": "openai/gpt-6.1-sol-fast"», «"roles": {}».
+      packages/ai-core/src/lib/project-models.ts:43–98 — строгая схема version/default/roles,
+      проверка model IDs, ошибка JSON и разрешение exact context → base role → default.
+      Строка 98: «return { model: manifest.default, origin: `${MODEL_MANIFEST}:default` };».
+      git diff .oc3/project.yml удаляет только старые четыре roles.models; roles.exceptions и briefing сохранены.
+    reason: >-
+      Одна ручная декларация задаёт общий default без variant; overrides не являются whitelist.
+      Нет второго локального ручного перечня моделей в root opencode.jsonc; native настройки — производные.
+  - key: deterministic-offline-apply-and-readonly-check
+    status: pass
+    evidence: >-
+      scripts/project-models.ts:2–6 — «import { runModels } from '@shahimat/ai-core';»,
+      «process.exitCode = await runModels(command, { root: path.dirname(import.meta.dirname), now: new Date() });».
+      packages/ai-core/src/commands/models/index.ts:264–275 — check возвращает diagnostics/actions без applyActions;
+      запись только в ветке применения: «await applyActions(args.root, plan.actions);».
+      packages/ai-core/src/lib/model-plan.ts:5–9 использует локальные manifest/config и computeSync.
+      packages/ai-core/test/project-models.test.ts:58–71, 99–113 — invalid fail-fast, idempotence и check drift без записи.
+      Серийный лог:11,28 — «models check: ok».
+    reason: >-
+      Обычный script без AI/сети, один детерминированный план для adapters/models.
+      Независимые проверки run 1 остаются применимыми к неизменённым этим финалом core-файлам:
+      два реальных models:apply, затем models:check; SHA-256 и mtime 476 файлов при check не изменились;
+      отдельный временный fixture подтвердил идемпотентность и отсутствие записи при битом manifest.
+      models:check обязателен отдельной стадией npm run ci независимо от adapters; прежние ai check/refresh сохранены.
+  - key: unified-native-runner-cli-helper-defaults
+    status: pass
+    evidence: >-
+      packages/ai-core/src/lib/adapters/sync.ts:81–90 — «model: resolveManifestModel(manifest, agent.name).model»;
+      packages/ai-core/src/lib/adapters/memory.ts:159–167 — root native model и model всех существующих/native IDs через resolver.
+      packages/ai-core/src/lib/role.ts:73,211–234 — findRole/runRole используют resolveProjectModel и передают effective model в spawn.
+      packages/ai-core/src/commands/expect/index.ts:513 — «modelContext: 'expect.judge'»;
+      packages/harness/src/harnesses/plan-review/actions.ts:237–242 — «'plan-review.planner'»;
+      packages/harness/src/harnesses/plan-review/review.ts:194 — «'plan-review.judge'»;
+      packages/harness/src/harnesses/core/ops/runner.ts:173–180 — классификация лимита по effective model;
+      scripts/expect-judge-opencode.ts:109–111 — отдельный CLI helper разрешает «'expect.judge'» перед передачей --model.
+      packages/ai-core/test/expect-cli.test.ts:115–121 — все записанные fake spawn модели равны «openai/expect#high».
+    reason: >-
+      Финальный дифф сохраняет общий resolver во всех перечисленных скрытых путях; тесты этих путей входят в 506 PASS.
+      Независимые runtime GET run 1 с явным project location для всех 16 native IDs показали
+      providerID openai, id gpt-6.1-sol-fast без variant, включая operator, compaction, title, summary и watch-роли.
+      Текущие производные согласованы: финальные models/adapters check зелёные.
+  - key: preserve-roles-instructions-and-set-apply
+    status: pass
+    evidence: >-
+      packages/ai-core/src/commands/models/index.ts:248–275 — set валидирует/записывает MODEL_MANIFEST и применяет derived plan;
+      :278–281 — без manifest прежние list/set/apply.
+      packages/ai-core/src/lib/adapters/sync.ts:131 — «else if (!isOurs(current)) diagnostics.push(conflict(unit.path));»;
+      :149–150 — stale-delete только без manifest.
+      packages/ai-core/src/lib/adapters/memory.ts:157–181 — spread существующего config, agent полей и сохранение permissions.
+      packages/ai-core/test/project-models.test.ts:74–96,116–153 проверяет оба canonical tree, operator,
+      custom agents/keys, permissions, memory deny и снятие override после замены source role.
+    reason: >-
+      Роли и инструкции не зависят от наличия исключений; set/apply в manifest-mode не пишут source agents.
+      Независимый fixture run 1 подтвердил сохранение инструкций, operator и synthetic чужих полей;
+      финальный git diff -- agents пуст, legacy функции не переписаны. Новых личных/секретных config keys в диффе нет;
+      изменение secrets allow — только сдвиг строки уже существующей генерации случайного токена, не расширение исключения.
+  - key: consumer-defaults-and-source-sync-isolation
+    status: pass
+    evidence: >-
+      packages/ai-core/src/lib/project-models.ts:108–110 — «? { model: legacy, origin: 'legacy' }»;
+      packages/ai-core/src/lib/model-plan.ts:7 — «if (manifest === null) return { actions: [], diagnostics: [] };».
+      packages/ai-core/test/project-models.test.ts:33–55,116–153 — разные roots, legacy, локальное обновление source и повторный apply.
+      prompts/index.yml не содержит корневой manifest.json;
+      packages/{ai-core,harness,cli,oc3}/package.json → files: «dist», «README.md», «CHANGELOG.md».
+      Финальный git diff -- agents и opencode.jsonc пуст.
+    reason: >-
+      Локальный manifest не поставляется потребителям; без него остаются прежние consumer defaults.
+      Source contract изменяет маршрут manifest/legacy, но не модели канонических ролей или consumer default values.
+      В manifest-mode обновление поставленной роли и последующая refresh/adapters стадия восстанавливают проектный override.
+      Реальный внешний source-sync end-to-end остаётся за границей доказанного, а не выдаётся за выполненный тест.
+  - key: explicit-project-memory
+    status: pass
+    evidence: >-
+      .oc3/bundles/index.md:20–22 — «корневой manifest.json моделей — единственная ручная декларация»,
+      «Приоритет helper > base role > default; overrides не whitelist, снятие override не удаляет роли и инструкции»;
+      «models:check — отдельная обязательная стадия npm run ci, не безусловный шаг ai check».
+      design/project-models.md:22–81 описывает resolver, hidden paths, native derived, set/apply, ручные scripts и границы session/Codex.
+      Серийный лог:101 — «memory check: ok».
+    reason: >-
+      Архитектурные факты явно записаны librarian в проектную память, а не memory агента;
+      старый baseline отделён от реализованного manifest-mode.
+      Запись факта финального серийного CI и настоящего run 2 логично остаётся следующим административным действием librarian.
+resolved_preliminary_findings:
+  - >-
+    Сбой полного expect-cli из run 1 не воспроизведён в финальном последовательном pipeline: все 250 ai-core PASS.
+    Fixtures теперь используют уникальные mkdtemp roots. Ранние loader/timeouts не считаются текущими падениями;
+    единственный успешный серийный прогон не доказывает отсутствия любых будущих параллельных read-vs-build гонок.
+  - >-
+    Analytical budget 8294/8192 исправлен источником без изменения порога: теперь 8108/8192;
+    private 8053/8192, оба пункта PASS в полном финальном логе.
+  - >-
+    Безусловный models check удалён из общего ai check, прежний refresh sync→check восстановлен;
+    models:check сохранён отдельной обязательной стадией CI. Прежний конфликт заголовка отсутствует.
+  - >-
+    skill-runs перепроверен по обновлённым evidence, а не только anchors:
+    source-sync step8 не запускает models, workflow отделяет ручное явное действие,
+    CLI содержит справку; свежие ответы штатно применены в expectations/.verdicts.json.
+    Финальный лог:249 — соответствующий пункт PASS; :530 — pending 0.
+  - >-
+    Отсутствие формального ticket-block отмечено как граница качественной приёмки, не как искусственный FAIL или 100% scoring.
+residual_risks_and_unverified:
+  - >-
+    Явный session model override или внешний --model не равен project default и не переключается manifest автоматически;
+    API agent/operator не доказывает модель уже открытой пользовательской сессии.
+  - Mapping моделей Codex не обещан и не проверен; область доказанной согласованности — OpenCode native и перечисленные runner/CLI/helper paths.
+  - Реальный внешний source-sync end-to-end не выполнялся; доказаны локальная замена source, сохранение manifest и восстановление derived.
+  - Реальный LLM-вызов каждого hidden пути не выполнялся; использованы fake spawn tests, исходники и native agent API.
+  - >-
+    Единственный оставшийся repository warn — прежняя неизмеримость plan-review «если блок для ожиданий выбрать нельзя»;
+    финальный лог:450–451. Он в бюджете и не относится к моделям проекта.
+next_action: Librarian дописывает в память/журнал факт успешного серийного CI и финального качественного PASS run 2, не меняя архитектурные решения.
+changes:
+  - Записаны финальный verdict run 2 и запись run 2 в project-role-models.expect.json.
+  - В этом финальном этапе исходники, package tests, документация, заголовки, пороги, бюджеты и semantic cache не менялись.

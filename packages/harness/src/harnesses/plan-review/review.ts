@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { expectSummary, runExpect, type ExpectSummary } from '@shahimat/ai-core';
-import { errorCode, isRecord, isStringArray } from '@shahimat/ai-core';
+import { errorCode, isRecord, isStringArray, resolveProjectModel } from '@shahimat/ai-core';
 import type { MachineDef, ModelRunner, Session } from '#harnesses/core/index';
 
 export const JUDGE_TOOLS = ['Read', 'Glob', 'Grep'];
@@ -191,7 +191,8 @@ async function answerTask(
   const text = await readFile(path.join(root, t.task), 'utf8');
   const result = await input.runner.headless({
     cwd: root,
-    model: input.def.models.judge,
+    model: (await resolveProjectModel(root, 'judge', input.def.models.judge, 'plan-review.judge'))
+      .model,
     addDirs: [],
     systemPrompt: input.systemPrompt,
     tools: JUDGE_TOOLS,

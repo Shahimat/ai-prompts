@@ -76,7 +76,7 @@ const TOOLS: readonly Oc3Tool[] = [
   {
     name: 'models_set',
     description:
-      'Сменить модель роли: любая из каталога OpenCode вида provider/model[#variant]; сохраняется в .oc3/project.yml → roles.models',
+      'Сменить модель роли provider/model[#variant]: при manifest.json сохраняется только manifest и производные; без manifest — legacy roles.models и файлы ролей',
     input: {
       type: 'object',
       properties: { role: str('имя роли'), model: str('модель вида provider/model#variant') },
@@ -89,9 +89,16 @@ const TOOLS: readonly Oc3Tool[] = [
   {
     name: 'models_apply',
     description:
-      'Применить roles.models из .oc3/project.yml к .agents/agents и .opencode/agents — восстановление после source-sync',
+      'Применить manifest.json к производным без изменения канона; без manifest — восстановить legacy roles.models после source-sync',
     input: { type: 'object', properties: {}, additionalProperties: false },
     command: OC3_COMMANDS.modelsApply,
+    args: (_input, root) => base(root),
+  },
+  {
+    name: 'models_check',
+    description: 'Проверить manifest.json и drift производных без записи и AI',
+    input: { type: 'object', properties: {}, additionalProperties: false },
+    command: OC3_COMMANDS.modelsCheck,
     args: (_input, root) => base(root),
   },
   {

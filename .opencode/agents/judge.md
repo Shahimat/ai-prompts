@@ -9,7 +9,7 @@ tools:
   grep: true
   edit: true
   bash: true
-model: zai-coding-plan/glm-5.3-flash#low
+model: openai/gpt-6.1-sol-fast
 ---
 
 Ты — judge. Ты не автор проверяемой работы: оцениваешь беспристрастно и

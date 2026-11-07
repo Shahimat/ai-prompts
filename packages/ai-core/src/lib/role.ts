@@ -16,6 +16,7 @@ import {
   type OpenCodeSpawnOptions,
 } from './opencode.ts';
 import { runtime } from './runtime.ts';
+import { resolveProjectModel } from './project-models.ts';
 import { isProtocolMessage, PROTOCOL, SUBMIT_TOOL } from './protocol.ts';
 
 const MEMORY_MARKER = /память:\s*([0-9a-f]{12})/g;
@@ -69,7 +70,8 @@ export async function findRole(root: string, name: string): Promise<AgentDef> {
     if (role === null) throw new UsageError(`${file}: ${problems.join('; ')}`);
     if (role.output === undefined)
       throw new UsageError(`${file}: роль без output — harness не знает схему ответа`);
-    return role;
+    const resolved = await resolveProjectModel(root, name, role.model ?? DEFAULT_MODEL);
+    return resolved.origin === 'legacy' ? role : { ...role, model: resolved.model };
   }
   throw new UsageError(
     `роль ${name} не найдена: ${ROLE_DIRS.map((d) => `${d}/${name}.md`).join(', ')}`,
@@ -84,6 +86,7 @@ export interface RoleRun {
   transcript?: string;
   timeoutMs?: number;
   onProgress?: (text: string) => void;
+  modelContext?: string;
 }
 
 export function roleSystemPrompt(role: AgentDef): string {
@@ -204,6 +207,14 @@ export function roleOutcomeOf(role: AgentDef, sources: RoleSources): RoleFinal {
 }
 
 export async function runRole(run: RoleRun): Promise<RoleOutcome> {
+  const model = (
+    await resolveProjectModel(
+      run.root,
+      run.role.name,
+      run.role.model ?? DEFAULT_MODEL,
+      run.modelContext,
+    )
+  ).model;
   let steps = 0;
   const options: OpenCodeSpawnOptions = { timeoutMs: run.timeoutMs ?? roleTimeoutMs() };
   if (run.transcript !== undefined) options.transcript = run.transcript;
@@ -215,13 +226,13 @@ export async function runRole(run: RoleRun): Promise<RoleOutcome> {
       steps++;
       progress(`роль ${run.role.name}: шаг ${steps} — ${step}`);
     };
-  progress?.(`роль ${run.role.name}: запущена (${run.role.model ?? DEFAULT_MODEL})`);
+  progress?.(`роль ${run.role.name}: запущена (${model})`);
   const memory = await memoryPromptOf(run.root, run.task);
   const result = await spawnOpenCode(
     {
       cwd: run.root,
       agent: run.role.name,
-      model: run.role.model ?? DEFAULT_MODEL,
+      model,
       prompt: `${roleSystemPrompt(run.role)}${memory}`,
       task: run.task,
       out: run.out,
@@ -254,6 +265,7 @@ export async function runRole(run: RoleRun): Promise<RoleOutcome> {
 }
 
 export interface AskOptions {
+  modelContext?: string;
   transcript?: string;
   timeoutMs?: number;
   onProgress?: (text: string) => void;
@@ -277,6 +289,7 @@ export async function askRole(
     if (options.transcript !== undefined) run.transcript = options.transcript;
     if (options.timeoutMs !== undefined) run.timeoutMs = options.timeoutMs;
     if (options.onProgress !== undefined) run.onProgress = options.onProgress;
+    if (options.modelContext !== undefined) run.modelContext = options.modelContext;
     return await runRole(run);
   } finally {
     await rm(dir, { recursive: true, force: true });

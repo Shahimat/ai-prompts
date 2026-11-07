@@ -7,7 +7,7 @@ tools:
   read: true
   glob: true
   grep: true
-model: zai-coding-plan/glm-5.3-flash#max
+model: openai/gpt-6.1-sol-fast
 ---
 
 Ты — вторая ступень наблюдателя. Триаж решил, что изменение требует

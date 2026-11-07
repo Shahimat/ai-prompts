@@ -7,6 +7,17 @@ import { errorCode, isRecord } from '#shared/guards';
 import { parseFrontmatter } from '#shared/frontmatter';
 import { PROJECT_PATH } from '#shared/layout';
 import { ROLE_MODEL_PATTERN } from '#lib/agent';
+import {
+  loadModelManifest,
+  MODEL_HELPERS,
+  MODEL_MANIFEST,
+  modelRoleIds,
+  resolveManifestModel,
+  validateModelManifest,
+} from '#lib/project-models';
+import { computeModelPlan } from '#lib/model-plan';
+import { applyActions } from '#lib/adapters/sync';
+import { report, WARNING_PREFIX } from '#shared/report';
 
 export { ROLE_MODEL_PATTERN };
 
@@ -223,6 +234,48 @@ async function apply(args: CommandArgs): Promise<number> {
 }
 
 export async function runModels(command: string | undefined, args: CommandArgs): Promise<number> {
+  const manifest = await loadModelManifest(args.root);
+  if (manifest !== null) {
+    if (command === undefined || command === 'list') {
+      for (const id of [
+        ...new Set([...(await modelRoleIds(args.root, manifest)), ...Object.keys(MODEL_HELPERS)]),
+      ].sort()) {
+        const resolved = resolveManifestModel(manifest, id);
+        console.log(`${id}: ${resolved.model} (${resolved.origin})`);
+      }
+      return report('models', (await computeModelPlan(args.root)).diagnostics);
+    }
+    if (command === 'set') {
+      const role = args.params?.['role'];
+      const model = args.params?.['model'];
+      if (role === undefined || model === undefined)
+        throw new UsageError('models set <role> <model>');
+      const next = validateModelManifest({
+        ...manifest,
+        roles: { ...manifest.roles, [role]: model },
+      });
+      await writeFile(
+        path.join(args.root, MODEL_MANIFEST),
+        `${JSON.stringify(next, null, 2)}\n`,
+        'utf8',
+      );
+    } else if (command !== 'apply' && command !== 'check')
+      throw new UsageError(`неизвестная команда: models ${command}`);
+    const plan = await computeModelPlan(args.root);
+    if (command === 'check')
+      return report('models check', [
+        ...plan.diagnostics,
+        ...plan.actions.map((a) => ({
+          file: a.path,
+          message: 'model drift: запусти ai models apply',
+        })),
+      ]);
+    if (plan.diagnostics.some((d) => !d.message.startsWith(WARNING_PREFIX)))
+      return report('models apply', plan.diagnostics);
+    await applyActions(args.root, plan.actions);
+    return report('models apply', plan.diagnostics);
+  }
+  if (command === 'check') return 0;
   if (command === undefined || command === 'list') return list(args);
   if (command === 'set') return set(args);
   if (command === 'apply') return apply(args);

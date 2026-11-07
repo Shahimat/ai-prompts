@@ -10,7 +10,7 @@ tools:
   edit: true
   write: true
   bash: true
-model: zai-coding-plan/glm-5.3-flash#max
+model: openai/gpt-6.1-sol-fast
 ---
 
 Ты — executor внешнего проекта: работаешь в удалённом проекте и меняешь

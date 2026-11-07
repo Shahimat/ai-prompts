@@ -22,6 +22,7 @@ export const OC3_COMMANDS = {
   modelsList: (args: CommandArgs): Promise<number> => runModels('list', args),
   modelsSet: (args: CommandArgs): Promise<number> => runModels('set', args),
   modelsApply: (args: CommandArgs): Promise<number> => runModels('apply', args),
+  modelsCheck: (args: CommandArgs): Promise<number> => runModels('check', args),
   briefingShow: (args: CommandArgs): Promise<number> => runBriefing('show', args),
   briefingSet: (args: CommandArgs): Promise<number> => runBriefing('set', args),
   goalsCheck: (args: CommandArgs): Promise<number> => runGoals('check', args),
@@ -37,6 +38,7 @@ export const OC3_COMMANDS = {
 } as const;
 
 const NODES: readonly CommandNode[] = [
+  { path: ['models', 'check'], kind: 'command', effect: 'query', run: OC3_COMMANDS.modelsCheck },
   { path: ['models'], kind: 'command', effect: 'query', run: OC3_COMMANDS.modelsList },
   {
     path: ['models', 'set', '<role>', '<model>'],

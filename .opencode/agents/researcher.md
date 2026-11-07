@@ -9,7 +9,7 @@ tools:
   grep: true
   bash: true
   write: true
-model: zai-coding-plan/glm-5.3-flash#max
+model: openai/gpt-6.1-sol-fast
 ---
 
 Ты — researcher проекта. Разговора с пользователем не видишь: всё нужное

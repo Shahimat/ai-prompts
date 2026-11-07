@@ -15,24 +15,24 @@
       "question": "обновление > есть skill обновления: сверяет источник, показывает новые и устаревшие модули, пресеты, версию harness и предлагает включить или отключить возможности",
       "evidence": {
         "@update-report": "d10cc0171aedf7ec103b10797e79cf0039496f05e3f598aa66114dc72dc34a28",
-        "@sync-warns-deprecated": "69bba241ef9d8784d6954e17533c14779690fd83d7f93eba70eb79f12be48ce2"
+        "@sync-warns-deprecated": "deacfce1d468868aad441ebbec4f3652af2f188b51a3790759b2ff1ecdf63768"
       },
       "verdict": true,
-      "quote": "открыть чеклист `contract-setup` — включить новые или отключить ненужные возможности",
+      "quote": "- **harness** — версия проекта → последняя и записи журнала между ними\n  из первого шага процесса: новые команды и проверки.",
       "ref": "@update-report",
-      "reason": "отчёт обновления показывает новые и устаревшие модули, пресеты, версию harness и предлагает включить/отключить (разделы «Новые модули», «Устаревшие и пропавшие», «Новые пресеты», «harness»)",
-      "at": "2026-11-05"
+      "reason": "Заново сверены оба текущих evidence: процесс сравнивает SHA индекса и частей; отчёт перечисляет подключённые, новые/устаревшие модули, новые пресеты и harness и предлагает чеклист включения/отключения возможностей. Удаление models-команд из шага 8 это поведение не меняет.",
+      "at": "2026-11-07"
     },
     "135dc96a2bfc": {
       "question": "источник > обновление из источника предупреждает о deprecated-контракте и называет замену",
       "evidence": {
-        "@sync-warns-deprecated": "69bba241ef9d8784d6954e17533c14779690fd83d7f93eba70eb79f12be48ce2"
+        "@sync-warns-deprecated": "deacfce1d468868aad441ebbec4f3652af2f188b51a3790759b2ff1ecdf63768"
       },
       "verdict": true,
-      "quote": "контракт или модуль помечен в индексе `deprecated` — предупреди и назови замену (ключ или путь из поля)",
+      "quote": "- контракт или модуль помечен в индексе `deprecated` — предупреди и\n     назови замену (ключ или путь из поля), миграция — по запросу;",
       "ref": "@sync-warns-deprecated",
-      "reason": "шаг 6 процесса обновления требует предупреждения о deprecated и называния замены",
-      "at": "2026-11-05"
+      "reason": "В актуальном процессе пункт 6 по-прежнему явно требует предупреждать о deprecated-контракте и называть замену; после обновлённого пункта 8 правило не исчезло и не стало условным ручным обходом.",
+      "at": "2026-11-07"
     },
     "1458ad2553ec": {
       "question": "приоритетные правила модулей > safety-boundaries: при признаке из списка red-flag агент прекращает сценарий и даёт контакт помощи",
@@ -59,13 +59,13 @@
     "1db1d3ca45dd": {
       "question": "[harness] expect > смысловая проверка заголовков файла запускается только при изменении его заголовков",
       "evidence": {
-        "@expect-cycles": "833d46d00d54f3834730dd900b5f3bd0529fad8d0f81395acd8a46f6b0fd3e6e"
+        "@expect-cycles": "6f2f2a3a2bf3d401af9d99e2a7329d069b89969c7735e8a655419d7f19938277"
       },
       "verdict": true,
-      "quote": "if (store.lint[file]?.titles === sha) continue;",
+      "quote": "const sha = titlesSha(tests);\n    if (store.lint[file]?.titles === sha) continue;",
       "ref": "@expect-cycles",
-      "reason": "В judgePrepare повторная смысловая проверка заголовков файла пропускается, если sha заголовков не изменился.",
-      "at": "2026-11-04"
+      "reason": "Пакет проверки заголовков создаётся только при отсутствии совпадающего хеша заголовков этого файла; изменение тела проверки само по себе не меняет titlesSha.",
+      "at": "2026-11-06"
     },
     "1e94c71faacc": {
       "question": "поведение ключевых skills > workflow: блокирующий вопрос — нумерованные варианты, дефолт с обоснованием, стоп до ответа",
@@ -180,24 +180,24 @@
     "63aaccc6f834": {
       "question": "[harness] layers > skill запускает только то, что объявлено в metadata.runs; остальные команды harness лишь упоминает",
       "evidence": {
-        "@skill-runs": "b386c8dda1a8bd9d62a8b5014256350790c2bf93df15d7f7629af3e2fd9baae6"
+        "@skill-runs": "46fbe51943e373e5bd1ec502f7c4d729364d54936d84327f9243dbd4d3ace430"
       },
       "verdict": true,
-      "quote": "Сам skill запускает одно: `ai refresh` в конце каждой задачи и после записи librarian — пересобрать производные файлы и проверить проект. Остальное — справка: что делает команда и кто её запускает.",
+      "quote": "`.oc3/project.yml`; локальный manifest моделей остаётся вне\n   обновления, его производные восстанавливает стадия `refresh`.",
       "ref": "@skill-runs",
-      "reason": "skill cli запускает только объявленное в metadata.runs (refresh), остальное — справка; остальные фрагменты доказательства построены так же: runs-метка + упоминания",
-      "at": "2026-11-05"
+      "reason": "Проверены все регионы evidence: source-sync step8 больше не запускает models, обновление производных отнесено к существующей стадии refresh; legacy reapply явно отдельное действие человека/оператора. Workflow заменил инструкцию запуска models на описание отдельного явного запроса, проверка models не завершает workflow неявно. В CLI модели описаны как ручное обслуживание после ручной правки, не добавлен шаг к refresh. Остальные команды в регионах либо соответствуют metadata.runs, либо описывают внутренние шаги/справку. Нового скрытого запуска не осталось.",
+      "at": "2026-11-07"
     },
     "694f0f4b5141": {
       "question": "[harness] expect > в кэше вердиктов только вердикты живых ожиданий",
       "evidence": {
-        "@verdict-prune": "c957ba9a7865603050e916011c02078f8ed727bb70114c23c8fad32d941150ed"
+        "@verdict-prune": "8893c38913128114760fdc8d14667cc27ead096fe5761ce1153b7291115b2303"
       },
       "verdict": true,
-      "quote": "if (!liveIds.has(id)) { delete store.verdicts[id]; removed++; }",
+      "quote": "if (!liveIds.has(id)) {\n      delete store.verdicts[id];\n      removed++;",
       "ref": "@verdict-prune",
-      "reason": "pruneStore удаляет из хранилища вердикты и lint-записи, не относящиеся к живым ожиданиям и файлам.",
-      "at": "2026-11-04"
+      "reason": "judgePrepare собирает seen-id живых judged-ожиданий и список живых файлов, вызывает pruneStore и сохраняет очищенный store; pruneStore также удаляет lint отсутствующих файлов.",
+      "at": "2026-11-06"
     },
     "6c3d6298ef3f": {
       "question": "[flow] delta > приёмка: пункты дельты выполнены, прежние ожидания документации без revise не нарушены",
@@ -336,13 +336,13 @@
     "9d95d48cd2c2": {
       "question": "[harness] common > итог прогона считает код по бюджету и ответам модели, а не модель",
       "evidence": {
-        "@verdict-by-code": "24a8f41e1f9f37a9fd955105a8f5a734bfc30b1399076df6308c38b2f70531c9"
+        "@verdict-by-code": "a3eb929439355eb59ac639361bd7c1efa8a2e80d61a0aa35e9d5f538e9c3cfd5"
       },
       "verdict": true,
-      "quote": "const over = count.crit > budget.crit || count.warn > budget.warn || count.pending > 0;",
+      "quote": "const over = count.crit > budget.crit || count.warn > budget.warn || count.pending > 0;\n    blocked ||= over;",
       "ref": "@verdict-by-code",
-      "reason": "blocked и счётчики критериев вычисляет код collect() по бюджету; ответы модели лишь применяются в judgeApply через applyAnswers, итог модель не считает.",
-      "at": "2026-11-04"
+      "reason": "Код собирает результаты тестов и сохранённые ответы судьи, считает превышение бюджета и pending, возвращает report-код blocked ? 1 : 0; модель не задаёт итоговый exit-код.",
+      "at": "2026-11-06"
     },
     "a0973b8d4adc": {
       "question": "документация проекта > в основной сессии файлы проектной документации только читаются; правки — только через librarian, генерируемые файлы — через harness",
@@ -535,13 +535,13 @@
     "de808fdc116f": {
       "question": "[harness] expect > судья вызывается только для вердиктов, у которых изменились заголовок или доказательства",
       "evidence": {
-        "@expect-cycles": "833d46d00d54f3834730dd900b5f3bd0529fad8d0f81395acd8a46f6b0fd3e6e"
+        "@expect-cycles": "6f2f2a3a2bf3d401af9d99e2a7329d069b89969c7735e8a655419d7f19938277"
       },
       "verdict": true,
-      "quote": "cached.question === question && Object.keys(cached.evidence).length === refs.length && refs.every((r) => cached.evidence[r.ref] === r.sha);",
+      "quote": "cached.question === question &&\n    Object.keys(cached.evidence).length === refs.length &&\n    refs.every((r) => cached.evidence[r.ref] === r.sha);",
       "ref": "@expect-cycles",
-      "reason": "judged() считает вердикт свежим только при совпадении заголовка вопроса и sha всех доказательств; иначе уходит судье.",
-      "at": "2026-11-04"
+      "reason": "judged собирает вопрос только при отсутствии свежего вердикта: сверяет вопрос и полный набор хешей evidence; judgeRun вызывает судью только по подготовленным задачам.",
+      "at": "2026-11-06"
     },
     "dfed5ff72504": {
       "question": "приоритетные правила модулей > privacy: в документации, коммитах и журнале нет реальных персональных данных",
@@ -568,13 +568,13 @@
     "f586544d451f": {
       "question": "документация проекта > шаблон AGENTS.md и блоки модулей не содержат указаний основной сессии самой править документацию — только ссылки на skills и harness; guardrail о достоверности знания допустим",
       "evidence": {
-        "@agents-md-readonly": "f9b92f392eab84c7d03bc23c98381a4536e6abc4f1f782e4f529fd7ffb47bf3b"
+        "@agents-md-readonly": "c2e55932b8935600c39f97589d2af8a093f33b6f0a2f67e647c6cc0e12347485"
       },
       "verdict": true,
-      "quote": "Документацию пишет только librarian по `docs_request`: оператор, executor и judge её читают; генерируемое меняет `ai`",
+      "quote": "4. Документацию пишет только librarian по `docs_request`: оператор, executor и judge её читают; генерируемое меняет `ai`.",
       "ref": "@agents-md-readonly",
-      "reason": "шаблон отводит правку документации librarian, генерируемое — ai; модули дают только маршруты на слои и skills, guardrail достоверности («чисел не выдумывай») допустим",
-      "at": "2026-11-05"
+      "reason": "Шаблон явно закрепляет read-only документацию для основной сессии; блоки модулей задают маршруты к skills/harness или допустимые guardrails достоверности, но не предписывают основной сессии самой писать документацию. Маршрут manifest/legacy этого не меняет.",
+      "at": "2026-11-06"
     },
     "f7310dcbc6e4": {
       "question": "plan-review › переход clarify_form —answered→ > после ответа планер записывает ожидания выбранным блоком",

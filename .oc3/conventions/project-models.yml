@@ -1,0 +1,25 @@
+- key: project-models
+  summary: Модели — root manifest.json; models:apply/check без AI; launch/helper paths описаны в design/project-models.md
+  rule: |
+    Для ai-prompts корневой manifest.json моделей —
+    единственная ручная декларация; остальные настройки производные.
+    Обслуживание без AI: npm run models:apply, затем npm run models:check.
+    Принята openai/gpt-6.1-sol-fast без нового variant; совместимые
+    ai models list/set/apply/check работают в manifest-mode без правки
+    source agents. Приоритет helper > base role > default; overrides
+    не whitelist, снятие override не удаляет роли и инструкции.
+    Скрытые пути expect.judge, plan-review.planner/judge, ops runner
+    и judge helper описаны в design/project-models.md вместе с resolver.
+    models:check — отдельная обязательная стадия npm run ci, не
+    безусловный шаг ai check; refresh сохраняет adapters sync → check.
+    Локальные настройки не должны менять shared agents/ и дефолты
+    потребителей, briefing, автономию или глобальные настройки.
+    Явная модель открытой сессии/внешний --model не project default.
+    Mapping Codex не обещается; внешний source-sync end-to-end не проверен.
+  reason: |
+    Пользователь одобрил одну ручную точку («Погнали»); DoD принят
+    независимым judge, run 2 PASS (.ops/project-role-models/verdicts/2.yml).
+    Серийный CI PASS: 506 тестов, 330 expectations, 0 crit/0 pending,
+    один прежний plan-review warn в бюджете. Manifest, команды,
+    архитектура, полный лог, исторический baseline и оставшиеся границы
+    evidence — design/project-models.md.

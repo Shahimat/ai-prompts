@@ -99,6 +99,29 @@ describe('роль: формат', () => {
 });
 
 describe('роль: запуск', () => {
+  it('manifest resolves before actual spawn including helper, invalid manifest never spawns', async () => {
+    await put('agents/judge.md', roleFile('judge', 'verdict', 'model: legacy/model\n'));
+    await put(
+      'manifest.json',
+      JSON.stringify({
+        version: 1,
+        default: 'openai/test',
+        roles: { 'expect.judge': 'openai/helper#max' },
+      }),
+    );
+    process.env['FAKE_SUBMIT'] = JSON.stringify({ judge: { answers: [] } });
+    process.env['FAKE_ARGS'] = path.join(home, 'manifest-args.jsonl');
+    expect((await findRole(root, 'judge')).model).toBe('openai/test');
+    await askRole(root, 'judge', 'task', { modelContext: 'expect.judge' });
+    const seen: unknown = JSON.parse(
+      await readFile(path.join(home, 'manifest-args.jsonl'), 'utf8'),
+    );
+    expect(isRecord(seen) ? seen['model'] : undefined).toBe('openai/helper#max');
+    await rm(path.join(home, 'manifest-args.jsonl'));
+    await put('manifest.json', '{bad');
+    await expect(askRole(root, 'judge', 'task')).rejects.toThrow('manifest.json');
+    expect(existsSync(path.join(home, 'manifest-args.jsonl'))).toBe(false);
+  });
   it('команда: opencode run --format json --auto --agent --model; вариант — часть --model', () => {
     expect(opencodeArgs('judge', 'zai-coding-plan/glm-5.3#max')).toEqual([
       'run',

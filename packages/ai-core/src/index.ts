@@ -47,6 +47,19 @@ export {
 export { commandTree, type Command, type CommandTree, type Match } from './lib/tree.ts';
 export { runtime, setRuntime, type Runtime } from './lib/runtime.ts';
 export { runModels, ROLE_MODEL_PATTERN } from './commands/models/index.ts';
+export {
+  loadModelManifest,
+  validateModelManifest,
+  resolveManifestModel,
+  resolveProjectModel,
+  modelRoleIds,
+  MODEL_MANIFEST,
+  MODEL_HELPERS,
+  MODEL_ROLES,
+  type ModelManifest,
+  type ResolvedModel,
+} from './lib/project-models.ts';
+export { computeModelPlan } from './lib/model-plan.ts';
 export { runGoals } from './commands/goals/index.ts';
 export { runOperator } from './commands/operator/index.ts';
 export { runRoles, runSkills } from './commands/roles/index.ts';

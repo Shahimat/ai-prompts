@@ -133,6 +133,49 @@ afterEach(async () => {
 });
 
 describe('ticket-work: путь задачи', () => {
+  it('manifest uses project not home for jobs and both watch roles before quota classification', async () => {
+    await put(
+      '.agents/agents/executor.md',
+      roleFile('executor').replace('model: zai-coding-plan/glm-5.3#max\n', ''),
+    );
+    await put('ops/limits.yml', 'jobs: 1\nopus: 1\nwatchers: 1\n', home);
+    await put('ops/slots/opus-0.json', JSON.stringify({ pid: process.pid }), home);
+    await put(
+      'manifest.json',
+      JSON.stringify({
+        version: 1,
+        default: 'openai/jobs',
+        roles: { 'watch-request': 'openai/request#high' },
+      }),
+    );
+    await put('manifest.json', '{invalid-home', home);
+    byRole({
+      executor: { submit: result('ok') },
+      'watch-triage': { submit: result('ok') },
+      'watch-request': { submit: result('ok') },
+    });
+    for (const role of ['executor', 'watch-triage', 'watch-request']) {
+      await opsRole({
+        root,
+        home,
+        role,
+        task: 'task',
+        lane: role === 'executor' ? 'jobs' : 'watchers',
+        priority: 1,
+        waitMin: 0.001,
+      });
+    }
+    const records = (await read('args.jsonl', home))
+      .trim()
+      .split('\n')
+      .map((line): unknown => JSON.parse(line))
+      .filter(isRecord);
+    expect(records.map((r) => [r['role'], r['model']])).toEqual([
+      ['executor', 'openai/jobs'],
+      ['watch-triage', 'openai/jobs'],
+      ['watch-request', 'openai/request#high'],
+    ]);
+  });
   it('start → план ждёт «да» → правка, проверка, ревью → ready ждёт «готово» → done', async () => {
     byRole({
       researcher: { submit: result('исследование') },

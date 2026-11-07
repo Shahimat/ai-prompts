@@ -1,6 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { findRole, resolveProjectModel } from '@shahimat/ai-core';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const ENTRY = 'expectations/index.expect.ts';
@@ -83,7 +84,7 @@ const prepare = (): boolean => {
   return true;
 };
 
-const ask = (task: Task, kind: 'batch' | 'lint'): unknown => {
+const ask = (task: Task, kind: 'batch' | 'lint', model: string): unknown => {
   const prompt = [
     `Прочитай задание из файла \`${task.task}\` целиком.`,
     'Ничего не создавай и не правь: у тебя только чтение.',
@@ -97,7 +98,7 @@ const ask = (task: Task, kind: 'batch' | 'lint'): unknown => {
     '--agent',
     'judge',
     '--model',
-    'zai-coding-plan/glm-5.3-flash#low',
+    model,
     prompt,
   ]);
   if (result.status !== 0) throw new Error(`opencode run judge: код ${result.status}: ${result.stderr.slice(-500)}`);
@@ -105,6 +106,9 @@ const ask = (task: Task, kind: 'batch' | 'lint'): unknown => {
 };
 
 const main = async (): Promise<number> => {
+  const role = await findRole(ROOT, 'judge');
+  if (role.model === undefined) throw new Error('judge: модель не задана');
+  const { model } = await resolveProjectModel(ROOT, 'judge', role.model, 'expect.judge');
   if (!prepare()) return 0;
   const plan = await readPlan();
   const tasks = [
@@ -112,7 +116,7 @@ const main = async (): Promise<number> => {
     ...plan.lint.map((task) => ({ ...task, kind: 'lint' as const })),
   ];
   for (const task of tasks) {
-    const answer = ask(task, task.kind);
+    const answer = ask(task, task.kind, model);
     await writeFile(path.join(ROOT, task.answer), `${JSON.stringify(answer, null, 2)}\n`, 'utf8');
     console.log(`  ${task.task}: ответ получен`);
   }

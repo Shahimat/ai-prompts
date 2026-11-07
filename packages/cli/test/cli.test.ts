@@ -59,6 +59,26 @@ describe('ai changelog lint', () => {
 });
 
 describe('ai check', () => {
+  it('models check validates drift with disabled adapters; explicit apply repairs it', async () => {
+    await put('.oc3/ai-core.yml', 'adapters: []\nchecks:\n  secrets: false\n');
+    await put('manifest.json', JSON.stringify({ version: 1, default: 'openai/test', roles: {} }));
+    expect(await main(['check', '--root', root], NOW)).toBe(0);
+    expect(await main(['models', 'check', '--root', root], NOW)).toBe(1);
+    expect(await main(['refresh', '--root', root], NOW)).toBe(0);
+    expect(existsSync(path.join(root, '.opencode/opencode.jsonc'))).toBe(false);
+    expect(await main(['models', 'apply', '--root', root], NOW)).toBe(0);
+    expect(await main(['models', 'check', '--root', root], NOW)).toBe(0);
+    expect(existsSync(path.join(root, '.opencode/opencode.jsonc'))).toBe(true);
+    expect(await main(['check', '--root', root], NOW)).toBe(0);
+    await put('manifest.json', '{invalid');
+    expect(await run(['models', 'check', '--root', root])).toBe(2);
+  });
+  it('refresh applies the common model plan through enabled adapters sync', async () => {
+    await put('.oc3/ai-core.yml', 'adapters: []\nchecks:\n  adapters: {}\n  secrets: false\n');
+    await put('manifest.json', JSON.stringify({ version: 1, default: 'openai/test', roles: {} }));
+    expect(await main(['refresh', '--root', root], NOW)).toBe(0);
+    expect(await main(['models', 'check', '--root', root], NOW)).toBe(0);
+  });
   it('2 — нет ai-core.yml', async () => {
     expect(await run(['check', '--root', root])).toBe(2);
     expect(stderr[0]).toMatch(/harness в проекте не настроен/);

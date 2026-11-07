@@ -1,4 +1,4 @@
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { main } from '@shahimat/cli';
@@ -6,7 +6,7 @@ import { isRecord } from '#shared/guards';
 import { FAKE_OPENCODE } from './fake-opencode.ts';
 
 const TMP = path.join(import.meta.dirname, '.tmp');
-const ROOT = path.join(TMP, 'expect-cli');
+let ROOT: string;
 const NOW = new Date('2026-10-13T12:00:00Z');
 const out: string[] = [];
 const ENTRY = 'expectations/demo.expect.ts';
@@ -19,7 +19,8 @@ async function put(rel: string, content: string): Promise<void> {
 }
 
 beforeAll(async () => {
-  await rm(ROOT, { recursive: true, force: true });
+  await mkdir(TMP, { recursive: true });
+  ROOT = await mkdtemp(path.join(TMP, 'expect-cli-'));
   await put('package.json', '{"name":"fixture","private":true,"type":"module"}');
   await put(
     'expectations/demo.expect.ts',
@@ -85,6 +86,14 @@ describe('ai expect report | lint | judge', () => {
   }, 120_000);
 
   it('judge --run: роль отвечает конвертом в тексте — пакет доходит до apply сам', async () => {
+    await put(
+      'manifest.json',
+      JSON.stringify({
+        version: 1,
+        default: 'openai/base',
+        roles: { 'expect.judge': 'openai/expect#high' },
+      }),
+    );
     await put('expectations/extra.expect.ts', DEMO_ENTRY);
     await put(
       'agents/judge.md',
@@ -92,9 +101,10 @@ describe('ai expect report | lint | judge', () => {
     );
     const fake = path.join(ROOT, 'fake-opencode.mjs');
     await writeFile(fake, FAKE_OPENCODE, 'utf8');
-    const envKeys = ['HARNESS_OPENCODE', 'FAKE_TEXT', 'FAKE_SUBMIT'];
+    const envKeys = ['HARNESS_OPENCODE', 'FAKE_TEXT', 'FAKE_SUBMIT', 'FAKE_ARGS'];
     const saved = envKeys.map((k) => [k, process.env[k]] as const);
     process.env['HARNESS_OPENCODE'] = fake;
+    process.env['FAKE_ARGS'] = path.join(ROOT, 'expect-args.jsonl');
     delete process.env['FAKE_SUBMIT'];
     process.env['FAKE_TEXT'] =
       'Проверил.\n```json\n{"message":"verdict","data":{"contradictions": [], "unmeasurable": []}}\n```';
@@ -102,6 +112,13 @@ describe('ai expect report | lint | judge', () => {
     try {
       expect(await main(['expect', 'judge', extra, '--run', '--root', ROOT], NOW)).toBe(0);
       expect(await main(['expect', 'report', extra, '--root', ROOT], NOW)).toBe(0);
+      const seen = (await readFile(path.join(ROOT, 'expect-args.jsonl'), 'utf8'))
+        .trim()
+        .split('\n')
+        .map((line): unknown => JSON.parse(line))
+        .filter(isRecord);
+      expect(seen.length).toBeGreaterThan(0);
+      expect(seen.every((record) => record['model'] === 'openai/expect#high')).toBe(true);
     } finally {
       for (const [k, v] of saved) {
         if (v === undefined) delete process.env[k];

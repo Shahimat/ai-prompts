@@ -510,7 +510,7 @@ async function judgeRun(args: CommandArgs): Promise<number> {
           args.root,
           'judge',
           `${text}\nФайл ответа не пиши: верни итог инструментом submit_result; инструмента нет — тем же JSON в код-блоке последним сообщением.`,
-          { transcript },
+          { transcript, modelContext: 'expect.judge' },
         );
         const answer = t.kind === 'batch' && isRecord(data) ? data['answers'] : data;
         await writeFile(path.join(args.root, t.answer), JSON.stringify(answer, null, 2), 'utf8');

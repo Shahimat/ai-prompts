@@ -9,6 +9,7 @@ import {
   isRecord,
   openCodeTextOf,
   spawnOpenCode,
+  resolveProjectModel,
 } from '@shahimat/ai-core';
 import type { ActionDef, MachineDef, Registry, Session } from '#harnesses/core/index';
 import { harnessFile } from '#harnesses/core/index';
@@ -232,7 +233,14 @@ async function stageTurn(
   }
   const spec: StageSpec = {
     cwd: s.data.project,
-    model: ctx.def.models.planner,
+    model: (
+      await resolveProjectModel(
+        s.data.project,
+        'planner',
+        ctx.def.models.planner,
+        'plan-review.planner',
+      )
+    ).model,
     sessionId: s.data.plannerSession,
     resume,
     systemPrompt: await template(

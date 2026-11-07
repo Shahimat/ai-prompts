@@ -8,6 +8,7 @@ import {
   errorMessage,
   findRole,
   isRecord,
+  resolveProjectModel,
   type AskOptions,
   type RoleOutcome,
 } from '@shahimat/ai-core';
@@ -169,7 +170,13 @@ export const stepWaitMin = (): number => {
 export async function opsRole(run: OpsRoleRun): Promise<RoleOutcome> {
   const role = await findRole(run.root, run.role);
   const limits = await loadLimits(run.home);
-  const opus = run.lane === 'jobs' && (role.model ?? 'opus') === 'opus';
+  const effective = await resolveProjectModel(
+    run.root,
+    run.role,
+    role.model ?? 'opus',
+    run.options?.modelContext,
+  );
+  const opus = run.lane === 'jobs' && effective.model === 'opus';
   const cap = run.lane === 'jobs' ? limits.jobs : limits.watchers;
   const token = randomBytes(8).toString('hex');
   const ticket = machineFile(run.home, 'queue', `${run.lane}-${token}.json`);

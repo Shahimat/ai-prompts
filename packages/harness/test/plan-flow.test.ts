@@ -295,6 +295,36 @@ describe('plan-review: события из моста', () => {
 
 describe('plan-review: сквозной прогон на fake-opencode', { timeout: 180_000 }, () => {
   it('запрос → сбор → запись → ревью чистое → выход', async () => {
+    const stage = io.stage();
+    const runner = io.runner();
+    const injectedStages: string[] = [];
+    const injectedJudges: string[] = [];
+    vi.spyOn(io, 'stage').mockImplementation(() => ({
+      run: async (spec) => {
+        injectedStages.push(spec.model);
+        return stage.run(spec);
+      },
+    }));
+    vi.spyOn(io, 'runner').mockImplementation(() => ({
+      headless: async (spec) => {
+        injectedJudges.push(spec.model);
+        return runner.headless(spec);
+      },
+    }));
+    await writeFile(
+      path.join(project, 'manifest.json'),
+      JSON.stringify({
+        version: 1,
+        default: 'openai/base',
+        roles: {
+          planner: 'openai/planner',
+          judge: 'openai/judge',
+          'plan-review.planner': 'openai/plan-helper#high',
+          'plan-review.judge': 'openai/judge-helper#low',
+        },
+      }),
+    );
+    await writeFile(path.join(home, 'manifest.json'), '{invalid-home');
     const id = await start(
       [
         { events: [editOn()], files: { [PLAN_FILE]: GOOD }, text: 'записал' },
@@ -320,6 +350,10 @@ describe('plan-review: сквозной прогон на fake-opencode', { time
     expect(sessions.size).toBe(1);
     expect([...sessions][0]).toMatch(/^ses_/);
     expect((await judgeArgs()).length).toBeGreaterThan(0);
+    expect(planners.every((r) => r['model'] === 'openai/plan-helper#high')).toBe(true);
+    expect((await judgeArgs()).every((r) => r['model'] === 'openai/judge-helper#low')).toBe(true);
+    expect(new Set(injectedStages)).toEqual(new Set(['openai/plan-helper#high']));
+    expect(new Set(injectedJudges)).toEqual(new Set(['openai/judge-helper#low']));
     expect(pages).toEqual([{ root: project, file: PLAN_FILE, stopped: true }]);
     expect(out.join('\n')).toContain('finished');
     expect(out.join('\n')).toContain('страница плана: http://127.0.0.1:1/');
@@ -453,6 +487,10 @@ describe('plan-review: сквозной прогон на fake-opencode', { time
   });
 
   it('пауза и возобновление: open продолжает с той же сессией opencode', async () => {
+    await writeFile(
+      path.join(project, 'manifest.json'),
+      JSON.stringify({ version: 1, default: 'openai/before', roles: {} }),
+    );
     const id = await start(
       [{ events: [editOn()], files: { [PLAN_FILE]: GOOD }, text: 'записал' }],
       [],
@@ -463,9 +501,15 @@ describe('plan-review: сквозной прогон на fake-opencode', { time
     await hook('end', { reason: 'interrupt' });
     expect((await openSession(home, id)).data.state).toBe('awaiting_input');
     const before = await plannerArgs();
+    await writeFile(
+      path.join(project, 'manifest.json'),
+      JSON.stringify({ version: 1, default: 'openai/after', roles: {} }),
+    );
     await open(id, [{ text: 'дополнил' }], ['добавь ещё']);
     const after = await plannerArgs();
     expect(after.length).toBeGreaterThan(before.length);
+    expect(before.every((r) => r['model'] === 'openai/before')).toBe(true);
+    expect(after.slice(before.length).every((r) => r['model'] === 'openai/after')).toBe(true);
     expect(new Set(after.map((r) => r['session']))).toEqual(
       new Set(before.map((r) => r['session'])),
     );
