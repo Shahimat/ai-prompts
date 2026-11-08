@@ -20,16 +20,27 @@ npm i -D @shahimat/ai-core @shahimat/oc3
 ```
 
 Плагин активируется только при `sync.contract.edition: operator-centric` в
-`context/project.yml`; проект без маркера не затрагивается.
+`.oc3/project.yml`; проект без маркера не затрагивается.
 
 ## Плагин
 
-- **docs guard** — `edit`/`write` в `docs/`, `context/`, `CHANGELOG.md` разрешены
-  только агенту `librarian`;
+- **docs guard** — правки sealed canonical в плоской `.oc3/` и корневого
+  `CHANGELOG.md` разрешены только агенту `librarian`;
+- **memory seal** — non-librarian роли читают `.oc3/` по whitelist,
+  полные факты доступны через `bundles/`, не через sealed canonical;
 - **memory guard** — запись в memory-пути вне репозитория отклоняется;
 - **гейт прогонов** — запуск judge при двух run'ах в `goals/*.expect.json` без
   `retry: true` (и при трёх с ним) отклоняется с указанием файла;
 - **tools `oc3_*`** — цели, модели и проверки как инструменты агента.
+
+## Память сессии
+
+Native context использует общий core `ensureMemory` перед инъекцией,
+в том числе для seen sessions: проверяет полный file-set, восстанавливает
+missing/stale и заменяет изменившийся start. Ошибка validation/budget/lease
+не считается успешной загрузкой. Canonical seal не расширяется:
+агент идёт по реальным проекциям и страницам внутри `.oc3/bundles/`.
+Формат и границы — [бандлы памяти](../../design/memory-bundles.md).
 
 ## Границы сессии
 

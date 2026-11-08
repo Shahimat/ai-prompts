@@ -149,6 +149,21 @@ describe('checkOc3Tree', () => {
     expect(out[0]).toContain('bundles/ — сгенерированная память');
   });
 
+  it('generated projection/pages have narrow paths, invalid hashes and suffixes remain rejected', async () => {
+    for (const name of ['index.md', 'page-000001.md', 'part-000001.md'])
+      await put(`.oc3/bundles/files/${'a'.repeat(64)}/${name}`, '# projection\n');
+    await put('.oc3/bundles/abcdef012345/page-000001.md', '# page\n');
+    expect(await files()).toEqual([]);
+    for (const rel of [
+      'files/abc/index.md',
+      `files/${'a'.repeat(64)}/part-1.md`,
+      'abcdef012345/part-000001.md',
+      'random.md',
+    ])
+      await put(`.oc3/bundles/${rel}`, '# invalid\n');
+    expect((await files()).length).toBe(4);
+  });
+
   it('нет .oc3 — только предупреждение, без диагностик', async () => {
     const report = await checkOc3Tree(root);
     expect(report.diagnostics).toEqual([]);

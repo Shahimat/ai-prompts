@@ -40,6 +40,12 @@ provides:
 Skill `domain` — правила слоя: форматы entity и behavior, верификация,
 namespace, проверки. Берётся из индекса источника.
 
+Канонические YAML-файлы читает и меняет librarian; остальные агенты
+получают полные проекции через `.oc3/bundles/index.md` и ссылки узла
+namespace, включая продолжения. Действующая JSON Schema определяет
+вложенность предметных данных; BDD, `false`, `null` и пустые значения
+сохраняются в проекциях, а не отбрасываются ради бюджета.
+
 Блок `AGENTS.md`:
 
 <!-- expect:agents-md-readonly -->
@@ -47,8 +53,8 @@ namespace, проверки. Берётся из индекса источник
 <!-- module:domain -->
 ## domain
 
-- как устроено X → `.oc3/data/entities/<id>.yml`, затем код;
-- как X должно себя вести → `.oc3/data/behavior/<id>.yml`;
+- как устроено X → `.oc3/bundles/index.md` → проекция `data/entities/<id>.yml`, затем код;
+- как X должно себя вести → проекция `data/behavior/<id>.yml` в том же графе;
 - правила слоя и `verified` → skill `domain`.
 <!-- /module:domain -->
 ```

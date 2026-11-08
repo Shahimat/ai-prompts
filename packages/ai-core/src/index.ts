@@ -89,12 +89,14 @@ export {
 } from './commands/tree/index.ts';
 export {
   buildBundles,
+  ensureMemory,
   bundleNodes,
   checkBundles,
   startIndexText,
   writeGraph,
   type MemoryGraph,
 } from './lib/memory-graph.ts';
+export { memoryInstalled } from '#lib/memory';
 export { COMMAND_NODES } from './registry.ts';
 export {
   checkDelta,

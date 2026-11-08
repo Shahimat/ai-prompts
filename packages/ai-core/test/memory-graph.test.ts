@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { runMemory } from '#commands/memory/index';
+import { createHash } from 'node:crypto';
 import { buildBundles, checkBundles, writeGraph } from '#lib/memory-graph';
 
 let root: string;
@@ -117,6 +118,7 @@ async function fixture(options: FixtureOptions = {}): Promise<void> {
   await put('.oc3/data/__schemas/manifest.schema.json', MANIFEST_SCHEMA);
   await put('.oc3/data/__schemas/conventions.schema.json', CONVENTIONS_SCHEMA);
   await put('.oc3/data/__schemas/entities.schema.json', ENTITIES_SCHEMA);
+  await put('.oc3/data/__schemas/glossary.schema.json', JSON.stringify({ type: 'array' }));
   await put(
     '.oc3/project.yml',
     'name: demo\nsummary: Демо-проект памяти\nroles:\n  models:\n    executor: zai/demo#max\nstack: [typescript, node]\n',
@@ -170,7 +172,8 @@ describe('renderGraph', () => {
     await writeGraph(root, graphData);
     const start = await readFile(path.join(root, '.oc3', 'bundles', 'index.md'), 'utf8');
     expect(start).toContain('## project.yml');
-    expect(start).toContain('roles.models.executor — zai/demo#max');
+    expect(start).toContain('«executor»');
+    expect(start).toContain('«zai/demo#max»');
     expect(start).toContain('- [code:1](');
     expect(start).toMatch(/- \[code:1\]\([0-9a-f]{12}\/index\.md\)$/m);
     expect(start).toContain('- [code:2](');
@@ -207,13 +210,13 @@ describe('renderGraph', () => {
     expect(text).toContain(`SHA: ${code1.sha}`);
     expect(text).toContain('Кольцо: 1');
     expect(text).toContain(
-      '- [conventions/code.yml](../conventions/code.yml) — 1 записей, первая: no-any',
+      `- [conventions/code.yml](../files/${createHash('sha256').update('conventions/code.yml').digest('hex')}/index.md) — 1 записей, первая: no-any`,
     );
     expect(text).toContain(
-      '- [manuals/how.md](../manuals/how.md) — инструкция: Как собрать проект',
+      `- [manuals/how.md](../files/${createHash('sha256').update('manuals/how.md').digest('hex')}/index.md) — инструкция: Как собрать проект`,
     );
     const code2 = graph.nodes.find((n) => n.key === 'code:2');
-    expect(text).toContain(`- [code:2](${code2?.dir}/index.md)`);
+    expect(text).toContain(`- [code:2](../${code2?.dir}/index.md)`);
     expect(text).not.toContain('docs:1');
     expect(code1.dir).toHaveLength(12);
   });
@@ -268,10 +271,10 @@ describe('writeGraph', () => {
 });
 
 describe('checkBundles', () => {
-  it('без бандлов диагностик о отсутствии нет, свежие бандлы проходят', async () => {
+  it('без бандлов есть диагностика отсутствия, свежие бандлы проходят', async () => {
     await fixture();
     const before = await checkBundles(root);
-    expect(before.diagnostics).toEqual([]);
+    expect(before.diagnostics.length).toBeGreaterThan(0);
     const report = await buildBundles(root);
     const graph = report.graph;
     if (graph === null) throw new Error('нет графа');
@@ -338,13 +341,15 @@ describe('renderGraph renders', () => {
     expect(start).not.toMatch(/^- key: /m);
     const code1 = graph.nodes.find((n) => n.key === 'code:1');
     expect(code1?.text).toContain(
-      '- [conventions/code.yml](../conventions/code.yml) — 1 записей, первая: no-any',
+      `- [conventions/code.yml](../files/${createHash('sha256').update('conventions/code.yml').digest('hex')}/index.md) — 1 записей, первая: no-any`,
     );
-    expect(code1?.text).toContain('- [manuals/how.md](../manuals/how.md) — инструкция: ');
+    expect(code1?.text).toContain(
+      `- [manuals/how.md](../files/${createHash('sha256').update('manuals/how.md').digest('hex')}/index.md) — инструкция: `,
+    );
     expect(code1?.text).not.toContain('Запусти npm run build в корне репозитория');
     const user = graph.nodes.find((n) => n.key === 'code:2');
     expect(user?.text).toContain(
-      '- [data/entities/user.yml](../data/entities/user.yml) — user — домен code. Пользователь проекта',
+      `- [data/entities/user.yml](../files/${createHash('sha256').update('data/entities/user.yml').digest('hex')}/index.md) — user — code — Пользователь проекта`,
     );
   });
 
@@ -367,11 +372,9 @@ describe('renderGraph renders', () => {
     if (graph === null) throw new Error('нет графа');
     const node = graph.nodes.find((n) => n.key === 'code:1');
     if (node === undefined) throw new Error('нет узла code:1');
-    const line = node.text
-      .split('\n')
-      .find((l) => l.startsWith('- [data/entities/user.yml](../data/entities/user.yml)'));
+    const line = node.text.split('\n').find((l) => l.startsWith('- [data/entities/user.yml]('));
     if (line === undefined) throw new Error('нет строки каталога для факта');
-    const note = line.slice('- [data/entities/user.yml](../data/entities/user.yml) — '.length);
+    const note = line.split(' — ').slice(1).join(' — ');
     expect(Buffer.byteLength(note, 'utf8')).toBeLessThanOrEqual(80);
     expect(note).toContain('…');
     expect(node.text).not.toContain(longSummary);

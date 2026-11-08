@@ -187,12 +187,12 @@ const ARRAY_SCHEMA = (title: string): string =>
   });
 
 describe('ai memory check', () => {
-  it('0 без бандлов при валидном манифесте; 1 при переполнении старта', async () => {
+  it('1 без бандлов при валидном манифесте; 1 при переполнении старта', async () => {
     await put('.oc3/data/__schemas/manifest.schema.json', MANIFEST_SCHEMA);
     await put('.oc3/data/__schemas/conventions.schema.json', ARRAY_SCHEMA('конвенции'));
     await put('.oc3/data/__schemas/glossary.schema.json', ARRAY_SCHEMA('глоссарий'));
     await put('.oc3/manifest.json', JSON.stringify({ namespace: [], data: [] }));
-    expect(await main(['memory', 'check', '--root', root], NOW)).toBe(0);
+    expect(await main(['memory', 'check', '--root', root], NOW)).toBe(1);
     await put(
       '.oc3/manifest.json',
       JSON.stringify({ namespace: [], data: [], budgets: { start: 5 } }),
@@ -220,7 +220,7 @@ describe('ai memory build', () => {
     );
     expect(await main(['memory', 'build', '--root', root], NOW)).toBe(0);
     expect(existsSync(path.join(root, '.oc3/bundles/index.md'))).toBe(true);
-    expect(stderr.join('\n')).toMatch(/wrote 2 бандлов/);
+    expect(stderr.join('\n')).toMatch(/wrote 4 файлов памяти/);
     const before = await readdir(path.join(root, '.oc3', 'bundles'));
     expect(await main(['memory', 'build', '--root', root], NOW)).toBe(0);
     expect(await readdir(path.join(root, '.oc3', 'bundles'))).toEqual(before);

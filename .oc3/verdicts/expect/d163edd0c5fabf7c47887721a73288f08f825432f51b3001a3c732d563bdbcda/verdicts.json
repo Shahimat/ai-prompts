@@ -180,13 +180,13 @@
     "63aaccc6f834": {
       "question": "[harness] layers > skill запускает только то, что объявлено в metadata.runs; остальные команды harness лишь упоминает",
       "evidence": {
-        "@skill-runs": "0797e56ae2729bb3a3ba45e94abb7b9d0316b25f242b61b20747ab9180c26f2e"
+        "@skill-runs": "b0ce7f527f2b3ac3f7c8f1442484d6ae7d831da658592f1b04f97fc6b84a95b2"
       },
       "verdict": true,
-      "quote": "Остальное — справка: что делает команда и кто её запускает.",
+      "quote": "Сам skill запускает одно: `ai refresh` в конце каждой задачи и\nпосле записи librarian — пересобрать производные файлы и проверить\nпроект. Остальное — справка: что делает команда и кто её запускает.",
       "ref": "@skill-runs",
-      "reason": "Размеченные блоки отделяют metadata.runs от справочных команд; CLI и workflow прямо исключают дополнительные неявные запуски моделей и verification.",
-      "at": "2026-11-07"
+      "reason": "Текущий common helper независимо перепроверен: cli запускает объявленный refresh; memory build/check описаны как шаги скриптов, остальные команды как справка или отдельные явные действия owner. Domain запускает объявленный check. Остальные представленные области skill-runs не добавляют автоматических запусков вне metadata.runs.",
+      "at": "2026-11-08"
     },
     "694f0f4b5141": {
       "question": "[harness] expect > в кэше вердиктов только вердикты живых ожиданий",
@@ -568,13 +568,13 @@
     "f586544d451f": {
       "question": "документация проекта > шаблон AGENTS.md и блоки модулей не содержат указаний основной сессии самой править документацию — только ссылки на skills и harness; guardrail о достоверности знания допустим",
       "evidence": {
-        "@agents-md-readonly": "a478b31ff9be1f8e901b9c06b28760ee50c2ba327cd6ea993acf3dacacfcf49b"
+        "@agents-md-readonly": "04c5b1c4fb7c81e2e1e6410b685cd9bb0bb6bd82bd8d1d2896f006c70ac26848"
       },
       "verdict": true,
-      "quote": "Документацию пишет только librarian по `docs_request`: оператор, executor и judge её читают; генерируемое меняет `ai`.",
+      "quote": "4. Документацию пишет только librarian по `docs_request`: оператор, executor и judge её читают; генерируемое меняет `ai`.",
       "ref": "@agents-md-readonly",
-      "reason": "Шаблон явно запрещает основной сессии запись документации; все приведённые блоки модулей содержат маршруты, ссылки на skills/harness и допустимые guardrails, но не указания основной сессии самой править документацию.",
-      "at": "2026-11-07"
+      "reason": "Текущий common helper независимо перепроверен целиком: шаблон отделяет чтение от записи librarian и генерации ai; блоки модулей задают маршруты, skills, harness и guardrails. Domain направляет к проекциям и skill domain, не предписывает основной сессии править документацию.",
+      "at": "2026-11-08"
     },
     "f7310dcbc6e4": {
       "question": "plan-review › переход clarify_form —answered→ > после ответа планер записывает ожидания выбранным блоком",
@@ -641,10 +641,10 @@
       "at": "2026-11-07"
     },
     "expectations/harness.expect.ts": {
-      "titles": "36d03fbbef75d1b69cb4ec62e686dd7cd9dd861fb6b380c068c90c94cc89b9b8",
+      "titles": "0c45f211d81819e08a8bda50c12e55fc7b3f41a796d8835a1b9d02e9e5a96663",
       "contradictions": [],
       "unmeasurable": [],
-      "at": "2026-11-07"
+      "at": "2026-11-08"
     },
     "expectations/presets.expect.ts": {
       "titles": "60e4e504f1956b4140c1e3edeaef0f27644cbb4b1c401604b18620429515cf82",

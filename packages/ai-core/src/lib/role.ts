@@ -3,11 +3,11 @@ import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { UsageError } from '#shared/diagnostics';
-import { errorCode, isRecord } from '#shared/guards';
-import { BUNDLES_DIR } from '#shared/layout';
+import { isRecord } from '#shared/guards';
 import { compileSchema, issueText } from '#shared/schema';
 import { parseAgent, type AgentDef } from './agent.ts';
-import { bundleNodes, startIndexText, START_INDEX } from './memory-graph.ts';
+import { ensureMemory } from '#lib/memory-graph';
+import { memoryInstalled } from '#lib/memory';
 import {
   openCodeStepOf,
   spawnOpenCode,
@@ -24,19 +24,17 @@ import { acceptTaskVerdict, launchPreflight, type LaunchContext } from './task-g
 
 const MEMORY_MARKER = /память:\s*([0-9a-f]{12})/g;
 
-const nodeText = async (root: string, dir: string): Promise<string | null> => {
-  try {
-    return await readFile(path.join(root, BUNDLES_DIR, dir, START_INDEX), 'utf8');
-  } catch (error) {
-    if (errorCode(error) === 'ENOENT') return null;
-    throw error;
-  }
-};
-
 export const memoryPromptOf = async (root: string, task: string): Promise<string> => {
-  const start = await startIndexText(root);
+  const installed = memoryInstalled(root);
+  const report = installed ? await ensureMemory(root) : null;
+  if (report !== null && (report.diagnostics.length > 0 || report.graph === null))
+    throw new UsageError(
+      `память не готова: ${report.diagnostics.map((d) => `${d.file}: ${d.message}`).join('; ')}`,
+    );
+  const graph = report?.graph;
+  const start = graph?.start;
   const requested = [...new Set([...task.matchAll(MEMORY_MARKER)].map((m) => m[1] ?? ''))];
-  const nodes = await bundleNodes(root);
+  const nodes = graph?.nodes.map((n) => n.dir) ?? [];
   const known = new Set(nodes);
   const unknown = requested.filter((sha) => !known.has(sha));
   if (unknown.length > 0)
@@ -48,12 +46,12 @@ export const memoryPromptOf = async (root: string, task: string): Promise<string
   const parts: string[] = [];
   const pending = await pendingViewOf(root);
   if (pending !== '') parts.push(pending);
-  if (start !== null)
+  if (start !== undefined)
     parts.push(`Оперативная память проекта (стартовый граф):\n\n${start.trimEnd()}`);
-  const loaded = await Promise.all(requested.map((sha) => nodeText(root, sha)));
+  const loaded = requested.map((sha) => graph?.nodes.find((n) => n.dir === sha)?.text);
   for (const [i, text] of loaded.entries()) {
     const sha = requested[i];
-    if (sha === undefined || text === null) continue;
+    if (sha === undefined || text === undefined) continue;
     parts.push(`Узел памяти ${sha}:\n\n${text.trimEnd()}`);
   }
   return parts.length === 0 ? '' : `\n\n${parts.join('\n\n')}`;
@@ -235,8 +233,8 @@ export async function runRole(run: RoleRun): Promise<RoleOutcome> {
       steps++;
       progress(`роль ${run.role.name}: шаг ${steps} — ${step}`);
     };
-  progress?.(`роль ${run.role.name}: запущена (${model})`);
   const memory = await memoryPromptOf(run.root, run.task);
+  progress?.(`роль ${run.role.name}: запущена (${model})`);
   const result = await spawnOpenCode(
     {
       cwd: run.root,

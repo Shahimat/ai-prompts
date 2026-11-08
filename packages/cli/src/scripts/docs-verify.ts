@@ -6,6 +6,7 @@ export const DOCS_VERIFY: ScriptDef = {
   steps: [
     { command: ['adapters', 'sync'], enabledBy: 'adapters' },
     { command: ['delta', 'check'] },
+    { command: ['memory', 'build'] },
     ...CHECK.steps,
   ],
 };

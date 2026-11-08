@@ -2,6 +2,35 @@
 
 Свежее сверху. Одна версия — список новых команд и проверок.
 
+## 0.1.9
+
+- Плоская `.oc3/`: runtime читает `.oc3/project.yml`, `data/`,
+  `manuals/` и `conventions/` непосредственно под `.oc3/`, без `doc/`.
+  `tree check` проверяет дерево по JSON Schema и расширениям манифеста;
+  `context check` сверяет слои без упразднённого `index.yml`.
+- Память: узлы стали каталогами ссылок с краткими описаниями;
+  стартовый веер — только ссылки. Проверяются веса колец 0–9 и пустая
+  оперативная память; добавлен бюджет summary, дефолтный стартовый бюджет — 24 КиБ.
+- Полные schema-valid факты доступны через реальные `files/<sha256>/index.md`
+  и bounded parts/pages; typed recursive prose сохраняет вложенность,
+  Unicode, multiline, false/null и пустые значения. Weight 0 остаётся
+  compact inline; logical node indexes — только каталоги. Схемы, веса,
+  namespace, действующие бюджеты и seal ради materialization не меняются.
+- Freshness проверяет весь expected file-set: missing/tamper/stale и
+  неполные страницы дают отказ. Build идемпотентен, prune сохраняет pending;
+  общий ensure перед role/native injection валидирует и восстанавливает
+  память с записью под lease, без обещания atomic rename транзакции.
+- Проектный `manifest.json` моделей: единый resolver для ролей и helper
+  paths, `models list/set/apply/check`; применение без AI и без правки
+  канона ролей. Без manifest сохраняется legacy `roles.models`.
+- Durable knowledge inbox: enqueue, bounded pending и frozen batches;
+  receipt не означает запись в канон. Exact-snapshot гейты связывают
+  verify/review/close, accepted-cache и разрешение выбранных записей.
+- Общий typed resolver execution artifacts ограничивает project outputs
+  каталогом `.oc3/`; миграция сохраняет historical bytes/hashes и
+  проверяемые legacy locators. `operator preflight/verify/ready` проверяют
+  task packet и свежесть evidence; durable runtime не означает commit.
+
 ## 0.1.8
 
 - Память-граф: `ai memory build` собирает `.oc3/bundles/` — стартовый

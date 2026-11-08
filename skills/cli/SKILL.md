@@ -62,12 +62,17 @@ npx ai <автомат> start | open <id> | …
 после записи librarian — пересобрать производные файлы и проверить
 проект. Остальное — справка: что делает команда и кто её запускает.
 
-- `ai refresh` — `adapters sync` (если включён в `checks`), затем шаги
-  `ai check`.
-- `ai check` — проверки из `checks` в `.oc3/ai-core.yml` плюс `tree check`:
-  `changelog lint`, `tree check`, `context check`, `adapters check`,
-  `secrets scan`. `tree check` — валидация плоского дерева `.oc3/` по
-  JSON Schema: ядро контракта + расширения из `manifest.json`.
+- `ai refresh` — `adapters sync` (если включён в `checks`), затем
+  `memory build` и шаги `ai check`.
+- `ai check` — проверки из `checks` в `.oc3/ai-core.yml` плюс обязательные
+  `tree check` и `memory check`: `changelog lint`, `tree check`,
+  `memory check`, `context check`, `adapters check`, `secrets scan`.
+  `tree check` валидирует плоское дерево `.oc3/` по JSON Schema ядра и
+  расширениям `manifest.json`. `check` не пересобирает память: отсутствие,
+  порча или устаревание обязательного бандла — отказ, а не зелёная проверка.
+  Установленная память проверяется без отдельного ключа `checks.memory`;
+  если компонент памяти не установлен, только его build/check явно
+  пропускаются. Knowledge inbox от этого skip не зависит.
 - `ai secrets scan` — секреты (ключи API, токены, пароли,
   приватные ключи) в отслеживаемых файлах; в `ai check` включена
   по умолчанию. `--file <path>` — один файл, в том числе вне проекта:
@@ -77,7 +82,14 @@ npx ai <автомат> start | open <id> | …
   `max_line`, три части через ` · `, тег из списка, дата, порядок.
 - `ai memory build` — пересобрать бандлы `.oc3/bundles/` из слоёв,
   включая слои модулей из `provides.index_layers` их manifest'ов; шаг
-  `ai refresh`.
+  `ai refresh`. Каталоги ссылаются на полные человекочитаемые проекции
+  внутри `bundles/`, а не на запечатанный канон. Большие каталоги и
+  проекции имеют страницы-продолжения в тех же байтовых бюджетах;
+  namespace, веса и исходные данные генератор не меняет.
+- `ai memory check` — проверить исходные схемы, полный набор проекций,
+  страниц и ссылок, актуальность и бюджеты; обязательный шаг `ai check`.
+  Данные сохраняются по действующей JSON Schema, включая вложенные BDD,
+  `false`, `null` и пустые значения. Успех не подменяется усечением фактов.
 - `ai adapters sync` — пересобрать файлы под инструменты
   (`.opencode/`, `.codex/`) из `AGENTS.md` и `.agents/` и выключить
   memory агента: `.opencode/opencode.jsonc` с deny memory-MCP,

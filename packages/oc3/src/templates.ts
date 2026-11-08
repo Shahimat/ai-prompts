@@ -114,8 +114,8 @@ export const GITATTR_LINES = ['* text=auto eol=lf', 'CHANGELOG.md merge=union'];
 export const DEFAULT_INDEX_SOURCE =
   'https://raw.githubusercontent.com/Shahimat/ai-prompts/main/prompts/index.yml';
 
-export const AI_CORE_FALLBACK_PIN = '0.1.8';
-export const OC3_FALLBACK_PIN = '0.1.6';
+export const AI_CORE_FALLBACK_PIN = '0.1.9';
+export const OC3_FALLBACK_PIN = '0.1.7';
 
 export const newPackageJson = (name: string, aiCore: string, oc3: string): string =>
   `${JSON.stringify(

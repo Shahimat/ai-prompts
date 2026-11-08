@@ -3,7 +3,8 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { appendBriefing, briefingLine, memoryStart, type BriefingSystem } from '#session-brief';
-import { enqueueKnowledge } from '@shahimat/ai-core';
+import { buildBundles, checkBundles, enqueueKnowledge } from '@shahimat/ai-core';
+import { memorySeal } from '#guards';
 
 let root: string;
 
@@ -185,6 +186,38 @@ describe('appendBriefing', () => {
 });
 
 describe('memoryStart — вшивание стартового графа', () => {
+  it('payload stays reachable under the unchanged seal; invalid memory is not injected or success-seen', async () => {
+    await memoryFixture({
+      namespace: ['docs'],
+      data: [],
+      files: { 'manuals/how.md': { namespace: ['docs'], weight: 1 } },
+    });
+    await put('.oc3/manuals/how.md', '# Fixed summary\n\nfull payload\n');
+    const seen = new Set<string>();
+    await appendBriefing({ system: [] }, root, seen, 'ok');
+    const build = await buildBundles(root);
+    if (build.graph === null) throw new Error('нет graph');
+    for (const rel of build.graph.files.keys())
+      for (const role of ['executor', 'judge', 'researcher'])
+        expect(memorySeal(role, [`.oc3/bundles/${rel}`], root)).toBeUndefined();
+    expect(memorySeal('executor', ['.oc3/manuals/how.md'], root)).toContain('memory seal');
+    const payload = [...build.graph.files.keys()].find((p) => /part-/.test(p));
+    if (payload === undefined) throw new Error('нет payload');
+    await rm(path.join(root, '.oc3/bundles', payload));
+    expect((await memoryStart(root)).diagnostics).toEqual([]);
+    await put('.oc3/manuals/how.md', '# Fixed summary\n\nchanged tail\n');
+    const refreshed: BriefingSystem = { system: [] };
+    await appendBriefing(refreshed, root, seen, 'ok');
+    expect(refreshed.system.filter((p) => p.text.includes('# Память проекта'))).toHaveLength(1);
+    expect((await checkBundles(root)).diagnostics).toEqual([]);
+    await put('.oc3/conventions/bad.yml', 'bad: not an array\n');
+    const input: BriefingSystem = { system: [] };
+    await expect(appendBriefing(input, root, seen, 'bad')).rejects.toThrow('oc3 memory');
+    expect(seen.has('bad')).toBe(false);
+    expect(input.system.some((p) => p.text.includes('# Память проекта'))).toBe(false);
+    await expect(appendBriefing({ system: [] }, root, seen, 'ok')).rejects.toThrow('oc3 memory');
+    expect(seen.has('ok')).toBe(false);
+  });
   it('свежие бандлы: стартовый index попадает в системный промпт один раз на сессию', async () => {
     await memoryFixture({ namespace: [], data: [] });
     const first = await memoryStart(root);
@@ -212,11 +245,11 @@ describe('memoryStart — вшивание стартового графа', () 
     expect(cold.diagnostics).toEqual([]);
     expect(cold.text).toContain('# Память проекта');
     const dirs = await readdir(path.join(root, '.oc3', 'bundles'));
-    expect(dirs).toHaveLength(3);
+    expect(dirs).toHaveLength(4);
     expect(await readFile(path.join(root, '.oc3/bundles/pending/index.md'), 'utf8')).toContain(
       'items=0',
     );
-    const dirsNoIndex = dirs.filter((d) => d !== 'index.md' && d !== 'pending');
+    const dirsNoIndex = dirs.filter((d) => /^[0-9a-f]{12}$/.test(d));
     expect(dirsNoIndex).toHaveLength(1);
     const nodeDir = path.join(root, '.oc3', 'bundles', dirsNoIndex[0] ?? '');
     expect(await readFile(path.join(nodeDir, 'index.md'), 'utf8')).toContain('manuals/how.md');

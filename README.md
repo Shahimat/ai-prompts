@@ -58,6 +58,15 @@ knowledge, goals и inbox не скрываются blanket-ignore. Ignore не 
 Раскладка, entry isolation и `oc3 migrate` с read-only historical aliases —
 в [описании реализации](design/knowledge-inbox.md#раскладка-execution-artifacts).
 
+## Память контракта
+
+Агент читает старт `.oc3/bundles/index.md`, затем каталоги logical nodes
+и полные проекции внутри `bundles/files/`, не sealed canonical.
+Вложенность и значения сохраняются по действующим схемам; большие
+каталоги и факты разбиваются на страницы без повышения бюджетов.
+`ai check` проверяет установленную память, `ai refresh` сначала строит её.
+Формат, маршруты и ограничения — [бандлы памяти](design/memory-bundles.md).
+
 ## Структура
 
 ```

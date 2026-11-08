@@ -1,4 +1,5 @@
 import { readdir, readFile, stat } from 'node:fs/promises';
+import { existsSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import type { Diagnostic } from '#shared/diagnostics';
 import { errorMessage, errorCode, isRecord } from '#shared/guards';
@@ -10,9 +11,25 @@ import {
   OC3_DIR,
   OC3_MANIFEST,
   SCHEMAS_DIR,
+  BUNDLES_DIR,
 } from '#shared/layout';
 import { compileSchema, issueText, type Validate } from '#shared/schema';
 import { parse } from 'yaml';
+
+export const memoryInstalled = (root: string): boolean => {
+  if (
+    [OC3_MANIFEST, `${SCHEMAS_DIR}/manifest.schema.json`].some((rel) =>
+      existsSync(path.join(root, rel)),
+    )
+  )
+    return true;
+  try {
+    return readdirSync(path.join(root, BUNDLES_DIR)).some((name) => name !== 'pending');
+  } catch (error) {
+    if (errorCode(error) === 'ENOENT') return false;
+    throw error;
+  }
+};
 
 export interface MemoryBudgets {
   notes: number;

@@ -35,7 +35,7 @@ Node ≥ 24. macOS, Linux, Windows.
 
 ## Команды
 
-Mutation — `context index`, `adapters sync`, `delta close`,
+Mutation — `memory build`, `adapters sync`, `delta close`,
 `expect init`, `expect judge`, `expect report --html`, `index build`,
 `role run`, `role channel`; остальные — query.
 
@@ -52,6 +52,13 @@ Mutation — `context index`, `adapters sync`, `delta close`,
 - `ai tree check` — валидация плоского дерева `.oc3/` по JSON Schema
   (draft 2020-12): ядро контракта плюс расширения из `manifest.json`
   (`data`, `files`, `layout`); каждая ошибка — поручение librarian.
+- `ai memory build | check` — сборка и проверка полного generated file-set
+  в `.oc3/bundles/`: compact inline weight 0, каталоги, реальные file
+  projections и bounded pages/parts. Schema-valid вложенность, типы,
+  Unicode и пустые значения сохраняются; schema validation и seal не
+  ослабляются. Check отвергает missing/tamper/stale, не пересобирая память.
+  Формат, freshness и ограничения —
+  [бандлы памяти](../../design/memory-bundles.md).
 - `ai adapters sync` — файлы под Codex и OpenCode из `AGENTS.md` и
   `.agents/`: субагенты `.opencode/agents/*.md` (при `codex` —
   `.codex/agents/*.toml`) и выключенная memory агента
@@ -90,7 +97,7 @@ Mutation — `context index`, `adapters sync`, `delta close`,
   `serve <file> [--port <n>]` — с локального сервера (см. «План в форме
   ожиданий»).
 - `ai delta check | close` — дельта проектной документации в
-  `context/.delta/*.yml` (пункты `add` / `refine` / `revise`). `check`
+  `.oc3/.delta/*.yml` (пункты `add` / `refine` / `revise`). `check`
   сверяет слои документации с `HEAD`: удалённое или изменённое знание
   без пункта `revise` — нарушение; дельта не прошла схему — её ошибка
   первой, производные нарушения по её целям свёрнуты. `close` после
@@ -113,7 +120,7 @@ Mutation — `context index`, `adapters sync`, `delta close`,
   между ними (код 1 — есть новее).
 - Guards контракта — плагин `@shahimat/oc3` (подключается в
   `opencode.jsonc`): `permission.hook` отклоняет правку документации
-  (`CHANGELOG.md`, `context/`, `docs/`) и генерируемых файлов
+  (корневой `CHANGELOG.md`, sealed canonical в `.oc3/`) и генерируемых файлов
   (`.opencode/agents/` с меткой «generated») любым
   агентом кроме librarian — с подсказкой править источник и про
   `ai docs-delta`; запись в память инструмента вне репозитория —
@@ -198,6 +205,12 @@ planReview.whole(() => {
 
 ## Роли
 
+Перед запуском роли общий `ensureMemory` валидирует и при необходимости
+пересобирает память, затем проверяет её полный file-set. Инъекция не
+использует отсутствующий или устаревший payload; memory markers обозначают
+только logical nodes, не каталоги файловых проекций. Запись защищена lease,
+но не объявляется atomic rename транзакцией.
+
 Роль — субагент из `agents/<name>.md` источника (в проекте —
 `.agents/agents/`): промпт, `tools`, `model` (дефолт —
 `zai-coding-plan/glm-5.3#max`, у judge — `zai-coding-plan/glm-5.3-flash#low`;
@@ -234,7 +247,7 @@ headless-исполнителем в harness.
 Коды выхода: `0` — ok, `1` — нарушения, `2` — ошибка вызова или
 конфигурации.
 
-## `context/ai-core.yml`
+## `.oc3/ai-core.yml`
 
 ```yaml
 adapters: [codex, opencode]

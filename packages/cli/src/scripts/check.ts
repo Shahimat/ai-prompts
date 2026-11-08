@@ -5,6 +5,7 @@ export const CHECK: ScriptDef = {
   steps: [
     { command: ['changelog', 'lint'], enabledBy: 'changelog' },
     { command: ['tree', 'check'] },
+    { command: ['memory', 'check'] },
     { command: ['context', 'check'], enabledBy: 'context' },
     { command: ['adapters', 'check'], enabledBy: 'adapters' },
     { command: ['secrets', 'scan'], enabledBy: 'secrets' },

@@ -1,6 +1,6 @@
 {
   "name": "@shahimat/ai-core",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "Команды для проектов на контрактах ai-prompts: генераторы, проверки, механизм ожиданий и роли",
   "license": "MIT",
   "author": "Gevorg Nakhapetyan",
@@ -63,7 +63,7 @@
     "yaml": "^2.9.1"
   },
   "devDependencies": {
-    "@shahimat/cli": "0.1.5",
+    "@shahimat/cli": "0.1.6",
     "@types/node": "^24.19.2",
     "vitest": "^5.0.4"
   },

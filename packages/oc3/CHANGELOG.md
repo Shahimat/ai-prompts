@@ -1,5 +1,30 @@
 # CHANGELOG
 
+## 0.1.7
+
+- Миграция плоской `.oc3/`: runtime и guards используют
+  `.oc3/project.yml`, `.oc3/data/`, `.oc3/manuals/` и
+  `.oc3/conventions/` вместо `.oc3/doc/*`. Это изменение раскладки,
+  не новый major контракта: контракт остаётся v3.
+- `oc3 migrate` поддерживает прежнюю `.oc3/doc/` и более старые
+  `context/`, `docs/`, `goals/`, `.ops/`; удаляет упразднённый
+  `index.yml`, обновляет пути и ключ проверки `context-index` → `context`.
+  Коллизии переноса не перетираются, а попадают в legacy-отчёт.
+- `init` и миграция создают скелет манифеста памяти и NOTES без
+  перезаписи существующих пользовательских данных; seal и стартовая
+  память сессии согласованы с плоскими путями и pending-проекцией.
+- Tools моделей поддерживают проектный `manifest.json` и `models check`;
+  без manifest остаётся legacy-режим. Knowledge tools и `submit_result`
+  принимают knowledge delta через общий inbox, без прямой записи в канон.
+- Execution artifacts, включая plan-review bridge и результаты ролей,
+  размещаются через общий resolver в `.oc3/`; миграция сохраняет
+  историческое evidence, не превращая старый PASS в актуальный.
+- Пины установщика: `@shahimat/ai-core` 0.1.9, `@shahimat/oc3` 0.1.7.
+- Native context использует общий validated memory ensure полного file-set
+  и для seen sessions: обновляет изменившийся start, восстанавливает
+  missing/stale projections/pages. Failed injection не отмечается как
+  success-seen; memory seal, namespace, weights и budgets сохраняются.
+
 ## 0.1.6
 
 - Память-сезл: чтение под `.oc3/` — deny по умолчанию; librarian —

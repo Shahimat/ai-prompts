@@ -70,7 +70,10 @@ const coreSchema = (): object[] => [
   { pattern: '^data/behavior/[^/]+\\.yml$' },
   { pattern: '^data/__schemas/[^/]+\\.schema\\.json$' },
   { pattern: '^goals/[^/]+$' },
-  { pattern: '^bundles/(index\\.md|[0-9a-f]{12}/index\\.md|pending/index\\.md)$' },
+  {
+    pattern:
+      '^bundles/(index\\.md|[0-9a-f]{12}/(index|page-[0-9]{6})\\.md|files/[0-9a-f]{64}/(index|page-[0-9]{6}|part-[0-9]{6})\\.md|pending/index\\.md)$',
+  },
   {
     pattern:
       '^inbox/knowledge/(project\\.json|(submissions|batches|resolutions)/[a-f0-9]{64}\\.json)$',

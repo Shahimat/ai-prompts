@@ -20,12 +20,22 @@ npx ai                        # оболочка с переходом по ур
 
 ## Скрипты
 
-- `ai check` — все проверки, включённые в `context/ai-core.yml`.
-- `ai refresh` — `context index`, `adapters sync` (если включены), затем
-  шаги `check`.
+- `ai check` — проверки из `.oc3/ai-core.yml` и обязательные `tree check`,
+  `memory check`. Установленная память проверяется целиком; missing,
+  tamper или stale дают отказ, check не выполняет repair.
+- `ai refresh` — `adapters sync` (если включён), `memory build`, затем CHECK.
 
-Скрипт — только последовательность команд, без своей логики. Скрипт
-`docs verify` — шаг автомата `docs-delta`, в справке не виден.
+CHECK обозначает последовательность `ai check`. Внутренний runtime script
+DOCS_VERIFY автомата `docs-delta`: `adapters sync` (если включён) →
+`delta check` → `memory build` → CHECK. Это не новая публичная команда
+`ai docs verify` и не отдельный пользовательский entrypoint.
+
+Отдельного `checks.memory` нет. Без установленной canonical memory
+runtime явно пропускает только точные шаги `memory build`/`memory check`.
+Pending-only проект не считается установленной памятью; inbox
+`pending/enqueue/batch` этим skip не фильтруются. Частично утраченная
+установленная память должна дать отказ, а не skip.
+Формат и границы — [бандлы памяти](../../design/memory-bundles.md).
 
 ## Расширения проекта
 

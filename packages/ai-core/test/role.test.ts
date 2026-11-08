@@ -473,6 +473,8 @@ describe('роль: канал', () => {
 
 describe('роль: память', () => {
   const buildBundlesFixture = async (): Promise<void> => {
+    await put('.oc3/data/__schemas/conventions.schema.json', JSON.stringify({ type: 'array' }));
+    await put('.oc3/data/__schemas/glossary.schema.json', JSON.stringify({ type: 'array' }));
     await put(
       '.oc3/data/__schemas/manifest.schema.json',
       JSON.stringify({
@@ -553,7 +555,30 @@ describe('роль: память', () => {
       `валидные узлы: ${graph.nodes[0]?.dir}`,
     );
     await rm(path.join(root, '.oc3', 'bundles'), { recursive: true, force: true });
-    await expect(memoryPromptOf(root, 'память: 000000000000')).rejects.toThrow('ai memory build');
+    await expect(memoryPromptOf(root, 'память: 000000000000')).rejects.toThrow('валидные узлы:');
+  });
+
+  it('cold role memory repairs missing payload and tail-only changes; invalid memory refuses injection', async () => {
+    await buildBundlesFixture();
+    expect(await memoryPromptOf(root, 'cold')).toContain('# Память проекта');
+    const first = await buildBundles(root);
+    if (first.graph === null) throw new Error('нет графа');
+    const payload = [...first.graph.files.keys()].find((p) => /part-/.test(p));
+    if (payload === undefined) throw new Error('нет payload');
+    await rm(path.join(root, '.oc3/bundles', payload));
+    expect(await memoryPromptOf(root, 'repair')).toContain('# Память проекта');
+    expect(await readFile(path.join(root, '.oc3/bundles', payload), 'utf8')).toContain(
+      'npm run build',
+    );
+    const oldNode = first.graph.nodes[0]?.dir;
+    const payloadMarker = payload.split('/')[1]?.slice(0, 12);
+    await expect(memoryPromptOf(root, `память: ${payloadMarker}`)).rejects.toThrow(
+      'неизвестный узел',
+    );
+    await put('.oc3/manuals/how.md', '# Как собрать\n\nchanged tail\n');
+    await expect(memoryPromptOf(root, `память: ${oldNode}`)).rejects.toThrow('валидные узлы:');
+    await put('.oc3/conventions/bad.yml', 'bad: not an array\n');
+    await expect(memoryPromptOf(root, 'invalid')).rejects.toThrow('память не готова');
   });
 
   it('runRole с маркером: инструкции содержат узел памяти', async () => {

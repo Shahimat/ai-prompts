@@ -200,7 +200,9 @@ describe('[harness] layers', () => {
 });
 
 describe('[harness] refresh', () => {
-  crit('скрипт ai refresh — adapters sync, затем шаги check', () => Processes.refresh());
+  crit('скрипт ai refresh — adapters sync, memory build, затем шаги check', () =>
+    Processes.refresh(),
+  );
 });
 
 describe('[harness] docs-delta', () => {
@@ -217,7 +219,7 @@ describe('[harness] docs-delta', () => {
     back: 'apply',
     limit: 3,
   });
-  crit('verify в docs-delta — adapters sync, delta check и шаги check', () =>
+  crit('verify в docs-delta — adapters sync, delta check, memory build и шаги check', () =>
     Processes.docsVerify(),
   );
 });
@@ -1824,6 +1826,7 @@ class Processes {
     expect(kindOf(refresh)).toBe('script');
     expect(stepCommands(at(refresh, 'steps'))).toEqual([
       'adapters sync',
+      'memory build',
       ...stepCommands(at(node(['check']), 'steps')),
     ]);
   }
@@ -1832,6 +1835,7 @@ class Processes {
     expect(stepCommands(at(cliPkg, 'DOCS_VERIFY', 'steps'))).toEqual([
       'adapters sync',
       'delta check',
+      'memory build',
       ...stepCommands(at(node(['check']), 'steps')),
     ]);
   }

@@ -76,7 +76,7 @@ package.json                       ← devDependencies: @shahimat/ai-core, @shah
   knowledge/                       ← знания о внешних системах (файлы — из manifest.json → files)
   manifest.json                    ← манифест памяти: namespace, data, budgets, files, layout
   goals/                           ← цели и программы: *.expect.ts и *.expect.json
-  bundles/                         ← сгенерированные бандлы (генерирует ai memory build)
+  bundles/                         ← каталоги, полные проекции и продолжения (ai memory build)
   inbox/knowledge/                  ← durable pending, batches и exact-ID resolutions; пишет runtime
   modules/<key>.yml                ← manifest'ы возможностей
   skills.yml                       ← каталог skills, requires, permissions, roles
@@ -98,6 +98,14 @@ operator/, inbox/): читает и пишет только librarian; аген�
 Канон для всех агентов — `AGENTS.md` и `.agents/`; файлы под инструмент
 (`.codex/`, `.opencode/`) — производные. Запечатанный слой фактов (`.oc3/`)
 агентам не доступен: они читают бандлы (`.oc3/bundles/`).
+
+Индекс узла — каталог ссылок и кратких пояснений, не полный текст фактов.
+Ссылки ведут к реальным полным проекциям внутри `bundles/`; большие
+каталоги и проекции разбиваются на страницы того же логического узла,
+без смены namespace/веса, повышения бюджета или усечения данных.
+Отсутствующая, повреждённая или стухшая проекция — ошибка памяти;
+ссылка на запечатанный исходник её не заменяет. Формат и обязательные
+build/check шаги — skill `cli`.
 
 <!-- expect:no-rule-copies -->
 Правила самого контракта в `.oc3/conventions/` **не копируются**.

@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
-import { mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
-import { refreshPending } from './knowledge.ts';
+import { lstat, mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { refreshPending } from '#lib/knowledge';
 import path from 'node:path';
 import * as ts from 'typescript';
 import { parse } from 'yaml';
@@ -19,7 +19,16 @@ import {
   SCHEMAS_DIR,
   SKILLS_PATH,
 } from '#shared/layout';
-import { loadManifest, type MemoryManifest } from './memory.ts';
+import { checkMemory, loadManifest, type MemoryManifest } from '#lib/memory';
+import {
+  boundedPages,
+  inlineProse,
+  markdownLabel,
+  projectionFiles,
+  proseUnits,
+} from '#lib/memory-projection';
+import { confinedProjectPath } from '#lib/artifacts';
+import { acquireLease } from '#lib/local-store';
 
 export const START_INDEX = 'index.md';
 const GENERAL_NS = 'common';
@@ -29,16 +38,13 @@ const MEMORY_NS_DIRS = [CONVENTIONS_DIR, MANUALS_DIR, GLOSSARY_DIR, KNOWLEDGE_DI
 );
 const MEMORY_ROOT_FILES = [PROJECT_PATH, AUTONOMY_PATH].map((p) => p.slice(OC3_DIR.length + 1));
 
-interface FactSchema {
-  properties: string[];
-}
-
 export interface FactFile {
   rel: string;
   namespace: string[];
   weight: number;
   text: string;
   summary: string;
+  value: unknown;
 }
 
 export interface GraphNode {
@@ -54,6 +60,7 @@ export interface GraphNode {
 export interface MemoryGraph {
   start: string;
   nodes: GraphNode[];
+  files: Map<string, string>;
 }
 
 const collapse = (text: string): string => text.replace(/\s+/g, ' ').trim();
@@ -101,99 +108,12 @@ const walkDoc = async (root: string, manifest: MemoryManifest): Promise<string[]
   return [...all].sort();
 };
 
-const LEAD_KEYS = ['key', 'term', 'id'] as const;
-const LABELS: Record<string, string> = {
-  summary: '',
-  definition: '',
-  title: '',
-  rule: 'Правило: ',
-  reason: 'Причина: ',
-  namespace: 'домен ',
-  steps: 'Шаги: ',
-  manuals: 'Manuals: ',
-};
-
-const renderValue = (value: unknown, label: string): string => {
-  if (typeof value === 'string') return `${label}${collapse(value)}`;
-  if (Array.isArray(value) && value.every((v) => typeof v === 'string')) {
-    const items = value.map((v) => collapse(v));
-    return label === 'Шаги: '
-      ? `${label}${items.map((v, i) => `${i + 1}) ${v}`).join(' ')}`
-      : `${label}${items.join(', ')}`;
-  }
-  return '';
-};
-
-const itemLine = (properties: string[], item: Record<string, unknown>): string => {
-  const leadKey = properties.find((k) => (LEAD_KEYS as readonly string[]).includes(k));
-  const leadRaw = leadKey === undefined ? undefined : item[leadKey];
-  const lead = typeof leadRaw === 'string' ? collapse(leadRaw) : '';
-  const parts: string[] = [];
-  for (const key of properties) {
-    if (key === leadKey || !(key in item)) continue;
-    const rendered = renderValue(item[key], LABELS[key] ?? `${key}: `);
-    if (rendered !== '') parts.push(rendered);
-  }
-  const body = parts.length === 0 ? '' : ` — ${parts.map((p) => p.replace(/\.$/, '')).join('. ')}`;
-  return `- ${lead}${body}`.trimEnd();
-};
-
-const flattenRecord = (data: Record<string, unknown>, prefix: string): string[] => {
-  const lines: string[] = [];
-  for (const [key, value] of Object.entries(data)) {
-    const where = prefix === '' ? key : `${prefix}.${key}`;
-    if (isRecord(value)) {
-      lines.push(...flattenRecord(value, where));
-      continue;
-    }
-    if (Array.isArray(value)) {
-      if (value.length === 0) continue;
-      lines.push(`${where} — ${value.map((v) => collapse(String(v))).join(', ')}`);
-      continue;
-    }
-    if (typeof value === 'number' || typeof value === 'boolean') {
-      lines.push(`${where} — ${String(value)}`);
-      continue;
-    }
-    if (typeof value === 'string' && collapse(value) !== '')
-      lines.push(`${where} — ${collapse(value)}`);
-  }
-  return lines;
-};
-
-const schemaNameOf = (rel: string): string => {
-  const parts = rel.split('/');
-  if (parts.length < 2) return '';
-  return parts[0] === DATA_BASE ? (parts[1] ?? '') : (parts[0] ?? '');
-};
-
-const loadSchemaOf = async (
-  root: string,
-  rel: string,
-  diagnostics: Diagnostic[],
-): Promise<FactSchema> => {
-  const name = schemaNameOf(rel);
-  if (name === '') return { properties: [] };
-  const file = path.join(root, SCHEMAS_DIR, `${name}.schema.json`);
-  let text: string;
-  try {
-    text = await readFile(file, 'utf8');
-  } catch (error) {
-    if (errorCode(error) === 'ENOENT') return { properties: [] };
-    throw error;
-  }
-  let data: unknown;
-  try {
-    data = JSON.parse(text);
-  } catch {
-    diagnostics.push({ file: `${SCHEMAS_DIR}/${name}.schema.json`, message: 'невалидный JSON' });
-    return { properties: [] };
-  }
-  if (!isRecord(data)) return { properties: [] };
-  const shape = isRecord(data['items']) ? data['items'] : data;
-  const properties =
-    isRecord(shape) && isRecord(shape['properties']) ? Object.keys(shape['properties']) : [];
-  return { properties };
+const factSummary = (value: unknown): string => {
+  if (Array.isArray(value)) return `${value.length} записей, первая: ${factSummary(value[0])}`;
+  if (!isRecord(value)) return typeof value === 'string' ? collapse(value) : '';
+  return ['key', 'term', 'id', 'namespace', 'summary', 'title', 'definition']
+    .flatMap((key) => (typeof value[key] === 'string' ? [collapse(value[key])] : []))
+    .join(' — ');
 };
 
 const mdSummary = (text: string): string => {
@@ -201,6 +121,16 @@ const mdSummary = (text: string): string => {
   if (heading !== undefined) return collapse(heading.replace(/^#+\s*/, ''));
   const paragraph = text.split('\n\n').find((p) => collapse(p) !== '');
   return paragraph === undefined ? '' : collapse(paragraph).slice(0, 120);
+};
+
+const factText = (value: unknown, rel: string, weight: number, cap: number): string => {
+  try {
+    return weight === 0 ? inlineProse(value) : proseUnits(value, cap - 512).join('');
+  } catch (error) {
+    throw new Error(
+      `${OC3_DIR}/${rel}: cap ${cap}: ${error instanceof Error ? error.message : 'ошибка проекции'}`,
+    );
+  }
 };
 
 const loadFacts = async (
@@ -221,7 +151,8 @@ const loadFacts = async (
         rel,
         namespace,
         weight,
-        text: `${raw.trimEnd()}\n`,
+        text: factText(raw, rel, weight, manifest.budgets.node),
+        value: raw,
         summary: `${label}${mdSummary(raw)}`,
       });
       continue;
@@ -236,44 +167,13 @@ const loadFacts = async (
       });
       continue;
     }
-    const schema = await loadSchemaOf(root, rel, diagnostics);
-    if (Array.isArray(data)) {
-      const lines = data.map((item) =>
-        isRecord(item) && schema.properties.length > 0
-          ? itemLine(schema.properties, item)
-          : isRecord(item)
-            ? flattenRecord(item, '').join('; ')
-            : `- ${collapse(String(item))}`,
-      );
-      const first = lines.find((l) => l.trim() !== '') ?? '';
-      facts.push({
-        rel,
-        namespace,
-        weight,
-        text: `${lines.join('\n')}\n`,
-        summary: `${data.length} записей, первая: ${collapse(first.replace(/^- /, ''))}`,
-      });
-      continue;
-    }
-    if (isRecord(data)) {
-      const lines =
-        schema.properties.length > 0
-          ? [itemLine(schema.properties, data)]
-          : flattenRecord(data, '');
-      const clean = lines.filter((l) => l.trim() !== '');
-      const first = clean.find((l) => l.trim() !== '') ?? '';
-      facts.push({
-        rel,
-        namespace,
-        weight,
-        text: `${clean.join('\n')}\n`,
-        summary: collapse(first.replace(/^- /, '')),
-      });
-      continue;
-    }
-    diagnostics.push({
-      file: `${OC3_DIR}/${rel}`,
-      message: `корень должен быть объектом или списком, получено: ${typeof data}`,
+    facts.push({
+      rel,
+      namespace,
+      weight,
+      text: factText(data, rel, weight, manifest.budgets.node),
+      value: data,
+      summary: factSummary(data),
     });
   }
   return facts;
@@ -284,6 +184,7 @@ const nodeKeyOf = (namespace: string, weight: number): string =>
 
 const capSummary = (text: string, cap: number): string => {
   if (Buffer.byteLength(text, 'utf8') <= cap) return text;
+  if (cap < 3) return '.'.repeat(cap);
   let out = '';
   for (const ch of text) {
     const next = `${out}${ch}`;
@@ -293,29 +194,28 @@ const capSummary = (text: string, cap: number): string => {
   return `${out}…`;
 };
 
-const nodeFrame = (key: string, weight: number, count: number, body: string): string =>
-  `# Узел ${key}\n\nКольцо: ${weight}\nФайлов: ${count}\n\n${body}`;
-
 interface Bucket {
   namespace: string;
   weight: number;
   files: string[];
 }
 
-const nodeBody = (bucket: Bucket, facts: FactFile[], edges: GraphNode[], cap: number): string => {
+const nodeBody = (bucket: Bucket, facts: FactFile[], edges: GraphNode[], cap: number): string[] => {
   const byRel = new Map(facts.map((f) => [f.rel, f]));
-  const lines: string[] = ['Файлы узла:', ''];
+  const lines: string[] = ['Файлы узла:\n\n'];
   for (const rel of bucket.files) {
     const summary = byRel.get(rel)?.summary ?? '';
-    const note = summary === '' ? 'факты проекта' : capSummary(summary, cap);
-    lines.push(`- [${rel}](../${rel}) — ${note}`);
+    const note = capSummary(markdownLabel(summary === '' ? 'факты проекта' : summary), cap);
+    lines.push(`- [${markdownLabel(rel)}](../files/${shaOf(rel)}/index.md) — ${note}\n`);
   }
   if (edges.length > 0) {
-    lines.push(`Глубже (кольцо ${bucket.weight + 1}):`, '');
+    lines.push(`\nГлубже (кольцо ${bucket.weight + 1}):\n\n`);
     for (const edge of edges)
-      lines.push(`- [${edge.key}](${edge.dir}/${START_INDEX}) — файлов ${edge.files.length}`);
+      lines.push(
+        `- [${markdownLabel(edge.key)}](../${edge.dir}/${START_INDEX}) — файлов ${edge.files.length}\n`,
+      );
   }
-  return `${lines.join('\n').trimEnd()}\n`;
+  return lines;
 };
 
 const goalsHeaders = async (root: string): Promise<string[]> => {
@@ -388,7 +288,19 @@ export const renderGraph = async (
   root: string,
   facts: FactFile[],
   summaryCap: number,
+  nodeCap = 16384,
 ): Promise<MemoryGraph> => {
+  const files = new Map<string, string>();
+  for (const fact of facts.filter((f) => f.weight > 0)) {
+    try {
+      for (const [name, text] of projectionFiles(fact.value, fact.rel, nodeCap))
+        files.set(`files/${shaOf(fact.rel)}/${name}`, text);
+    } catch (error) {
+      throw new Error(
+        `${OC3_DIR}/${fact.rel}: cap ${nodeCap}: ${error instanceof Error ? error.message : 'ошибка проекции'}`,
+      );
+    }
+  }
   const grouped = new Map<string, Bucket>();
   const bucketOf = (key: string, namespace: string, weight: number): Bucket => {
     const existing = grouped.get(key);
@@ -422,10 +334,19 @@ export const renderGraph = async (
       });
     const body = nodeBody(bucket, facts, edges, summaryCap);
     const count = bucket.files.length;
-    const frame = nodeFrame(key, bucket.weight, count, body);
-    const sha = shaOf(frame);
-    const head = `# Узел ${key}`;
+    const sha = shaOf(
+      JSON.stringify([
+        key,
+        body,
+        bucket.files.map((rel) => facts.find((f) => f.rel === rel)?.text),
+      ]),
+    );
+    const head = `# Узел ${markdownLabel(key)}`;
     const meta = `Кольцо: ${bucket.weight}\nФайлов: ${count}`;
+    const pages = boundedPages(body, `${head}\n\nSHA: ${sha}\n${meta}\n\n`, nodeCap, 'page');
+    const text = pages.get(START_INDEX);
+    if (text === undefined) throw new Error('нет стартовой страницы узла');
+    for (const [name, page] of pages) files.set(`${sha.slice(0, 12)}/${name}`, page);
     done.set(key, {
       key,
       namespace: bucket.namespace,
@@ -433,7 +354,7 @@ export const renderGraph = async (
       files: bucket.files,
       sha,
       dir: sha.slice(0, 12),
-      text: `${head}\n\nSHA: ${sha}\n${meta}\n\n${body}`,
+      text,
     });
   }
   const nodes = buckets.flatMap((b) => {
@@ -443,8 +364,8 @@ export const renderGraph = async (
   const start: string[] = [
     '# Память проекта',
     '',
-    'Стартовые факты инлайном; глубже — по вееру узлов.',
-    'Pending knowledge (не канон, кольцо 1): [pending](pending/index.md); memory inbox pending.',
+    'Кольцо 0 — инлайн; глубже — по ссылкам.',
+    'Pending (не канон, кольцо 1): [pending](pending/index.md).',
     '',
   ];
   const inline = facts.filter((f) => f.weight === 0).sort((a, b) => a.rel.localeCompare(b.rel));
@@ -452,19 +373,22 @@ export const renderGraph = async (
     const shown = inline.filter((f) => f.text.trim() !== '');
     if (shown.length > 0) {
       start.push('## Общее', '');
-      for (const fact of shown) start.push(`## ${fact.rel}`, '', fact.text.trimEnd(), '');
+      for (const fact of shown) start.push(`## ${markdownLabel(fact.rel)}`, '', fact.text, '');
     }
   }
   if (nodes.length > 0) {
     start.push('## Узлы', '');
-    for (const node of nodes) start.push(`- [${node.key}](${node.dir}/${START_INDEX})`);
+    for (const node of nodes)
+      start.push(`- [${markdownLabel(node.key)}](${node.dir}/${START_INDEX})`);
     start.push('');
   }
   const skills = await skillsCatalog(root);
   if (skills.length > 0) start.push('## Skills', '', ...skills, '');
   const goals = await goalsHeaders(root);
   if (goals.length > 0) start.push('## Цели', '', ...goals, '');
-  return { start: `${start.join('\n').trimEnd()}\n`, nodes };
+  const text = `${start.join('\n').trimEnd()}\n`;
+  files.set(START_INDEX, text);
+  return { start: text, nodes, files };
 };
 
 export interface GraphReport {
@@ -480,29 +404,15 @@ export const graphDiagnostics = (graph: MemoryGraph, manifest: MemoryManifest): 
   if (byteSize(graph.start) > manifest.budgets.start)
     diagnostics.push({
       file: `${BUNDLES_DIR}/${START_INDEX}`,
-      message: `стартовый index ${byteSize(graph.start)} байт > cap ${manifest.budgets.start} — понизь веса в манифесте (избыток уедет в узлы) или формализуй в data-структуры`,
+      message: `стартовый index ${byteSize(graph.start)} байт > cap ${manifest.budgets.start} — проверь явный состав кольца 0 и стартовых каталогов; сборка не записана`,
     });
-  for (const node of graph.nodes)
-    if (byteSize(node.text) > manifest.budgets.node)
+  for (const [name, text] of graph.files)
+    if (name !== START_INDEX && byteSize(text) > manifest.budgets.node)
       diagnostics.push({
-        file: `${BUNDLES_DIR}/${node.dir}/${START_INDEX}`,
-        message: `узел ${node.key} ${byteSize(node.text)} байт > cap ${manifest.budgets.node} — понизь вес или раздели namespace в манифесте`,
+        file: `${BUNDLES_DIR}/${name}`,
+        message: `страница ${byteSize(text)} байт > cap ${manifest.budgets.node}`,
       });
   return diagnostics;
-};
-
-const listBundleDirs = async (root: string): Promise<string[]> => {
-  let entries;
-  try {
-    entries = await readdir(path.join(root, BUNDLES_DIR), { withFileTypes: true });
-  } catch (error) {
-    if (errorCode(error) === 'ENOENT') return [];
-    throw error;
-  }
-  return entries
-    .filter((e) => e.isDirectory() && e.name !== 'pending')
-    .map((e) => e.name)
-    .sort();
 };
 
 export const renderMemoryGraph = async (
@@ -511,50 +421,99 @@ export const renderMemoryGraph = async (
   const { manifest, diagnostics } = await loadManifest(root);
   if (manifest === null)
     return { report: { diagnostics, warnings: [], graph: null }, manifest: null };
-  const facts = await loadFacts(root, manifest, diagnostics);
-  const graph = await renderGraph(root, facts, manifest.budgets.summary);
-  return {
-    report: { diagnostics, warnings: [], graph },
-    manifest,
+  try {
+    const validation = await checkMemory(root);
+    if (validation.diagnostics.length > 0)
+      return { report: { ...validation, graph: null }, manifest };
+    const facts = await loadFacts(root, manifest, diagnostics);
+    const graph = await renderGraph(root, facts, manifest.budgets.summary, manifest.budgets.node);
+    const schemas: string[] = [];
+    for (const name of (await readdir(path.join(root, SCHEMAS_DIR)))
+      .filter((n) => n.endsWith('.json'))
+      .sort())
+      schemas.push(name, await readFile(path.join(root, SCHEMAS_DIR, name), 'utf8'));
+    const digest = shaOf(
+      JSON.stringify(['memory-prose-v1', manifest, schemas, facts.map((f) => [f.rel, f.text])]),
+    );
+    graph.start += `\nВерсия источников: ${digest}.\n`;
+    graph.files.set(START_INDEX, graph.start);
+    return { report: { diagnostics, warnings: validation.warnings, graph }, manifest };
+  } catch (error) {
+    return {
+      report: {
+        diagnostics: [
+          ...diagnostics,
+          {
+            file: BUNDLES_DIR,
+            message: error instanceof Error ? error.message : 'ошибка построения памяти',
+          },
+        ],
+        warnings: [],
+        graph: null,
+      },
+      manifest,
+    };
+  }
+};
+
+const installedFiles = async (root: string): Promise<string[]> => {
+  const files: string[] = [];
+  const walk = async (rel: string): Promise<void> => {
+    const abs = confinedProjectPath(root, rel === '' ? BUNDLES_DIR : `${BUNDLES_DIR}/${rel}`);
+    let entries;
+    try {
+      entries = await readdir(abs, { withFileTypes: true });
+    } catch (error) {
+      if (errorCode(error) === 'ENOENT') return;
+      throw error;
+    }
+    for (const entry of entries) {
+      if (rel === '' && entry.name === 'pending') continue;
+      const name = path.posix.join(rel, entry.name);
+      if (entry.isDirectory()) {
+        await walk(name);
+        if ((await readdir(path.join(abs, entry.name))).length === 0) files.push(name);
+      } else files.push(name);
+    }
   };
+  await walk('');
+  return files.sort();
 };
 
 export const checkBundles = async (root: string): Promise<GraphReport> => {
   const { report, manifest } = await renderMemoryGraph(root);
   if (report.graph === null || manifest === null) return report;
   const stale: Diagnostic[] = [];
-  let current: string | null = null;
-  try {
-    current = await readFile(path.join(root, BUNDLES_DIR, START_INDEX), 'utf8');
-  } catch (error) {
-    if (errorCode(error) !== 'ENOENT') throw error;
-  }
-  if (current !== null && current !== report.graph.start)
-    stale.push({
-      file: `${BUNDLES_DIR}/${START_INDEX}`,
-      message: 'стартовый index стух — запусти ai memory build',
-    });
-  const expected = new Map(report.graph.nodes.map((n) => [n.dir, n]));
-  for (const dir of await listBundleDirs(root)) {
-    const node = expected.get(dir);
-    if (node === undefined) {
-      stale.push({
-        file: `${BUNDLES_DIR}/${dir}`,
-        message: `стухший узел ${dir} — нет в актуальном графе, build удалит`,
-      });
-      continue;
-    }
-    let text: string | null = null;
+  for (const [name, expected] of report.graph.files) {
+    const abs = confinedProjectPath(root, `${BUNDLES_DIR}/${name}`);
+    let current: string | null = null;
     try {
-      text = await readFile(path.join(root, BUNDLES_DIR, dir, START_INDEX), 'utf8');
+      if ((await lstat(abs)).isFile()) current = await readFile(abs, 'utf8');
     } catch (error) {
       if (errorCode(error) !== 'ENOENT') throw error;
     }
-    if (text !== null && text !== node.text)
+    if (current !== expected)
       stale.push({
-        file: `${BUNDLES_DIR}/${dir}/${START_INDEX}`,
-        message: `узел ${node.key} стух — запусти ai memory build`,
+        file: `${BUNDLES_DIR}/${name}`,
+        message: 'файл памяти отсутствует или стух — запусти ai memory build',
       });
+  }
+  for (const name of await installedFiles(root))
+    if (!report.graph.files.has(name))
+      stale.push({ file: `${BUNDLES_DIR}/${name}`, message: 'стухший файл памяти — build удалит' });
+  try {
+    const pending = confinedProjectPath(root, `${BUNDLES_DIR}/pending/index.md`);
+    if (!(await lstat(pending)).isFile())
+      stale.push({
+        file: `${BUNDLES_DIR}/pending/index.md`,
+        message: 'нет pending-проекции — запусти ai memory build',
+      });
+  } catch (error) {
+    if (errorCode(error) !== 'ENOENT') throw error;
+    stale.push({
+      file: `${BUNDLES_DIR}/pending/index.md`,
+      message: 'нет pending-проекции — запусти ai memory build',
+    });
   }
   return {
     diagnostics: [...report.diagnostics, ...stale, ...graphDiagnostics(report.graph, manifest)],
@@ -572,23 +531,64 @@ export const buildBundles = async (root: string): Promise<GraphReport> => {
   };
 };
 
-export const writeGraph = async (root: string, graph: MemoryGraph): Promise<number> => {
-  const base = path.join(root, BUNDLES_DIR);
+const publishGraph = async (root: string, graph: MemoryGraph): Promise<number> => {
+  const base = confinedProjectPath(root, BUNDLES_DIR);
   await mkdir(base, { recursive: true });
-  await writeFile(path.join(base, START_INDEX), graph.start, 'utf8');
-  for (const node of graph.nodes) {
-    await mkdir(path.join(base, node.dir), { recursive: true });
-    await writeFile(path.join(base, node.dir, START_INDEX), node.text, 'utf8');
+  for (const [name, text] of graph.files) {
+    if (name === START_INDEX) continue;
+    const file = confinedProjectPath(root, `${BUNDLES_DIR}/${name}`);
+    await mkdir(path.dirname(file), { recursive: true });
+    await writeFile(file, text, 'utf8');
   }
+  await refreshPending(root);
+  await writeFile(confinedProjectPath(root, `${BUNDLES_DIR}/${START_INDEX}`), graph.start, 'utf8');
   let removed = 0;
-  const expected = new Set(graph.nodes.map((n) => n.dir));
-  for (const dir of await listBundleDirs(root))
-    if (!expected.has(dir)) {
-      await rm(path.join(base, dir), { recursive: true, force: true });
+  for (const name of await installedFiles(root))
+    if (!graph.files.has(name)) {
+      await rm(path.join(base, name), { recursive: true, force: true });
       removed++;
     }
-  await refreshPending(root);
+  const prune = async (dir: string): Promise<void> => {
+    for (const entry of await readdir(dir, { withFileTypes: true }))
+      if (entry.isDirectory() && entry.name !== 'pending') {
+        const child = path.join(dir, entry.name);
+        await prune(child);
+        if ((await readdir(child)).length === 0) await rm(child, { recursive: true });
+      }
+  };
+  await prune(base);
   return removed;
+};
+
+export const writeGraph = async (root: string, graph: MemoryGraph): Promise<number> => {
+  const lease = await acquireLease(root, 'memory-build', 'memory');
+  try {
+    return await publishGraph(root, graph);
+  } finally {
+    await lease.release();
+  }
+};
+
+const ensuring = new Map<string, Promise<GraphReport>>();
+
+export const ensureMemory = async (root: string): Promise<GraphReport> => {
+  const key = path.resolve(root);
+  const existing = ensuring.get(key);
+  if (existing !== undefined) return existing;
+  const run = async (): Promise<GraphReport> => {
+    const build = await buildBundles(root);
+    if (build.graph === null || build.diagnostics.length > 0) return build;
+    const check = await checkBundles(root);
+    if (check.diagnostics.length > 0) await writeGraph(root, build.graph);
+    return checkBundles(root);
+  };
+  const pending = run();
+  ensuring.set(key, pending);
+  try {
+    return await pending;
+  } finally {
+    ensuring.delete(key);
+  }
 };
 
 export const startIndexText = async (root: string): Promise<string | null> => {
@@ -600,4 +600,9 @@ export const startIndexText = async (root: string): Promise<string | null> => {
   }
 };
 
-export const bundleNodes = async (root: string): Promise<string[]> => await listBundleDirs(root);
+export const bundleNodes = async (root: string): Promise<string[]> => {
+  const report = await ensureMemory(root);
+  if (report.diagnostics.length > 0 || report.graph === null)
+    throw new Error(report.diagnostics.map((d) => `${d.file}: ${d.message}`).join('; '));
+  return report.graph.nodes.map((n) => n.dir);
+};

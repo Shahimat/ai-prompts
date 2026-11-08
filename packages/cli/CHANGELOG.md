@@ -2,6 +2,20 @@
 
 Свежее сверху.
 
+## 0.1.6
+
+- `@shahimat/ai-core` 0.1.9: плоская `.oc3/`, память, проектные модели,
+  knowledge inbox и гейты проверки; CLI передаёт `--batch` автоматам.
+- `check` включает schema-driven `tree check`, `context-index` заменён
+  на `context`; обязательный `memory check` не допускает false GREEN
+  отсутствующей/повреждённой/стухшей установленной памяти, без auto-repair.
+- REFRESH: adapters sync → memory build → CHECK; внутренний DOCS_VERIFY:
+  adapters sync → delta check → memory build → CHECK. Упразднённый
+  `index.yml` не строится, новой публичной команды `ai docs verify` нет.
+- Без установленной canonical memory явно пропускаются только точные
+  шаги `memory build`/`memory check`, без нового `checks.memory`;
+  inbox pending/enqueue/batch не фильтруются этим skip.
+
 ## 0.1.4
 
 - Маркер корня проекта — каталог `.opencode`: команды `ai` ищут его вверх

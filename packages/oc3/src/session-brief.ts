@@ -2,14 +2,12 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { parse } from 'yaml';
 import {
-  buildBundles,
+  ensureMemory,
+  memoryInstalled,
   pendingViewOf,
   PENDING_KNOWLEDGE_MARKER,
-  checkBundles,
   isRecord,
   PROJECT_PATH,
-  startIndexText,
-  writeGraph,
   type Diagnostic,
 } from '@shahimat/ai-core';
 import type { Plugin } from '@opencode/plugin';
@@ -26,6 +24,9 @@ export interface BriefingSystemPart {
 export interface BriefingSystem {
   system: BriefingSystemPart[];
 }
+
+const MEMORY_PREFIX = 'Оперативная память проекта (стартовый граф):';
+const injectedMemory = new WeakMap<Set<string>, Map<string, string>>();
 
 export async function briefingLine(root: string): Promise<string> {
   let text: string;
@@ -58,13 +59,24 @@ export async function appendBriefing(
     if (input.system[index]?.text.startsWith(PENDING_KNOWLEDGE_MARKER) === true)
       input.system.splice(index, 1);
   if (pending !== '') input.system.push({ type: 'text', text: pending });
-  if (seen.has(sessionID)) return;
-  const line = await briefingLine(root);
-  input.system.push({ type: 'text', text: line });
   const memory = await memoryStart(root);
+  if (memory.diagnostics.length > 0 && memoryInstalled(root)) {
+    seen.delete(sessionID);
+    injectedMemory.get(seen)?.delete(sessionID);
+    throw new Error(
+      `oc3 memory: ${memory.diagnostics.map((d) => `${d.file}: ${d.message}`).join('; ')}`,
+    );
+  }
+  const loaded = injectedMemory.get(seen) ?? new Map<string, string>();
+  if (seen.has(sessionID) && (memory.text === '' || loaded.get(sessionID) === memory.text)) return;
+  if (!seen.has(sessionID)) input.system.push({ type: 'text', text: await briefingLine(root) });
+  for (let index = input.system.length - 1; index >= 0; index--)
+    if (input.system[index]?.text.startsWith(MEMORY_PREFIX) === true) input.system.splice(index, 1);
   if (memory.text !== '') input.system.push({ type: 'text', text: memory.text });
   for (const d of memory.diagnostics) console.error(`oc3 memory: ${d.file}: ${d.message}`);
   seen.add(sessionID);
+  loaded.set(sessionID, memory.text);
+  injectedMemory.set(seen, loaded);
 }
 
 export interface MemoryStart {
@@ -72,24 +84,14 @@ export interface MemoryStart {
   diagnostics: Diagnostic[];
 }
 
-const injectText = async (root: string): Promise<string> => {
-  const text = await startIndexText(root);
-  return text === null ? '' : `Оперативная память проекта (стартовый граф):\n\n${text.trimEnd()}`;
-};
-
 export async function memoryStart(root: string): Promise<MemoryStart> {
-  const check = await checkBundles(root);
-  if (check.graph === null) return { text: '', diagnostics: check.diagnostics };
-  const collected = check.diagnostics.length > 0 || (await startIndexText(root)) === null;
-  if (!collected) return { text: await injectText(root), diagnostics: [] };
-  const build = await buildBundles(root);
-  if (build.graph === null || build.diagnostics.length > 0)
-    return {
-      text: '',
-      diagnostics: build.diagnostics.length > 0 ? build.diagnostics : check.diagnostics,
-    };
-  await writeGraph(root, build.graph);
-  return { text: await injectText(root), diagnostics: [] };
+  const report = await ensureMemory(root);
+  if (report.graph === null || report.diagnostics.length > 0)
+    return { text: '', diagnostics: report.diagnostics };
+  return {
+    text: `${MEMORY_PREFIX}\n\n${report.graph.start.trimEnd()}`,
+    diagnostics: [],
+  };
 }
 
 export async function registerSessionBrief(ctx: Plugin.Context): Promise<Plugin.Cleanup> {

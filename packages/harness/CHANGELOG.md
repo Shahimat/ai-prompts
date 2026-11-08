@@ -2,6 +2,23 @@
 
 Свежее сверху. Одна версия — список новых команд и проверок.
 
+## 0.5.2
+
+- Плоская `.oc3/`: политика действий наружу читается из
+  `.oc3/autonomy.yml`, без промежуточного `doc/`.
+- `docs-delta --batch`: консолидация выбранного frozen knowledge batch,
+  proposed dispositions и exact-ID resolution только после связанного
+  verify/review/close; failed/stale batch остаётся pending.
+  Прямые docs-delta проходят тот же snapshot-bound lifecycle проверки.
+- Ops, ticket-work и plan-review используют общий artifact resolver:
+  project sessions, helper tasks, proofs, proposals и bridge — в `.oc3/`;
+  machine storage имеет отдельный scope. Модели ролей и helper paths
+  разрешаются через общую проектную декларацию.
+- Пин `@shahimat/ai-core` — 0.1.9.
+- Verify использует внутренний DOCS_VERIFY с memory build перед CHECK
+  и обязательным memory check; role launches получают общий core ensure
+  полных projections/pages без расширения canonical seal.
+
 ## 0.5.1
 
 - Пути автоматов под новой раскладкой: `context/ops.yml` →
