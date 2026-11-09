@@ -68,6 +68,13 @@ npx oc3 adapters check
 npx oc3 expect report goals/a.expect.ts
 ```
 
+`oc3 expect report <file> [--force]` использует общий core query contract:
+без provider, без переписывания versioned semantic store; `--run`/`--apply`
+не поддержаны. Force обходит baseline, не freshness/permissions; legacy или
+неполное coverage остаётся needs-review/nonzero. Historical sidecar/80% не
+заменяют current acceptance proof цели. Матрица и typed `.oc3` locators —
+[инкрементальная верификация](../../design/incremental-verification.md).
+
 Смена модели правит `model` в `.agents/agents/<role>.md` и синхронно в
 производной `.opencode/agents/<role>.md`, а также пишет override в
 `context/project.yml` → `roles.models` — он переживает source-sync,

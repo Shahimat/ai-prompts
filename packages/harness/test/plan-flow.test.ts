@@ -1,17 +1,51 @@
 import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { main } from '@shahimat/cli';
-import { artifactPath, cliCommand, isRecord } from '@shahimat/ai-core';
+import { artifactPath, cliCommand, expectCacheFile, isRecord } from '@shahimat/ai-core';
 import { io } from '#harnesses/plan-review/cli';
 import { openerFor, servePage } from '#harnesses/plan-review/page';
 import { bashDecision, hookEvent } from '#harnesses/plan-review/hook';
 import { openSession } from '#harnesses/core/store/session';
 import { FAKE_OPENCODE } from './fake-opencode.ts';
+import { readReview } from '#harnesses/plan-review/review';
 
 const NOW = new Date('2026-10-14T12:00:00Z');
 const PLAN_FILE = 'plans/демо.expect.ts';
 const TMP = path.join(import.meta.dirname, '.tmp');
+
+vi.mock('#expect-proof-fixture', async (importOriginal) => {
+  const original = await importOriginal<Record<string, unknown>>();
+  return {
+    ...original,
+    producerContext: async () => ({
+      adapter: 'controlled-plan-review-title-fixture',
+      complete: true,
+      instructions: [
+        {
+          name: 'synthetic',
+          text: 'finite title task fixture; explicit unary and pair evaluations',
+        },
+      ],
+      contract: 'test-only immutable title inputs; no real model or service',
+      diagnostics: [],
+    }),
+  };
+});
+
+const controlledFake = FAKE_OPENCODE.replace(
+  "const lint = task.includes('contradictions');",
+  `const lint = task.includes('contradictions');
+let controlled;
+if (agent === 'judge') {
+  const end = task.indexOf('\\nОтвет только');
+  const review = JSON.parse(task.slice(task.indexOf('\\n{\\n'), end));
+  const envelope = JSON.parse(task.slice(end).split('\\n').find(line => line.startsWith('{"version":2')));
+  controlled = JSON.stringify({...envelope,data:{evaluated:review.checks.map(check=>({id:check.id,problem:false,reason:'controlled explicit negative title evaluation'}))}});
+}`,
+).replace("turn.answer ?? (agent === 'judge'", "turn.answer ?? controlled ?? (agent === 'judge'");
 
 const PLANNER_AGENT = `---
 # fixture agent для тестов plan-review
@@ -140,6 +174,7 @@ async function resetFake(): Promise<void> {
 }
 
 beforeEach(async () => {
+  vi.stubEnv('OC3_PROOF_TRANSPORT', undefined);
   await mkdir(TMP, { recursive: true });
   home = await mkdtemp(path.join(TMP, 'plan-home-'));
   project = await mkdtemp(path.join(TMP, 'plan-proj-'));
@@ -170,7 +205,8 @@ beforeEach(async () => {
       },
     };
   };
-  await writeFile(fakeBin, FAKE_OPENCODE, 'utf8');
+  if (controlledFake === FAKE_OPENCODE) throw new Error('missing controlled fake bridge');
+  await writeFile(fakeBin, controlledFake, 'utf8');
   vi.stubEnv('HARNESS_OPENCODE', fakeBin);
   vi.stubEnv('FAKE_DIR', fakeDir);
   vi.spyOn(console, 'log').mockImplementation((...a: unknown[]) => {
@@ -473,6 +509,14 @@ describe('plan-review: сквозной прогон на fake-opencode', { time
   }, 200_000);
 
   it('судья — через fake отдельной ролью; правка файла судьёй отменяется', async () => {
+    const runner = io.runner();
+    vi.spyOn(io, 'runner').mockImplementation(() => ({
+      headless: async (spec) => {
+        const answer = await runner.headless(spec);
+        await writeFile(planPath(), `${GOOD}\nthrow new Error('malicious judge edit');\n`);
+        return answer;
+      },
+    }));
     const id = await start(
       [{ events: [editOn()], files: { [PLAN_FILE]: GOOD }, text: 'записал' }, { text: 'поясняю' }],
       [],
@@ -485,6 +529,15 @@ describe('plan-review: сквозной прогон на fake-opencode', { time
     expect(judgeSessions.size).toBe(1);
     expect(await readFile(planPath(), 'utf8')).toBe(GOOD);
     expect(await openSession(home, id)).toBeDefined();
+    expect(await transitions(id)).not.toContain('analyze -clean-> awaiting_input');
+    expect(out.join('\n')).toContain('судья изменил файл ожиданий — правка отменена');
+    const review = await readReview(await openSession(home, id), 1);
+    if (review === undefined) throw new Error('missing rejected review');
+    expect(review.pass).toBe(false);
+    expect(review.rejected).toContain('судья изменил файл ожиданий — правка отменена');
+    await expect(readFile(path.join(project, expectCacheFile(PLAN_FILE)))).rejects.toMatchObject({
+      code: 'ENOENT',
+    });
   });
 
   it('пауза и возобновление: open продолжает с той же сессией opencode', async () => {
@@ -563,7 +616,45 @@ describe('plan-review: страница плана', () => {
     try {
       expect(page.url).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/$/);
       const res = await fetch(page.url);
-      expect(res.status).toBe(200);
+      const body = await res.text();
+      const [bin, ...pre] = cliCommand();
+      const report = spawnSync(
+        bin ?? process.execPath,
+        [...pre, 'expect', 'report', PLAN_FILE, '--root', project],
+        { cwd: project, env: process.env, encoding: 'utf8' },
+      );
+      const evidence = artifactPath(path.resolve(import.meta.dirname, '..', '..', '..'), {
+        kind: 'run',
+        key: 'incremental-verification-final',
+        name: `harness-real-page-${randomUUID()}.json`,
+      });
+      await mkdir(path.dirname(evidence), { recursive: true });
+      await writeFile(
+        evidence,
+        JSON.stringify(
+          {
+            status: res.status,
+            headers: Object.fromEntries(res.headers),
+            body,
+            reportExit: report.status,
+            report: report.stdout + report.stderr,
+          },
+          null,
+          2,
+        ),
+      );
+      expect(res.status).toBe(503);
+      expect(res.headers.get('x-expect-status')).toBe('needs-review');
+      expect(body).toContain('<meta name="expect-status" content="needs-review">');
+      expect(body).toContain('ожидание выполнено');
+      expect(report.status).toBe(1);
+      expect(report.stdout).toContain(
+        'producer effective inherited/system/tool context is not attested by askRole',
+      );
+      expect(report.stdout).toContain('crit 0/0');
+      expect(report.stdout + report.stderr + body).not.toMatch(
+        /STALE_|ERR_MODULE|Cannot find|Failed to resolve|empty\/unresolved collection|vitest не записал/,
+      );
     } finally {
       await page.stop();
       vi.unstubAllEnvs();

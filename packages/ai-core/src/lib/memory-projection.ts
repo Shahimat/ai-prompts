@@ -133,13 +133,19 @@ export const projectionFiles = (
   source: string,
   cap: number,
 ): Map<string, string> => {
-  const header = `# Полная проекция\n\nИсточник: ${markdownLabel(source)}\n\n`;
-  const pages = boundedPages(
-    proseUnits(value, cap - Buffer.byteLength(header) - 256),
-    header,
-    cap,
-    'part',
-  );
+  const header = projectionHeader(source);
+  return projectionFromUnits(proseUnits(value, cap - Buffer.byteLength(header) - 256), header, cap);
+};
+
+export const projectionHeader = (source: string): string =>
+  `# Полная проекция\n\nИсточник: ${markdownLabel(source)}\n\n`;
+
+export const projectionFromUnits = (
+  prose: string[],
+  header: string,
+  cap: number,
+): Map<string, string> => {
+  const pages = boundedPages(prose, header, cap, 'part');
   const out = new Map<string, string>();
   const units: string[] = [];
   let index = 1;

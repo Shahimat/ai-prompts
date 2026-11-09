@@ -8,7 +8,7 @@ import { setRuntime, type CommandTree } from '@shahimat/ai-core';
 import { runScript } from './scripts/index.ts';
 import { loadTree } from './tree.ts';
 import type { CommandArgs } from '@shahimat/ai-core';
-import { InputError, UsageError } from '@shahimat/ai-core';
+import { InputError, UsageError, commandProofRun, runRegisteredCommand } from '@shahimat/ai-core';
 import { errorCode, errorMessage } from '@shahimat/ai-core';
 
 export function projectOf(start: string): string | undefined {
@@ -41,6 +41,7 @@ export async function cliMain(
       'raw-base': { type: 'string' },
       apply: { type: 'boolean' },
       run: { type: 'boolean' },
+      force: { type: 'boolean' },
       home: { type: 'string' },
       name: { type: 'string' },
       request: { type: 'string' },
@@ -77,6 +78,7 @@ export async function cliMain(
   if (values['raw-base'] !== undefined) args.rawBase = values['raw-base'];
   if (values.apply === true) args.apply = true;
   if (values.run === true) args.run = true;
+  if (values.force === true) args.force = true;
   if (values.home !== undefined) args.home = values.home;
   if (values.name !== undefined) args.name = values.name;
   if (values.request !== undefined) args.request = values.request;
@@ -89,7 +91,32 @@ export async function cliMain(
   if (values.days !== undefined) args.days = values.days;
   if (values.forget === true) args.forget = true;
 
-  if (match !== undefined) return match.command.run({ ...args, params: match.params });
+  if (match !== undefined) {
+    const supported = [
+      'check',
+      'refresh',
+      'changelog lint',
+      'operator verify',
+      'expect report',
+      'expect lint',
+      'expect judge',
+    ];
+    const command = positionals.slice(0, positionals.length - Object.keys(match.params).length);
+    if (args.force === true && !supported.includes(command.join(' ')))
+      throw new UsageError(
+        '--force supported only for check/refresh/changelog lint/operator verify/expect report/lint/judge',
+      );
+    if ((args.run === true || args.apply === true) && command.join(' ') !== 'expect judge')
+      throw new UsageError('--run/--apply supported only for expect judge');
+    if (supported.includes(command.join(' ')) && command.join(' ') !== 'operator verify') {
+      args.proofRun = await commandProofRun(args);
+      if (command.join(' ') === 'changelog lint')
+        return runRegisteredCommand(command, args, () =>
+          match.command.run({ ...args, params: match.params }),
+        );
+    }
+    return match.command.run({ ...args, params: match.params });
+  }
 
   const last = positionals.at(-1);
   const prefix = positionals.slice(0, -1);

@@ -11,10 +11,10 @@ export function repoRoot(): string {
   return path.resolve(process.env['HARNESS_EXPECT_ROOT'] ?? process.cwd());
 }
 
-export async function readRepo(rel: string): Promise<string> {
+export async function readRepo(rel: string, root = repoRoot()): Promise<string> {
   const file = externalArtifactPath(rel)
-    ? await historicalArtifactPath(repoRoot(), rel)
-    : confinedProjectPath(repoRoot(), rel);
+    ? await historicalArtifactPath(root, rel)
+    : confinedProjectPath(root, rel);
   return normalizeEol(await readFile(file, 'utf8'));
 }
 
@@ -78,11 +78,8 @@ export async function doc(rel: string): Promise<Doc> {
   };
 }
 
-let entriesCache: Promise<IndexEntry[]> | null = null;
-
 export function indexEntries(): Promise<IndexEntry[]> {
-  entriesCache ??= collectEntries(repoRoot()).then((r) => r.entries);
-  return entriesCache;
+  return collectEntries(repoRoot()).then((r) => r.entries);
 }
 
 async function entry(kind: string, key: string): Promise<IndexEntry> {

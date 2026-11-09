@@ -18,7 +18,8 @@
     "tsc:packages": "node packages/ai-core/node_modules/typescript/bin/tsc -p packages",
     "tsc:scripts": "node packages/ai-core/node_modules/typescript/bin/tsc -p scripts",
     "typecheck": "npm run build -w @shahimat/ai-core && npm run build -w @shahimat/harness && npm run build -w @shahimat/cli && npm run build -w @shahimat/oc3 && npm run typecheck:ai-core && npm run typecheck:harness && npm run typecheck:cli && npm run typecheck:oc3 && npm run tsc:expectations && npm run tsc:packages && npm run tsc:scripts",
-    "test": "npm test -w @shahimat/ai-core && npm test -w @shahimat/harness && npm test -w @shahimat/cli && npm test -w @shahimat/oc3",
+    "test": "node --conditions=source scripts/verification.ts test",
+    "changelog:check": "node --conditions=source scripts/verification.ts changelog",
     "lint": "oxlint --type-aware --deny-warnings",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -32,7 +33,7 @@
     "expect:judge": "node packages/cli/dist/bin.js expect judge expectations/index.expect.ts --root .",
     "expect:judge:opencode": "node scripts/expect-judge-opencode.ts",
     "expect:apply": "node packages/cli/dist/bin.js expect judge expectations/index.expect.ts --apply --root .",
-    "ci": "npm run format:check && npm run build -w @shahimat/ai-core && npm run build -w @shahimat/harness && npm run build -w @shahimat/cli && npm run build -w @shahimat/oc3 && npm run models:check && npm run typecheck:ai-core && npm run typecheck:harness && npm run typecheck:cli && npm run typecheck:oc3 && npm run tsc:expectations && npm run tsc:packages && npm run tsc:scripts && npm run lint && npm test -w @shahimat/ai-core && npm test -w @shahimat/harness && npm test -w @shahimat/cli && npm test -w @shahimat/oc3 && node scripts/packages-check.ts && npm run index:check && npm run memory:check && npm run expect"
+    "ci": "node --conditions=source scripts/verification.ts ci"
   },
   "devDependencies": {
     "@shahimat/ai-core": "*",

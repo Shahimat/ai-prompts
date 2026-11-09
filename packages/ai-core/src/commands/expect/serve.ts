@@ -1,10 +1,11 @@
 import { spawn } from 'node:child_process';
-import { watch, type FSWatcher } from 'node:fs';
+import { watch, lstatSync, readdirSync, type FSWatcher } from 'node:fs';
 import { createServer, type ServerResponse } from 'node:http';
 import path from 'node:path';
 import { cliCommand } from '#lib/role';
 import { UsageError } from '#shared/diagnostics';
 import { errorMessage } from '#shared/guards';
+import { ARTIFACT_IGNORE_LINES } from '#lib/artifacts';
 
 export const DEFAULT_PORT = 4173;
 
@@ -18,7 +19,27 @@ export function portOf(value: string | undefined): number {
 
 const HOST = '127.0.0.1';
 const DEBOUNCE_MS = 300;
-const IGNORED = /(^|[\\/])(node_modules|\.git)([\\/]|$)/;
+const IGNORED =
+  /(^|[\\/])\.git([\\/]|$)|(^|[\\/])node_modules[\\/](?:\.vite(?:-temp)?|\.cache)([\\/]|$)/;
+
+export const ignoredWatchPath = (file: string): boolean =>
+  IGNORED.test(file) ||
+  ARTIFACT_IGNORE_LINES.some(
+    (directory) =>
+      file.replaceAll('\\', '/') === directory.slice(0, -1) ||
+      file.replaceAll('\\', '/').startsWith(directory),
+  );
+
+function watchMembers(root: string, directory = ''): string[] {
+  const files: string[] = [];
+  for (const item of readdirSync(path.join(root, directory), { withFileTypes: true })) {
+    const file = directory === '' ? item.name : `${directory}/${item.name}`;
+    if (ignoredWatchPath(file)) continue;
+    if (item.isDirectory()) files.push(...watchMembers(root, file));
+    else files.push(file);
+  }
+  return files.sort();
+}
 
 export const RELOAD_SCRIPT = `<script>
 (() => {
@@ -53,8 +74,14 @@ export function renderInChild(root: string, entry: string): Promise<string> {
       err += d.toString('utf8');
     });
     child.on('error', reject);
-    child.on('close', () => {
-      if (out.startsWith('<!doctype html>')) resolve(out);
+    child.on('close', (code) => {
+      if (out.startsWith('<!doctype html>'))
+        resolve(
+          out.replace(
+            '</head>',
+            `<meta name="expect-status" content="${code === 0 ? 'pass' : 'needs-review'}"></head>`,
+          ),
+        );
       else reject(new Error(err.trim() === '' ? 'отчёт не собран' : err.trim().slice(0, 800)));
     });
   });
@@ -68,10 +95,19 @@ export interface ServeOptions {
 
 export function serveHtml(options: ServeOptions): Promise<number> {
   let inFlight: Promise<string> | undefined;
+  let revision = 0;
   const page = (): Promise<string> => {
-    inFlight ??= options.render().finally(() => {
-      inFlight = undefined;
-    });
+    const generation = revision;
+    inFlight ??= options
+      .render()
+      .then((html) => {
+        if (generation !== revision)
+          throw new Error('STALE_EXPECT_PAGE: source changed while rendering');
+        return html;
+      })
+      .finally(() => {
+        inFlight = undefined;
+      });
     return inFlight;
   };
   const clients = new Set<ServerResponse>();
@@ -84,13 +120,48 @@ export function serveHtml(options: ServeOptions): Promise<number> {
           for (const c of clients) c.write('data: reload\n\n');
         last = html;
       },
-      () => undefined,
+      () => {
+        last = undefined;
+        for (const c of clients) c.write('data: reload\n\n');
+      },
     );
   };
   let watcher: FSWatcher | undefined;
   try {
+    let members = new Set(watchMembers(options.root));
     watcher = watch(options.root, { recursive: true }, (_event, file) => {
-      if (file !== null && IGNORED.test(file)) return;
+      if (file !== null && ignoredWatchPath(file)) return;
+      let directory: string | undefined;
+      const relative = file?.replaceAll('\\', '/');
+      if (relative === undefined) directory = '';
+      else {
+        try {
+          if (lstatSync(path.join(options.root, relative)).isDirectory()) directory = relative;
+        } catch {
+          if (
+            relative === path.basename(options.root) ||
+            [...members].some((member) => member.startsWith(`${relative}/`))
+          )
+            directory = relative === path.basename(options.root) ? '' : relative;
+        }
+      }
+      if (directory !== undefined) {
+        const prefix = directory === '' ? '' : `${directory}/`;
+        const previous = [...members].filter((member) => member.startsWith(prefix));
+        let current: string[];
+        try {
+          current = watchMembers(options.root, directory);
+        } catch {
+          current = [];
+        }
+        const changed =
+          previous.length !== current.length || current.some((member) => !members.has(member));
+        members = new Set(
+          [...members].filter((member) => !member.startsWith(prefix)).concat(current),
+        );
+        if (!changed) return;
+      } else if (relative !== undefined) members.add(relative);
+      revision++;
       if (timer !== undefined) clearTimeout(timer);
       timer = setTimeout(refresh, DEBOUNCE_MS);
     });
@@ -118,7 +189,11 @@ export function serveHtml(options: ServeOptions): Promise<number> {
     page().then(
       (html) => {
         last = html;
-        res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+        const pending = !html.includes('<meta name="expect-status" content="pass">');
+        res.writeHead(pending ? 503 : 200, {
+          'content-type': 'text/html; charset=utf-8',
+          'x-expect-status': pending ? 'needs-review' : 'pass',
+        });
         res.end(withReload(html));
       },
       (error: unknown) => {

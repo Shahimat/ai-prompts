@@ -47,9 +47,9 @@ ai <имя> validate | graph  # определение и Mermaid автомат
   `~/.config/harness/harnesses/<имя>/` перекрывают встроенные;
   `handlers/*.{js,mjs,ts}` — свои действия и guards
   (`export default { actions, guards }`).
-- Модели запускаются с конфигом из `OPENCODE_CONFIG_CONTENT`
-  (единственная инструкция — системный промпт роли): настройки, skills
-  и правила пользователя и проекта в прогоны не попадают.
+- Launcher передаёт конфиг через `OPENCODE_CONFIG_CONTENT` и instruction
+  file. Это не доказательство исключения inherited instructions, skills,
+  system/tool context или closed isolation; effective context не аттестован.
 - Без аргументов в терминале `harness` открывает оболочку: вход в
   уровень по имени, `..`, `list` и `help` на каждом уровне.
 
@@ -205,15 +205,36 @@ review → implement → plan → research), пауза при rate limit.
   `exit` harness сам завершает сеанс планера; `end`
   (Ctrl+C или закрытый ввод) — пауза в любом состоянии: автомат на
   месте, `open <id>` продолжает тот же сеанс планера.
-- Ревью: `expect judge` по файлу плана, задания отвечает `models.judge`
-  headless без сети и без записи (`Read`, `Glob`, `Grep`; ответ —
-  единственный JSON по схеме в задании через `submit_result`), затем
-  `--apply` и прогон по бюджету файла. Сверх бюджета — `remarks`, планер
-  получает замечания и правит; после `limits.cycles` циклов — к
-  пользователю с объяснением; чисто — `clean`, планер поясняет итог.
+- Ревью: `expect judge` готовит план, затем default-only
+  `expectPlanConsumer(root, file, now)` проверяет immutable v2 tasks/answers
+  и explicit coverage. Сохранены свой `ModelRunner`, `io.runner`/`io.stage`
+  и model helper `plan-review.judge`, не `expect.judge`/`judge --run`.
+  Задания при допустимом context отвечает headless runner с заявленными
+  `Read`, `Glob`, `Grep`; это requested tools, не effective attestation.
+  Текущий incomplete producer блокирует review до dispatch: 0 producer/0 apply.
+  Rejected envelope, ошибка apply или откат правки судьёй исключают `pass`
+  и `clean`, даже если файл восстановлен и численный бюджет соблюдён.
+  Сверх бюджета — `remarks`, планер получает замечания и правит; после
+  `limits.cycles` циклов — к пользователю с объяснением; чисто — `clean`.
+  Реальный child с needs-review возвращает HTTP 503 после collection,
+  не import error; controlled unit context не аттестует production child.
 - Определение: `harness.yaml` (автомат, лимиты `cycles` и `build`,
   модели `planner` и `judge`), `prompts/` (`planner`, `judge`). Состояние
   ревью — `plan-review.json` и `review/<n>.json` в каталоге сессии.
+
+## Тестирование исходников
+
+При установленных workspace dependencies штатный `npm test` выполняет
+`pretest`: build ai-core → build harness → build CLI, затем полный suite.
+`prepublishOnly` выполняет typecheck → `npm test`, поэтому cold prerequisites
+готовятся lifecycle, а не ручной предварительной root-сборкой. Сборки и чтение
+общего `dist` запускаются последовательно. Прямой Vitest пропускает preparation.
+Source tests не заменяют compiled public-JS assertions.
+
+Работающий OpenCode/model не prerequisite обычных тестов/publish hooks;
+controlled fakes и test-only изоляция foreign parent transport для new-root
+fixtures не ослабляют production root/token validation. Guards/`NODE_OPTIONS`
+сохраняются. Это не actual publish, fresh `npm ci` или проверка второго устройства.
 
 ## Паттерны ожиданий
 

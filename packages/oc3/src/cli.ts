@@ -19,6 +19,7 @@ async function run(argv: string[]): Promise<number> {
       ticket: { type: 'string' },
       out: { type: 'string' },
       html: { type: 'string' },
+      force: { type: 'boolean' },
       roles: { type: 'string' },
       help: { type: 'boolean', short: 'h' },
     },
@@ -55,6 +56,11 @@ async function run(argv: string[]): Promise<number> {
   if (values.ticket !== undefined) args.ticket = values.ticket;
   if (values.out !== undefined) args.out = values.out;
   if (values.html !== undefined) args.html = values.html;
+  if (values.force === true) {
+    if (match.command.path.join(' ') !== 'expect report <file>')
+      throw new UsageError('--force supported only for expect report');
+    args.force = true;
+  }
   return match.command.run(args);
 }
 

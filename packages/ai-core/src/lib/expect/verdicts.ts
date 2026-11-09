@@ -1,9 +1,12 @@
 // expect:verdict-prune
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import path from 'node:path';
+import { readFile } from 'node:fs/promises';
 import { expectCacheFile, validateArtifactOutput } from '#lib/artifacts';
 import { errorCode, isRecord } from '#shared/guards';
 import { repoRoot } from './repo.ts';
+import { isImplementationBinding, type ImplementationBinding } from './proof.ts';
+import { publishProjectJson } from '#lib/local-store';
+import { canonicalDigest } from './inventory.ts';
+import { isTitleProof, type TitleProof } from './title-proof.ts';
 
 export const ENTRY_ENV = 'HARNESS_EXPECT_ENTRY';
 
@@ -21,6 +24,10 @@ export interface Verdict {
   ref: string;
   reason: string;
   at: string;
+  binding?: ImplementationBinding;
+  history?: Verdict[];
+  integrity?: string;
+  run?: string;
 }
 
 export interface LintVerdict {
@@ -28,11 +35,15 @@ export interface LintVerdict {
   contradictions: { a: string; b: string; reason: string }[];
   unmeasurable: { id: string; reason: string }[];
   at: string;
+  binding?: ImplementationBinding;
+  history?: LintVerdict[];
+  integrity?: string;
 }
 
 export interface VerdictStore {
   verdicts: Record<string, Verdict>;
   lint: Record<string, LintVerdict>;
+  titles?: Record<string, TitleProof>;
 }
 
 const isStringRecord = (v: unknown): v is Record<string, string> =>
@@ -47,7 +58,10 @@ function isVerdict(v: unknown): v is Verdict {
     typeof v['quote'] === 'string' &&
     typeof v['ref'] === 'string' &&
     typeof v['reason'] === 'string' &&
-    typeof v['at'] === 'string'
+    typeof v['at'] === 'string' &&
+    (v['binding'] === undefined || isImplementationBinding(v['binding'])) &&
+    (v['integrity'] === undefined || v['integrity'] === recordIntegrity(v)) &&
+    (v['history'] === undefined || (Array.isArray(v['history']) && v['history'].every(isVerdict)))
   );
 }
 
@@ -77,7 +91,11 @@ function isLintVerdict(v: unknown): v is LintVerdict {
     typeof v['titles'] === 'string' &&
     isContradictions(v['contradictions']) &&
     isUnmeasurable(v['unmeasurable']) &&
-    typeof v['at'] === 'string'
+    typeof v['at'] === 'string' &&
+    (v['binding'] === undefined || isImplementationBinding(v['binding'])) &&
+    (v['integrity'] === undefined || v['integrity'] === recordIntegrity(v)) &&
+    (v['history'] === undefined ||
+      (Array.isArray(v['history']) && v['history'].every(isLintVerdict)))
   );
 }
 
@@ -92,11 +110,11 @@ function section<T>(value: unknown, name: string, is: (v: unknown) => v is T): R
   return out;
 }
 
-export async function loadVerdicts(): Promise<VerdictStore> {
+export async function loadVerdicts(root = repoRoot(), entry = entryOf()): Promise<VerdictStore> {
   let data: unknown;
   try {
     data = JSON.parse(
-      await readFile(validateArtifactOutput(repoRoot(), verdictsPath(), 'expect-cache'), 'utf8'),
+      await readFile(validateArtifactOutput(root, verdictsPath(entry), 'expect-cache'), 'utf8'),
     );
   } catch (error) {
     if (errorCode(error) === 'ENOENT') return { verdicts: {}, lint: {} };
@@ -106,6 +124,7 @@ export async function loadVerdicts(): Promise<VerdictStore> {
   return {
     verdicts: section(data['verdicts'], 'verdicts', isVerdict),
     lint: section(data['lint'], 'lint', isLintVerdict),
+    titles: section(data['titles'], 'titles', isTitleProof),
   };
 }
 
@@ -133,9 +152,56 @@ export function pruneStore(
 const sortKeys = <T>(obj: Record<string, T>): Record<string, T> =>
   Object.fromEntries(Object.entries(obj).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)));
 
-export async function saveVerdicts(store: VerdictStore): Promise<void> {
-  const file = validateArtifactOutput(repoRoot(), verdictsPath(), 'expect-cache');
-  await mkdir(path.dirname(file), { recursive: true });
-  const data = { verdicts: sortKeys(store.verdicts), lint: sortKeys(store.lint) };
-  await writeFile(file, `${JSON.stringify(data, null, 2)}\n`, 'utf8');
+export async function saveVerdicts(
+  store: VerdictStore,
+  root = repoRoot(),
+  entry = entryOf(),
+): Promise<void> {
+  validateArtifactOutput(root, verdictsPath(entry), 'expect-cache');
+  const data = {
+    verdicts: sortKeys(store.verdicts),
+    lint: sortKeys(store.lint),
+    titles: sortKeys(store.titles ?? {}),
+  };
+  await publishProjectJson(root, verdictsPath(entry), data, false);
+}
+
+export const verdictTrust = (verdict: Verdict): 'bound-v2' | 'legacy-unverified' =>
+  verdict.binding?.complete === true && verdict.integrity === recordIntegrity(verdict)
+    ? 'bound-v2'
+    : 'legacy-unverified';
+
+export const lintTrust = (verdict: LintVerdict): 'bound-v2' | 'legacy-unverified' =>
+  verdict.binding?.complete === true && verdict.integrity === recordIntegrity(verdict)
+    ? 'bound-v2'
+    : 'legacy-unverified';
+
+function recordIntegrity(value: unknown): string {
+  if (!isRecord(value)) throw new Error('CORRUPT_EXPECT_VERDICT');
+  const { integrity, history, ...body } = value;
+  void integrity;
+  void history;
+  return canonicalDigest(body);
+}
+
+export const sealVerdict = (verdict: Verdict): Verdict => ({
+  ...verdict,
+  integrity: recordIntegrity(verdict),
+});
+
+export function findImplementationVerdict(
+  store: VerdictStore,
+  binding: ImplementationBinding,
+): Verdict | undefined {
+  if (!binding.complete) return undefined;
+  const matches = Object.values(store.verdicts).filter(
+    (verdict) =>
+      verdictTrust(verdict) === 'bound-v2' &&
+      verdict.binding !== undefined &&
+      verdict.binding.input === binding.input &&
+      verdict.binding.policy === binding.policy,
+  );
+  if (matches.length === 0 || matches.some((verdict) => verdict.verdict !== matches[0]?.verdict))
+    return undefined;
+  return matches[0];
 }

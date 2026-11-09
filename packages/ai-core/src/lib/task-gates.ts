@@ -1,4 +1,11 @@
 import { spawn, spawnSync } from 'node:child_process';
+import type { ProofRun } from '#lib/proof/model';
+import {
+  beginProofRun,
+  joinProofRun,
+  PROOF_TRANSPORT,
+  proofRunEnvironment,
+} from '#lib/proof/transport';
 import { createHash, randomUUID } from 'node:crypto';
 import { constants, existsSync } from 'node:fs';
 import { access, readFile, readdir, realpath, stat } from 'node:fs/promises';
@@ -879,6 +886,7 @@ export async function verifyTask(
   name: string,
   actor: string,
   caller = actor,
+  proofOptions?: { force?: boolean; run?: ProofRun },
 ) {
   if (name === 'code-source-stable' || name === 'docs-derived')
     return attestTaskPhase(root, packet, name, actor, packet.phase_evidence?.[name] ?? [], caller);
@@ -890,6 +898,21 @@ export async function verifyTask(
   const lease = await acquireLease(root, 'verification', actor, { caller, run });
   try {
     if (name === 'full') await checkBarriers(root, packet);
+    const inherited =
+      proofOptions?.run === undefined
+        ? process.env[PROOF_TRANSPORT]
+        : JSON.stringify(proofOptions.run);
+    const proofRun =
+      inherited === undefined
+        ? await beginProofRun(root, {
+            owner: actor,
+            scope: ['*'],
+            force: proofOptions?.force === true,
+            allowJudge: false,
+          })
+        : await joinProofRun(root, inherited);
+    if (proofRun.owner !== actor || (proofOptions?.force === true && !proofRun.force))
+      throw new Error('PROOF_POLICY_MISMATCH');
     const before = await taskSnapshot(root, packet);
     const command = check.argv[0];
     if (command === undefined) throw new Error('INVALID_CHECK');
@@ -901,7 +924,7 @@ export async function verifyTask(
     }>((resolve, reject) => {
       const child = spawn(command, check.argv.slice(1), {
         cwd: path.resolve(root, check.cwd),
-        env: process.env,
+        env: proofRunEnvironment(proofRun),
         stdio: ['ignore', 'pipe', 'pipe'],
         detached: process.platform !== 'win32',
       });
@@ -972,6 +995,12 @@ export async function verifyTask(
       actor: caller,
       owner: actor,
       lease: lease.token,
+      proof_run: proofRun.id,
+      proof_policy: {
+        force: proofRun.force,
+        allowJudge: proofRun.allowJudge,
+        scope: proofRun.scope,
+      },
       argv: check.argv,
       cwd: check.cwd,
       node: before.node.version,

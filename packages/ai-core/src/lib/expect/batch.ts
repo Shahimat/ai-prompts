@@ -1,8 +1,14 @@
 // expect:judge-clean-context
 import { isRecord } from '#shared/guards';
-import { containsQuote } from './evidence.ts';
+import { containsQuote, shaOf } from './evidence.ts';
 import type { PendingItem } from './judge.ts';
-import { isContradictions, isUnmeasurable, type LintVerdict, type Verdict } from './verdicts.ts';
+import {
+  isContradictions,
+  isUnmeasurable,
+  sealVerdict,
+  type LintVerdict,
+  type Verdict,
+} from './verdicts.ts';
 
 export interface BatchLimits {
   maxItems: number;
@@ -87,15 +93,15 @@ export function renderBatch(
     '',
     ...batch.refs.map((r) => `- \`${r}\``),
     '',
-    ...batch.refs
-      .filter((r) => r.startsWith('@'))
-      .flatMap((r) => [`### \`${r}\``, '', '````text', texts.get(r) ?? '', '````', '']),
+    ...batch.refs.flatMap((r) => [`### \`${r}\``, '', '````text', texts.get(r) ?? '', '````', '']),
     '## Вопросы',
     '',
   ];
   for (const item of batch.items) {
     lines.push(`- \`${item.id}\` — ${item.question.split(' > ').join(' → ')}`);
     lines.push(`  доказательства: ${item.evidence.map((e) => `\`${e.ref}\``).join(', ')}`);
+    if (item.source !== undefined)
+      lines.push('', `### Реализация \`${item.id}\``, '', '````text', item.source, '````', '');
   }
   return `${lines.join('\n')}\n`;
 }
@@ -125,6 +131,15 @@ export function applyAnswers(
     return result;
   }
   const byId = new Map(items.map((i) => [i.id, i]));
+  const ids = answers.map((answer: unknown) => (isRecord(answer) ? answer['id'] : undefined));
+  if (
+    new Set(ids).size !== ids.length ||
+    ids.length !== items.length ||
+    ids.some((id) => typeof id !== 'string' || !byId.has(id))
+  ) {
+    result.rejected.push({ id: '*', reason: 'duplicate/missing/foreign answers' });
+    return result;
+  }
   const text = (v: unknown): string => (typeof v === 'string' ? v : '');
   for (const entry of answers) {
     const raw = isRecord(entry) ? entry : {};
@@ -135,6 +150,13 @@ export function applyAnswers(
       continue;
     }
     const verdict = raw['verdict'];
+    if (
+      item.binding !== undefined &&
+      item.evidence.some((evidence) => shaOf(evidenceText.get(evidence.ref) ?? '') !== evidence.sha)
+    ) {
+      result.rejected.push({ id, reason: 'STALE_EXPECT_EVIDENCE' });
+      continue;
+    }
     if (typeof verdict !== 'boolean') {
       result.rejected.push({ id, reason: 'verdict — не true/false' });
       continue;
@@ -158,6 +180,11 @@ export function applyAnswers(
       reason: text(raw['reason']),
       at: now.toISOString().slice(0, 10),
     };
+    if (item.binding !== undefined) {
+      const accepted = result.accepted[id];
+      if (accepted !== undefined)
+        result.accepted[id] = sealVerdict({ ...accepted, binding: item.binding });
+    }
   }
   for (const item of items) {
     if (!(item.id in result.accepted) && !result.rejected.some((r) => r.id === item.id)) {

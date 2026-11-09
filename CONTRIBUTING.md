@@ -153,6 +153,21 @@ npm run index:build
 Индекс собирает harness (`packages/harness`, TS). Нужен
 Node ≥ 24; перед первым запуском — `npm ci && npm run build`.
 
+## Тестирование пакетов
+
+Standalone/prepublish preparation contract и границы проверенного для
+ai-core — в [README пакета](packages/ai-core/README.md#тестирование-исходников).
+
+Root `npm test -- --force` и `npm run ci -- --force` обходят proof baseline,
+но не preparation, freshness или current-run single-flight. Reuse ограничен
+reviewed bounded guards и registered changelog; arbitrary Vitest/CI не
+объявлены cacheable. Unknown ordinary context исполняет весь selected scope
+run-only с реальным exit; incomplete repeat требует нового run.
+Default tests/report/lint/CI не вызывают judge при miss, force не даёт это
+право. Legacy-needs-review/nonzero не исправляется ручным trusted upgrade.
+Полный [контракт верификации](design/incremental-verification.md) отделяет
+source/conformance evidence от actual full CI PASS; warm сохраняет build/hashing.
+
 ## Pull request
 
 1. Форкни репо.

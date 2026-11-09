@@ -2,6 +2,7 @@ import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { normalizeEol } from '#shared/frontmatter';
 import { repoRoot } from './repo.ts';
+import { artifactRetention } from '#lib/artifacts';
 
 export interface AnchorRegion {
   key: string;
@@ -26,9 +27,13 @@ async function walk(dir: string, rel = ''): Promise<string[]> {
   const out: string[] = [];
   for (const entry of await readdir(dir, { withFileTypes: true })) {
     if (entry.isDirectory()) {
-      if (!SKIP_DIRS.has(entry.name))
+      if (!SKIP_DIRS.has(entry.name) && artifactRetention(`${rel}${entry.name}/member`) !== 'local')
         out.push(...(await walk(path.join(dir, entry.name), `${rel}${entry.name}/`)));
-    } else if (MD.test(entry.name) || CONF.test(entry.name) || CODE.test(entry.name)) {
+    } else if (
+      entry.isFile() &&
+      !/^(?:\.env(?:\.|$)|credentials(?:\.|$)|secrets?(?:\.|$))/i.test(entry.name) &&
+      (MD.test(entry.name) || CONF.test(entry.name) || CODE.test(entry.name))
+    ) {
       out.push(`${rel}${entry.name}`);
     }
   }
@@ -68,26 +73,20 @@ export function fileAnchorKeys(text: string, comment: '#' | '//' = '#'): string[
   return [...normalizeEol(text).matchAll(re)].map((m) => m[1] ?? '');
 }
 
-let cache: Promise<AnchorRegion[]> | null = null;
-
-export function allAnchors(): Promise<AnchorRegion[]> {
-  cache ??= (async () => {
-    const root = repoRoot();
-    const regions: AnchorRegion[] = [];
-    for (const file of (await walk(root)).sort()) {
-      const text = normalizeEol(await readFile(path.join(root, file), 'utf8'));
-      if (MD.test(file)) regions.push(...markdownRegions(text, file));
-      else
-        for (const key of fileAnchorKeys(text, CODE.test(file) ? '//' : '#'))
-          regions.push({ key, path: file, text: text.trim() });
-    }
-    return regions;
-  })();
-  return cache;
+export async function allAnchors(root = repoRoot()): Promise<AnchorRegion[]> {
+  const regions: AnchorRegion[] = [];
+  for (const file of (await walk(root)).sort()) {
+    const text = normalizeEol(await readFile(path.join(root, file), 'utf8'));
+    if (MD.test(file)) regions.push(...markdownRegions(text, file));
+    else
+      for (const key of fileAnchorKeys(text, CODE.test(file) ? '//' : '#'))
+        regions.push({ key, path: file, text: text.trim() });
+  }
+  return regions;
 }
 
-export async function anchorEvidence(key: string): Promise<string> {
-  const regions = (await allAnchors()).filter((r) => r.key === key);
+export async function anchorEvidence(key: string, root = repoRoot()): Promise<string> {
+  const regions = (await allAnchors(root)).filter((r) => r.key === key);
   if (regions.length === 0) throw new Error(`@${key}: в репозитории нет якоря expect:${key}`);
   return regions.map((r) => `--- ${r.path} ---\n${r.text}`).join('\n\n');
 }

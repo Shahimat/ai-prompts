@@ -24,6 +24,7 @@ export default defineConfig({
       ? []
       : [headVersion(path.resolve(root, entry), headSource)],
   test: {
+    includeTaskLocation: true,
     include: [entry],
     testTimeout: 30_000,
   },

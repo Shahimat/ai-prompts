@@ -86,13 +86,36 @@ skills:
   публикация», недоступный npm проверку не роняет.
 - Порядок публикации: `packages/ai-core`, затем `packages/oc3` (он
   зависит от ai-core); `npm publish` в каталоге пакета —
-  `prepublishOnly` сам гоняет typecheck, тесты и сборку.
+  `prepublishOnly` сам выполняет проверки пакета. Точный порядок подготовки
+  и проверки compiled output ai-core — в
+   [testing contract](../packages/ai-core/README.md#тестирование-исходников).
+- Cold harness `pretest` штатно собирает core → harness → CLI перед suite;
+  его `prepublishOnly` — typecheck → `npm test`. Compiled/public-JS assertions
+  сохраняются, source resolution не заменяет проверку distribution.
+- Обычные autotests/publish hooks не требуют живого OpenCode/model; controlled
+  fakes допустимы, не production attestation. Public package-only профиль без
+  `src` подтвердил exports/compiled CLI и builtin collection без dev `source`
+  condition; semantic needs-review после collection не import failure.
+  Это не actual publish, fresh `npm ci`, второе устройство или final all-four
+  PASS. Новый seven-case 30s profile и неизменённые ограничения —
+  [ресурсный контракт](incremental-verification.md#ресурсный-профиль-integration-tests).
 - После publish предупреждение «требуется публикация» может держаться
   несколько минут — CDN-кэш реестра. Контрольный признак, что версия
   на месте, — `EPUBLISHCONFLICT` («cannot publish over …») при
   повторном publish. Query-параметрами кэш реестра не обходится.
 - `cli` и `harness` публикуются при собственных изменениях; их пины на
   ai-core поднимаются в том же тикете, что и версия ai-core.
+
+## Инкрементальная верификация
+
+Общий typed proof runner и registered adapters находятся в ai-core;
+CLI/npm/OC3 consumers используют authenticated run/force policy, не отдельные
+PASS caches. Baseline eligibility отделена от sufficient current compatibility;
+opaque commands run-only, native gates требуют собственные snapshot-bound
+receipts. Implementation/title proofs, immutable prepare/apply, command matrix,
+legacy и supported reuse boundaries —
+[контракт инкрементальной верификации](incremental-verification.md).
+Подготовка compiled output перед tests/prepublish не отменяется warm hit.
 
 ## Guards документации
 
@@ -124,5 +147,8 @@ Guards контракта — плагин `@shahimat/oc3` (подключает
 `opencode.jsonc`): правка документации и генерируемых файлов основной
 сессией — отказ с подсказкой передать
 намерения `ai docs-delta`. Роли запускаются с конфигом из
-`OPENCODE_CONFIG_CONTENT` и плагинов проекта не грузят. Запись через
-Bash guard не видит — её держит правило 4 `AGENTS.md`.
+`OPENCODE_CONFIG_CONTENT`, но это launcher inputs, не доказательство отсутствия
+project/inherited plugins, instructions и tools в effective context. Реальный
+producer остаётся incomplete; [граница consumer](incremental-verification.md#consumer-подготовленного-плана)
+не меняет frozen FSM/models/permissions/prompts plan-review. Запись через Bash
+guard не видит — её держит правило 4 `AGENTS.md`.

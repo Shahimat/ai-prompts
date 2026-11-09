@@ -1,8 +1,15 @@
 import { existsSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { expectSummary, runExpect, type ExpectSummary } from '@shahimat/ai-core';
-import { expectHelperDir, expectHelperPath, confinedProjectPath } from '@shahimat/ai-core';
+import {
+  expectSummary,
+  expectPlanConsumer,
+  runExpect,
+  errorMessage,
+  type ExpectSummary,
+  type ExpectConsumerTask,
+} from '@shahimat/ai-core';
+import { confinedProjectPath } from '@shahimat/ai-core';
 import { errorCode, isRecord, isStringArray, resolveProjectModel } from '@shahimat/ai-core';
 import type { MachineDef, ModelRunner, Session } from '#harnesses/core/index';
 
@@ -113,58 +120,30 @@ const ANSWER_ITEM = {
 };
 
 export const BATCH_ANSWER_SCHEMA = {
-  type: 'object',
-  additionalProperties: false,
-  required: ['answers'],
-  properties: { answers: { type: 'array', items: ANSWER_ITEM } },
+  type: 'array',
+  items: ANSWER_ITEM,
 };
 
 export const LINT_ANSWER_SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['contradictions', 'unmeasurable'],
+  required: ['evaluated'],
   properties: {
-    contradictions: {
+    evaluated: {
       type: 'array',
       items: {
         type: 'object',
         additionalProperties: false,
-        required: ['a', 'b', 'reason'],
-        properties: { a: { type: 'string' }, b: { type: 'string' }, reason: { type: 'string' } },
-      },
-    },
-    unmeasurable: {
-      type: 'array',
-      items: {
-        type: 'object',
-        additionalProperties: false,
-        required: ['id', 'reason'],
-        properties: { id: { type: 'string' }, reason: { type: 'string' } },
+        required: ['id', 'problem', 'reason'],
+        properties: {
+          id: { type: 'string' },
+          problem: { type: 'boolean' },
+          reason: { type: 'string', minLength: 1 },
+        },
       },
     },
   },
 };
-
-interface JudgeTask {
-  task: string;
-  answer: string;
-  kind: 'batch' | 'lint';
-}
-
-function tasksOf(plan: unknown): JudgeTask[] {
-  if (!isRecord(plan)) return [];
-  const of = (key: string, kind: JudgeTask['kind']): JudgeTask[] => {
-    const list = plan[key];
-    return Array.isArray(list)
-      ? list.flatMap((t) =>
-          isRecord(t) && typeof t['task'] === 'string' && typeof t['answer'] === 'string'
-            ? [{ task: t['task'], answer: t['answer'], kind }]
-            : [],
-        )
-      : [];
-  };
-  return [...of('batches', 'batch'), ...of('lint', 'lint')];
-}
 
 async function quiet<T>(fn: () => Promise<T>): Promise<T> {
   const log = console.log;
@@ -186,11 +165,20 @@ export interface JudgeInput {
 async function answerTask(
   input: JudgeInput,
   root: string,
-  entry: string,
-  t: JudgeTask,
-): Promise<string | undefined> {
-  const schema = t.kind === 'batch' ? BATCH_ANSWER_SCHEMA : LINT_ANSWER_SCHEMA;
-  const text = await readFile(expectHelperPath(root, entry, t.task), 'utf8');
+  t: ExpectConsumerTask,
+): Promise<unknown> {
+  const schema = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['version', 'binding', 'item', 'input', 'data'],
+    properties: {
+      version: { const: 2 },
+      binding: { type: 'object' },
+      item: { type: 'string' },
+      input: { type: 'string' },
+      data: t.kind === 'batch' ? BATCH_ANSWER_SCHEMA : LINT_ANSWER_SCHEMA,
+    },
+  };
   const result = await input.runner.headless({
     cwd: root,
     context: { purpose: 'expect-helper' },
@@ -200,18 +188,13 @@ async function answerTask(
     systemPrompt: input.systemPrompt,
     tools: JUDGE_TOOLS,
     allowedTools: JUDGE_TOOLS,
-    prompt: `${text}\nФайл ответа не пиши: верни ответ единственным JSON-объектом без пояснений, строго по схеме: ${JSON.stringify(schema)}`,
+    prompt: `${t.text}\nФайл ответа не пиши: верни ответ единственным JSON-объектом без пояснений, строго по схеме: ${JSON.stringify(schema)}`,
     schema,
     persist: false,
     maxTurns: 30,
   });
-  const answer =
-    t.kind === 'batch' && isRecord(result.structured)
-      ? result.structured['answers']
-      : result.structured;
-  if (answer === undefined) return `${t.task}: судья не вернул ответ`;
-  await writeFile(expectHelperPath(root, entry, t.answer), JSON.stringify(answer, null, 2), 'utf8');
-  return undefined;
+  if (result.structured === undefined) throw new Error(`${t.task}: судья не вернул ответ`);
+  return result.structured;
 }
 
 export const EXPECT_ENV = ['HARNESS_EXPECT_ROOT', 'HARNESS_EXPECT_ENTRY'];
@@ -240,22 +223,25 @@ async function judgeFile(input: JudgeInput, file: string): Promise<ReviewRecord>
   const args = { root, now: new Date(), params: { file } };
   const rejected: string[] = [];
   if ((await quiet(() => runExpect('judge', args))) !== 0) {
-    const plan: unknown = JSON.parse(
-      await readFile(expectHelperPath(root, file, `${expectHelperDir(file)}/plan.json`), 'utf8'),
-    );
-    const errors = await Promise.all(tasksOf(plan).map((t) => answerTask(input, root, file, t)));
-    rejected.push(...errors.filter((e) => e !== undefined));
-    if ((await readFile(abs, 'utf8')) !== before) {
-      await writeFile(abs, before, 'utf8');
-      rejected.push('судья изменил файл ожиданий — правка отменена');
+    try {
+      const consumer = await expectPlanConsumer(root, file, args.now);
+      for (const task of consumer.tasks)
+        await consumer.produce(task.task, () => answerTask(input, root, task));
+      await quiet(() => consumer.apply());
+    } catch (error) {
+      rejected.push(errorMessage(error));
+    } finally {
+      if ((await readFile(abs, 'utf8')) !== before) {
+        await writeFile(abs, before, 'utf8');
+        rejected.push('судья изменил файл ожиданий — правка отменена');
+      }
     }
-    await quiet(() => runExpect('judge', { ...args, apply: true }));
   }
   const summary = await expectSummary(root, file);
   const state = await readPlanState(s);
   const record: ReviewRecord = {
     round: state.round + 1,
-    pass: !summary.blocked,
+    pass: !summary.blocked && rejected.length === 0,
     summary,
     rejected,
   };

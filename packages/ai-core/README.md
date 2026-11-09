@@ -72,15 +72,23 @@ Mutation — `memory build`, `adapters sync`, `delta close`,
   `.gitignore`.
 - `ai expect report | lint | judge [--apply | --run] <file>` — ожидания в
   форме vitest: дерево со статусами, проверка заголовков, пакетная
-  смысловая проверка судьёй-агентом с кэшем вердиктов. `judge` пишет
-  задания в `.judge/` для субагента-судьи, `--apply` применяет ответы;
-  `--run` отвечает на задания ролью `judge` (см. «Роли») и сразу
-  применяет. `<file>` — одна
+  смысловая проверка с input-bound proofs. `report`/`lint` не вызывают агента;
+  `judge` готовит delta tasks, `judge --apply` применяет bound answers без
+  producer. Только `judge --run` выбирает explicit producer path, но текущий
+  production `askRole` context incomplete: needs-review до dispatch даже с
+  `--run`. `--run`/`--apply` несовместимы и не поддержаны report/lint.
+  `<file>` — одна
   точка входа `*.expect.ts`; остальные файлы ожиданий попадают в прогон
   только через `import` в ней. Конфиг vitest — из пакета, проекту свой
   не нужен. Отчёт, бюджет и проверка заголовков — по модулю, где
-  объявлено ожидание; вердикты и задания судьи — рядом с точкой входа
-  (`<каталог>/.verdicts.json`, `<каталог>/.judge/`). Помощники для
+  объявлено ожидание. Typed resolver назначает tasks/bundles через
+  `expectHelperDir(entry)` в `.oc3/reports/expect/<entry-key>/`, compact store
+  через `expectCacheFile(entry)` в `.oc3/verdicts/expect/<entry-key>/verdicts.json`;
+  entry-key — SHA-256 нормализованного project-relative entry.
+  Legacy reasons/quotes/history сохраняются как unverified/needs-review,
+  query не переписывает versioned store. Proof/force/run/apply и ограничения —
+  [инкрементальная верификация](../../design/incremental-verification.md).
+  Помощники для
   проверок — `@shahimat/harness/expect` (нужен vitest в проекте):
   `crit` / `warn` / `note` / `budget`, `describe`, `expectAtMost` (info
   при > 90% порога), зонды по репозиторию, `judged`, проверка JSON
@@ -127,6 +135,18 @@ Mutation — `memory build`, `adapters sync`, `delta close`,
   отклонена.
 - `ai index build | check --raw-base <url>` — индекс
   `prompts/index.yml` репозитория промптов.
+
+## Публичный consumer подготовленного плана
+
+Корневой export `@shahimat/ai-core` предоставляет
+`expectPlanConsumer(root, entryPath, now: Date)` и типы
+`ExpectPlanConsumer`, `ExpectConsumerTask`. После отдельного prepare consumer
+возвращает `tasks` (`task`, `kind`, `text`), `produce(task, callback)` и `apply()`.
+Он использует только default capture: caller не задаёт completeness/context,
+нет env/CLI trust switch. Immutable v2 bindings, current revalidation
+до/после producer и перед atomic apply, explicit coverage и границы полномочий —
+[контракт consumer](../../design/incremental-verification.md#consumer-подготовленного-плана).
+Этот API не аттестует реального producer: incomplete context блокирует dispatch.
 
 ## План в форме ожиданий
 
@@ -200,8 +220,10 @@ planReview.whole(() => {
   Файл — производный вид, источник — файл ожиданий.
 - `ai expect serve <file> [--port <n>]` — та же страница
   с `http://127.0.0.1:<port>/` (по умолчанию 4173): собирается при
-  каждом запросе, правка файла ожиданий видна после перезагрузки, на
-  диск ничего не пишется. Так артефакт плана — только файл ожиданий.
+  каждом запросе. Needs-review даёт HTTP 503, render failure — 500;
+  source revision сверяется заново, HTTP 200 не заменяет acceptance proof.
+  Runtime outputs не создают watch feedback loop; semantic `.oc3` inputs
+  остаются источниками инвалидации. Артефакт плана — файл ожиданий, не HTML.
 
 ## Роли
 
@@ -227,12 +249,13 @@ headless-исполнителем в harness.
   вопрос человеку; канала для него пока нет). Схемы — `PROTOCOL` из
   пакета.
 - Запуск — `opencode run --format json --auto --agent <роль>
-  --model <модель>`: конфиг — из `OPENCODE_CONFIG_CONTENT` (единственная
-  инструкция — системный промпт роли), права — `tools` роли, итог —
-  инструментом `submit_result` плагина `@shahimat/oc3` (пишет файл
-  ответа), задание — на stdin. Ответ текстом
-  harness не читает: нет вызова `submit_result` с валидным ответом —
-  ошибка роли.
+  --model <модель>`: launcher передаёт конфиг через
+  `OPENCODE_CONFIG_CONTENT`, instruction file с промптом роли,
+  memory/preflight и задание на stdin. Это переданные inputs, не
+  аттестация effective inherited/system/tool context или closed isolation.
+  Список `tools` роли не доказывает effective allowlist. Основной ответ —
+  `submit_result` плагина `@shahimat/oc3`; `askRole` также имеет
+  file/session/text fallback с проверкой схемы, не удостоверяющей producer.
 - Вход роли librarian — схема `INTENTS_SCHEMA`: намерения `kind`
   (`decision`, `fact`, `rule`, `behavior-change`, `task`, `manual`),
   `summary`, `evidence`; пересмотр — `kind: revise` с обязательными
@@ -266,6 +289,59 @@ checks:
 
 `secrets` включена, даже если ключа нет; `secrets: false` — выключить.
 Исключение без `reason` — ошибка конфига.
+
+## Тестирование исходников
+
+Нужны Node ≥ 24, установленные workspace dependencies (`npm ci` из
+корня репозитория) и включённые npm lifecycle hooks: `ignore-scripts`
+не является поддержанным подготовленным путём.
+
+Из корня репозитория:
+
+```bash
+npm test -w @shahimat/ai-core
+```
+
+Из `packages/ai-core` — `npm test`. В обоих случаях `pretest` сначала
+делает clean build текущих исходников, затем Vitest собирает и запускает
+тесты. Cross-run reuse ограничен reviewed bounded guards contract;
+остальная область исполняется run-only с реальным exit и полным selected
+scope. Incomplete repeat требует нового run, без второго launch.
+[Контракт reuse/force](../../design/incremental-verification.md) не отменяет
+pretest preparation. Source resolution сохраняется;
+`helper-leaves` и `artifacts` также проверяют compiled runtime и публичный JS.
+Build и процессы, читающие общий `dist`, запускаются последовательно,
+в том числе если CI уже выполнил build.
+
+`prepublishOnly` выполняет source typecheck → `npm test` (его `pretest`
+clean build → тесты). Свежий output проверяется до публикации; отдельной
+сборки после тестов нет. Сам `npm run prepublishOnly -w @shahimat/ai-core`
+ничего не публикует.
+
+Прямой Vitest не выполняет `pretest`: перед ним нужен
+`npm run build -w @shahimat/ai-core`. Preparation regression следует
+запускать через npm, например
+`npm test -w @shahimat/ai-core -- test/preparation.test.ts`: ему нужен
+активный `npm_execpath`.
+
+Общий test-only setup изолирует inherited `FAKE_*`, relevant HARNESS
+timeout/expect и Git controls. System/global Git config, hooks и signing
+отключаются, synthetic identity задаётся только окружением тестового
+процесса, без переписывания реальных configs. Первым в `PATH` стоит Node
+текущего процесса; `NODE_OPTIONS` и instrumentation сохраняются.
+`expect-cli` создаёт и очищает полный fixture на каждый тест, без
+обязательного предшествующего test case.
+
+Controlled missing/stale-dist, dirty-env и order-regressions проверены
+в текущем macOS runtime и synthetic альтернативных cwd/env. Это не
+cross-machine гарантия.
+
+Обычные package tests и publish hooks не требуют работающего OpenCode/model:
+controlled fakes допустимы, но не доказывают production semantic reuse.
+Проверка distribution без `src` использует обычные public exports/compiled CLI,
+без dev `source` condition; successful collection с semantic needs-review
+отличается от module-resolution failure. Границы evidence —
+[релиз пакетов](../../design/packages.md#релиз).
 
 ## Лицензия
 

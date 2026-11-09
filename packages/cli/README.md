@@ -30,6 +30,16 @@ DOCS_VERIFY автомата `docs-delta`: `adapters sync` (если включ�
 `delta check` → `memory build` → CHECK. Это не новая публичная команда
 `ai docs verify` и не отдельный пользовательский entrypoint.
 
+`ai check|refresh --force` обходят baseline в общем authenticated run, но не
+freshness/permissions и не повторяют sufficient current PASS/FAIL. Reuse
+ограничен зарегистрированными modeled checks, не всем скриптом/CI. Force не
+удаляет fixtures/snapshots и не разрешает agent: default queries/CI не вызывают
+provider даже при inherited allowJudge. `expect judge` готовит delta, отдельные
+`judge --run`/`--apply` несовместимы; текущий production producer incomplete
+даже с `--run`. Unsupported controls дают usage error.
+Матрица команд, ordinary fallback и ограничения —
+[инкрементальная верификация](../../design/incremental-verification.md).
+
 Отдельного `checks.memory` нет. Без установленной canonical memory
 runtime явно пропускает только точные шаги `memory build`/`memory check`.
 Pending-only проект не считается установленной памятью; inbox

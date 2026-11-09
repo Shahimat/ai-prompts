@@ -111,6 +111,9 @@ export async function runOperator(command: string | undefined, args: CommandArgs
         name,
         (name === 'docs-derived' ? packet.owners['docs'] : packet.owners['verification']) ?? '',
         'operator/manual-cli',
+        args.proofRun === undefined
+          ? { force: args.force === true }
+          : { force: args.force === true, run: args.proofRun },
       );
       console.log(JSON.stringify({ ...result, caller: 'operator/manual-cli' }));
       return result['status'] === 'pass' || result['kind'] === name ? 0 : 1;

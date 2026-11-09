@@ -1,12 +1,18 @@
 import { createHash } from 'node:crypto';
 import { anchorEvidence } from './anchors.ts';
-import { readRepo, extractSection } from './repo.ts';
+import { readRepo, extractSection, repoRoot } from './repo.ts';
 
-export async function readEvidence(ref: string): Promise<string> {
-  if (ref.startsWith('@')) return anchorEvidence(ref.slice(1));
+export async function readEvidence(ref: string, root = repoRoot()): Promise<string> {
+  if (ref.startsWith('@')) return anchorEvidence(ref.slice(1), root);
   const hash = ref.indexOf('#');
   const file = hash === -1 ? ref : ref.slice(0, hash);
-  const text = await readRepo(file);
+  if (
+    file
+      .split(/[\\/]/)
+      .some((part) => /^(?:\.env(?:\.|$)|credentials(?:\.|$)|secrets?(?:\.|$))/i.test(part))
+  )
+    throw new Error('PRIVATE_EXPECT_EVIDENCE');
+  const text = await readRepo(file, root);
   if (hash === -1) return text;
   const section = extractSection(text, ref.slice(hash + 1));
   if (section === null) throw new Error(`${ref}: раздел не найден`);

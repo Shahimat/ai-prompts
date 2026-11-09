@@ -3,7 +3,7 @@ import path from 'node:path';
 import * as ts from 'typescript';
 import type { CommandArgs } from '#shared/args';
 import { UsageError, type Diagnostic } from '#shared/diagnostics';
-import { errorCode, isRecord } from '#shared/guards';
+import { errorCode } from '#shared/guards';
 import { report } from '#shared/report';
 import { BASELINE_DIR, GOALS_DIR } from '#shared/layout';
 
@@ -219,41 +219,19 @@ async function importsOf(args: CommandArgs, rel: string): Promise<string[]> {
   return matches.map((m) => path.posix.join(path.posix.dirname(rel), m[1] ?? ''));
 }
 
-function latestPass(raw: string | null): boolean | undefined {
-  if (raw === null) return undefined;
-  try {
-    const data: unknown = JSON.parse(raw);
-    if (!isRecord(data)) return false;
-    const results: unknown = data['results'];
-    if (!Array.isArray(results)) return false;
-    const last: unknown = results.at(-1);
-    if (!isRecord(last)) return false;
-    const items: unknown = last['items'];
-    if (!Array.isArray(items) || items.length === 0) return false;
-    const pass = items.filter((item) => isRecord(item) && item['status'] === 'pass').length;
-    return pass / items.length >= 0.8;
-  } catch {
-    return false;
-  }
-}
-
 function printGoal(rel: string, goal: Goal, result: string | null): void {
-  const achieved = latestPass(result);
-  const last = goal.tickets.at(-1);
   if (goal.tickets.length === 0) {
     console.log(`${rel}: тикетов нет`);
     return;
   }
   for (const ticket of goal.tickets) {
-    const stage = ticket.todo
-      ? 'план'
-      : ticket.wip
-        ? 'в работе'
-        : ticket === last && achieved === true
-          ? 'достигнута'
-          : 'готовый план';
+    const stage = ticket.todo ? 'план' : ticket.wip ? 'в работе' : 'готовый план';
     console.log(`${rel}: ${ticket.key} — ${stage}`);
   }
+  if (result !== null)
+    console.log(
+      `${rel}: needs-review — historical sidecar is not current generation/acceptance proof`,
+    );
 }
 
 async function status(args: CommandArgs): Promise<number> {

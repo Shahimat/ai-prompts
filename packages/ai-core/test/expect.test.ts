@@ -78,7 +78,7 @@ describe('applyAnswers', () => {
       [
         { id: 'a', verdict: true, ref: 'x.md', quote: 'Memory агента запрещена', reason: '' },
         { id: 'b', verdict: true, ref: 'x.md', quote: 'memory разрешена в CI', reason: '' },
-        { id: 'zzz', verdict: true, ref: 'x.md', quote: 'Memory агента запрещена', reason: '' },
+        { id: 'c', verdict: true, ref: 'other.md', quote: 'Memory агента запрещена', reason: '' },
       ],
       texts,
       NOW,
@@ -91,8 +91,7 @@ describe('applyAnswers', () => {
     });
     expect(result.rejected).toEqual([
       { id: 'b', reason: 'цитата не найдена в доказательстве дословно' },
-      { id: 'zzz', reason: 'неизвестный id' },
-      { id: 'c', reason: 'нет ответа' },
+      { id: 'c', reason: 'ref «other.md» не из доказательств вопроса' },
     ]);
   });
 

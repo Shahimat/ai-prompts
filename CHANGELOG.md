@@ -2,6 +2,9 @@
 
 Свежее сверху. Одна строка — одно решение: `- YYYY-MM-DD · [тег] суть · почему`.
 
+- 2026-11-09 · [arch] T3: input-bound v2 apply, legacy unverified; 7 integration cases 30s · incomplete/stale не PASS
+- 2026-11-09 · [arch] T2: общий proof runner, force обходит только baseline · opaque CI не кэшируется как PASS
+- 2026-11-08 · [arch] ai-core проверяет свежий compiled output до публикации · тесты не зависят от случайного dist
 - 2026-11-08 · [arch] полные bounded-проекции памяти по действующим схемам · доступ к фактам без ослабления seal
 - 2026-11-08 · [dep] отдельные версии для плоской .oc3/ подготовлены · прежние номера скрывали source/npm-разницу
 - 2026-11-07 · [arch] execution artifacts только в .oc3/, durable ≠ commit · единый namespace, меньше runtime churn

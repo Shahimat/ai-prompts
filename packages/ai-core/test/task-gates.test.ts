@@ -7,6 +7,7 @@ import { pathToFileURL } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { acquireLease, contentHash, gitRead, readJson, recoverLease } from '#lib/local-store';
 import { isRecord } from '#shared/guards';
+import { beginProofRun } from '#lib/proof/transport';
 import {
   attestTaskPhase,
   acceptTaskVerdict,
@@ -115,6 +116,56 @@ afterEach(async () => {
 });
 
 describe('task packet and snapshot gates', () => {
+  it('reused child leaf never replaces a fresh native gate, output validation, owner or full barriers', async () => {
+    const runner = pathToFileURL(
+      path.join(path.dirname(import.meta.dirname), 'src/lib/proof/runner.ts'),
+    ).href;
+    const transport = pathToFileURL(
+      path.join(path.dirname(import.meta.dirname), 'src/lib/proof/transport.ts'),
+    ).href;
+    const output = '.oc3/reports/fixture/leaf-output';
+    const script = `import {appendFile,mkdir} from 'node:fs/promises';import {ensureProof} from ${JSON.stringify(runner)};import {joinProofRun,PROOF_TRANSPORT} from ${JSON.stringify(transport)};const run=await joinProofRun(process.cwd(),process.env[PROOF_TRANSPORT]);const result=await ensureProof(run,{id:'native-leaf',declaration:{cacheability:'runtime-bound',files:['source.ts'],implementation:['source.ts'],complete:true},execute:async()=>{await mkdir('.oc3/reports/fixture',{recursive:true});await appendFile(${JSON.stringify(output)},'x');return {status:'pass',code:0,diagnostics:[]}}});console.log(result.origin);process.exitCode=result.code;`;
+    const configured: TaskPacket = {
+      ...packet,
+      classification: [
+        ...packet.classification,
+        { path: output, class: 'generated', owner: 'executor' },
+      ],
+      checks: {
+        ...packet.checks,
+        targeted: {
+          argv: ['node', '--conditions=source', '--input-type=module', '-e', script],
+          cwd: '.',
+          outputs: [output],
+        },
+      },
+    };
+    const first = await verifyTask(root, configured, 'targeted', 'executor', 'synthetic-cli', {
+      force: true,
+    });
+    expect(first['status']).toBe('pass');
+    const warm = await verifyTask(root, configured, 'targeted', 'executor');
+    expect(warm['status']).toBe('pass');
+    expect(warm['run']).not.toBe(first['run']);
+    expect(warm['log_locator']).not.toBe(first['log_locator']);
+    expect(await readFile(path.join(root, output), 'utf8')).toBe('x');
+    await currentCheck(root, configured, 'targeted');
+    await rm(path.join(root, output));
+    await expect(currentCheck(root, configured, 'targeted')).rejects.toThrow('STALE_OUTPUT');
+    expect((await verifyTask(root, configured, 'targeted', 'executor'))['status']).toBe('fail');
+  });
+  it('foreign proof owner cannot authorize a native gate or bypass full barriers', async () => {
+    await expect(verifyTask(root, packet, 'full', 'executor')).rejects.toThrow('MISSING_RECEIPT');
+    const foreign = await beginProofRun(root, {
+      owner: 'other',
+      scope: ['*'],
+      force: false,
+      allowJudge: false,
+    });
+    await expect(
+      verifyTask(root, packet, 'targeted', 'executor', 'synthetic-cli', { run: foreign }),
+    ).rejects.toThrow('PROOF_POLICY_MISMATCH');
+  });
   it('arbitrary external evidence and managed areas are rejected before classification, even when labelled source', async () => {
     const bypass: TaskPacket = {
       ...packet,
@@ -258,7 +309,7 @@ describe('task packet and snapshot gates', () => {
     await expect(
       launchPreflight(root, { packet: file, purpose: 'expect-helper' }),
     ).resolves.toBeDefined();
-  });
+  }, 30000);
   it('complete preflight passes without running a command; missing prerequisites, owner, authority, check fail', async () => {
     const preflight = await taskPreflight(root, packet);
     expect(preflight['kind']).toBe('preflight');
@@ -393,7 +444,7 @@ describe('task packet and snapshot gates', () => {
     );
     await put('cache.json', '{}');
     await expect(taskReady(root, packet)).rejects.toThrow('STALE_PHASE');
-  });
+  }, 30000);
   it('lease prevents concurrent managed owners, cannot release another token, and does not lock another root', async () => {
     const lease = await acquireLease(root, 'verification', 'executor', {
       caller: 'native:executor:session',

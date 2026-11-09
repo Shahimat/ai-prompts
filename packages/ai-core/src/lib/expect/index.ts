@@ -58,3 +58,4 @@ export {
 } from './anchors.ts';
 export { applyAnswers, DEFAULT_LIMITS, planBatches, type BatchLimits } from './batch.ts';
 export { lintTitles, MAX_TITLE } from './lint.ts';
+export { inventoryCacheCounts } from './inventory.ts';

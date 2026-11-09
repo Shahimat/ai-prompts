@@ -2,6 +2,7 @@
 // expect:verdict-prune
 // expect:verdict-by-code
 import { spawnSync } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
@@ -15,25 +16,44 @@ import {
   ARTIFACT_IGNORE_LINES,
 } from '#lib/artifacts';
 import { UsageError } from '#shared/diagnostics';
-import {
-  applyAnswers,
-  applyLintAnswer,
-  planBatches,
-  renderBatch,
-  renderLintBatch,
-} from '#lib/expect/batch';
+import { applyAnswers, planBatches, renderBatch } from '#lib/expect/batch';
 import { readEvidence, shaOf } from '#lib/expect/evidence';
-import { COLLECT_ENV, idOf, isPendingItem, SEEN_ENV, type PendingItem } from '#lib/expect/pending';
-import { errorMessage, isRecord, isStringArray } from '#shared/guards';
+import { COLLECT_ENV, isPendingItem, SEEN_ENV, type PendingItem } from '#lib/expect/pending';
+import { errorMessage, isRecord } from '#shared/guards';
 import { askRole } from '#lib/role';
-import { lintTitles, type Title } from '#lib/expect/lint';
+import { lintTitles } from '#lib/expect/lint';
 import {
   ENTRY_ENV,
   loadVerdicts,
-  pruneStore,
   saveVerdicts,
   verdictsPath,
+  type VerdictStore,
+  sealVerdict,
 } from '#lib/expect/verdicts';
+import { canonicalDigest, criterionInventory, registrationInput } from '#lib/expect/inventory';
+import { acquireLease } from '#lib/local-store';
+import { entryLeaseName, implementationContext, producerContext } from '#lib/expect/proof';
+import {
+  titlePlan,
+  titleDelta,
+  applyTitleAnswer,
+  renderTitlePlan,
+  isTitlePlan,
+  type TitlePlan,
+} from '#lib/expect/title-proof';
+import { commandProofRun } from '#lib/proof/adapter';
+import { ensureProof } from '#lib/proof/runner';
+import { PROOF_TRANSPORT } from '#lib/proof/transport';
+import {
+  applyBoundPlan,
+  currentBoundPlan,
+  prepareBoundPlan,
+  semanticGeneration,
+  isBoundPlan,
+  runBoundProducer,
+  validateAnswerEnvelope,
+  type BoundPlan,
+} from '#lib/expect/bundle';
 import type { CommandArgs } from '#shared/args';
 import { headTitles } from './head.ts';
 import { portOf, renderInChild, serveHtml } from './serve.ts';
@@ -97,9 +117,18 @@ function vitestBin(root: string): string {
 function runVitest(
   root: string,
   entry: string,
-  env: Record<string, string> = {},
+  env: NodeJS.ProcessEnv = {},
   extra: string[] = [],
 ): TestResult[] {
+  const inheritedHead = process.env['HARNESS_EXPECT_HEAD_SOURCE'];
+  if (
+    inheritedHead !== undefined &&
+    inheritedHead !== '' &&
+    env['HARNESS_EXPECT_HEAD_SOURCE'] === undefined
+  )
+    throw new UsageError('HEAD source requires explicit collection provenance');
+  const inventory =
+    env['HARNESS_EXPECT_HEAD_SOURCE'] === undefined ? criterionInventory(root, entry) : undefined;
   const scratch = mkdtempSync(path.join(tmpdir(), 'harness-expect-'));
   const out = path.join(scratch, 'report.json');
   try {
@@ -118,13 +147,36 @@ function runVitest(
       ],
       {
         cwd: root,
-        env: { ...process.env, ...env, HARNESS_EXPECT_ROOT: root, [ENTRY_ENV]: entry },
+        env: {
+          ...process.env,
+          [COLLECT_ENV]: undefined,
+          [SEEN_ENV]: undefined,
+          ...env,
+          HARNESS_EXPECT_ROOT: root,
+          [ENTRY_ENV]: entry,
+          HARNESS_EXPECT_SOURCE_GENERATION: inventory?.generation ?? 'unmodelled-source',
+        },
         stdio: ['ignore', 'ignore', 'inherit'],
       },
     );
     if (!existsSync(out)) throw new Error('vitest не записал отчёт');
     const data: unknown = JSON.parse(readFileSync(out, 'utf8'));
-    return parseVitestReport(data, root);
+    const results = parseVitestReport(data, root);
+    if (inventory !== undefined) {
+      if (criterionInventory(root, entry).generation !== inventory.generation)
+        throw new Error('STALE_EXPECT_GENERATION');
+      const registrations = results.flatMap((result) =>
+        result.registration === undefined ? [] : [result.registration],
+      );
+      for (const result of results) {
+        const criterion =
+          result.registration === undefined
+            ? undefined
+            : registrationInput(inventory, result.registration, registrations);
+        if (criterion !== undefined) result.criterion = criterion;
+      }
+    }
+    return results;
   } finally {
     rmSync(scratch, { recursive: true, force: true });
   }
@@ -132,7 +184,44 @@ function runVitest(
 
 const NOTHING = '(?!)';
 
-const titlesSha = (tests: TestResult[]): string => shaOf(tests.map(fullName).sort().join('\n'));
+class CollectionNeedsReview extends Error {}
+
+async function collectOnce(args: CommandArgs, env: NodeJS.ProcessEnv = {}): Promise<TestResult[]> {
+  const head = process.env['HARNESS_EXPECT_HEAD_SOURCE'];
+  if (head !== undefined && head !== '' && env['HARNESS_EXPECT_HEAD_SOURCE'] === undefined)
+    throw new UsageError('HEAD source requires explicit collection provenance');
+  const run = await commandProofRun(args);
+  const entry = entryOf(args);
+  let results: TestResult[] | undefined;
+  let executions = 0;
+  const receipt = await ensureProof(run, {
+    id: `expect:collection:${entry}:${env[COLLECT_ENV] === undefined ? 'query' : 'prepare'}`,
+    declaration: {
+      cacheability: 'run-only',
+      complete: false,
+      diagnostics: [
+        'unattested Vitest collection runtime; observation only; fresh run required for another collection',
+      ],
+      files: [entry],
+      optionalFiles: ['package.json', 'package-lock.json'],
+      implementation: [],
+      config: { generation: criterionInventory(args.root, entry).generation },
+    },
+    execute: async () => {
+      executions++;
+      results = runVitest(args.root, entry, { ...env, [PROOF_TRANSPORT]: JSON.stringify(run) });
+      return { status: 'pass', code: 0, diagnostics: [] };
+    },
+  });
+  console.error(
+    `expect collection: ${receipt.origin} ${receipt.status}; executed ${executions}; run-only observation, not semantic PASS`,
+  );
+  if (results === undefined || receipt.status !== 'pass')
+    throw new CollectionNeedsReview(receipt.diagnostics.join('; '));
+  if (results.length === 0)
+    throw new CollectionNeedsReview('empty/unresolved collection: no evaluated scope');
+  return results;
+}
 
 const isPending = (t: TestResult): boolean =>
   t.status === 'failed' && t.message.includes('нет свежего вердикта');
@@ -148,9 +237,11 @@ function stepLabels(tests: TestResult[]): Map<string, string> {
 async function collect(
   args: CommandArgs,
   log: (line: string) => void,
-): Promise<{ reports: FileReport[]; blocked: boolean }> {
-  const all = runVitest(args.root, entryOf(args));
-  const store = await loadVerdicts();
+): Promise<{ reports: FileReport[]; blocked: boolean; titleIssueCount: number }> {
+  const run = await commandProofRun(args);
+  const all = await collectOnce({ ...args, proofRun: run });
+  const store = await loadVerdicts(args.root, entryOf(args));
+  const producer = await producerContext(args.root);
   const titleIssues = lintTitles(
     visible(all).map((r) => ({ file: r.file, path: r.path, title: r.title })),
   );
@@ -202,33 +293,36 @@ async function collect(
       issues.push({ text: `заголовок «${d.title.title}»`, detail: d.message });
       log(`  ${d.level === 'crit' ? '✗' : '⚠'} заголовок «${d.title.title}» — ${d.message}`);
     }
-    const lint = store.lint[file];
-    if (lint === undefined || lint.titles !== titlesSha(items)) {
+    const completeTitlePlan = titlePlan(
+      file,
+      items.map((t) => ({ file, path: t.path, title: t.title })),
+      producer,
+      items.every((t) => t.criterion?.titleComplete === true),
+    );
+    const delta = titleDelta(completeTitlePlan, store.titles ?? {}, run.force, run.id);
+    log(
+      `  titles: reused ${delta.reused.length} · needs-review ${delta.plan.checks.length} · executed 0`,
+    );
+    if (delta.plan.checks.length > 0 || !delta.plan.complete) {
       count.pending++;
-      log('  ? смысловая проверка заголовков устарела — ai expect judge');
-    } else {
-      const byId = new Map(items.map((t) => [idOf(fullName(t)), t]));
-      const name = (id: string) => byId.get(id)?.title;
-      const stub = (...ids: string[]) =>
-        ids.some((id) => {
-          const t = byId.get(id);
-          return t !== undefined && (t.wip || isPlannedTest(t));
-        });
-      const note = (wip: boolean) => (wip ? ' (в работе — не блокирует)' : '');
-      for (const c of lint.contradictions) {
-        const wip = stub(c.a, c.b);
-        const text = `противоречие: «${name(c.a)}» ↔ «${name(c.b)}»${note(wip)}`;
-        issues.push({ text, detail: c.reason });
-        log(`  ${wip ? '◐' : '⚠'} ${text} — ${c.reason}`);
-        if (!wip) count.warn++;
-      }
-      for (const u of lint.unmeasurable) {
-        const wip = stub(u.id);
-        const text = `неизмеримо: «${name(u.id)}»${note(wip)}`;
-        issues.push({ text, detail: u.reason });
-        log(`  ${wip ? '◐' : '⚠'} ${text} — ${u.reason}`);
-        if (!wip) count.warn++;
-      }
+      log(
+        `  ? смысловая проверка заголовков устарела — needs-review: ${delta.plan.diagnostics.join('; ') || 'missing explicit title coverage'}`,
+      );
+    }
+    for (const proof of delta.reused.filter((proof) => proof.problem)) {
+      const peers = proof.check.nodes.map((id) => {
+        const node = completeTitlePlan.nodes.find((node) => node.id === id);
+        return items.find(
+          (t) =>
+            node?.intent.title === t.title &&
+            canonicalDigest(node.intent.path) === canonicalDigest(t.path),
+        );
+      });
+      const wip = peers.some((t) => t !== undefined && (t.wip || isPlannedTest(t)));
+      const text = `${proof.check.kind === 'pair' ? 'противоречие' : 'неизмеримо'}: ${proof.reason}`;
+      issues.push({ text });
+      log(`  ${wip ? '◐' : '⚠'} ${text}`);
+      if (!wip) count.warn++;
     }
 
     const over = count.crit > budget.crit || count.warn > budget.warn || count.pending > 0;
@@ -271,7 +365,7 @@ async function collect(
   log(
     `\nожиданий ${total.tests}: crit ${total.crit} · warn ${total.warn} · info ${total.info} · ? ${total.pending} — ${blocked ? 'бюджет превышен' : 'в бюджете'}`,
   );
-  return { reports, blocked };
+  return { reports, blocked, titleIssueCount: titleIssues.length };
 }
 
 export interface ExpectSummary {
@@ -388,25 +482,18 @@ async function serve(args: CommandArgs): Promise<number> {
 }
 
 async function lint(args: CommandArgs): Promise<number> {
-  const titles: Title[] = visible(runVitest(args.root, entryOf(args))).map((r) => ({
-    file: r.file,
-    path: r.path,
-    title: r.title,
-  }));
-  const diags = lintTitles(titles);
-  for (const d of diags)
-    console.error(`${d.level} ${d.title.file}: «${d.title.title}» — ${d.message}`);
-  console.log(
-    diags.length === 0
-      ? `expect lint: ok (${titles.length})`
-      : `expect lint: нарушений ${diags.length}`,
-  );
-  return diags.length === 0 ? 0 : 1;
+  const { blocked, titleIssueCount } = await collect(args, (line) => console.log(line));
+  const failed = blocked || titleIssueCount > 0;
+  console.log(`expect lint: ${failed ? 'needs-review/failed' : 'ok'}`);
+  return failed ? 1 : 0;
 }
 
 interface Plan {
+  execution: { run: string; force: boolean; allowJudge: boolean };
   batches: { task: string; answer: string; items: PendingItem[] }[];
-  lint: { task: string; answer: string; file: string; titles: string; ids: string[] }[];
+  lint: { task: string; answer: string; review: TitlePlan }[];
+  bound?: BoundPlan;
+  tasks?: Record<string, string>;
 }
 
 function isPlan(v: unknown): v is Plan {
@@ -414,19 +501,38 @@ function isPlan(v: unknown): v is Plan {
     isRecord(t) && typeof t['task'] === 'string' && typeof t['answer'] === 'string';
   return (
     isRecord(v) &&
+    isRecord(v['execution']) &&
+    typeof v['execution']['run'] === 'string' &&
+    typeof v['execution']['force'] === 'boolean' &&
+    typeof v['execution']['allowJudge'] === 'boolean' &&
+    (v['tasks'] === undefined ||
+      (isRecord(v['tasks']) &&
+        Object.values(v['tasks']).every((text) => typeof text === 'string'))) &&
+    (v['bound'] === undefined || isBoundPlan(v['bound'])) &&
     Array.isArray(v['batches']) &&
     v['batches'].every(
       (b) => task(b) && Array.isArray(b['items']) && b['items'].every(isPendingItem),
     ) &&
     Array.isArray(v['lint']) &&
-    v['lint'].every(
-      (l) =>
-        task(l) &&
-        typeof l['file'] === 'string' &&
-        typeof l['titles'] === 'string' &&
-        isStringArray(l['ids']),
-    )
+    v['lint'].every((l) => task(l) && isTitlePlan(l['review']))
   );
+}
+
+function preparedTaskText(
+  plan: Plan,
+  bound: BoundPlan,
+  task: { task: string; answer: string },
+): string {
+  const text = plan.tasks?.[task.task];
+  if (typeof text !== 'string') throw new Error('CORRUPT_EXPECT_TASK');
+  const envelope = {
+    version: 2,
+    binding: bound.binding,
+    item: task.task,
+    input: canonicalDigest(task),
+    data: '<ответ согласно заданию>',
+  };
+  return `${text}\nОтвет только в конверте v2 (data — результат задания):\n${JSON.stringify(envelope)}\n`;
 }
 
 function checkPlanPaths(root: string, entry: string, plan: Plan): void {
@@ -434,20 +540,148 @@ function checkPlanPaths(root: string, entry: string, plan: Plan): void {
     for (const file of [item.task, item.answer]) expectHelperPath(root, entry, file);
 }
 
+export interface ExpectConsumerTask {
+  task: string;
+  kind: 'batch' | 'lint';
+  text: string;
+}
+
+export interface ExpectPlanConsumer {
+  tasks: readonly ExpectConsumerTask[];
+  produce: (task: string, producer: (request: unknown) => Promise<unknown>) => Promise<void>;
+  apply: () => Promise<void>;
+}
+
+export async function expectPlanConsumer(
+  root: string,
+  entryPath: string,
+  now: Date,
+): Promise<ExpectPlanConsumer> {
+  const entry = normalizedProjectPath(entryPath);
+  const file = expectHelperPath(root, entry, `${judgeDir(entry)}/plan.json`);
+  const plan: unknown = JSON.parse(await readFile(file, 'utf8'));
+  if (!isPlan(plan) || !isBoundPlan(plan.bound)) throw new Error('CORRUPT_EXPECT_PLAN');
+  const bound = plan.bound;
+  const { bound: ignored, ...payload } = plan;
+  void ignored;
+  if (canonicalDigest(payload) !== canonicalDigest(bound.payload))
+    throw new Error('CORRUPT_EXPECT_PLAN');
+  checkPlanPaths(root, entry, plan);
+  const tasks = [...plan.batches, ...plan.lint];
+  if (new Set(tasks.map((task) => task.task)).size !== tasks.length)
+    throw new Error('CORRUPT_EXPECT_PLAN');
+  const refs = plan.batches.flatMap((batch) =>
+    batch.items.flatMap((item) => item.evidence.map((evidence) => evidence.ref)),
+  );
+  const capture = () => semanticGeneration(root, entry, refs);
+  const inspect = async () => {
+    await currentBoundPlan(root, entry, bound, capture);
+    const current: unknown = JSON.parse(await readFile(file, 'utf8'));
+    if (canonicalDigest(current) !== canonicalDigest(plan)) throw new Error('CORRUPT_EXPECT_PLAN');
+    for (const task of tasks)
+      if (
+        (await readFile(expectHelperPath(root, entry, task.task), 'utf8')) !==
+        preparedTaskText(plan, bound, task)
+      )
+        throw new Error('CORRUPT_EXPECT_TASK');
+    if (
+      plan.lint.some((task) => !task.review.complete) ||
+      plan.batches.some((batch) => batch.items.some((item) => item.binding?.complete !== true))
+    )
+      throw new Error('INCOMPLETE_EXPECT_PRODUCER: needs-review');
+  };
+  await inspect();
+  const accepted = new Set<string>();
+  return {
+    tasks: [
+      ...plan.batches.map(
+        (task) =>
+          ({
+            task: task.task,
+            kind: 'batch',
+            text: preparedTaskText(plan, bound, task),
+          }) satisfies ExpectConsumerTask,
+      ),
+      ...plan.lint.map(
+        (task) =>
+          ({
+            task: task.task,
+            kind: 'lint',
+            text: preparedTaskText(plan, bound, task),
+          }) satisfies ExpectConsumerTask,
+      ),
+    ],
+    produce: async (item, producer) => {
+      const task = tasks.find((task) => task.task === item);
+      if (task === undefined) throw new Error('FOREIGN_EXPECT_TASK');
+      await inspect();
+      const answer = await runBoundProducer(
+        root,
+        entry,
+        bound,
+        item,
+        canonicalDigest(task),
+        capture,
+        async (request) => {
+          await inspect();
+          const value = await producer(request);
+          await inspect();
+          return value;
+        },
+      );
+      const data = validateAnswerEnvelope(bound, item, canonicalDigest(task), answer);
+      if ('review' in task) applyTitleAnswer(task.review, data, now);
+      else {
+        const texts = new Map<string, string>();
+        for (const ref of new Set(task.items.flatMap((item) => item.evidence.map((e) => e.ref))))
+          texts.set(ref, await readEvidence(ref, root));
+        if (applyAnswers(task.items, data, texts, now).rejected.length > 0)
+          throw new Error('REJECTED_EXPECT_ANSWERS');
+      }
+      await inspect();
+      await writeFile(
+        expectHelperPath(root, entry, task.answer),
+        JSON.stringify(answer, null, 2),
+        'utf8',
+      );
+      accepted.add(item);
+    },
+    apply: async () => {
+      if (accepted.size !== tasks.length) throw new Error('MISSING_EXPECT_ANSWERS');
+      await inspect();
+      await judgeApply({ root, now, params: { file: entry } });
+    },
+  };
+}
+
 async function judgePrepare(args: CommandArgs): Promise<number> {
+  const lease = await acquireLease(
+    args.root,
+    `${entryLeaseName(entryOf(args))}-prepare`,
+    'expect-collection',
+  );
+  try {
+    return await judgePrepareWork(args);
+  } finally {
+    await lease.release();
+  }
+}
+
+async function judgePrepareWork(args: CommandArgs): Promise<number> {
   const entry = entryOf(args);
-  const JUDGE_DIR = judgeDir(entry);
+  const run = await commandProofRun(args);
+  const initial = criterionInventory(args.root, entry).generation;
+  const JUDGE_DIR = `${judgeDir(entry)}/tasks/${randomUUID()}`;
   const dir = path.dirname(expectHelperPath(args.root, entry, `${JUDGE_DIR}/plan.json`));
-  await rm(dir, { recursive: true, force: true });
   const pendingDir = expectHelperPath(args.root, entry, `${JUDGE_DIR}/pending`);
   const seenDir = expectHelperPath(args.root, entry, `${JUDGE_DIR}/seen`);
-  const results = runVitest(args.root, entry, { [COLLECT_ENV]: pendingDir, [SEEN_ENV]: seenDir });
-  const seen = new Set(
-    existsSync(expectHelperPath(args.root, entry, `${JUDGE_DIR}/seen`))
-      ? await readdir(expectHelperPath(args.root, entry, `${JUDGE_DIR}/seen`))
-      : [],
+  const results = await collectOnce(
+    { ...args, proofRun: run },
+    { [COLLECT_ENV]: pendingDir, [SEEN_ENV]: seenDir },
   );
-  for (const id of seen) expectHelperPath(args.root, entry, `${JUDGE_DIR}/seen/${id}`);
+  if (existsSync(expectHelperPath(args.root, entry, `${JUDGE_DIR}/seen`)))
+    for (const file of await readdir(expectHelperPath(args.root, entry, `${JUDGE_DIR}/seen`)))
+      expectHelperPath(args.root, entry, `${JUDGE_DIR}/seen/${file}`);
   await rm(expectHelperPath(args.root, entry, `${JUDGE_DIR}/seen`), {
     recursive: true,
     force: true,
@@ -462,6 +696,17 @@ async function judgePrepare(args: CommandArgs): Promise<number> {
       );
       if (!isPendingItem(item))
         throw new Error(`${JUDGE_DIR}/pending/${f}: неверная форма вопроса`);
+      const current = await implementationContext(
+        args.root,
+        entry,
+        item.question,
+        item.evidence.map((evidence) => evidence.ref),
+      );
+      if (
+        canonicalDigest(current.binding) !== canonicalDigest(item.binding) ||
+        current.source !== item.source
+      )
+        throw new Error('STALE_EXPECT_INPUT');
       items.push(item);
     }
     await rm(expectHelperPath(args.root, entry, `${JUDGE_DIR}/pending`), {
@@ -469,14 +714,21 @@ async function judgePrepare(args: CommandArgs): Promise<number> {
       force: true,
     });
   }
-  const plan: Plan = { batches: [], lint: [] };
+  const plan: Plan = {
+    batches: [],
+    lint: [],
+    execution: { run: run.id, force: run.force, allowJudge: run.allowJudge },
+  };
   for (const [i, batch] of planBatches(items).entries()) {
     const task = `${JUDGE_DIR}/batch-${i + 1}.md`;
     const answer = `${JUDGE_DIR}/batch-${i + 1}.answer.json`;
     await mkdir(dir, { recursive: true });
     const texts = new Map<string, string>();
-    for (const ref of batch.refs.filter((r) => r.startsWith('@')))
-      texts.set(ref, await readEvidence(ref));
+    for (const ref of batch.refs) texts.set(ref, await readEvidence(ref, args.root));
+    for (const item of batch.items)
+      for (const evidence of item.evidence)
+        if (shaOf(texts.get(evidence.ref) ?? '') !== evidence.sha)
+          throw new Error('STALE_EXPECT_EVIDENCE');
     await writeFile(
       expectHelperPath(args.root, entry, task),
       renderBatch(batch, answer, texts),
@@ -484,34 +736,52 @@ async function judgePrepare(args: CommandArgs): Promise<number> {
     );
     plan.batches.push({ task, answer, items: batch.items });
   }
-  const store = await loadVerdicts();
-  const removed = pruneStore(store, seen, new Set(byFile(results).keys()));
-  if (removed > 0) {
-    await saveVerdicts(store);
-    console.log(`expect judge: удалено устаревших вердиктов ${removed}`);
-  }
+  const store = await loadVerdicts(args.root, entry);
+  const producer = await producerContext(args.root);
   for (const [file, all] of byFile(results)) {
     const tests = visible(all);
-    const sha = titlesSha(tests);
-    if (store.lint[file]?.titles === sha) continue;
+    const { plan: review } = titleDelta(
+      titlePlan(
+        file,
+        tests.map((t) => ({ file, path: t.path, title: t.title })),
+        producer,
+        tests.every((t) => t.criterion?.titleComplete === true),
+      ),
+      store.titles ?? {},
+      run.force,
+      run.id,
+    );
+    if (review.complete && review.checks.length === 0) continue;
     const n = plan.lint.length + 1;
     const task = `${JUDGE_DIR}/lint-${n}.md`;
     const answer = `${JUDGE_DIR}/lint-${n}.answer.json`;
-    const titles = tests.map((t) => ({ id: idOf(fullName(t)), title: fullName(t) }));
     await mkdir(dir, { recursive: true });
-    await writeFile(
-      expectHelperPath(args.root, entry, task),
-      renderLintBatch(file, titles, answer),
-      'utf8',
-    );
-    plan.lint.push({ task, answer, file, titles: sha, ids: titles.map((t) => t.id) });
+    await writeFile(expectHelperPath(args.root, entry, task), renderTitlePlan(review), 'utf8');
+    plan.lint.push({ task, answer, review });
   }
   if (plan.batches.length === 0 && plan.lint.length === 0) {
     console.log('expect judge: всё свежее, судья не нужен');
     return 0;
   }
+  if (initial !== criterionInventory(args.root, entry).generation)
+    throw new Error('STALE_EXPECT_GENERATION');
+  const refs = [...new Set(items.flatMap((item) => item.evidence.map((evidence) => evidence.ref)))];
+  plan.tasks = {};
+  for (const task of [...plan.batches, ...plan.lint])
+    plan.tasks[task.task] = await readFile(expectHelperPath(args.root, entry, task.task), 'utf8');
+  const bound = await prepareBoundPlan(args.root, entry, plan, () =>
+    semanticGeneration(args.root, entry, refs),
+  );
+  plan.bound = bound;
+  for (const task of [...plan.batches, ...plan.lint]) {
+    const text = preparedTaskText(plan, bound, task);
+    await writeFile(expectHelperPath(args.root, entry, task.task), text, {
+      encoding: 'utf8',
+      flag: 'w',
+    });
+  }
   await writeFile(
-    expectHelperPath(args.root, entry, `${JUDGE_DIR}/plan.json`),
+    expectHelperPath(args.root, entry, `${judgeDir(entry)}/plan.json`),
     JSON.stringify(plan, null, 2),
     'utf8',
   );
@@ -534,11 +804,22 @@ async function judgeRun(args: CommandArgs): Promise<number> {
     await readFile(expectHelperPath(args.root, entryOf(args), `${JUDGE_DIR}/plan.json`), 'utf8'),
   );
   if (!isPlan(plan)) throw new Error(`${JUDGE_DIR}/plan.json: неверная форма`);
+  if (!isBoundPlan(plan.bound)) throw new Error('LEGACY_EXPECT_PLAN: needs-review');
+  const bound = plan.bound;
+  const { bound: ignored, ...payload } = plan;
+  void ignored;
+  if (canonicalDigest(payload) !== canonicalDigest(bound.payload))
+    throw new Error('CORRUPT_EXPECT_PLAN');
+  if (
+    !bound.generation.complete ||
+    plan.lint.some((task) => !task.review.complete) ||
+    plan.batches.some((batch) => batch.items.some((item) => item.binding?.complete !== true))
+  ) {
+    console.error('INCOMPLETE_EXPECT_PRODUCER: needs-review; agent calls 0');
+    return 1;
+  }
   checkPlanPaths(args.root, entryOf(args), plan);
-  const tasks = [
-    ...plan.batches.map((t) => ({ ...t, kind: 'batch' as const })),
-    ...plan.lint.map((t) => ({ ...t, kind: 'lint' as const })),
-  ];
+  const tasks = [...plan.batches, ...plan.lint];
   const envDir = process.env['HARNESS_EXPECT_TRANSCRIPT'];
   const transcriptDir =
     envDir !== undefined && envDir.trim() !== ''
@@ -546,7 +827,9 @@ async function judgeRun(args: CommandArgs): Promise<number> {
       : path.posix.join(JUDGE_DIR, 'transcripts');
   const failed = await Promise.all(
     tasks.map(async (t) => {
-      const text = await readFile(expectHelperPath(args.root, entryOf(args), t.task), 'utf8');
+      const text = preparedTaskText(plan, bound, t);
+      if (text !== (await readFile(expectHelperPath(args.root, entryOf(args), t.task), 'utf8')))
+        throw new Error('CORRUPT_EXPECT_TASK');
       const name = path.basename(t.task, '.md');
       const transcript = expectHelperPath(
         args.root,
@@ -554,17 +837,30 @@ async function judgeRun(args: CommandArgs): Promise<number> {
         path.posix.join(transcriptDir, `${name}.jsonl`),
       );
       try {
-        const { data } = await askRole(
+        const refs = plan.batches.flatMap((batch) =>
+          batch.items.flatMap((item) => item.evidence.map((evidence) => evidence.ref)),
+        );
+        const answer = await runBoundProducer(
           args.root,
-          'judge',
-          `${text}\nФайл ответа не пиши: верни итог инструментом submit_result; инструмента нет — тем же JSON в код-блоке последним сообщением.`,
-          {
-            transcript,
-            modelContext: 'expect.judge',
-            context: { purpose: 'expect-helper', entry: entryOf(args) },
+          entryOf(args),
+          bound,
+          t.task,
+          canonicalDigest(t),
+          () => semanticGeneration(args.root, entryOf(args), refs),
+          async () => {
+            const { data } = await askRole(
+              args.root,
+              'judge',
+              `${text}\nФайл ответа не пиши: верни итог инструментом submit_result; инструмента нет — тем же JSON в код-блоке последним сообщением.`,
+              {
+                transcript,
+                modelContext: 'expect.judge',
+                context: { purpose: 'expect-helper', entry: entryOf(args) },
+              },
+            );
+            return data;
           },
         );
-        const answer = t.kind === 'batch' && isRecord(data) ? data['answers'] : data;
         await writeFile(
           expectHelperPath(args.root, entryOf(args), t.answer),
           JSON.stringify(answer, null, 2),
@@ -590,7 +886,40 @@ async function judgeApply(args: CommandArgs): Promise<number> {
   if (!isPlan(plan))
     throw new UsageError(`${JUDGE_DIR}/plan.json: неверная форма — заново ai expect judge`);
   checkPlanPaths(args.root, entryOf(args), plan);
-  const store = await loadVerdicts();
+  const bound = plan.bound;
+  if (!isBoundPlan(bound)) throw new UsageError('LEGACY_EXPECT_PLAN: needs-review');
+  const { bound: ignored, ...payload } = plan;
+  void ignored;
+  if (canonicalDigest(payload) !== canonicalDigest(bound.payload))
+    throw new Error('CORRUPT_EXPECT_PLAN');
+  const refs = plan.batches.flatMap((batch) =>
+    batch.items.flatMap((item) => item.evidence.map((evidence) => evidence.ref)),
+  );
+  await applyBoundPlan(
+    args.root,
+    entryOf(args),
+    bound,
+    () => semanticGeneration(args.root, entryOf(args), refs),
+    () => validatePlanAnswers(args, plan, bound),
+    (store) => saveVerdicts(store, args.root, entryOf(args)),
+  );
+  console.log(`expect judge --apply: вердикты сохранены в ${verdictsPath(entryOf(args))}`);
+  return 0;
+}
+
+async function validatePlanAnswers(
+  args: CommandArgs,
+  plan: Plan,
+  bound: BoundPlan,
+): Promise<VerdictStore> {
+  const store = await loadVerdicts(args.root, entryOf(args));
+  const run = await commandProofRun(args);
+  const currentRun =
+    plan.execution.run === run.id &&
+    plan.execution.force === run.force &&
+    plan.execution.allowJudge === run.allowJudge
+      ? run.id
+      : undefined;
   const rejected: string[] = [];
   const readJson = async (rel: string): Promise<unknown> => {
     const file = expectHelperPath(args.root, entryOf(args), rel);
@@ -601,38 +930,49 @@ async function judgeApply(args: CommandArgs): Promise<number> {
     }
   };
   for (const b of plan.batches) {
-    const answers = await readJson(b.answer);
-    if (answers === undefined) {
+    const envelope = await readJson(b.answer);
+    if (envelope === undefined) {
       rejected.push(`${b.answer}: нет ответа`);
       continue;
     }
+    const answers = validateAnswerEnvelope(bound, b.task, canonicalDigest(b), envelope);
+    if (b.items.some((item) => item.binding?.complete !== true))
+      throw new Error('INCOMPLETE_EXPECT_INPUT: needs-review');
     const texts = new Map<string, string>();
     for (const ref of new Set(b.items.flatMap((i) => i.evidence.map((e) => e.ref))))
-      texts.set(ref, await readEvidence(ref));
+      texts.set(ref, await readEvidence(ref, args.root));
     const result = applyAnswers(b.items, answers, texts, args.now);
-    Object.assign(store.verdicts, result.accepted);
+    for (const [id, verdict] of Object.entries(result.accepted)) {
+      const old = store.verdicts[id];
+      store.verdicts[id] =
+        old === undefined
+          ? sealVerdict({ ...verdict, ...(currentRun === undefined ? {} : { run: currentRun }) })
+          : sealVerdict({
+              ...verdict,
+              ...(currentRun === undefined ? {} : { run: currentRun }),
+              history: [...(old.history ?? []), { ...old, history: [] }],
+            });
+    }
     for (const r of result.rejected) rejected.push(`${b.answer}: ${r.id} — ${r.reason}`);
   }
   for (const l of plan.lint) {
-    const answer = await readJson(l.answer);
-    const { verdict, error } = applyLintAnswer(l.titles, new Set(l.ids), answer, args.now);
-    if (verdict === null) rejected.push(`${l.answer}: ${error ?? 'нет ответа'}`);
-    else store.lint[l.file] = verdict;
+    const answer = validateAnswerEnvelope(
+      bound,
+      l.task,
+      canonicalDigest(l),
+      await readJson(l.answer),
+    );
+    for (const proof of applyTitleAnswer(l.review, answer, args.now, currentRun)) {
+      store.titles ??= {};
+      store.titles[proof.check.id] = proof;
+    }
   }
-  await saveVerdicts(store);
   for (const r of rejected) console.error(r);
   if (rejected.length > 0) {
-    console.error(
-      `expect judge --apply: отклонено ${rejected.length}; принятое сохранено в ${verdictsPath()}`,
-    );
-    return 1;
+    console.error(`expect judge --apply: отклонено ${rejected.length}; изменения не сохранены`);
+    throw new Error('REJECTED_EXPECT_ANSWERS');
   }
-  await rm(path.dirname(expectHelperPath(args.root, entryOf(args), `${JUDGE_DIR}/plan.json`)), {
-    recursive: true,
-    force: true,
-  });
-  console.log(`expect judge --apply: вердикты сохранены в ${verdictsPath()}`);
-  return 0;
+  return store;
 }
 
 const initIndex = (name: string): string => `import './${name}.expect.ts';
@@ -701,20 +1041,34 @@ async function init(args: CommandArgs): Promise<number> {
 }
 
 export async function runExpect(command: string | undefined, args: CommandArgs): Promise<number> {
+  if ((args.run === true || args.apply === true) && command !== 'judge')
+    throw new UsageError('--run/--apply supported only for expect judge');
+  if (args.run === true && args.apply === true)
+    throw new UsageError('--run and --apply are exclusive');
+  if (args.force === true && !['report', 'lint', 'judge'].includes(command ?? ''))
+    throw new UsageError('--force supported only for expect report/lint/judge');
   process.env['HARNESS_EXPECT_ROOT'] = args.root;
-  switch (command) {
-    case 'init':
-      return init(args);
-    case 'report':
-      return report(args);
-    case 'serve':
-      return serve(args);
-    case 'lint':
-      return lint(args);
-    case 'judge':
-      if (args.apply === true) return judgeApply(args);
-      return args.run === true ? judgeRun(args) : judgePrepare(args);
-    default:
-      throw new UsageError(`неизвестная команда: expect ${command ?? ''}`.trimEnd());
+  if (['report', 'lint', 'judge'].includes(command ?? ''))
+    args = { ...args, proofRun: await commandProofRun(args) };
+  try {
+    switch (command) {
+      case 'init':
+        return await init(args);
+      case 'report':
+        return await report(args);
+      case 'serve':
+        return await serve(args);
+      case 'lint':
+        return await lint(args);
+      case 'judge':
+        if (args.apply === true) return await judgeApply(args);
+        return args.run === true ? await judgeRun(args) : await judgePrepare(args);
+      default:
+        throw new UsageError(`неизвестная команда: expect ${command ?? ''}`.trimEnd());
+    }
+  } catch (error) {
+    if (!(error instanceof CollectionNeedsReview)) throw error;
+    console.error(`expect needs-review: ${error.message}`);
+    return 1;
   }
 }

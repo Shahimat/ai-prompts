@@ -53,8 +53,9 @@
   "scripts": {
     "build": "node ../build.ts",
     "typecheck": "node node_modules/typescript/bin/tsc --noEmit",
-    "test": "vitest run",
-    "prepublishOnly": "npm run typecheck && npm test && npm run build"
+    "pretest": "npm run build",
+    "test": "node --conditions=source src/lib/proof/npm.ts",
+    "prepublishOnly": "npm run typecheck && npm test"
   },
   "dependencies": {
     "@hpcc-js/wasm-graphviz": "^1.29.2",

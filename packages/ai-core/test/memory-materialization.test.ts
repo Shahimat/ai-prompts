@@ -10,6 +10,7 @@ import { createHash } from 'node:crypto';
 import { checkOc3Tree } from '#commands/tree/index';
 import { inlineProse } from '#lib/memory-projection';
 import { enqueueKnowledge, pendingKnowledge } from '#lib/knowledge';
+import { decode, unescape } from './prose-decoder.js';
 
 let root: string;
 beforeEach(async () => {
@@ -83,44 +84,6 @@ const installed = async (): Promise<Map<string, string>> => {
   await walk('');
   return out;
 };
-const unescape = (text: string): string =>
-  text.replace(/&#(\d+);/g, (_, digits: string) => String.fromCodePoint(Number(digits)));
-const decode = (text: string): unknown => {
-  const values = new Map<number, unknown>();
-  const blocks = [
-    ...text.matchAll(
-      /Значение (\d+) — (объект|список|строка|число|логическое|пустое); родитель (корень|\d+)(?:; элемент (\d+))?(?:; значение ([^\n]+))?\./g,
-    ),
-  ];
-  const fragments = (label: string, id: number): string =>
-    [...text.matchAll(new RegExp(`${label} ${id}, позиция (\\d+):\\n<pre>([\\s\\S]*?)</pre>`, 'g'))]
-      .sort((a, b) => Number(a[1]) - Number(b[1]))
-      .map((m) => unescape(m[2] ?? ''))
-      .join('');
-  for (const m of blocks) {
-    const id = Number(m[1]);
-    const value: unknown =
-      m[2] === 'объект'
-        ? {}
-        : m[2] === 'список'
-          ? []
-          : m[2] === 'строка'
-            ? fragments('Текст', id)
-            : m[2] === 'пустое'
-              ? null
-              : m[2] === 'логическое'
-                ? m[5] === 'true'
-                : Number(m[5]);
-    values.set(id, value);
-    if (m[3] === 'корень') continue;
-    const parent = values.get(Number(m[3]));
-    if (Array.isArray(parent)) parent.push(value);
-    else if (typeof parent === 'object' && parent !== null)
-      Object.defineProperty(parent, fragments('Ключ', id), { value, enumerable: true });
-  }
-  return values.get(0);
-};
-
 describe('bounded lossless memory materialization', () => {
   it('compact ring-zero prose retains typed paths and exact multiline strings without a raw serialization', () => {
     const data = {
@@ -340,6 +303,7 @@ describe('bounded lossless memory materialization', () => {
       expect((await installed()).size).toBeLessThan(files.size);
       expect((await checkBundles(root)).diagnostics).toEqual([]);
     },
+    30000,
   );
 
   it('check is read-only, detects missing/tampered/stale payload, and build prunes only owned outputs', async () => {

@@ -1,6 +1,11 @@
 export { normalizeEol, parseFrontmatter, type Frontmatter } from './shared/frontmatter.ts';
 export * from './lib/knowledge.ts';
 export * from './lib/task-gates.ts';
+export * from './lib/proof/model.ts';
+export * from './lib/proof/inputs.ts';
+export * from './lib/proof/runner.ts';
+export * from './lib/proof/transport.ts';
+export * from './lib/proof/adapter.ts';
 export {
   digestOf,
   contentHash,
@@ -189,7 +194,10 @@ export type { CommandArgs } from './shared/args.ts';
 export {
   expectBuild,
   expectSummary,
+  expectPlanConsumer,
   runExpect,
+  type ExpectConsumerTask,
+  type ExpectPlanConsumer,
   type ExpectSummary,
 } from './commands/expect/index.ts';
 export * from './lib/artifacts.ts';

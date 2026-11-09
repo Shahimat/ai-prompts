@@ -11,10 +11,8 @@ export interface Instance {
   data: unknown;
 }
 
-let schemas: Promise<(name: string) => Validate | undefined> | null = null;
-
 async function validator(schemaPath: string): Promise<Validate> {
-  schemas ??= (async () => {
+  const schemas = (async () => {
     const dir = path.posix.dirname(schemaPath);
     const all: Record<string, object> = {};
     for (const name of (await readdir(path.join(repoRoot(), dir)))

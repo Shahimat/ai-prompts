@@ -1,3 +1,5 @@
+import type { ProofRun } from '#shared/proof';
+
 export interface CommandArgs {
   root: string;
   out?: string;
@@ -10,6 +12,8 @@ export interface CommandArgs {
   rawBase?: string;
   apply?: boolean;
   run?: boolean;
+  force?: boolean;
+  proofRun?: ProofRun;
   now: Date;
   params?: Record<string, string>;
   home?: string;

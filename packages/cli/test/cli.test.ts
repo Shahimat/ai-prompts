@@ -3,10 +3,11 @@ import { mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { main, prepare, projectOf, run } from '#cli';
+import { cliMain, main, prepare, projectOf, run } from '#cli';
 import { promptOf, shellStep, splitWords } from '#shell';
 import { BUILTIN_TREE } from '#tree';
 import { ARTIFACT_IGNORE_LINES } from '@shahimat/ai-core';
+import { commandTree, type CommandArgs, beginProofRun, PROOF_TRANSPORT } from '@shahimat/ai-core';
 const { childrenOf, commands: COMMANDS, findCommand } = BUILTIN_TREE;
 
 const NOW = new Date('2026-10-13T12:00:00Z');
@@ -36,6 +37,56 @@ afterEach(async () => {
 });
 
 describe('ai changelog lint', () => {
+  it('force is a run policy, not agent permission; unsupported commands reject it', async () => {
+    const seen: CommandArgs[] = [];
+    const tree = commandTree('ai', [
+      {
+        path: ['check'],
+        kind: 'command',
+        effect: 'query',
+        run: async (args) => {
+          seen.push(args);
+          return 0;
+        },
+      },
+      {
+        path: ['models', 'check'],
+        kind: 'command',
+        effect: 'query',
+        run: async () => {
+          throw new Error('must not execute');
+        },
+      },
+    ]);
+    expect(await cliMain(tree, ['check', '--root', root, '--force'], NOW)).toBe(0);
+    expect(seen[0]?.force).toBe(true);
+    expect(seen[0]?.proofRun?.force).toBe(true);
+    expect(seen[0]?.proofRun?.allowJudge).toBe(false);
+    await expect(
+      cliMain(tree, ['models', 'check', '--root', root, '--force'], NOW),
+    ).rejects.toThrow('--force');
+    const run = await beginProofRun(root, {
+      owner: 'synthetic',
+      scope: ['*'],
+      force: false,
+      allowJudge: false,
+    });
+    const previous = process.env[PROOF_TRANSPORT];
+    try {
+      process.env[PROOF_TRANSPORT] = JSON.stringify(run);
+      await expect(cliMain(tree, ['check', '--root', root, '--force'], NOW)).rejects.toThrow(
+        'PROOF_POLICY_MISMATCH',
+      );
+      process.env[PROOF_TRANSPORT] = JSON.stringify({ ...run, token: 'a'.repeat(64) });
+      await expect(cliMain(tree, ['check', '--root', root], NOW)).rejects.toThrow(
+        'PROOF_TRANSPORT_REJECTED',
+      );
+    } finally {
+      if (previous === undefined) delete process.env[PROOF_TRANSPORT];
+      else process.env[PROOF_TRANSPORT] = previous;
+    }
+    expect(seen).toHaveLength(1);
+  });
   it('0 — журнал корректен, без ai-core.yml', async () => {
     await put('CHANGELOG.md', GOOD);
     expect(await main(['changelog', 'lint', '--root', root], NOW)).toBe(0);

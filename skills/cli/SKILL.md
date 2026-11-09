@@ -118,6 +118,39 @@ npx ai <автомат> start | open <id> | …
   (`npm i -g @shahimat/cli @shahimat/harness`), не агент из задачи.
 <!-- /expect:skill-runs -->
 
+## Инкрементальная проверка
+
+`--force` поддержан у `ai check|refresh`, `changelog lint`,
+`expect report|lint|judge`, `operator verify` и `oc3 expect report`.
+Он обходит baseline, но не freshness/permissions, не удаляет fixtures/snapshots
+и не повторяет достаточный current-run результат, включая FAIL. Неполные или
+изменённые inputs требуют нового run. Unsupported controls — ошибка вызова.
+
+Proof связывает checker, dependencies, config, membership и окружение.
+Unknown inputs не дают reusable PASS. Ordinary tests выполняются run-only
+с реальным exit и полным scope; повтор incomplete node — STALE без второго
+launch. Native gates требуют свои current receipts, не leaf/sidecar/HTTP 200.
+
+В источнике ai-prompts npm test/ci обёртки принимают `--force`, например
+`npm run ci -- --force`. Это не флаг любого npm-script/Vitest и не смысл
+`npm publish --force`. Ordinary baseline ограничен reviewed bounded guards,
+scripted — registered changelog; warm сохраняет preparation и hashing.
+
+Report/lint/check/refresh/tests/CI при miss не вызывают агента. `expect judge`
+готовит delta tasks; отдельный `--run` выбирает producer, `--apply` применяет
+ответы без producer. Они несовместимы. Force и inherited allowJudge не дают
+query прав; unattested askRole context — needs-review даже с `--run`.
+
+Implementation inputs включают intent, тело и dependencies; title unary/pair —
+формулировки и policy, не тело. Дельта содержит misses и immutable peer context.
+Duplicate/dynamic scope — group review, без higher-order guarantee.
+
+Legacy сохраняется как unverified/needs-review, не upgraded PASS; query не
+переписывает semantic store. Apply проверяет root/entry/plan/run, актуальные
+inputs/policy и immutable evidence до цитат. Executed/reused/needs-review/failed
+различаются. Смысловой needs-review может оставить CI nonzero — не писать
+вердикт руками ради PASS.
+
 ## Расположение и сохранность артефактов
 
 Все project execution outputs OC3 назначает общий resolver внутри `.oc3/`

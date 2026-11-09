@@ -20,15 +20,10 @@ import {
   SKILLS_PATH,
 } from '#shared/layout';
 import { checkMemory, loadManifest, type MemoryManifest } from '#lib/memory';
-import {
-  boundedPages,
-  inlineProse,
-  markdownLabel,
-  projectionFiles,
-  proseUnits,
-} from '#lib/memory-projection';
+import { boundedPages, inlineProse, markdownLabel, projectionFiles } from '#lib/memory-projection';
 import { confinedProjectPath } from '#lib/artifacts';
 import { acquireLease } from '#lib/local-store';
+import { prepareProse, preparedFiles, type PreparedProjection } from '#lib/memory-prepared';
 
 export const START_INDEX = 'index.md';
 const GENERAL_NS = 'common';
@@ -123,9 +118,18 @@ const mdSummary = (text: string): string => {
   return paragraph === undefined ? '' : collapse(paragraph).slice(0, 120);
 };
 
-const factText = (value: unknown, rel: string, weight: number, cap: number): string => {
+const factText = (
+  value: unknown,
+  rel: string,
+  weight: number,
+  cap: number,
+  prepared: Map<string, PreparedProjection>,
+): string => {
   try {
-    return weight === 0 ? inlineProse(value) : proseUnits(value, cap - 512).join('');
+    if (weight === 0) return inlineProse(value);
+    const result = prepareProse(value, rel, cap);
+    prepared.set(rel, result.projection);
+    return result.text;
   } catch (error) {
     throw new Error(
       `${OC3_DIR}/${rel}: cap ${cap}: ${error instanceof Error ? error.message : 'ошибка проекции'}`,
@@ -137,6 +141,7 @@ const loadFacts = async (
   root: string,
   manifest: MemoryManifest,
   diagnostics: Diagnostic[],
+  prepared: Map<string, PreparedProjection>,
 ): Promise<FactFile[]> => {
   const facts: FactFile[] = [];
   for (const rel of await walkDoc(root, manifest)) {
@@ -151,7 +156,7 @@ const loadFacts = async (
         rel,
         namespace,
         weight,
-        text: factText(raw, rel, weight, manifest.budgets.node),
+        text: factText(raw, rel, weight, manifest.budgets.node, prepared),
         value: raw,
         summary: `${label}${mdSummary(raw)}`,
       });
@@ -171,7 +176,7 @@ const loadFacts = async (
       rel,
       namespace,
       weight,
-      text: factText(data, rel, weight, manifest.budgets.node),
+      text: factText(data, rel, weight, manifest.budgets.node, prepared),
       value: data,
       summary: factSummary(data),
     });
@@ -289,11 +294,22 @@ export const renderGraph = async (
   facts: FactFile[],
   summaryCap: number,
   nodeCap = 16384,
+): Promise<MemoryGraph> => renderGraphWithPrepared(root, facts, summaryCap, nodeCap);
+
+const renderGraphWithPrepared = async (
+  root: string,
+  facts: FactFile[],
+  summaryCap: number,
+  nodeCap: number,
+  prepared?: Map<string, PreparedProjection>,
 ): Promise<MemoryGraph> => {
   const files = new Map<string, string>();
   for (const fact of facts.filter((f) => f.weight > 0)) {
     try {
-      for (const [name, text] of projectionFiles(fact.value, fact.rel, nodeCap))
+      const projection = prepared?.get(fact.rel);
+      for (const [name, text] of projection === undefined
+        ? projectionFiles(fact.value, fact.rel, nodeCap)
+        : preparedFiles(projection, nodeCap))
         files.set(`files/${shaOf(fact.rel)}/${name}`, text);
     } catch (error) {
       throw new Error(
@@ -421,12 +437,19 @@ export const renderMemoryGraph = async (
   const { manifest, diagnostics } = await loadManifest(root);
   if (manifest === null)
     return { report: { diagnostics, warnings: [], graph: null }, manifest: null };
+  const prepared = new Map<string, PreparedProjection>();
   try {
     const validation = await checkMemory(root);
     if (validation.diagnostics.length > 0)
       return { report: { ...validation, graph: null }, manifest };
-    const facts = await loadFacts(root, manifest, diagnostics);
-    const graph = await renderGraph(root, facts, manifest.budgets.summary, manifest.budgets.node);
+    const facts = await loadFacts(root, manifest, diagnostics, prepared);
+    const graph = await renderGraphWithPrepared(
+      root,
+      facts,
+      manifest.budgets.summary,
+      manifest.budgets.node,
+      prepared,
+    );
     const schemas: string[] = [];
     for (const name of (await readdir(path.join(root, SCHEMAS_DIR)))
       .filter((n) => n.endsWith('.json'))
@@ -453,6 +476,8 @@ export const renderMemoryGraph = async (
       },
       manifest,
     };
+  } finally {
+    prepared.clear();
   }
 };
 

@@ -14,6 +14,7 @@ import {
 import { MACHINE_TITLE, PLAN_TITLE, STEP_TITLE } from '#lib/expect/model';
 import { isServiceTitle, type NodeScope, type StepStatus } from '#lib/expect/scope';
 import { isOneOf, isRecord, isStringArray } from '#shared/guards';
+import type { CriterionInput } from '#lib/expect/inventory';
 
 export const STATUSES = ['passed', 'failed', 'todo', 'skipped', 'pending', 'disabled'] as const;
 
@@ -24,6 +25,8 @@ export interface MachineDecl {
 
 export interface TestResult {
   file: string;
+  registration?: { file: string; line: number; column: number };
+  criterion?: CriterionInput;
   path: string[];
   title: string;
   status: (typeof STATUSES)[number];
@@ -95,6 +98,17 @@ export function parseVitestReport(data: unknown, root: string): TestResult[] {
         planned: planned === true,
         wip: wip === true,
       };
+      const location = a['location'];
+      if (
+        isRecord(location) &&
+        typeof location['line'] === 'number' &&
+        typeof location['column'] === 'number'
+      )
+        result.registration = {
+          file: relative(root, name),
+          line: location['line'],
+          column: location['column'],
+        };
       if (typeof defined === 'string') result.defined = relative(root, defined);
       if (isBudget(budget)) result.budget = budget;
       if (typeof step === 'string') result.step = step;

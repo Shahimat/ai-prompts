@@ -70,17 +70,17 @@ analyze` без чистого ревью (3), `build` — блокировки 
 | Пауза | Ctrl+C или закрытый ввод в любом состоянии: автомат остаётся на месте, файл — в последнем записанном виде, `open <id>` продолжает тот же сеанс. Ctrl+C не выход: по нему не отличить «закончил» от «закрыл окно». |
 | Страница плана | Сеанс планера поднимает `expect serve <file>` на свободном порту и открывает её в браузере; сервер гаснет с сеансом. Адрес — в промпте планера и в ответе чистого ревью. |
 | Без терминала | `start` и `open` встают на паузу с подсказкой `open`; сеанс планера ведётся только в терминале. |
-| Ревью | Судья — headless-прогон без сети и без записи (`Read`, `Glob`, `Grep`), ответ — единственный JSON по схеме в задании; harness сам пишет ответ, применяет вердикты и считает итог по бюджету файла. Правка файла судьёй откатывается. |
+| Ревью | Immutable v2 consumer проверяет bindings/explicit coverage до apply; сохранены свой ModelRunner и helper `plan-review.judge`. Incomplete context блокирует dispatch; rejected/apply error/откат исключают PASS независимо от бюджета. |
 | Сборка перед ревью | Сбор ожиданий vitest и `tsc` ближайшего `tsconfig.json`. Не собирается — `stop` возвращает планеру ошибки, не больше `limits.build` раз подряд. |
 | Права планера | Чтение проекта, запись только файла ожиданий (`permission.hook` плагина: правка другого файла — deny), Bash — только `expect report` своего файла (тот же hook: режим auto его не обходит), субагенты; вопрос пользователю — флаг `[plan-review: ask]` в ответе планера. Справочник блоков с примером — в промпте: исходники harness планеру не нужны. |
 | Модели | `models.planner` и `models.judge` в `harness.yaml`, по умолчанию `zai-coding-plan/glm-5.3-flash#max`. |
-| Размещение | Сессии — `~/.config/harness/sessions/<sha256>/` (`--home`, `HARNESS_HOME`); в проект пишутся только файл ожиданий, кэш вердиктов, задания судьи (`.judge/`) и мост (`.opencode/artifacts/plan-review/`) рядом с планом. |
+| Размещение | Сессии — `~/.config/harness/sessions/<sha256>/` (`--home`, `HARNESS_HOME`); project helper/store/bridge назначает typed resolver внутри `.oc3/`, не рядом с планом. |
 
 ## События сеанса планера
 
 Мост планера. Перед сеансом harness пишет в проект
-`.opencode/artifacts/plan-review/bridge.json`: `events` — журнал
-`planner-events.jsonl` сессии, `plan` — файл ожиданий, `report` —
+`.oc3/sessions/plan-review/bridge.json`: `events` — project-журнал
+`.oc3/sessions/plan-review/<short-id>/planner-events.jsonl`, `plan` — файл ожиданий, `report` —
 команда `ai expect report <file> --root <проект>`. Плагин
 `@shahimat/oc3` в сеансе планера читает мост и дополняет журнал:
 промпт пользователя (`kind: prompt`), правка файла ожиданий
@@ -125,12 +125,12 @@ packages/harness/src/harnesses/plan-review/
   cli.ts, load.ts
 
 .opencode/agents/planner.md   # агент планера (адаптер opencode)
-.opencode/artifacts/plan-review/
+.oc3/sessions/plan-review/
   bridge.json         # мост: журнал событий, файл плана, команда отчёта
+  <short-id>/planner-events.jsonl  # project events через typed resolver
 
 ~/.config/harness/sessions/<sha256>/
   session.json        # состояние автомата, файл плана, сессия планера
-  planner-events.jsonl  # журнал событий планера (пишет плагин oc3)
   plan-review.json    # номер ревью, хеш проверенного файла, блокировки сборки, адрес страницы
   review/<n>.json     # итог ревью: счётчики, провалы, замечания
   log.jsonl           # переходы, паузы, ревью
@@ -144,10 +144,10 @@ plan-review — в его каталоге.
 Механика моста (пакеты `harness` и `oc3`, без отдельных проверок
 вживую):
 
-- Изоляция стадии — конфиг из `OPENCODE_CONFIG_CONTENT` с единственной
-  инструкцией (системный промпт планера из шаблона): настройки, skills
-  и правила пользователя и проекта в стадию не попадают; правила
-  проекта планер читает как файлы.
+- Launcher передаёт `OPENCODE_CONFIG_CONTENT` и instruction file с промптом
+  и runtime launch context. Эти inputs не удостоверяют финальные inherited/
+  system instructions, skills и доступные tools. Closed isolation и live
+  attestation не доказаны; requested `tools` не равны effective enforcement.
 - Сессия планера одна на сеанс: первая стадия создаёт id, дальше —
   `opencode run --session`; вложения из текста (`@файл`) уходят
   флагами `-f`.
@@ -161,9 +161,21 @@ plan-review — в его каталоге.
 - Вопрос пользователю планер задаёт флагом `[plan-review: ask]` в
   тексте ответа: harness уводит автомат в `clarify_form`, ответ
   пользователя из терминала уходит планеру заданием следующей стадии.
-- Судья — headless-прогон роли с `Read`, `Glob`, `Grep`; ответ —
-  единственный JSON по схеме в задании через `submit_result` плагина;
-  текст без вызова `submit_result` — ошибка роли.
+- Review сохраняет свой headless `ModelRunner` с requested `Read`, `Glob`,
+  `Grep` и helper `plan-review.judge`; это не миграция на роли v3.
+  `expectPlanConsumer(root, file, now)` принимает только целые v2 envelopes
+  с root/entry/run/plan/item/input/policy bindings и explicit title coverage.
+  Default capture проверяется до/после producer и перед atomic apply;
+  применить можно только все принятые member tasks. Ошибки/rejected и
+  откат не дают clean: файл восстанавливается, но `pass` остаётся false.
+  Текущий real producer incomplete до dispatch (`INCOMPLETE_EXPECT_PRODUCER`),
+  поэтому 0 producer/0 apply; explicit `--run` этого не исправляет.
+  Controlled fake context в unit tests не аттестует real child: его HTTP 503
+  означает semantic pending после collection, не ошибку загрузки модулей.
+
+Helper tasks/bundles и semantic store назначают `expectHelperDir(entry)` и
+`expectCacheFile(entry)`; точные locators —
+[контракт prepare/apply](incremental-verification.md#immutable-prepare--run--apply-и-legacy).
 
 ## Открытые вопросы
 

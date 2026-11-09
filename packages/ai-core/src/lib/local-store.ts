@@ -14,12 +14,34 @@ export function gitRead(root: string, args: string[]): string | null {
 
 export async function topologyOf(root: string) {
   const worktree = await realpath(root);
-  const head = gitRead(worktree, ['rev-parse', '--verify', 'HEAD']);
-  const common = gitRead(worktree, ['rev-parse', '--path-format=absolute', '--git-common-dir']);
+  const facts = spawnSync(
+    'git',
+    [
+      'rev-parse',
+      '--path-format=absolute',
+      '--git-common-dir',
+      '--is-bare-repository',
+      '--verify',
+      'HEAD',
+    ],
+    { cwd: worktree, encoding: 'utf8' },
+  );
+  const output = (facts.stdout ?? '').trimEnd();
+  if (facts.status === 0 && output === '') throw new Error('STORE_UNAVAILABLE: topology');
+  let head: string | null = null;
+  let common: string | null = null;
+  if (output !== '') {
+    const fields = output.split('\n');
+    if (facts.status === 0) head = fields.pop() ?? null;
+    const bare = fields.pop();
+    common = fields.join('\n');
+    if (common === '' || (facts.status === 0 && (head === null || head === '')))
+      throw new Error('STORE_UNAVAILABLE: topology');
+    if (bare === 'true') throw new Error('STORE_UNAVAILABLE: bare topology');
+    if (bare !== 'false') throw new Error('STORE_UNAVAILABLE: topology');
+  }
   let project = worktree;
   if (common !== null) {
-    if (gitRead(worktree, ['rev-parse', '--is-bare-repository']) !== 'false')
-      throw new Error('STORE_UNAVAILABLE: bare topology');
     const resolved = await realpath(common);
     if (path.basename(resolved) !== '.git') throw new Error('STORE_UNAVAILABLE: topology');
     project = await realpath(path.dirname(resolved));
