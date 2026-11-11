@@ -6,6 +6,7 @@ import {
   expectAtMost,
   contract,
   dataFiles,
+  doc,
   expectSchema,
   frontmatters,
   indexEntries,
@@ -373,7 +374,11 @@ class Check {
   }
 
   static async manifestSchema(): Promise<void> {
-    const block = codeBlock((await skill('contract-setup')).text, 'yaml', 'key: <key>');
+    const block = codeBlock(
+      (await doc('skills/contract-setup/references/v3.md')).text,
+      'yaml',
+      'key: <key>',
+    );
     expect(block).not.toBeNull();
     const fill = (v: unknown): unknown =>
       typeof v === 'string' && /^<.*>$/.test(v)

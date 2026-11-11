@@ -2,6 +2,7 @@
 
 Свежее сверху. Одна строка — одно решение: `- YYYY-MM-DD · [тег] суть · почему`.
 
+- 2026-11-12 · [arch] goals, установка/миграция и sync v2 — в skills · по задаче и версии без копий в conventions
 - 2026-11-09 · [arch] T3: input-bound v2 apply, legacy unverified; 7 integration cases 30s · incomplete/stale не PASS
 - 2026-11-09 · [arch] T2: общий proof runner, force обходит только baseline · opaque CI не кэшируется как PASS
 - 2026-11-08 · [arch] ai-core проверяет свежий compiled output до публикации · тесты не зависят от случайного dist

@@ -1715,22 +1715,33 @@ interface SkillFile {
   path: string;
   text: string;
   runs: unknown;
+  files: { path: string; text: string }[];
 }
 
 async function skillFiles(): Promise<SkillFile[]> {
   const names = (await readdir(path.join(repoRoot(), 'skills'))).sort();
+  const entries = (await indexEntries()).filter((e) => e.kind === 'skill');
   return Promise.all(
     names.map(async (name) => {
       const rel = `skills/${name}/SKILL.md`;
       const text = await readRepo(rel);
-      return { name, path: rel, text, runs: at(parseFrontmatter(text), 'metadata', 'runs') };
+      const supporting = (entries.find((e) => e.path === `skills/${name}`)?.files ?? []).filter(
+        (f) => f.path.endsWith('.md') && f.path !== rel,
+      );
+      const files = [
+        { path: rel, text },
+        ...(await Promise.all(
+          supporting.map(async (f) => ({ path: f.path, text: await readRepo(f.path) })),
+        )),
+      ];
+      return { name, path: rel, text, runs: at(parseFrontmatter(text), 'metadata', 'runs'), files };
     }),
   );
 }
 
 const runsCall = (runs: string): string => `ai ${runs}`;
 
-const outsideRuns = (s: SkillFile): string =>
+const outsideRuns = (s: { path: string; text: string }): string =>
   markdownRegions(s.text, s.path)
     .filter((r) => r.key === RUNS_ANCHOR)
     .reduce((text, r) => text.replace(r.text, ''), s.text);
@@ -1760,11 +1771,14 @@ class Skills {
   static async runsOnly(): Promise<void> {
     const bad: string[] = [];
     for (const s of await skillFiles()) {
-      if (MENTION.test(outsideRuns(s)))
-        bad.push(`${s.name}: команда harness вне expect:${RUNS_ANCHOR}`);
-      if (typeof s.runs === 'string' && !s.text.includes(runsCall(s.runs)))
+      for (const f of s.files)
+        if (MENTION.test(outsideRuns(f)))
+          bad.push(`${f.path}: команда harness вне expect:${RUNS_ANCHOR}`);
+      const text = s.files.map((f) => f.text).join('\n');
+      if (typeof s.runs === 'string' && !text.includes(runsCall(s.runs)))
         bad.push(`${s.name}: в тексте нет запуска ${runsCall(s.runs)}`);
-      const declared = markdownRegions(s.text, s.path)
+      const declared = s.files
+        .flatMap((f) => markdownRegions(f.text, f.path))
         .filter((r) => r.key === RUNS_ANCHOR)
         .flatMap((r) => [...r.text.matchAll(/<!-- metadata\.runs: (.+?) -->/g)].map((m) => m[1]));
       const expected = typeof s.runs === 'string' ? [s.runs] : [];
