@@ -4,7 +4,7 @@ kind: module
 applicable_to: [agent-operational-contract-v2, agent-operational-contract-v3]
 patterns: [source-sync]
 title: Модуль knowledge — карта GUI внешних систем без API
-use_case: Подключается к проекту, где часть работы проходит через web-GUI провайдеров без API/CLI. Заводит слой .oc3/knowledge/ с картами интерфейсов, чтобы агент не просил повторный скриншот каждой новой сессии. Синтезированные из скринов текстовые карты + last_seen_at + reactive-протокол уточнений при расхождении.
+use_case: Подключается к проекту, где часть работы проходит через web-GUI провайдеров без API/CLI. Заводит карты интерфейсов в docs/knowledge/ для v2 или .oc3/knowledge/ для v3, чтобы не просить повторный скриншот каждой новой сессии. Текстовые карты + last_seen_at + reactive-протокол уточнений при расхождении.
 tags: [docs-as-code, workflow, external-gui, agent-contract, module]
 feature:
   summary: .oc3/knowledge — карты GUI внешних систем без API, чтобы не просить скриншоты заново
@@ -14,6 +14,39 @@ feature:
 ---
 
 # Модуль knowledge — карта GUI внешних систем без API
+
+## Выбор раскладки: v2 или v3
+
+До проверок ниже прочитай точку входа и документацию подключённой базы.
+Для v2 `sync.contract.key` читается из `context/project.yml`, для v3 — из
+`.oc3/project.yml`. Два несовместимых описания базы — конфликт, а не повод
+угадывать версию по наличию каталога.
+
+Текст и шаблоны ниже показывают v3. Для **v2 сначала подставь его пути
+во все проверки, ссылки, примеры и `provides`**:
+
+- `.oc3/project.yml` → `context/project.yml`;
+- `.oc3/knowledge/` → `docs/knowledge/`;
+- `.oc3/modules/` → `context/modules/`;
+- `.oc3/bundles/index.md` → `context/index.yml`.
+
+В v2 правила работы со слоем перенеси в
+`context/conventions/gui-knowledge.yml`: разделы «Назначение и границы» …
+«Проверки внутренней непротиворечивости», «Обфусцированный пример» и
+«Поведение по умолчанию», с путями v2. Зарегистрируй convention и секцию
+knowledge в `context/index.yml`. Manifest
+`context/modules/knowledge-external-gui.yml` получает:
+
+```yaml
+provides:
+  layers: [docs/knowledge/]
+  files: [context/conventions/gui-knowledge.yml]
+  fields_in_index: [knowledge]
+```
+
+Индекс v2 обновляется вручную; `ai memory build`, skills и `.oc3/` ему
+не нужны. В v3 сохраняются пути и поставка skill'ом из раздела
+«Совместимость с v3». Миграция между раскладками не происходит неявно.
 
 ## Роль и посыл
 

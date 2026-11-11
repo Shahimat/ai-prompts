@@ -4,7 +4,7 @@ kind: module
 applicable_to: [agent-operational-contract-v2, agent-operational-contract-v3]
 patterns: [source-sync]
 title: Модуль code-rules — правила стиля кода на fullstack js/ts
-use_case: Подключается к проекту на js/ts (frontend / backend / full). Приносит пакет атомарных правил стиля кода в подпапку .oc3/conventions/code/. Стартовый набор — правило про комментарии; модуль расширяемый — новые правила js/ts добавляются как отдельные YAML в той же подпапке. Живёт как обычные проектные conventions, но группируется физически, чтобы пакет было видно и в дереве, и в diff.
+use_case: Подключается к проекту на js/ts (frontend / backend / full). Приносит атомарные правила стиля кода в context/conventions/code/ для v2 или .oc3/conventions/code/ для v3. Стартовый набор — правило про комментарии; новые правила добавляются отдельными YAML в той же подпапке. Живёт как обычные проектные conventions, физически сгруппированные в пакет.
 tags: [docs-as-code, code-style, javascript, typescript, agent-contract, module]
 feature:
   summary: правила стиля кода на js/ts — пакет conventions в .oc3/conventions/code/
@@ -14,6 +14,35 @@ feature:
 ---
 
 # Модуль code-rules — правила стиля кода на fullstack js/ts
+
+## Выбор раскладки: v2 или v3
+
+До проверок ниже прочитай точку входа и документацию подключённой базы.
+Для v2 `sync.contract.key` и `stack` читаются из `context/project.yml`,
+для v3 — из `.oc3/project.yml`. Если найдено два несовместимых описания базы,
+не угадывай по наличию каталога: подними конфликт пользователю.
+
+Текст и шаблоны ниже показывают v3. При подключении, обновлении и отключении
+**v2 сначала подставь его пути во все шаги и `provides`**:
+
+- `.oc3/project.yml` → `context/project.yml`;
+- `.oc3/conventions/` → `context/conventions/`, включая `code/`;
+- `.oc3/modules/` → `context/modules/`;
+- бандлы и `.oc3/bundles/index.md` → ручное обновление `context/index.yml`.
+
+В v2 вместо `ai memory build` обновляй записи conventions в
+`context/index.yml`; CLI, skills и `.oc3/` не создаются. Например,
+`context/modules/code-rules-fullstack-js-ts.yml` получает:
+
+```yaml
+provides:
+  layers: [context/conventions/code/]
+  files: [context/conventions/code/comments.yml]
+  fields_in_index: []
+```
+
+Эта подстановка относится и к примерам, и к source-sync; не смешивай пути
+двух баз в одном manifest'е. Для v3 пути и генерация ниже остаются прежними.
 
 ## Роль и посыл
 
@@ -190,7 +219,8 @@ rule: |
 - **Файл был в старом `provides.files`, нет в новом.** Модуль убрал
   правило. Покажи файл под удаление вместе с его текущим содержимым
   (вдруг проект правил его вручную), дождись «да», удали файл + чистка
-  стухший рендер убирается пересборкой.- **Файл есть в обоих снимках.** Правило существует, могло измениться
+  записи в индексе v2 или пересборка бандла v3.
+- **Файл есть в обоих снимках.** Правило существует, могло измениться
   содержание. Сверь текущее содержимое файла в проекте с эталонным
   шаблоном из свежего модуля:
     - совпадало со старым эталоном — накатывай новую версию по «да»;
