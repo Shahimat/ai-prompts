@@ -89,7 +89,7 @@ async function main(): Promise<number> {
   if (tests !== 0) return tests;
   for (const stage of [
     [process.execPath, 'scripts/packages-check.ts'],
-    ...['index:check', 'memory:check', 'expect'].map((name) => ['npm', 'run', name]),
+    ...['index:check', 'memory:check'].map((name) => ['npm', 'run', name]),
   ]) {
     const code = await raw(stage);
     if (code !== 0) return code;

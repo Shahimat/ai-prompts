@@ -234,6 +234,23 @@ Authority и exact registrations —
 
 ## Команды и полномочия
 
+### Локальное временное исключение root CI
+
+По явному решению пользователя от 2026-11-15 root `npm run ci` в ai-prompts
+полностью исключает исполнение проектных runtime expectations (`npm run expect`),
+а не делает их non-blocking. GitHub workflow использует тот же root entry.
+Причина — подтверждённые поломки инфраструктуры expectations; это временное
+локальное исключение без срока и обещания автоматического восстановления,
+не изменение общего контракта framework или его потребителей.
+
+Format, builds, models:check, все статические typechecks (включая
+`tsc:expectations`), lint, package unit tests (включая тесты framework),
+packages/index/memory checks остаются обязательными с ненулевым exit при ошибке.
+Исходники expectations не удалены; самостоятельный `npm run expect` и остальные
+ручные expect-команды сохраняют прежнее поведение и строгость.
+CI PASS не означает исправления отключённого слоя или semantic acceptance:
+needs-review, freshness и требования к trusted proof не ослаблены.
+
 | Entry | Поддержанный контракт |
 | --- | --- |
 | Root `npm test`, `npm run ci` с `-- --force` | Общий authenticated run и force policy, не blind forwarding последней stage/Vitest |
@@ -284,8 +301,9 @@ seven-case 30s profile не доказывает final all-four/root full PASS; 
 producer tests не являются full PASS. Full-entry performance и второй
 компьютер не доказаны; исходные T1 2/21 FAIL и resource-conditioned результаты
 сохранены в историческом evidence, не объявлены диагностированными этим batch.
-Legacy-needs-review может честно оставить no-agent CI nonzero: это не основание
-написать trusted upgrade вручную или включить live judge.
+Legacy-needs-review может честно оставить самостоятельный no-agent expect-прогон
+nonzero: root CI временно не запускает его согласно локальному исключению выше.
+Это не основание написать trusted upgrade вручную или включить live judge.
 
 Raw exits, manifests, counters и historical negative outcomes находятся отдельно
 от канона: `.oc3/reports/verification-proof-runner/source-stable-v2.md` и

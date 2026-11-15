@@ -169,7 +169,7 @@ console.log('WRAPPER_MATRIX='+JSON.stringify(calls));`,
   const ci = native('npm-ci-force-conformance', ['ci', '--force'], 'wrapper-driver.mjs');
   expect(ci.status).toBe(0);
   expect(ci.stdout).toContain('"force":true,"allowJudge":false');
-  expect(ci.stdout).toContain('"args":["run","expect"]');
+  expect(ci.stdout).not.toContain('"args":["run","expect"]');
   expect(ci.stdout).not.toContain('"--force"');
   const matrix: unknown = JSON.parse(
     ci.stdout
@@ -179,6 +179,30 @@ console.log('WRAPPER_MATRIX='+JSON.stringify(calls));`,
   );
   if (!Array.isArray(matrix) || !matrix.every(isRecord))
     throw new Error('missing authenticated wrapper matrix');
+  expect(matrix.map((item) => [item['command'], item['args']])).toEqual([
+    ['npm', ['run', 'format:check']],
+    ['npm', ['run', 'build', '-w', '@shahimat/ai-core']],
+    ['npm', ['run', 'build', '-w', '@shahimat/harness']],
+    ['npm', ['run', 'build', '-w', '@shahimat/cli']],
+    ['npm', ['run', 'build', '-w', '@shahimat/oc3']],
+    ['npm', ['run', 'models:check']],
+    ['npm', ['run', 'typecheck:ai-core']],
+    ['npm', ['run', 'typecheck:harness']],
+    ['npm', ['run', 'typecheck:cli']],
+    ['npm', ['run', 'typecheck:oc3']],
+    ['npm', ['run', 'tsc:expectations']],
+    ['npm', ['run', 'tsc:packages']],
+    ['npm', ['run', 'tsc:scripts']],
+    ['npm', ['run', 'lint']],
+    ['npm', ['test', '-w', '@shahimat/ai-core', '--']],
+    ['npm', ['test', '-w', '@shahimat/harness', '--']],
+    ['npm', ['test', '-w', '@shahimat/cli', '--']],
+    ['npm', ['test', '-w', '@shahimat/oc3', '--']],
+    [process.execPath, ['scripts/packages-check.ts']],
+    ['npm', ['run', 'index:check']],
+    ['npm', ['run', 'memory:check']],
+  ]);
+  expect(matrix.every((item) => item['force'] === true && item['allowJudge'] === false)).toBe(true);
   expect(new Set(matrix.map((item) => item['run'])).size).toBe(1);
   const test = native(
     'npm-test-force-conformance',
