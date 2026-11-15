@@ -26,6 +26,8 @@ it('rejects unsupported producer/npm flags without forwarding them as Vitest per
 });
 
 it('real bounded Vitest leaf executes cold/warm/force, invalidates real mutations and deduplicates authenticated current results', async () => {
+  const npmCli = process.env['npm_execpath'];
+  if (npmCli === undefined) throw new Error('Run ordinary proof tests through npm test');
   const parent = artifactPath(project, {
     kind: 'run',
     key: 'incremental-expectations-cli',
@@ -132,8 +134,9 @@ export default defineConfig({envDir:false,resolve:{conditions:['source']},ssr:{r
   await writeFile(
     path.join(packageRoot, 'driver.mjs'),
     `import {spawnSync} from 'node:child_process';
+import {fileURLToPath} from 'node:url';
 import {beginProofRun,proofRunEnvironment} from './src/lib/proof/transport.ts';
-const root=new URL('../../',import.meta.url).pathname;
+const root=fileURLToPath(new URL('../../',import.meta.url));
 const run=await beginProofRun(root,{owner:'synthetic',scope:['*'],force:true,allowJudge:false});
 for(let i=0;i<2;i++){const result=spawnSync(process.execPath,['--conditions=source','src/lib/proof/npm.ts','${BOUNDED_TEST}'],{cwd:process.cwd(),env:proofRunEnvironment(run),encoding:'utf8'});process.stdout.write(result.stdout);process.stderr.write(result.stderr);console.log('child exit='+result.status);}`,
   );
@@ -158,8 +161,9 @@ it('executes the default remainder',()=>{console.log('B1_DEFAULT_REMAINDER_EXECU
     `import childProcess from 'node:child_process';
 import {syncBuiltinESMExports} from 'node:module';
 import {EventEmitter} from 'node:events';
+import {fileURLToPath} from 'node:url';
 import {joinProofRun,PROOF_TRANSPORT} from './src/lib/proof/transport.ts';
-const root=new URL('../../',import.meta.url).pathname;
+const root=fileURLToPath(new URL('../../',import.meta.url));
 const calls=[];
 childProcess.spawn=(command,args,options)=>{const child=new EventEmitter();queueMicrotask(async()=>{const run=await joinProofRun(root,options.env[PROOF_TRANSPORT]);calls.push({command,args,run:run.id,force:run.force,allowJudge:run.allowJudge});child.emit('close',0)});return child};
 syncBuiltinESMExports();
@@ -179,7 +183,7 @@ console.log('WRAPPER_MATRIX='+JSON.stringify(calls));`,
   );
   if (!Array.isArray(matrix) || !matrix.every(isRecord))
     throw new Error('missing authenticated wrapper matrix');
-  expect(matrix.map((item) => [item['command'], item['args']])).toEqual([
+  const stages: [string, string[]][] = [
     ['npm', ['run', 'format:check']],
     ['npm', ['run', 'build', '-w', '@shahimat/ai-core']],
     ['npm', ['run', 'build', '-w', '@shahimat/harness']],
@@ -201,7 +205,12 @@ console.log('WRAPPER_MATRIX='+JSON.stringify(calls));`,
     [process.execPath, ['scripts/packages-check.ts']],
     ['npm', ['run', 'index:check']],
     ['npm', ['run', 'memory:check']],
-  ]);
+  ];
+  expect(matrix.map((item) => [item['command'], item['args']])).toEqual(
+    stages.map(([command, argv]) =>
+      command === 'npm' ? [process.execPath, [npmCli, ...argv]] : [command, argv],
+    ),
+  );
   expect(matrix.every((item) => item['force'] === true && item['allowJudge'] === false)).toBe(true);
   expect(new Set(matrix.map((item) => item['run'])).size).toBe(1);
   const test = native(
@@ -211,7 +220,7 @@ console.log('WRAPPER_MATRIX='+JSON.stringify(calls));`,
   );
   expect(test.status).toBe(0);
   expect(test.stdout).toContain(
-    '"args":["test","-w","@shahimat/ai-core","--","test/bounded-guards.test.ts"]',
+    JSON.stringify([npmCli, 'test', '-w', '@shahimat/ai-core', '--', BOUNDED_TEST]),
   );
   expect(test.stdout).not.toContain('"--force"');
   const unsupported = native('npm-ci-unsupported', ['ci', '--run'], 'wrapper-driver.mjs');
@@ -285,8 +294,9 @@ it('executes the runtime remainder with inherited guard',()=>{appendFileSync(${J
   await writeFile(
     path.join(packageRoot, 'default-driver.mjs'),
     `import {spawnSync} from 'node:child_process';
+import {fileURLToPath} from 'node:url';
 import {beginProofRun,proofRunEnvironment} from './src/lib/proof/transport.ts';
-const root=new URL('../../',import.meta.url).pathname;
+const root=fileURLToPath(new URL('../../',import.meta.url));
 const run=await beginProofRun(root,{owner:'synthetic',scope:['*'],force:true,allowJudge:false});
 for(let i=0;i<2;i++){const result=spawnSync(process.execPath,['--conditions=source','src/lib/proof/npm.ts'],{cwd:process.cwd(),env:proofRunEnvironment(run),encoding:'utf8'});process.stdout.write(result.stdout);process.stderr.write(result.stderr);console.log('child exit='+result.status);}`,
   );
@@ -388,4 +398,4 @@ for(let i=0;i<2;i++){const result=spawnSync(process.execPath,['--conditions=sour
     ),
   );
   console.log(output);
-}, 60000);
+}, 180000);

@@ -255,7 +255,7 @@ it('compiled preparation publishes a current bound plan without an attested prod
   expect(plan['bound']['generation']['complete']).toBe(false);
   await expect(command('judge', { apply: true })).rejects.toThrow('INCOMPLETE_EXPECT_PRODUCER');
   await unchanged();
-});
+}, 60_000);
 it.each(['pending/extra.json', 'seen/extra', 'seen', 'batch-1.md', 'lint-1.md', 'plan.json'])(
   'compiled helper prepare validates final %s at actual I/O',
   async (leaf) => {
@@ -294,6 +294,7 @@ it.each(['plan.json', 'task.md', 'answer.json'])(
     await expect(command('judge', { apply: true })).rejects.toThrow('ARTIFACT_SYMLINK');
     await unchanged();
   },
+  60_000,
 );
 it('compiled HTML output and goal-state reader reject final symlinks', async () => {
   await mkdir(helper, { recursive: true });

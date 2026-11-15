@@ -20,6 +20,7 @@ import {
   readJson,
   topologyOf,
   publishProjectJson,
+  syncDirectory,
 } from './local-store.ts';
 import { isRecord, errorCode } from '#shared/guards';
 
@@ -156,7 +157,7 @@ async function publishBytes(root: string, to: string, bytes: Buffer) {
   await writeFile(temp, bytes, { flag: 'wx' }).catch(async (error) => {
     if (errorCode(error) !== 'EEXIST' || !(await readFile(temp)).equals(bytes)) throw error;
   });
-  const handle = await open(temp, 'r');
+  const handle = await open(temp, 'r+');
   try {
     await handle.sync();
   } finally {
@@ -167,12 +168,7 @@ async function publishBytes(root: string, to: string, bytes: Buffer) {
       if (errorCode(error) !== 'EEXIST' || !(await readFile(file)).equals(bytes))
         throw new Error(`MIGRATION_COLLISION: ${to}`);
     });
-    const dir = await open(path.dirname(file), 'r');
-    try {
-      await dir.sync();
-    } finally {
-      await dir.close();
-    }
+    await syncDirectory(path.dirname(file));
   } finally {
     await rm(temp, { force: true });
   }

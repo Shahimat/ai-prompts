@@ -265,7 +265,7 @@ it('retry after a post-publication failure preserves both history and pending so
   const module = pathToFileURL(
     path.join(path.dirname(import.meta.dirname), 'src/lib/artifact-migration.ts'),
   ).href;
-  const script = `import fs from 'node:fs/promises';import{syncBuiltinESMExports}from'node:module';const rm=fs.rm;fs.rm=async(file,...args)=>{if(String(file).endsWith('/.ops/b/proof.json'))throw new Error('synthetic failure');return rm(file,...args)};syncBuiltinESMExports();const{migrateArtifacts}=await import(${JSON.stringify(module)});try{await migrateArtifacts(${JSON.stringify(root)});process.exitCode=4}catch(e){process.exitCode=e.message.includes('synthetic failure')?0:5}`;
+  const script = `import fs from 'node:fs/promises';import{syncBuiltinESMExports}from'node:module';const rm=fs.rm;fs.rm=async(file,...args)=>{if(file===${JSON.stringify(path.join(root, '.ops/b/proof.json'))})throw new Error('synthetic failure');return rm(file,...args)};syncBuiltinESMExports();const{migrateArtifacts}=await import(${JSON.stringify(module)});try{await migrateArtifacts(${JSON.stringify(root)});process.exitCode=4}catch(e){process.exitCode=e.message.includes('synthetic failure')?0:5}`;
   const result = spawnSync(
     process.execPath,
     ['--conditions=source', '--input-type=module', '-e', script],
@@ -295,7 +295,7 @@ it('nonrecursive prune preserves a concurrent source collision and is retry-safe
   const module = pathToFileURL(
     path.join(path.dirname(import.meta.dirname), 'src/lib/artifact-migration.ts'),
   ).href;
-  const script = `import fs from 'node:fs/promises';import{syncBuiltinESMExports}from'node:module';const rmdir=fs.rmdir;fs.rmdir=async(file,...args)=>{if(String(file).endsWith('/.ops'))await fs.writeFile(String(file)+'/concurrent.expect.ts','synthetic concurrent source');return rmdir(file,...args)};syncBuiltinESMExports();const{migrateArtifacts}=await import(${JSON.stringify(module)});await migrateArtifacts(${JSON.stringify(root)});`;
+  const script = `import fs from 'node:fs/promises';import{syncBuiltinESMExports}from'node:module';const rmdir=fs.rmdir;fs.rmdir=async(file,...args)=>{if(file===${JSON.stringify(path.join(root, '.ops'))})await fs.writeFile(${JSON.stringify(path.join(root, '.ops/concurrent.expect.ts'))},'synthetic concurrent source');return rmdir(file,...args)};syncBuiltinESMExports();const{migrateArtifacts}=await import(${JSON.stringify(module)});await migrateArtifacts(${JSON.stringify(root)});`;
   expect(
     spawnSync(process.execPath, ['--conditions=source', '--input-type=module', '-e', script], {
       encoding: 'utf8',

@@ -148,6 +148,18 @@ V1 target-only cache не даёт authorization. Close публикует cache
 tracked `.oc3/.delta/.accepted.json` retired точечно. Historical archives,
 inbox и чужие изменения не удаляются; никаких blanket ignore/cleanup.
 
+Общий `local-store.ts:syncDirectory` на Windows (`win32`) пропускает только
+directory fsync: file fsync сохраняется, его ошибки не подавляются. На POSIX
+ошибки открытия/sync каталога остаются fatal, открытый handle закрывается
+и при ошибке sync. `artifact-migration.ts` использует тот же helper и открывает
+временный файл в режиме `r+`, чтобы fsync получил write-capable handle.
+Namespace, idempotency и atomic publication не ослаблены; однако на Windows
+без directory fsync не гарантируется сохранность опубликованной записи каталога
+после системного сбоя/потери питания, даже при успешном file fsync.
+Восемь регрессий `test/local-store.test.ts` покрывают simulated Windows,
+POSIX errors/close, immutable/mutable JSON, file fsync errors и migration;
+симуляция платформы не доказывает actual Windows PASS.
+
 Карта кода: `ai-core/lib/knowledge.ts` — intake/view/batch/resolution,
 `local-store.ts` — topology/atomic storage/leases, `task-gates.ts` —
 packet/snapshot/check/ready; команды — тонкие adapters над lib.

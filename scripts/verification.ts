@@ -31,9 +31,21 @@ if (force && !run.force) throw new Error('PROOF_POLICY_MISMATCH');
 async function raw(argv: string[], cwd = root): Promise<number> {
   const [command, ...rest] = argv;
   if (command === undefined) throw new Error('INVALID_VERIFICATION_COMMAND');
+  let executable = command;
+  let parameters = rest;
+  if (command === 'npm') {
+    const cli = process.env['npm_execpath'];
+    if (cli === undefined || cli === '') throw new Error('NPM_CLI_REQUIRED');
+    executable = process.execPath;
+    parameters = [cli, ...rest];
+  }
   console.log(`proof ${argv.join(' ')}: run-only (unmodelled subprocess dependencies/environment)`);
   return new Promise((resolve, reject) => {
-    const child = spawn(command, rest, { cwd, stdio: 'inherit', env: proofRunEnvironment(run) });
+    const child = spawn(executable, parameters, {
+      cwd,
+      stdio: 'inherit',
+      env: proofRunEnvironment(run),
+    });
     child.once('error', reject);
     child.once('close', (code) => resolve(code ?? 1));
   });

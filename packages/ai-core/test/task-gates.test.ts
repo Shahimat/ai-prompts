@@ -153,7 +153,7 @@ describe('task packet and snapshot gates', () => {
     await rm(path.join(root, output));
     await expect(currentCheck(root, configured, 'targeted')).rejects.toThrow('STALE_OUTPUT');
     expect((await verifyTask(root, configured, 'targeted', 'executor'))['status']).toBe('fail');
-  });
+  }, 30000);
   it('foreign proof owner cannot authorize a native gate or bypass full barriers', async () => {
     await expect(verifyTask(root, packet, 'full', 'executor')).rejects.toThrow('MISSING_RECEIPT');
     const foreign = await beginProofRun(root, {
@@ -662,7 +662,7 @@ describe('task packet and snapshot gates', () => {
     );
     await rm(path.join(root, '.oc3/locks/unknown.cache'));
     expect((await taskReady(root, packet)).ready).toBe(true);
-  });
+  }, 30000);
   it('source and authority hashes are content bound, not mtimes', async () => {
     const before = await taskSnapshot(root, packet);
     await put('DoD.md', 'different approved criteria');

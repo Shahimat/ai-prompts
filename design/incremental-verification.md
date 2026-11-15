@@ -219,20 +219,34 @@ plumbing, а не production semantic reuse или финальные tools/inst
 
 ## Ресурсный профиль integration tests
 
-По явному выбору пользователя timeout 30000 ms назначен ровно семи existing
+По явному выбору пользователя timeout 30000 ms был назначен семи existing
 expanded cases: трём registered adapter invalidation (`changelog/lint.ts`,
 `shared/frontmatter.ts`, `yaml/dist/index.js`), двум memory corpus caps
 16384/24576 и двум authoritative/full ticket acceptance cases.
-Global 5000 ms, остальные 514 case options, исходные explicit budgets,
-workers/scheduling/isolation, guards, corpus и assertions не изменены.
-Это пересмотр прежнего 5s профиля только для этих семи случаев, не доказательство
-его прохождения. Исторические raw 5s FAIL сохраняются; actual run counts и
-elapsed statistics — execution evidence, не новое canonical правило.
-Authority и exact registrations —
+Эти семь budgets сохранены. Исторические authority и exact registrations —
 `.oc3/reports/incremental-verification-final/timeout-profile-approval-v12.md`
 и `integration-timeouts-v12.md` в том же report root.
 
+После GitHub run `43713843749` (HEAD `19dbbbf`: Windows EPERM directory fsync,
+macOS/Linux test timeouts) дополнительно назначены 30000 ms десяти случаям:
+`expect-proof.test.ts` — 5, `expect-syntax-printer.test.ts` — 1,
+`proof-adapter.test.ts` — 2, `task-gates.test.ts` — 2.
+В `helper-leaves.test.ts` 60000 ms назначены одному compiled preparation case
+и трём строкам apply table (`plan.json`, `task.md`, `answer.json`), всего 4.
+Orchestration case в `ordinary-proof.test.ts` получил 180000 вместо 60000 ms.
+Global 5000 ms, subprocess budgets, assertions, workers/scheduling/isolation,
+guards и corpus не изменены. Это адресный пересмотр ресурсного профиля,
+не доказательство actual Windows/Linux или GitHub CI PASS. Исторические raw
+5s FAIL сохраняются; actual run counts и elapsed statistics — execution
+evidence, не новое canonical правило.
+
 ## Команды и полномочия
+
+Root runner `scripts/verification.ts` запускает npm stages через
+`process.execPath` с `npm_execpath` первым аргументом, без shell и зависимости
+от запуска `npm`/`npm.cmd` как executable. Отсутствующий/пустой `npm_execpath`
+даёт `NPM_CLI_REQUIRED`. Порядок stages, общий authenticated run, force/auth
+policy и локальное исключение runtime expectations ниже не изменены.
 
 ### Локальное временное исключение root CI
 

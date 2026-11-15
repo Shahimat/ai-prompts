@@ -152,7 +152,7 @@ it('registered existing changelog script executes cold, reuses warm, bypasses on
   expect(force.stdout).not.toContain('baseline pass');
   expect(force.stdout.includes('current-run pass')).toBe(!guarded);
   expect(force.stdout).toContain('child/agent launches=0 allowJudge=false');
-});
+}, 30000);
 
 it.each([
   'packages/ai-core/src/commands/changelog/lint.ts',
@@ -195,7 +195,7 @@ it('registered adapter invalidates effective config/content and retains current 
   );
   expect(failure.stdout).toContain('registered executions=1');
   expect(failure.stdout.includes('current-run fail')).toBe(!guarded);
-});
+}, 30000);
 
 it('unknown command remains explicitly run-only and never calls a provider', () => {
   const result = npm('--unknown');

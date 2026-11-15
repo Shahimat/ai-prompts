@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -49,6 +49,11 @@ describe('scanSecrets', () => {
 
   it('одна строка — одно нарушение', () => {
     expect(kinds(`token: ${GITHUB} ${AWS}`)).toHaveLength(1);
+  });
+
+  it('runtime-генерация proof token в исходнике не считается записанным секретом', async () => {
+    const file = path.join(path.dirname(import.meta.dirname), 'src/lib/proof/transport.ts');
+    expect(scanSecrets(await readFile(file, 'utf8'), file)).toEqual([]);
   });
 });
 

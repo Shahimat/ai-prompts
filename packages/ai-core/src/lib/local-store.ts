@@ -75,7 +75,8 @@ export async function readJson(file: string, maxBytes = 2 * 1024 * 1024): Promis
   }
 }
 
-async function syncDirectory(dir: string): Promise<void> {
+export async function syncDirectory(dir: string): Promise<void> {
+  if (process.platform === 'win32') return;
   const handle = await open(dir, 'r');
   try {
     await handle.sync();

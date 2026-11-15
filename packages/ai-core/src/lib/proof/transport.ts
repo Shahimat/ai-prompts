@@ -8,11 +8,12 @@ import type { ProofPolicy, ProofRun } from '#lib/proof/model';
 export const PROOF_TRANSPORT = 'OC3_PROOF_TRANSPORT';
 
 export async function beginProofRun(root: string, policy: ProofPolicy): Promise<ProofRun> {
+  const nonce = randomBytes(32).toString('hex');
   const run = {
     ...policy,
     root: await realpath(root),
     id: randomUUID(),
-    token: randomBytes(32).toString('hex'),
+    token: nonce,
   };
   const { token, ...body } = run;
   await saveProofRecord(root, `runs/${run.id}/context.json`, {

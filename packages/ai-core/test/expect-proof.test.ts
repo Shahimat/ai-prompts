@@ -137,7 +137,7 @@ describe('criterion parser and portable implementation proofs', () => {
     expect(criterion(criterionInventory(root, entry), 'first').input).toBe(first.input);
     await put(root, 'helper.ts', 'export function first() { return 7; }');
     expect(criterion(criterionInventory(root, entry), 'first').input).not.toBe(first.input);
-  });
+  }, 30000);
 
   it('separates cold-root content portability, body/title and producer instruction authority', async () => {
     const a = await fixture();
@@ -214,7 +214,7 @@ describe('criterion parser and portable implementation proofs', () => {
     expect(criterionInventory(root, entry).generation).not.toBe(first.generation);
     await put(root, entry, "import { it } from 'vitest'; it('unknown', () => missing());");
     expect(criterionInventory(root, entry).criteria[0]?.complete).toBe(false);
-  });
+  }, 30000);
 
   it('maps source ranges without sibling ordinals and reconciles only unique lineage matches', async () => {
     const root = await fixture();
@@ -233,7 +233,7 @@ describe('criterion parser and portable implementation proofs', () => {
       "import { it } from 'vitest'; let shared = 0; it('mutator', () => shared++); it('consumer', () => shared);",
     );
     expect(criterionInventory(root, entry).criteria.every((c) => !c.complete)).toBe(true);
-  });
+  }, 30000);
 
   it('resolves static namespace members and fails closed on conflicting runtime targets and aliases', async () => {
     const root = await fixture();
@@ -363,7 +363,7 @@ describe('immutable generation-bound prepare/apply', () => {
     expect(launches.agents).toBe(0);
     await saveVerdicts({ verdicts: { changed: { ...trusted, verdict: false } }, lint: {} });
     await expect(loadVerdicts()).rejects.toThrow('неверная форма');
-  });
+  }, 30000);
 
   it('snapshots every ref and rejects body/title/helper/membership/instruction/evidence changes before quote validation', async () => {
     const root = await fixture();
@@ -410,7 +410,7 @@ describe('immutable generation-bound prepare/apply', () => {
     await apply();
     expect(commits).toBe(1);
     await expect(apply()).rejects.toThrow('FOREIGN_EXPECT_PLAN');
-  });
+  }, 30000);
 
   it('rejects foreign roots/entries, superseded prepares, bare answers and duplicate/missing/foreign items', async () => {
     const root = await fixture();

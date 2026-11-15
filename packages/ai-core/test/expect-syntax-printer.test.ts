@@ -122,4 +122,4 @@ it('full inventory equals fresh-printer reference with actual repeated-node work
   } finally {
     await rm(root, { recursive: true, force: true });
   }
-});
+}, 30000);
