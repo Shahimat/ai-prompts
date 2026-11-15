@@ -198,19 +198,16 @@ console.log('WRAPPER_MATRIX='+JSON.stringify(calls));`,
     ['npm', ['run', 'tsc:packages']],
     ['npm', ['run', 'tsc:scripts']],
     ['npm', ['run', 'lint']],
-    ['npm', ['test', '-w', '@shahimat/ai-core', '--']],
-    ['npm', ['test', '-w', '@shahimat/harness', '--']],
-    ['npm', ['test', '-w', '@shahimat/cli', '--']],
-    ['npm', ['test', '-w', '@shahimat/oc3', '--']],
     [process.execPath, ['scripts/packages-check.ts']],
     ['npm', ['run', 'index:check']],
-    ['npm', ['run', 'memory:check']],
   ];
   expect(matrix.map((item) => [item['command'], item['args']])).toEqual(
     stages.map(([command, argv]) =>
       command === 'npm' ? [process.execPath, [npmCli, ...argv]] : [command, argv],
     ),
   );
+  expect(ci.stderr).toContain('package tests disabled on all platforms');
+  expect(ci.stderr).toContain('memory:check disabled');
   expect(matrix.every((item) => item['force'] === true && item['allowJudge'] === false)).toBe(true);
   expect(new Set(matrix.map((item) => item['run'])).size).toBe(1);
   const test = native(

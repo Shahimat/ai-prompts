@@ -97,11 +97,11 @@ async function main(): Promise<number> {
     const code = await raw(stage);
     if (code !== 0) return code;
   }
-  const tests = await workspaceTests(['ai-core', 'harness', 'cli', 'oc3']);
-  if (tests !== 0) return tests;
+  console.warn('CI: package tests disabled on all platforms; run npm test explicitly');
+  console.warn('CI: memory:check disabled; run npm run memory:check explicitly');
   for (const stage of [
     [process.execPath, 'scripts/packages-check.ts'],
-    ...['index:check', 'memory:check'].map((name) => ['npm', 'run', name]),
+    ['npm', 'run', 'index:check'],
   ]) {
     const code = await raw(stage);
     if (code !== 0) return code;

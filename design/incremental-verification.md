@@ -245,25 +245,41 @@ evidence, не новое canonical правило.
 Root runner `scripts/verification.ts` запускает npm stages через
 `process.execPath` с `npm_execpath` первым аргументом, без shell и зависимости
 от запуска `npm`/`npm.cmd` как executable. Отсутствующий/пустой `npm_execpath`
-даёт `NPM_CLI_REQUIRED`. Порядок stages, общий authenticated run, force/auth
-policy и локальное исключение runtime expectations ниже не изменены.
+даёт `NPM_CLI_REQUIRED`. Portable npm runner не меняет общий authenticated
+run и force/auth policy. Текущий состав и порядок оставшихся root CI stages
+зафиксированы ниже; прежняя matrix с package tests и memory:check больше
+не описывает root CI.
 
 ### Локальное временное исключение root CI
 
 По явному решению пользователя от 2026-11-15 root `npm run ci` в ai-prompts
-полностью исключает исполнение проектных runtime expectations (`npm run expect`),
-а не делает их non-blocking. GitHub workflow использует тот же root entry.
-Причина — подтверждённые поломки инфраструктуры expectations; это временное
-локальное исключение без срока и обещания автоматического восстановления,
-не изменение общего контракта framework или его потребителей.
+полностью исключает все package unit tests (`ai-core`, `harness`, `cli`, `oc3`)
+и `memory:check` на всех ОС. Это исключение исполнения, не `continue-on-error`;
+runner явно сообщает об этих исключениях в stderr. Прежнее исключение
+проектных runtime expectations (`npm run expect`) сохраняется.
+GitHub workflow использует тот же root entry; платформы и job matrix не удалены.
+Это временные локальные исключения без срока и обещания автоматического
+восстановления, не изменение общего контракта framework или его потребителей.
 
-Format, builds, models:check, все статические typechecks (включая
-`tsc:expectations`), lint, package unit tests (включая тесты framework),
-packages/index/memory checks остаются обязательными с ненулевым exit при ошибке.
-Исходники expectations не удалены; самостоятельный `npm run expect` и остальные
-ручные expect-команды сохраняют прежнее поведение и строгость.
-CI PASS не означает исправления отключённого слоя или semantic acceptance:
-needs-review, freshness и требования к trusted proof не ослаблены.
+Причина расширения исключений — GitHub run `43716306218` (HEAD `dc5f9c4`):
+macOS/Linux прошли package tests, затем упали на memory check из-за семи
+missing/stale generated files; Windows package tests упали на
+git NUL/fixture/module/path errors. Пользователь потребовал отключить автотесты,
+а не продолжать их ремонт. Прежнее исключение runtime expectations связано
+с подтверждёнными поломками их инфраструктуры.
+
+Оставшийся обязательный порядок: format → четыре builds
+(`ai-core`, `harness`, `cli`, `oc3`) → models:check → все статические typechecks
+(`typecheck:ai-core`, `typecheck:harness`, `typecheck:cli`, `typecheck:oc3`,
+`tsc:expectations`, `tsc:packages`, `tsc:scripts`) → lint → packages:check →
+index:check. Ошибка любой из этих стадий по-прежнему даёт ненулевой exit CI.
+Ручные root/workspace `npm test`, pretest/prepublish hooks,
+`npm run memory:check`, самостоятельный `npm run expect` и остальные ручные
+expect-команды не изменены и остаются доступными. Профиль timeout выше относится
+к ручным tests и истории, а не возвращает package tests в root CI.
+Зелёный оставшийся CI не означает исправления отключённых тестов, памяти
+или runtime expectations и не доказывает semantic acceptance: needs-review,
+freshness и требования к trusted proof не ослаблены.
 
 | Entry | Поддержанный контракт |
 | --- | --- |
