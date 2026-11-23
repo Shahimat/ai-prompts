@@ -1,0 +1,7 @@
+key: expectations-repo-scan
+summary: Целевое исключение ignored-каталогов из сканеров expectations
+rule: |
+  Сканеры исходников для expectations должны исключать gitignored-каталоги,
+  минимум .opencode: worktrees не должны попадать в прогон основного checkout.
+  Это требование к целевому поведению, не заявление о текущей реализации.
+reason: Исторические падения Patterns.home от worktrees 2026-11-03; открытая работа сохранена в цели harness-reliability.

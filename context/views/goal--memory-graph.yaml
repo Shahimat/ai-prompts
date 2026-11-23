@@ -1,0 +1,55 @@
+key: memory-graph
+title: Продуктовый граф бандлов
+status: planned
+why: Сохранить непринятую продуктовую эпическую работу, не возвращая sealed memory в локальный процесс.
+description: |
+  Источник — memory-graph.expect.ts, results пуст. Это backlog проверки
+  продукта v3; старые path-литералы .oc3/doc/ не текущий канон ai-prompts.
+  Направление уже эволюционировало в design/memory-bundles.md и
+  design/knowledge-inbox.md; перед тикетом сверить source reality и не
+  откатывать новую раскладку к старой. Закрытые memory-hardening не повторять.
+  Принципы исходной цели: type-first факты отдельно от генерируемых узлов,
+  manifest управляет namespace/кольцами/структурами/бюджетами, не содержимым
+  фактов; один файл может входить в несколько namespaces. Кольцо не важность.
+  layout-move: полный перенос project/autonomy/glossary/conventions,
+  entities/behavior/manuals/knowledge, goals вместе с JSON, skills,
+  ai-core/modules и рабочих research/reports/verdicts/operator/locks/
+  submit/sessions/feedback без потери bytes; механическая замена путей
+  конфигов, отчёт чужих хвостов. Потребители и source тексты обновлены,
+  старых активных путей нет; host .agents/.opencode вне project output.
+  memory-seal: белый список чтения, canonical facts/manifest только librarian;
+  тесты read/grep/glob для ролей, расширение списка только явно. Это
+  продуктовый режим v3, в открытой локальной документации v2 не применяется.
+  memory-schema: conventions/glossary — списки смысловых записей; JSON
+  schemas каждой структуры и manifest, additionalProperties false;
+  исторический запрет вложенных значений/свободного текста требует сверки
+  с действующими схемами, не молчаливого восстановления. Бюджеты notes/start/
+  node/optional-field, формализация NOTES и валидация ai-prompts/ai-config.
+  memory-generator: старт с inline общими фактами, каталогами skills/goals,
+  узлы по namespace/кольцу и sha12, полный SHA в шапке, отдельные файлы
+  фактов, рёбра к следующему кольцу; естественный рендер по схемам, не YAML.
+  Легенда memory.md от генератора, кольца и реальные бюджеты; проверка SHA,
+  caps, NOTES/optional-field; идемпотентная сборка удаляет stale узлы.
+  memory-inject: cold-start plugin без node/npm, pin и full default, offline
+  не объявлен проверенным; стартовый index механически свежий при первом
+  prompt, build если отсутствует/стух. Runner добавляет память child-роли,
+  неизвестный узел отвергает; fake-opencode тесты и живая проба fresh/stale
+  operator. Один экземпляр в сессии, оператор не пересказывает канон.
+  memory-roles: управление весами/бюджетами через manifest, формализация
+  NOTES в структуры/схемы, manuals доступны через projection; маршрут
+  AGENTS продукта согласован. CI с memory check по продуктовому scope;
+  релизные версии/пины отдельным циклом после приёмки, packages-check без crit.
+  Каждый тикет: chore — продуктовая механика и тесты; docs — продуктовый
+  контракт и доказанные границы. Свежие PASS миграцией не назначаются.
+tasks:
+  blocker: []
+  high: []
+  medium:
+    - 'Сверка и приёмка полной раскладки execution/knowledge (layout-move) → chore'
+    - 'Приёмка ролевых границ чтения продукта (memory-seal) → chore'
+    - 'Приёмка схем фактов и бюджетов (memory-schema) → chore'
+    - 'Приёмка генератора и свежести графа (memory-generator) → chore'
+    - 'Приёмка cold-start и runner injection (memory-inject) → chore'
+    - 'Приёмка управления памятью и маршрута ролей (memory-roles) → chore'
+  low: []
+depends_on: []

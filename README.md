@@ -6,9 +6,16 @@ Cursor и т.п.).
 Точка входа агента — `AGENTS.md`; OpenCode и большинство агентов читают
 его напрямую.
 
-Развернуть контракт v3 в проекте: `npx @shahimat/oc3 init` — установщик
-спросит своё и сделает остальное сам; миграция v2 → v3 — та же команда
-(маршрутизация для агента — skill `source-sync` этого репозитория).
+Сам репозиторий работает по самостоятельному
+[контракту v2](prompts/productivity/agent-operational-contract-v2.md):
+открытые `context/` и `docs/`, без обязательных ролей, брифинга,
+worktree, harness и локального OC3-плагина.
+Карта знаний — [`context/index.yml`](context/index.yml), живая очередь —
+[`context/views/goals.yaml`](context/views/goals.yaml).
+
+Для проекта-потребителя можно отдельно выбрать v3:
+`npx @shahimat/oc3 init`. Это поставляемый продукт, не требование к
+разработке ai-prompts; миграция v2 → v3 требует явного выбора.
 
 ## Идея
 
@@ -24,48 +31,36 @@ Cursor и т.п.).
 2. Скопируй содержимое `.md` файла и отправь агенту первым сообщением.
 3. Дальше работай в диалоге — агент сам спросит то, что ему нужно.
 
-## Модели ролей этого проекта
+## Разработка
 
-Модели задаются в корневом [`manifest.json`](manifest.json); текущий
-default для всех ролей — `openai/gpt-6.1-sol-fast` без variant.
+Node ≥24; `npm ci`, затем `npm run build`. Итоговая проверка —
+`npm run ci`; состав стадий задают `package.json` и `scripts/verification.ts`
+(format/build/models/typecheck/lint/packages/index). Package tests, memory и expectations
+не входят в этот CI; нужные целевые тесты запускаются отдельно.
+Тесты локального скрипта моделей — `npm run models:test`, они также входят в CI.
+Не путай продуктовые команды `ai refresh`/`adapters sync` с локальной сборкой.
+Правила изменений — [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Модели этого проекта
+
+Модели задаются только в корневом [`manifest.json`](manifest.json).
 После правки manifest выполни `npm run models:apply`, затем
 `npm run models:check`: обе команды детерминированы и не вызывают AI.
-Роли и инструкции сохраняются; `.opencode/` — производные, не место
-ручной настройки. `models:check` также выделен в отдельную стадию CI.
+Repo-native скрипт обслуживает root model и native overrides, не
+генерирует роли и не меняет `agents/`. `models:check` — отдельная стадия CI.
 
-Приоритет helper → роль → default, скрытые пути запуска, CLI-команды
-и ограничения проверки — [проектные модели](design/project-models.md).
+Локальное обслуживание и отдельно исторический продуктовый resolver —
+[проектные модели](design/project-models.md).
 Это локальная настройка, не смена дефолтов потребителей и не обещание
 переключить явно выбранную модель уже открытой сессии.
 
-## Рабочий цикл контракта
+## Продуктовые дизайны v3
 
-Оператор готовит task packet и preflight; роли доводят обычные ошибки.
-После code/source stable один librarian обновляет docs/производные,
-назначенный владелец выполняет full CI, затем judge и ready проверяют DoD
-и состав файлов. Новое знание можно оставить durable pending в inbox:
-receipt не означает обновление канона, critical не откладывается молча.
-Команды, обслуживание, ограничения и evidence —
-[knowledge inbox и гейты](design/knowledge-inbox.md).
-
-Все first-party проектные execution outputs OC3 — только внутри `.oc3/`,
-по typed kind и явному scope; исходники expectations и provider adapters
-не являются такими outputs. Durable означает сохранность, **не commit**:
-run packets/logs/reports/research и сырые вердикты локальны и ignored.
-Compact semantic store `.oc3/verdicts/expect/` для no-AI CI, canonical
-knowledge, goals и inbox не скрываются blanket-ignore. Ignore не снимает
-уже staged старые файлы: состав deliverables проверяется отдельно.
-Раскладка, entry isolation и `oc3 migrate` с read-only historical aliases —
-в [описании реализации](design/knowledge-inbox.md#раскладка-execution-artifacts).
-
-## Память контракта
-
-Агент читает старт `.oc3/bundles/index.md`, затем каталоги logical nodes
-и полные проекции внутри `bundles/files/`, не sealed canonical.
-Вложенность и значения сохраняются по действующим схемам; большие
-каталоги и факты разбиваются на страницы без повышения бюджетов.
-`ai check` проверяет установленную память, `ai refresh` сначала строит её.
-Формат, маршруты и ограничения — [бандлы памяти](design/memory-bundles.md).
+[Knowledge inbox и гейты](design/knowledge-inbox.md) и
+[бандлы памяти](design/memory-bundles.md) описывают поставляемый продукт v3,
+а не обязательный процесс этого checkout. Runtime inbox, semantic verdicts
+и proofs в `.oc3/` — execution evidence, не параллельная очередь или
+открытое проектное знание; pending не означает verified.
 
 ## Структура
 
@@ -99,7 +94,11 @@ expectations/       — ожидания к промптам в форме ав�
                      ожидание человека, тело — проверка; npm run expect.
 
 design/             — спецификации будущих версий промптов (не промпты,
-                     в индекс не попадают).
+                      в индекс не попадают).
+
+context/            — открытый контекст, атомарные conventions и YAML-очередь.
+docs/               — собственные сущности и сведения; manuals только
+                      для настоящих ручных процедур.
 
 packages/           — пакеты (TS, npm workspaces, Node ≥ 24):
                      @shahimat/cli — бинарь ai и скрипты, точка входа;

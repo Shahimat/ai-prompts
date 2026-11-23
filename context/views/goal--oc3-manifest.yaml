@@ -1,0 +1,23 @@
+key: oc3-manifest
+title: Манифест в установщике v3
+status: planned
+why: Сохранить непринятые условия greenfield/migrate, не создавая локального memory-runtime.
+description: |
+  Источник — oc3-manifest.expect.ts, results пуст. Сверить уже существующий
+  код и новые paths со спецификацией design/memory-bundles.md.
+  init greenfield создаёт manifest всех фактов с namespace/data и
+  дефолтными бюджетами, общий project/autonomy/common вес 0, прочее вес 2,
+  NOTES с заголовком. migrate строит список перенесённых фактов, без
+  namespace — общие. Повторный запуск сохраняет пользовательские
+  веса/узлы и добавляет только новые файлы. memory check и build работают
+  на результате. Unit-тесты greenfield/migrate/re-run/default weights,
+  npm run ci; версии/пины не менять. Чеклист: chore — установщик и
+  тесты; docs — фактические defaults и границы. Старое .oc3/doc/
+  из исходной цели не является распоряжением откатить текущую раскладку.
+tasks:
+  blocker: []
+  high: []
+  medium:
+    - 'Идемпотентные init/migrate manifest и проверяемая стартовая память → chore'
+  low: []
+depends_on: []

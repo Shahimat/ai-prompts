@@ -1,0 +1,32 @@
+id: session-tooling
+kind: entity
+namespace: contract
+version: package.json
+summary: Локальная среда и сохранённые ограничения исторического evidence
+features_enabled: []
+features_disabled: []
+manuals: []
+behaviors: []
+sources:
+  packages: design/packages.md
+  models: design/project-models.md
+  execution: design/knowledge-inbox.md
+historical_observations:
+  - date: 2026-11-03
+    observation: Глобальная @shahimat/oc3 0.1.1 отставала от исходников и отклоняла glm-5.3-flash старым гейтом платного семейства.
+    evidence: npm ls -g @shahimat/oc3 и отказ oc3 models_set; строка гейта отсутствовала в репозиторных packages/ai-core/src/commands/models и packages/oc3/src.
+  - date: 2026-11-03
+    observation: ai adapters sync не создавал planner из source agents, где канонической роли planner не было.
+    evidence: Воспроизведение в репозитории-источнике; judge при этом генерировался.
+  - date: 2026-11-03
+    observation: Ручной fallback docs-delta при отказе runner claude с exit 127 блокировался docs-guard у не-librarian.
+    evidence: Два воспроизведения — general и основная сессия; это продуктовая проблема v3, не правило standalone v2.
+boundaries: |
+  Наблюдения исторические, не свежий аудит установленных глобальных пакетов.
+  Локальное исполнение ai-prompts — обычный build; OC3 не обязательный runtime.
+  Runtime-инструмент из глобальной установки может отличаться от packages/
+  checkout. Изменение исходников не доказывает обновления установленного CLI.
+  Исторический перенос execution artifacts сохранил 55 файлов / 392419 байт
+  через .oc3/reports/artifact-history/manifest.json и historicalArtifactPath.
+  Старые bytes/hash не переписываются; stale staging не снимается ignore.
+  Исторические task receipts не доказывают свежий full CI или A1–A8 acceptance.

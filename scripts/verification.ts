@@ -83,6 +83,7 @@ async function main(): Promise<number> {
     ]),
     ...[
       'models:check',
+      'models:test',
       'typecheck:ai-core',
       'typecheck:harness',
       'typecheck:cli',
@@ -98,7 +99,6 @@ async function main(): Promise<number> {
     if (code !== 0) return code;
   }
   console.warn('CI: package tests disabled on all platforms; run npm test explicitly');
-  console.warn('CI: memory:check disabled; run npm run memory:check explicitly');
   for (const stage of [
     [process.execPath, 'scripts/packages-check.ts'],
     ['npm', 'run', 'index:check'],

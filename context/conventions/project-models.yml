@@ -1,0 +1,11 @@
+key: project-models
+summary: Локальные модели задаёт manifest.json, без генерации ролей
+rule: |
+  Корневой manifest.json — единственная ручная декларация проектных моделей.
+  npm run models:apply и npm run models:check — детерминированное локальное
+  обслуживание без AI через repo-native скрипт, не OC3 adapters sync.
+  Применяются root model и native overrides; роли и инструкции не генерируются.
+  Shared agents/ и дефолты потребителей локальными настройками не меняются.
+  Явная модель открытой сессии или внешний --model не project default.
+  Глобальные настройки не меняются. Детали и исторические границы проверки —
+  design/project-models.md; models:check остаётся отдельной стадией npm run ci.

@@ -1,0 +1,38 @@
+key: contract-entry
+title: Установщик и вход в продуктовый v3
+status: planned
+why: Не потерять три непринятых тикета прежней очереди при локальном переходе на v2.
+description: |
+  Источник — contract-entry.expect.ts, results пуст. Требования относятся к
+  установке v3 потребителю, не включают обязательный брифинг в ai-prompts.
+  Перед работой сверить уже реализованное; отсутствие PASS не означает,
+  что кода нет. Сохранённая последовательность: briefing-gate,
+  operator-agent, init-installer.
+  briefing-gate: до ack брифинга bash/edit/write/subagent отклоняются с
+  понятной причиной, read и чисто текстовый ответ доступны; строка
+  session-brief требует briefing_done после ответа; unit-тесты до/после ack
+  и изоляции sessionID, npm run ci, без изменения версий/пинов.
+  operator-agent: init создаёт тонкий primary operator с маршрутом AGENTS
+  и workflow и ставит default_agent operator только в выбранном v3;
+  повторный запуск сохраняет пользовательский operator.md и чужой default,
+  merge объяснён в выводе; тесты генерации и повторного запуска.
+  init-installer: состояния nothing/v2/v3-partial/v3-ok по workflow/views,
+  sync.contract.key и module-маркерам; шаблоны сохраняют пользовательские
+  секции и module-блоки. Reality/реквизиты — вопросы человеку; v2-очередь
+  не конвертируется молча, перенос согласуется. Первая строка показывает
+  v2 detected/v3 partial. Runtime full по умолчанию: OpenCode ставит plugin
+  без node/npm; degraded только offline/недоступный реестр, с объяснением;
+  node/npm детект даёт подсказку о CLI/harness, не выбирает degraded.
+  Историческое cold-start исследование — execution evidence, не свежий PASS.
+  npm run ci; версии/пины без изменений, релизный каскад после
+  harness-reliability отдельным циклом. Чеклист тикетов: chore — реализация
+  инструментов и тесты; docs — выравнивание описания установки.
+tasks:
+  blocker: []
+  high: []
+  medium:
+    - 'Приёмка briefing-gate с session ack и изоляцией → chore'
+    - 'Идемпотентная установка primary operator в v3 → chore'
+    - 'Полная установка и миграция v3 с явными вопросами → chore'
+  low: []
+depends_on: []

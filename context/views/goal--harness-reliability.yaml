@@ -1,0 +1,34 @@
+key: harness-reliability
+title: Надёжность продуктового harness
+status: planned
+why: Сохранить непринятую работу и известные отказы, не вводя harness в обязательный локальный цикл.
+description: |
+  Перенесено из harness-reliability.expect.ts с пустыми results и открытых
+  задач knowledge/tooling.md. Это очередь продукта v3, не факт отсутствия
+  реализации: перед исполнением сверить текущий код и остаток работы.
+  Тикет judge-submit-channel: judge возвращает answers через submit_result,
+  команда ai expect judge <entry> --run сама доводит до apply; transcript
+  доступен флагом/env, причина отказа роли объяснима; unit-тесты конверта
+  ответа и fallback-парсинга. Готовность — целевые проверки и npm run ci.
+  Тикет docs-delta-hang: недоступный шаг start/open быстро завершается с
+  причиной/таймаутом, без зависших процессов; stale harness session снимается
+  штатно. Релизный каскад один на цель по design/packages.md, packages-check
+  без crit; npm run ci. Безусловный локальный docs-delta не требуется.
+  Отдельный исторический пробел fallback: либо повторный запуск роли,
+  либо явно разрешённая staging-запись не-librarian; решение ещё не принято.
+  repoSources: исключить ignored-каталоги, минимум .opencode; смежный фикс
+  containsQuote вошёл в b6e9ab9, этот по исходному evidence не вошёл.
+  Глобальный CLI: после следующего релиза обновить @shahimat/oc3 и проверить
+  исчезновение старого платного GLM-гейта; сначала сверить установленную версию.
+  Каждый тикет: chore — механика и целевые тесты; docs — актуальные границы.
+tasks:
+  blocker: []
+  high:
+    - 'Надёжный submit_result и диагностика отказа judge → chore'
+    - 'Таймауты docs-delta и снятие stale session → chore'
+  medium:
+    - 'Исключение ignored-каталогов из repoSources → chore'
+    - 'Работоспособный fallback docs-delta при недоступной роли → chore → нужен выбор механизма'
+  low:
+    - 'Обновление глобального @shahimat/oc3 после релиза с проверкой GLM-гейта → chore → релиз и разрешение внешнего изменения'
+depends_on: []

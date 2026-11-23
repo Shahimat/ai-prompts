@@ -1,0 +1,25 @@
+goals:
+  - key: harness-reliability
+    file: goal--harness-reliability.yaml
+    status: planned
+    one_liner: Надёжность продуктового harness и устранение известных tooling-пробелов
+  - key: contract-entry
+    file: goal--contract-entry.yaml
+    status: planned
+    one_liner: Вход и установщик продуктового v3, не локальный режим ai-prompts
+  - key: entry-roles
+    file: goal--entry-roles.yaml
+    status: planned
+    one_liner: Явный выбор ролей при установке v3 потребителю
+  - key: memory-graph
+    file: goal--memory-graph.yaml
+    status: planned
+    one_liner: Продуктовый граф бандлов и его приёмка
+  - key: oc3-manifest
+    file: goal--oc3-manifest.yaml
+    status: planned
+    one_liner: Создание манифеста памяти установщиком v3
+  - key: session-briefing
+    file: goal--session-briefing.yaml
+    status: planned
+    one_liner: Приёмка сессионного брифинга в продукте v3

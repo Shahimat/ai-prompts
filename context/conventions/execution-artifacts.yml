@@ -1,0 +1,12 @@
+key: execution-artifacts
+summary: Execution evidence отделено от открытого канона
+rule: |
+  First-party project execution outputs остаются в .oc3/ по typed kind/key
+  и явному root/worktree scope; source expectations и provider adapters —
+  не execution outputs. Durable означает сохранность, не обязательный commit.
+  Run packets/logs/reports/research и сырые вердикты локальны и ignored.
+  Runtime inbox, compact semantic verdicts и proofs сохраняются; receipt
+  не канонический факт, pending не verified. Не очищай inbox вручную и
+  не повышай его записи в truth по факту доставки.
+  Открытое проектное знание ведётся в context/ и docs/, без бандлов как
+  обязательного маршрута. Продуктовый контракт артефактов — design/knowledge-inbox.md.

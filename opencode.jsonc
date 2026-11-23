@@ -1,7 +1,24 @@
 {
-  "default_agent": "operator",
+  "default_agent": "build",
   "$schema": "https://opencode.ai/config.json",
   "skills": ["./skills"],
+  "permissions": [
+    {
+      "action": "*memory*",
+      "resource": "*",
+      "effect": "deny"
+    },
+    {
+      "action": "edit",
+      "resource": "~/.codex/**/memory/**",
+      "effect": "deny"
+    },
+    {
+      "action": "edit",
+      "resource": "~/.config/opencode/**/memory/**",
+      "effect": "deny"
+    }
+  ],
   "worktree": {
     "directory": ".opencode/worktrees"
   },
@@ -9,5 +26,28 @@
     "todo": true,
     "subagent_depth": 2
   },
-  "plugins": ["./packages/oc3"]
+  "model": "openai/gpt-6.1-sol-fast",
+  "agents": {
+    "build": {
+      "model": "openai/gpt-6.1-sol-fast"
+    },
+    "plan": {
+      "model": "openai/gpt-6.1-sol-fast"
+    },
+    "general": {
+      "model": "openai/gpt-6.1-sol-fast"
+    },
+    "explore": {
+      "model": "openai/gpt-6.1-sol-fast"
+    },
+    "compaction": {
+      "model": "openai/gpt-6.1-sol-fast"
+    },
+    "title": {
+      "model": "openai/gpt-6.1-sol-fast"
+    },
+    "summary": {
+      "model": "openai/gpt-6.1-sol-fast"
+    }
+  }
 }

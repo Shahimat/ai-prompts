@@ -1,0 +1,24 @@
+key: session-briefing
+title: Сессионный брифинг продуктового v3
+status: planned
+why: Сохранить непринятые условия plugin hook и шаблона, без локального обязательного брифинга.
+description: |
+  Источник — session-briefing.expect.ts, results пуст. Сначала сверить
+  реализованное: очередь не утверждает отсутствие кода.
+  В operator-centric проекте первый prompt добавляет строку с режимом из
+  project.yml/briefing (не задан — cheap) и брифингом до ролей/тикетов;
+  unit-тесты packages/oc3. Шаблон AGENTS продукта содержит триггер в
+  «Оператор», бюджет ≤80 строк. Skill workflow имеет императив старта в
+  description и требует брифинг первым содержательным сообщением.
+  Приёмка — целевые тесты и npm run ci по действующему package.json;
+  исторический перечень стадий не объявляет tests/memory/expect частью
+  нынешнего root CI. Чеклист: chore — hook и тесты; docs — source workflow.
+  Строка-триггер и hook здесь отдельны от механического ack-gate
+  цели contract-entry; одна работа не дублируется двумя целями.
+tasks:
+  blocker: []
+  high: []
+  medium:
+    - 'Приёмка первого prompt, source workflow и бюджетного триггера брифинга v3 → chore'
+  low: []
+depends_on: []

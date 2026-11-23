@@ -1,85 +1,54 @@
-# Проектные модели: manifest-mode и исторический baseline
+# Проектные модели: standalone v2 и исторический manifest-mode
 
-Дата: 2026-11-07. Локальное решение для ai-prompts, не изменение
-дефолтов проектов-потребителей. Manifest-mode реализован; ниже отдельно
-описаны текущее устройство, исторический baseline и границы проверки.
-Серийный CI успешен; пользовательский DoD принят независимым judge
-в run 2 (`status: pass`). Границы доказанного сохранены ниже.
+## Локальная схема ai-prompts
 
-## Решение пользователя
+Единственная ручная декларация — корневой `manifest.json`; его значения
+и структура не поддерживаются второй копией в документации.
+Локальный ai-prompts работает обычным build без OC3-плагина,
+обязательных ролей, брифинга и генерации `.opencode/agents`.
 
-Пользователь одобрил единый проектный `manifest.json` моделей и
-детерминированный скрипт применения без AI. Одна ручная декларация
-должна задавать `openai/gpt-6.1-sol-fast` без нового variant для всех
-ролей и всех путей запуска; остальные настройки — производные.
-`models set/apply` должны остаться совместимыми. Существующие роли и
-их инструкции сохраняются; канонические `agents/` и дефолты
-потребителей локальными настройками не меняются.
+Обслуживание выполняет repo-native скрипт `scripts/project-models.ts`:
+`npm run models:apply`, затем `npm run models:check`, без AI и без
+OC3 refresh/adapters sync. Скрипт обслуживает root `model` и native
+overrides конфигурации OpenCode, не генерирует роли и инструкции,
+не меняет shared `agents/`, глобальные настройки и дефолты потребителей.
+Снятие override записывает resolved default, не удаляет native агента.
+Явная модель уже открытой сессии и внешний `--model` не project default.
+Mapping Codex не обещается.
 
-Одобрен корневой `manifest.json` со схемой
-`{version: 1, default: "openai/gpt-6.1-sol-fast", roles: {}}`.
-Брифинг, автономия и глобальные настройки этим решением не меняются.
+Проекция хранится только в корневом `opencode.jsonc`: `model` и `agents`
+встроенных build, plan, general, explore, compaction, title, summary.
+Уже объявленные в этом конфиге агенты сохраняют инструкции; меняется только
+их модель. Новые роли из source `agents/` или overrides manifest не создаются.
+Default с `#variant` сохраняется у агентов; root `model` содержит базовую
+модель, поскольку OpenCode не сохраняет variant у root default.
+JSONC-комментарии и посторонние настройки сохраняются. `check` ничего
+не пишет, повторный `apply` не меняет даже mtime при неизменной проекции.
 
-## Текущее устройство
+`models:check` и `models:test` — отдельные стадии `npm run ci`; канон
+скриптов и стадий — `package.json` и `scripts/verification.ts`.
+Targeted Node tests проверяют fixtures, не продуктовые defaults потребителей.
+Старый PASS ниже относится только к прежнему срезу, не доказывает свежий CI.
 
-Единственная ручная декларация моделей — корневой `manifest.json`:
+Локальное правило — `context/conventions/project-models.yml`.
+Пакетный resolver, CLI `ai models …`, harness/helper paths и adapters
+остаются продуктом v3, не способом настройки этого checkout.
 
-```json
-{
-  "version": 1,
-  "default": "openai/gpt-6.1-sol-fast",
-  "roles": {}
-}
-```
+## Историческое устройство 2026-11-07
 
-`roles` — overrides, не whitelist доступных ролей. Приоритет разрешения:
-точный helper context → базовая роль → `default`. Снятие override
-возвращает наследование модели, а не удаляет роль или её инструкции.
-Существующая явно выбранная модель сессии и внешний `--model` — не
-проектный default; manifest не означает их принудительного переключения.
-Mapping моделей для Codex здесь не обещается.
+Пользователь одобрил единый root manifest вместо project.yml roles.models.
+В том срезе `roles` был overrides, не whitelist; приоритет resolver —
+точный helper context → base role → default. Реализация:
+`packages/ai-core/src/lib/project-models.ts`, `model-plan.ts` и adapters.
+Без manifest сохранялись legacy defaults потребителей; `set` в
+manifest-mode не менял source agents.
 
-Разрешение выполняет `packages/ai-core/src/lib/project-models.ts`,
-план применения — `packages/ai-core/src/lib/model-plan.ts`, адаптеры —
-`packages/ai-core/src/lib/adapters/`. Они обслуживают native derived
-`.opencode/` configs/agents и пути запуска ролей; корневой
-`opencode.jsonc` больше не содержит временных ручных настроек моделей.
-В manifest-mode `set` пишет manifest и производные, не source agents.
-Без manifest сохраняется legacy-поведение и дефолты потребителей.
-
-Скрытые пути, которые нельзя сводить к native agent config:
-
-- `packages/ai-core/src/lib/role.ts` — запуск harness-роли;
-- `packages/ai-core/src/commands/expect/index.ts` — `expect.judge`;
-- `packages/harness/src/harnesses/plan-review/actions.ts` —
-  `plan-review.planner`;
-- `packages/harness/src/harnesses/plan-review/review.ts` —
-  `plan-review.judge`;
-- `packages/harness/src/harnesses/core/ops/runner.ts` — jobs/watchers;
-- `scripts/expect-judge-opencode.ts` — отдельный judge helper.
-
-Launch/helper paths используют общий resolver; эффективная модель native
-агента сама по себе не доказывает модель уже открытой сессии или
-фактический LLM-вызов каждого пути.
-
-## Обслуживание человеком
-
-1. Измени `default` либо нужный override в корневом `manifest.json`.
-2. Выполни `npm run models:apply` — детерминированный скрипт
-   `scripts/project-models.ts`, без AI.
-3. Выполни `npm run models:check` — проверка без изменения файлов.
-
-CLI предоставляет `ai models list`, `ai models set <role> <model>`,
-`ai models apply`, `ai models check`. `set` в manifest-mode обновляет
-manifest и производные; вручную `.opencode/` не редактируют.
-После обновления исходных ролей производные также приводятся к manifest;
-инструкции и сами роли сохраняются независимо от наличия override.
-
-`models:check` — отдельная обязательная стадия `npm run ci`, независимая
-от проверки адаптеров. Список шагов `ai check` остаётся прежним: без
-безусловного дополнительного `models check`. `ai refresh` сохраняет
-порядок `adapters sync` → `check`; отдельная проверка моделей нужна
-самостоятельно, не подразумевается этими командами.
+Исторические скрытые launch paths: `lib/role.ts`, `commands/expect/index.ts`
+(`expect.judge`), harness plan-review planner/judge, core/ops runner и
+`scripts/expect-judge-opencode.ts`. Общий resolver и native GET не
+доказывали фактический LLM-вызов каждого пути или переключение открытой
+сессии. В прежнем обслуживании `ai refresh` делал adapters sync → check,
+а models:check был отдельной стадией. Это история, не локальная процедура v2.
 
 ## Миграционный шаг 2026-11-07
 
@@ -134,13 +103,13 @@ opencode api get '/api/agent/<id>?location%5Bdirectory%5D=%2FUsers%2Fshahimat%2F
 
 - `manifest.json` → `npm run models:apply` / `npm run models:check` —
   ручная декларация и штатный путь обслуживания.
-- `.oc3/conventions/project-models.yml` — локальное правило и вход в память.
+- `context/conventions/project-models.yml` — действующее локальное правило.
 - `design/packages.md` — границы пакетов для скрипта и launch paths.
 - `design/operator-centric-v3.md`, §0 и §2.8 — дизайн ролей, source
   frontmatter и разграничение manifest-mode с legacy defaults.
 - `design/roles.md` — историческое объяснение harness и runner;
   текущая модель ролей вынесена в operator-centric-v3.
-- `.oc3/conventions/common.yml` → `index-rebuild` — при будущей правке
+- `context/conventions/index-rebuild.yml` — при будущей правке
   prompts, patterns, skills, agents или presets пересобирается индекс;
   текущая фиксация эти источники не меняет.
 

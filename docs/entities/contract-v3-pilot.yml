@@ -1,0 +1,22 @@
+id: contract-v3-pilot
+kind: entity
+namespace: contract
+version: prompts/productivity/agent-operational-contract-v3.md
+summary: Продуктовый v3 и исторический пилот, не локальный режим работы ai-prompts
+sources:
+  contract: prompts/productivity/agent-operational-contract-v3.md
+  architecture: design/operator-centric-v3.md
+  bundles: design/memory-bundles.md
+  execution: design/knowledge-inbox.md
+  packages: design/packages.md
+features_enabled: []
+features_disabled:
+  - Обязательное локальное использование v3, его ролей, брифинга и бандлов
+manuals: []
+behaviors: []
+historical_scope: |
+  Старый пилот был ориентирован на OpenCode; watcher и Codex-адаптер
+  оставались вне его проверенного среза. Это не свежая оценка продукта.
+  Исторические инструкции с context/, goals/, .ops/ и roles.models
+  не являются действующей процедурой установки. Установка потребителю —
+  по актуальному контракту и contract-setup/reference v3, только при выборе v3.

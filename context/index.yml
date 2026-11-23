@@ -1,0 +1,94 @@
+project:
+  - path: context/project.yml
+    summary: Реквизиты и checkpoint выбранного v2
+  - path: context/workflow.md
+    summary: Сценарии, исходы, инструменты, тикеты и коммиты
+  - path: context/views/goals.yaml
+    summary: Живая YAML-очередь, только по запросу работы или статуса
+contract:
+  entities:
+    - id: contract-v3-pilot
+      path: docs/entities/contract-v3-pilot.yml
+      summary: Продуктовый v3 и исторические границы пилота, не локальный процесс
+    - id: session-tooling
+      path: docs/entities/session-tooling.yml
+      summary: Исторические tooling-наблюдения и границы execution evidence
+  behaviors: []
+  manuals: []
+  conventions:
+    - key: project-knowledge
+      path: context/conventions/project-knowledge.yml
+      summary: Обязательное единство источника и открытое знание
+    - key: verification
+      path: context/conventions/verification.yml
+      summary: Свежая проверка verified и двусторонние связи
+    - key: external-actions
+      path: context/conventions/external-actions.yml
+      summary: Неослабленные границы автономии и запрет VCS write
+    - key: typescript
+      path: context/conventions/typescript.yml
+      summary: Строгий TypeScript и слои пакетов
+    - key: index-rebuild
+      path: context/conventions/index-rebuild.yml
+      summary: Пересборка поставляемого source index
+    - key: prompt-patterns
+      path: context/conventions/prompt-patterns.yml
+      summary: Явный выбор паттернов до плана промпта
+    - key: project-models
+      path: context/conventions/project-models.yml
+      summary: Единый manifest и repo-native обслуживание моделей
+    - key: expectations-repo-scan
+      path: context/conventions/expectations-repo-scan.yml
+      summary: Целевое исключение ignored-каталогов из expectations
+    - key: worktree-epic-assembly
+      path: context/conventions/worktree-epic-assembly.yml
+      summary: Безопасная сборка, если worktrees выбраны пользователем
+    - key: repository-checks
+      path: context/conventions/repository-checks.yml
+      summary: npm run ci и границы независимой semantic-проверки
+    - key: execution-artifacts
+      path: context/conventions/execution-artifacts.yml
+      summary: Рабочий .oc3 evidence не канонические знания
+    - key: language
+      path: context/conventions/language.yml
+      summary: Русское содержание, английский commit
+  references:
+    - path: README.md
+      summary: Человеческий вход, разработка и карта source products
+    - path: CONTRIBUTING.md
+      summary: Форматы и добавление промптов, модулей и skills
+    - path: patterns/README.md
+      summary: Паттерны с trade-off для промптов
+    - path: prompts/modules/README.md
+      summary: Спецификация поставляемых модулей
+    - path: prompts/index.yml
+      summary: Производная навигация и SHA, не источник истины
+    - path: prompts/productivity/agent-operational-contract-v2.md
+      summary: Выбранный standalone контракт
+    - path: prompts/productivity/agent-operational-contract-v3.md
+      summary: Отдельный поставляемый продукт v3, не локальный контракт
+    - path: design/packages.md
+      summary: Архитектурные слои и релизный каскад пакетов
+    - path: design/project-models.md
+      summary: Локальные модели и отдельно историческая приёмка manifest-mode
+    - path: design/knowledge-inbox.md
+      summary: Продуктовые inbox, гейты, execution artifacts и historical aliases
+    - path: design/memory-bundles.md
+      summary: Продуктовые бандлы, не обязательный локальный маршрут
+    - path: design/operator-centric-v3.md
+      summary: Дизайн продуктового оператора и ролей v3
+    - path: design/incremental-verification.md
+      summary: Продуктовый proof baseline и границы verification evidence
+    - path: CHANGELOG.md
+      summary: Когда и почему крупных решений; не текущее состояние
+skills:
+  - path: skills/manuals/SKILL.md
+    summary: Человеческие процедуры и manuals
+  - path: skills/goals/SKILL.md
+    summary: Планирование, очередь, статус и goal-consistency
+  - path: skills/contract-setup/SKILL.md
+    summary: Установка и миграция, выбирать reference v2
+  - path: skills/source-sync/SKILL.md
+    summary: Сверка источников и модулей, выбирать reference v2
+  - path: skills/skill-builder/SKILL.md
+    summary: Перед созданием или авторской правкой skill

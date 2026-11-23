@@ -1,0 +1,19 @@
+name: ai-prompts
+summary: Коллекция промптов, паттернов и контрактов для AI-агентов — источник для проектов-потребителей
+stack: [typescript, node]
+reality: [this-repo]
+namespaces:
+  contract: Операционные контракты, их поставка и инструменты
+sync:
+  index_source: https://raw.githubusercontent.com/Shahimat/ai-prompts/main/prompts/index.yml
+  index_sha: 086f12507329b92b3c50e5c1f885e135763d924e7753bff34dfe728e0660b514
+  contract:
+    key: agent-operational-contract-v2
+    synced_sha: 363cca885dc279299d115a12dec673bf7b70895caff448e57f946a2a18a29fb5
+    parts:
+      skills:
+        manuals: 9897e55896035cdbe158caae8ce56ec67cdb92d1445707d37707e39ddfde0e44
+        goals: cc56bf68f1882f5d332c62662e7e999556ec9110253585e4832bb4870231ce67
+        contract-setup: be2890fbd4137c995a49aa81d7bb7df981eeb57ee31bd3d21be4e1a1e7dc42d7
+        source-sync: 8b6f52202298a6db884c9983817045fff79c0d1219ec782b2c26b56844760999
+        skill-builder: e88440d674859509a760385a07f4c89e5ce38bad5bbabd1c7ebaa4d31ed9400d

@@ -1,0 +1,6 @@
+key: index-rebuild
+summary: Изменение поставляемых источников требует свежего prompts/index.yml
+rule: |
+  После правки любого файла prompts/, patterns/, skills/, agents/ или
+  presets/ запусти npm run index:build и включи обновлённый prompts/index.yml
+  в тот же коммит. npm run index:check валит CI при рассинхроне SHA.

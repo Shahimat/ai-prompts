@@ -110,9 +110,12 @@ tags: [...]
 для обязательной поставки v2 — сам контракт v2. Файлы skill включаются
 в `prompts/index.yml` штатной пересборкой индекса, без второй копии канона.
 
-Субагенты живут в `agents/<name>.md`: frontmatter `name`, `description`,
-`model`, `tools`, тело — инструкция субагента. Skills роли задаются в
-`context/skills.yml`, не в файле роли.
+Поставляемые субагенты живут в `agents/<name>.md`: frontmatter `name`,
+`description`, `model`, `tools`, тело — инструкция субагента. Привязки
+skills в v3 задаются его реестром, не файлом роли. Это source products,
+не обязательные локальные роли. В самом ai-prompts канон skills —
+`skills/`, discovery — `./skills`; копий `.agents/skills` не создаём.
+До авторской правки skill загрузи `skill-builder`.
 
 ## Пресеты
 
@@ -124,7 +127,7 @@ title: <одна строка для вопроса «пресет или вру
 contract: agent-operational-contract-v3
 modules:
   - key: <модуль>
-    answers:                     # дефолты для feature.asks модуля
+    answers: # дефолты для feature.asks модуля
       <ask-key>: <значение или список>
 ```
 
@@ -148,16 +151,27 @@ npm run index:build
 тот же коммит, что и правку. CI (`npm run index:check`) сверяет
 консистентность и валит билд при рассинхроне.
 
-Индекс собирает harness (`packages/harness`, TS). Нужен
-Node ≥ 24; перед первым запуском — `npm ci && npm run build`.
+Для разработки нужен Node ≥24; перед первым запуском —
+`npm ci && npm run build`. Пересборка индекса — обычная команда
+репозитория, не обязательный локальный ролевой процесс или OC3 refresh.
 
-## Тестирование пакетов
+## Проверки репозитория
+
+`npm run ci` выполняет format/build/models/typecheck/lint/packages/index;
+канон команд — `package.json`. Package tests, memory и expectations
+в этот CI не входят. Целевые Node tests repo-native скрипта моделей и
+нужные package tests запускаются отдельно по эффекту изменения.
+Свежий PASS общего CI не выводится из старого лога или targeted tests.
+Локальная схема — standalone v2; код и документацию ведёт основная сессия.
+Поставляемые v3 продукты и их схемы проверяются в собственном scope.
+
+## Продуктовый verification-контракт пакетов
 
 Standalone/prepublish preparation contract и границы проверенного для
 ai-core — в [README пакета](packages/ai-core/README.md#тестирование-исходников).
 
-Root `npm test -- --force` и `npm run ci -- --force` обходят proof baseline,
-но не preparation, freshness или current-run single-flight. Reuse ограничен
+Продуктовый proof baseline не отменяет preparation, freshness или
+current-run single-flight. Reuse ограничен
 reviewed bounded guards и registered changelog; arbitrary Vitest/CI не
 объявлены cacheable. Unknown ordinary context исполняет весь selected scope
 run-only с реальным exit; incomplete repeat требует нового run.
