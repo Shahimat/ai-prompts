@@ -30,6 +30,9 @@
   каталогом `.oc3/`; миграция сохраняет historical bytes/hashes и
   проверяемые legacy locators. `operator preflight/verify/ready` проверяют
   task packet и свежесть evidence; durable runtime не означает commit.
+- `ai data check`: read-only проверка структур данных контракта v2.1 в
+  `.oc/data/` — JSON Schema 2020-12 и соседние `$ref`, `index.yaml`,
+  записи `*.yml` и секция `data` общего индекса; не требует `.oc3/`.
 
 ## 0.1.8
 

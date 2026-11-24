@@ -13,7 +13,13 @@ contract:
     - id: session-tooling
       path: docs/entities/session-tooling.yml
       summary: Исторические tooling-наблюдения и границы execution evidence
-  behaviors: []
+    - id: contract-v2-1
+      path: docs/entities/contract-v2-1.yml
+      summary: Поставляемый контракт v2.1 — .oc, skills и структуры данных, не локальный режим
+  behaviors:
+    - id: ai-data-check
+      path: docs/behavior/ai-data-check.yml
+      summary: Команда ai data check сверяет структуры данных v2.1 по схемам и индексам
   manuals: []
   conventions:
     - key: project-knowledge
@@ -67,6 +73,8 @@ contract:
       summary: Выбранный standalone контракт
     - path: prompts/productivity/agent-operational-contract-v3.md
       summary: Отдельный поставляемый продукт v3, не локальный контракт
+    - path: prompts/productivity/agent-operational-contract-v2-1.md
+      summary: Поставляемый контракт v2.1 — .oc, skills, структуры данных; не локальный контракт
     - path: design/packages.md
       summary: Архитектурные слои и релизный каскад пакетов
     - path: design/project-models.md
@@ -87,8 +95,14 @@ skills:
   - path: skills/goals/SKILL.md
     summary: Планирование, очередь, статус и goal-consistency
   - path: skills/contract-setup/SKILL.md
-    summary: Установка и миграция, выбирать reference v2
+    summary: Установка и миграция v2 и v2.1, возможности v3; протокол — по версии
   - path: skills/source-sync/SKILL.md
-    summary: Сверка источников и модулей, выбирать reference v2
+    summary: Сверка источников и модулей v2, необязательные skills v2.1; протокол — по версии
   - path: skills/skill-builder/SKILL.md
     summary: Перед созданием или авторской правкой skill
+  - path: skills/flow/SKILL.md
+    summary: Продукт v2.1 — рабочий цикл проекта
+  - path: skills/project-docs/SKILL.md
+    summary: Продукт v2.1 — запись и сверка проектной документации
+  - path: skills/data-structures/SKILL.md
+    summary: Продукт v2.1 — создание и расширение структур данных со схемами

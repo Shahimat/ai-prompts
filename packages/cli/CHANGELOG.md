@@ -6,6 +6,8 @@
 
 - `@shahimat/ai-core` 0.1.9: плоская `.oc3/`, память, проектные модели,
   knowledge inbox и гейты проверки; CLI передаёт `--batch` автоматам.
+- Через `@shahimat/ai-core` 0.1.9 доступна read-only команда `ai data check`
+  для структур данных контракта v2.1 в `.oc/data/`.
 - `check` включает schema-driven `tree check`, `context-index` заменён
   на `context`; обязательный `memory check` не допускает false GREEN
   отсутствующей/повреждённой/стухшей установленной памяти, без auto-repair.

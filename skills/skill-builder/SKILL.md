@@ -28,8 +28,10 @@ description: Создание и изменение одного skill по яв
 ## Подключение
 
 В ai-prompts канон — `skills/<name>/`, в проекте — `.agents/skills/<name>/`.
-Поставляемый skill объяви в `provides.skills` контракта или модуля,
-обнови маршрут загрузки и индекс (в ai-prompts — `prompts/index.yml`).
+Поставляемый skill объяви в `provides.skills` контракта или модуля (в v2.1
+модулей нет: обязательный skill объявляет контракт, необязательный ставится
+из каталога по `source-sync`), обнови маршрут загрузки и индекс (в ai-prompts
+— `prompts/index.yml`).
 Установка и SHA — по `contract-setup`/`source-sync`, без попутного
 редактирования поставляемых инструкций.
 

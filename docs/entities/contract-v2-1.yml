@@ -1,0 +1,21 @@
+id: contract-v2-1
+kind: entity
+namespace: contract
+version: prompts/productivity/agent-operational-contract-v2-1.md
+summary: Поставляемый контракт v2.1 — .oc, skills и структуры данных; не локальный режим ai-prompts
+sources:
+  contract: prompts/productivity/agent-operational-contract-v2-1.md
+  working_cycle: skills/flow/SKILL.md
+  documentation: skills/project-docs/SKILL.md
+  structures: skills/data-structures/SKILL.md
+  command: packages/ai-core/README.md
+features_enabled: []
+features_disabled:
+  - Обязательное локальное использование v2.1 и перенос на него ai-prompts
+manuals: []
+behaviors: [ai-data-check]
+scope: |
+  Отдельный продукт с ключом agent-operational-contract-v2-1: v2 остаётся
+  действующим контрактом этого репозитория. Наследие v3 (patterns/,
+  prompts/modules/) не трогается. Переход проектов — по одному, решением
+  пользователя, после стабильности контракта в источнике.

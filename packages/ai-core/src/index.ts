@@ -81,6 +81,7 @@ export {
 } from './lib/project-models.ts';
 export { computeModelPlan } from './lib/model-plan.ts';
 export { runGoals } from './commands/goals/index.ts';
+export { checkData, DATA_PATH, type DataReport } from '#lib/data-check';
 export { runOperator } from './commands/operator/index.ts';
 export { runRoles, runSkills } from './commands/roles/index.ts';
 export { runMemory } from './commands/memory/index.ts';

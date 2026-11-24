@@ -1,0 +1,18 @@
+id: ai-data-check
+kind: behavior
+namespace: contract
+entities: [contract-v2-1]
+title: ai data check сверяет структуры данных v2.1 и возвращает код по наличию ошибок
+scenarios:
+  - given: проект с .oc/data/<key>/ — schema.json, index.yaml и записями по схеме
+    when: выполняется ai data check из корня проекта
+    then: код выхода 0 и итоговая строка с числом структур, записей и 0 ошибок
+  - given: у структуры нет schema.json, запись не проходит по схеме или не перечислена в index.yaml
+    when: выполняется ai data check
+    then: код выхода 1 и по строке ERROR на каждую ошибку
+  - given: проект без .oc/data, .oc3 и конфигурации
+    when: выполняется ai data check
+    then: код выхода 0, роли, harness и конфигурация не требуются
+verified: true
+verified_at: 2026-11-23
+verified_note: unit-тесты packages/ai-core/test/data-check.test.ts и прогон собранного ai data check на временном проекте — корректный exit 0, сломанный exit 1 с тремя ошибками, без .oc3 и конфигурации.

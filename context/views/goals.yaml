@@ -1,4 +1,8 @@
 goals:
+  - key: contract-v2-1
+    file: goal--contract-v2-1.yaml
+    status: planned
+    one_liner: Контракт v2.1 как отдельный продукт — .oc, skills и структуры данных со схемами
   - key: harness-reliability
     file: goal--harness-reliability.yaml
     status: planned

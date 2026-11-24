@@ -1,6 +1,7 @@
 import { runAdapters } from '#commands/adapters/index';
 import { runChangelog } from '#commands/changelog/index';
 import { runContext } from '#commands/context/index';
+import { runData } from '#commands/data/index';
 import { runDelta } from '#commands/delta/index';
 import { runExpect } from '#commands/expect/index';
 import { runGoals } from '#commands/goals/index';
@@ -16,6 +17,12 @@ import { runTree } from '#commands/tree/index';
 import type { CommandNode } from '#shared/node';
 
 export const COMMAND_NODES: readonly CommandNode[] = [
+  {
+    path: ['data', 'check'],
+    kind: 'command',
+    effect: 'query',
+    run: (args) => runData('check', args),
+  },
   ...(['enqueue', 'pending', 'batch'] as const).map((command): CommandNode => ({
     path: ['memory', 'inbox', command],
     kind: 'command',
