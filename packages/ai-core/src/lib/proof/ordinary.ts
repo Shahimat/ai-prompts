@@ -21,7 +21,7 @@ const approved: Record<string, string> = {
 };
 const approvedRoot: Record<string, string> = {
   'tsconfig.base.json': '9ca0089519497c4b78ab5296aa79849fea1112ab816ae13783c4657fcf0e13a6',
-  'package.json': '4a53b85053c865e5c7e4c03d317ee8f5d2682c3b939e8a925e828bf11ae200fd',
+  'package.json': 'dbbf7f474dbbaedc480dcbf2b42f7b4be73cfa9edf164bbc1fe4830c96081053',
 };
 
 async function filesIn(directory: string): Promise<string[]> {

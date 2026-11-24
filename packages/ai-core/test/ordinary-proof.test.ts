@@ -190,6 +190,7 @@ console.log('WRAPPER_MATRIX='+JSON.stringify(calls));`,
     ['npm', ['run', 'build', '-w', '@shahimat/cli']],
     ['npm', ['run', 'build', '-w', '@shahimat/oc3']],
     ['npm', ['run', 'models:check']],
+    ['npm', ['run', 'models:test']],
     ['npm', ['run', 'typecheck:ai-core']],
     ['npm', ['run', 'typecheck:harness']],
     ['npm', ['run', 'typecheck:cli']],
@@ -207,7 +208,6 @@ console.log('WRAPPER_MATRIX='+JSON.stringify(calls));`,
     ),
   );
   expect(ci.stderr).toContain('package tests disabled on all platforms');
-  expect(ci.stderr).toContain('memory:check disabled');
   expect(matrix.every((item) => item['force'] === true && item['allowJudge'] === false)).toBe(true);
   expect(new Set(matrix.map((item) => item['run'])).size).toBe(1);
   const test = native(
